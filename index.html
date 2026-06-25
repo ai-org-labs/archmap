@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ArchMap dev playground</title>
+  <style>
+    :root {
+      --archmap-bg: #ffffff;
+      --archmap-node-fill: #f7f9fc;
+      --archmap-node-stroke: #34507a;
+      --archmap-edge-stroke: #6678a0;
+      --archmap-zone-fill: rgba(80,120,200,0.06);
+      --archmap-zone-stroke: #9bb0d4;
+    }
+    body { margin: 0; font: 14px system-ui, sans-serif; color: #1c2733; background: #eef1f6; }
+    header { padding: 12px 16px; background: #1c2733; color: #fff; }
+    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    header span { opacity: 0.6; font-weight: 400; }
+    main { display: grid; grid-template-columns: 360px 1fr; gap: 0; height: calc(100vh - 49px); }
+    .panel { display: flex; flex-direction: column; border-right: 1px solid #d4dae6; background: #fff; }
+    textarea { flex: 1; border: 0; padding: 12px; font: 12px/1.5 ui-monospace, monospace; resize: none; outline: none; }
+    .controls { padding: 8px 12px; border-top: 1px solid #d4dae6; display: flex; gap: 8px; align-items: center; }
+    button { padding: 6px 14px; border: 0; border-radius: 6px; background: #34507a; color: #fff; cursor: pointer; }
+    select { padding: 5px; border: 1px solid #c5cde0; border-radius: 6px; }
+    .diagram { overflow: auto; padding: 16px; }
+    .diagram svg { background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: 100%; height: auto; }
+    .diag-log { max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; font: 11px ui-monospace, monospace; }
+    .err { color: #b3261e; }
+    .warn { color: #a06a00; }
+  </style>
+</head>
+<body>
+  <header><h1>ArchMap <span>dev playground · Overview view</span></h1></header>
+  <main>
+    <div class="panel">
+      <textarea id="src" spellcheck="false"></textarea>
+      <div class="controls">
+        <button id="run">Render</button>
+        <label>View
+          <select id="view">
+            <option value="overview">overview</option>
+            <option value="zone">zone</option>
+            <option value="auth">auth</option>
+            <option value="dataflow">dataflow</option>
+            <option value="boundary">boundary</option>
+            <option value="validation">validation</option>
+            <option value="3d">3d</option>
+          </select>
+        </label>
+      </div>
+      <div class="diag-log" id="log"></div>
+    </div>
+    <div class="diagram" id="diagram"></div>
+  </main>
+
+  <script type="text/plain" id="seed">
+graph LR
+  User[User] --> Web[Web App]
+  User --> Android[Android App]
+  Web -->|HTTPS + JWT| APIGW[API Gateway]
+  Android -->|HTTPS + JWT| APIGW
+  FirebaseAuth[Firebase Auth] -->|issues JWT| Web
+  APIGW -->|HTTPS| GCPApp[Cloud Run]
+  GCPApp -->|SQL| CloudSQL[(Cloud SQL)]
+  GCPApp -->|HTTPS / VPN| AWSApp[AWS Service]
+  AWSApp -->|SQL| RDS[(RDS)]
+  GCPApp -->|metrics| Datadog[Datadog]
+  Wiz[Wiz] -->|scans| GCPApp
+---
+nodes:
+  User: { zone: client, layer: client, kind: user }
+  Web: { zone: client, layer: client, kind: web_app }
+  Android: { zone: client, layer: client, kind: android_app }
+  FirebaseAuth: { zone: identity, layer: identity, kind: identity_provider, provider: firebase }
+  APIGW: { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
+  GCPApp: { zone: gcp, layer: runtime, kind: serverless_service, provider: gcp, principal: gcp-app-sa }
+  CloudSQL: { zone: gcp, layer: data, kind: relational_database, provider: gcp }
+  AWSApp: { zone: aws, layer: runtime, kind: runtime_service, provider: aws }
+  RDS: { zone: aws, layer: data, kind: relational_database, provider: aws }
+  Datadog: { zone: saas, layer: operations, kind: monitoring, provider: datadog }
+  Wiz: { zone: saas, layer: operations, kind: monitoring, provider: wiz }
+edges:
+  web_api:
+    from: Web
+    to: APIGW
+    label: HTTPS + JWT
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
+    boundaryCrossing: true
+  gcp_db:
+    from: GCPApp
+    to: CloudSQL
+    label: SQL
+    flow: data_access
+    principal: gcp-app-sa
+  gcp_aws:
+    from: GCPApp
+    to: AWSApp
+    label: HTTPS / VPN
+    flow: replication
+    boundaryCrossing: true
+identities:
+  gcp-app-sa: { kind: service_account, provider: gcp, attachedTo: GCPApp }
+data:
+  customer_profile:
+    label: Customer Profile
+    classification: personal
+    storedIn: [CloudSQL, RDS]
+    flows: [gcp_db, gcp_aws]
+zones:
+  client: { label: Client, contains: [User, Web, Android] }
+  gcp: { label: GCP, contains: [APIGW, GCPApp, CloudSQL] }
+  aws: { label: AWS, contains: [AWSApp, RDS] }
+boundaries:
+  public_edge: { label: Public→GCP Trust Boundary, kind: trust_boundary, contains: [APIGW] }
+  gcp_private: { label: GCP Private Network, kind: network_boundary, contains: [GCPApp, CloudSQL] }
+  </script>
+
+  <script type="module">
+    import { parse, render } from "/src/index.ts";
+    import { installCloudIcons } from "/src/packs/cloud-icons.ts";
+    import { installThreeView } from "/src/views3d/three-view.ts";
+    installCloudIcons(); // opt-in sample pack; core ships no icons
+    installThreeView(); // opt-in 3D view; core does not bundle three.js
+    const $ = (id) => document.getElementById(id);
+    $("src").value = $("seed").textContent.trim();
+    let handle = null;
+    function draw() {
+      if (handle) { handle.dispose(); handle = null; } // tear down a live 3D scene
+      const model = parse($("src").value);
+      // Passing target lets render() inject SVG (2D) or mount WebGL (3D).
+      const res = render(model, { view: $("view").value, target: $("diagram") });
+      handle = res.handle ?? null;
+      const log = [
+        ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),
+        ...model.warnings.map((d) => `<div class="warn">▲ ${d.code}: ${d.message}</div>`),
+      ];
+      $("log").innerHTML = log.join("") || '<div style="color:#1a7f37">✓ no diagnostics</div>';
+    }
+    $("run").addEventListener("click", draw);
+    $("view").addEventListener("change", draw);
+    draw();
+  </script>
+</body>
+</html>
