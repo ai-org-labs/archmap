@@ -24,6 +24,40 @@ describe("orthogonal routing", () => {
   });
 });
 
+describe("cross-lane routing via top/bottom faces", () => {
+  it("connects a cross-zone edge to the target's top or bottom face", () => {
+    const m = parse(`graph LR
+      A[a] --> B[b]
+      ---
+      nodes:
+        A: { zone: client }
+        B: { zone: gcp }
+    `);
+    const layout = computeLayout(m);
+    const b = layout.nodes.find((n) => n.id === "B")!;
+    const edge = layout.edges[0];
+    const end = edge.points[edge.points.length - 1];
+    // Target entry sits on a horizontal (top/bottom) face, not a side face.
+    const onTopOrBottom = Math.abs(end.y - b.y) < 0.5 || Math.abs(end.y - (b.y + b.h)) < 0.5;
+    expect(onTopOrBottom).toBe(true);
+  });
+
+  it("keeps a same-lane edge on the side (left/right) faces", () => {
+    const m = parse(`graph LR
+      A[a] --> B[b]
+      ---
+      nodes:
+        A: { zone: gcp }
+        B: { zone: gcp }
+    `);
+    const layout = computeLayout(m);
+    const b = layout.nodes.find((n) => n.id === "B")!;
+    const end = layout.edges[0].points[layout.edges[0].points.length - 1];
+    // Same lane => enters the left face (x == b.x).
+    expect(Math.abs(end.x - b.x) < 0.5).toBe(true);
+  });
+});
+
 describe("crossing jumps (buildEdgePaths)", () => {
   it("breaks the horizontal line where a vertical of another edge crosses", () => {
     const edges = [
