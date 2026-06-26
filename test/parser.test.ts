@@ -376,6 +376,32 @@ describe("validation (§23)", () => {
     expect(codes).toContain("permission_unknown_resource");
   });
 
+  it("accepts node principals and typed permission resources", () => {
+    const m = parse(`graph LR
+      A[a]
+      ---
+      nodes:
+        A: { principal: app-sa }
+      zones:
+        gcp: { kind: cloud }
+      data:
+        profile: { classification: personal, storedIn: [A] }
+      permissions:
+        p_zone:
+          principal: app-sa
+          action: deploy
+          resource: { type: zone, id: gcp }
+        p_data:
+          principal: app-sa
+          action: read
+          resource: { type: data, id: profile }
+    `);
+    const codes = m.warnings.map((w) => w.code);
+    expect(codes).not.toContain("permission_unknown_principal");
+    expect(codes).not.toContain("permission_unknown_resource");
+    expect(m.permissions[0].resource).toEqual({ type: "zone", id: "gcp" });
+  });
+
   it("the example model is error-free", () => {
     const m = parse(example);
     expect(m.errors).toEqual([]);

@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-004",
+  "title": "QIF spec alignment check for v0.1 docs",
+  "description": "Check current implementation against docs/specs/v0.1 with QIF quality intent/risk/loss framing; fix low-risk drift and record residual gaps.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-26T18:50:52.237Z",
+  "updated_at": "2026-06-26T18:51:58.945Z",
+  "assigned_at": null,
+  "done_at": "2026-06-26T18:51:58.945Z",
+  "retired_at": null,
+  "last_triaged_at": null,
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "QIF spec alignment check DONE. Added docs/aof/QIF-SPEC-CHECK-2026-06-27.md. Fixed low-risk drift from docs/specs/v0.1: spec-shaped view.default base/overlays, core 3d fallback with view_3d_unavailable, real overview/zone overlay projection composition without reparsing, shared overlay logic for flat semantic views, typed permission resources, and node principal permission resolution. Verification: typecheck, test (80), build, organization-verify 22/22. Residual gaps documented: engine custom element/src lifecycle, RenderResult controls, full permission edge synthesis, inspector/conflict priority."
+}

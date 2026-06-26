@@ -137,7 +137,7 @@ export interface Permission {
   id: string;
   principal: string;
   action: string;
-  resource: string;
+  resource: string | { type: string; id: string };
   effect?: string;
   role?: string;
   condition?: unknown;
@@ -165,7 +165,10 @@ export interface Layout {
 }
 
 export interface ViewConfig {
-  default?: string;
+  default?: string | {
+    base?: "overview" | "zone" | "3d" | string;
+    overlays?: string[];
+  };
   enabled?: string[];
   filters?: {
     zones?: string[];

@@ -12,12 +12,16 @@ import { diagnostic, syncDiagnostics } from "./diagnostics.js";
 import { parse } from "./parser-entry.js";
 import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
+import { resolveNodeIcons } from "./icons.js";
 import { overviewView } from "./views/overview.js";
 import { zoneView } from "./views/zone.js";
 import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
 import { boundaryView } from "./views/boundary.js";
 import { validationView } from "./views/validation.js";
+import { renderDiagram } from "./views/base.js";
+import { escapeXml } from "./views/svg.js";
+import { buildOverlayProjection, OVERLAY_NAMES } from "./views/overlays.js";
 
 export interface ViewContext {
   model: ArchMapModel;
@@ -85,8 +89,17 @@ registerView("auth", authView);
 registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
 registerView("validation", validationView);
-
-const OVERLAY_NAMES = new Set(["auth", "dataflow", "boundary", "permission", "validation"]);
+registerView("3d", ({ model }) => {
+  model.warnings.push(diagnostic("view_3d_unavailable", "3D renderer is not installed. Import archmap/views3d/three-view and call installThreeView() to enable it.", { type: "view", id: "3d" }));
+  return (
+    `<svg class="archmap archmap-view-3d archmap-view-unavailable" viewBox="0 0 640 220" width="640" height="220" xmlns="http://www.w3.org/2000/svg">` +
+    `<style>.archmap-view-unavailable text{font:500 14px system-ui,sans-serif;fill:#3a4a63}.archmap-view-unavailable rect{fill:#fff7ed;stroke:#c85a46;stroke-width:1.5}</style>` +
+    `<rect x="16" y="16" width="608" height="188" rx="8" ry="8" />` +
+    `<text x="40" y="86">${escapeXml("3D view is not installed in the core bundle.")}</text>` +
+    `<text x="40" y="116">${escapeXml("Import archmap/views3d/three-view and call installThreeView().")}</text>` +
+    `</svg>`
+  );
+});
 
 /**
  * A view's preferred flow-axis ranking, unless the caller overrides it.
@@ -119,11 +132,51 @@ function decorateSvgWithOverlays(svg: string, overlays: string[]): string {
   );
 }
 
+function metadataBaseView(model: ArchMapModel): string | undefined {
+  const value = model.view?.default;
+  if (typeof value === "string") return value;
+  return value?.base;
+}
+
+function metadataOverlays(model: ArchMapModel): string[] {
+  const value = model.view?.default;
+  return typeof value === "object" ? value.overlays ?? [] : [];
+}
+
+function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[]): string | undefined {
+  if (overlays.length === 0 || (view !== "overview" && view !== "zone")) return undefined;
+  const projection = buildOverlayProjection(model, layout, overlays);
+  const baseEdges = new Set<string>();
+  if (view === "zone") {
+    const zoneOf = new Map(model.nodes.map((n) => [n.id, n.resolvedZone === "unknown" ? undefined : n.resolvedZone ?? n.zone]));
+    for (const edge of layout.edges) {
+      const a = zoneOf.get(edge.from);
+      const b = zoneOf.get(edge.to);
+      if (a !== undefined && b !== undefined && a !== b) baseEdges.add(edge.id);
+    }
+  }
+  const emphasizeEdges = projection.emphasizeEdges || baseEdges.size
+    ? new Set([...(projection.emphasizeEdges ?? []), ...baseEdges])
+    : undefined;
+  return renderDiagram({
+    layout,
+    viewClass: view,
+    boxGroups: [
+      { boxes: layout.zones, boxClass: "archmap-zone" },
+      ...(projection.boxGroups ?? []),
+    ],
+    emphasizeNodes: projection.emphasizeNodes,
+    emphasizeEdges,
+    nodeBadges: projection.nodeBadges,
+    nodeIcons: resolveNodeIcons(model),
+  });
+}
+
 /** Render a model into an SVG string, optionally injecting it into a target. */
 export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
-  const overlays = options.overlays ?? [];
+  const overlays = options.overlays ?? metadataOverlays(model);
   validateOverlays(model, overlays);
-  const view = options.baseView ?? options.view ?? model.view?.default ?? "overview";
+  const view = options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview";
   const renderer = registry.get(view);
   if (!renderer) {
     model.warnings.push(diagnostic("unknown_base_view", `Unknown view "${view}". Registered views: ${listViews().join(", ") || "(none)"}.`, { type: "view", id: view }));
@@ -132,7 +185,8 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   }
   const rankBy = options.rankBy ?? VIEW_RANK_BY[view];
   const layout = computeLayout(model, { direction: options.direction, rankBy });
-  const out = renderer({ model, layout, options });
+  const overlaidSvg = renderBaseViewWithOverlays(model, layout, view, overlays.filter((overlay) => OVERLAY_NAMES.has(overlay)));
+  const out = overlaidSvg ?? renderer({ model, layout, options });
 
   if (typeof out === "string") {
     const svg = decorateSvgWithOverlays(out, overlays.filter((overlay) => OVERLAY_NAMES.has(overlay)));

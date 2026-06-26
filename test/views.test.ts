@@ -12,9 +12,9 @@ const example = readFileSync(
 const model = parse(example);
 
 describe("view registry", () => {
-  it("registers all six required v0.1 views", () => {
+  it("registers built-in base views and legacy flat semantic views", () => {
     const views = listViews();
-    for (const v of ["overview", "zone", "auth", "dataflow", "boundary", "validation"]) {
+    for (const v of ["overview", "zone", "3d", "auth", "dataflow", "boundary", "validation"]) {
       expect(views).toContain(v);
     }
   });

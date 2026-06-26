@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Continue TASK-002 Stage 4: turn the baseView+overlays scaffold into real overlay projection composition on overview without reparsing, starting with auth/dataflow/boundary focus sets and validation highlighting; keep legacy view behavior and tests green.",
-  "updated_at": "2026-06-26T18:44:15.961Z",
+  "content": "Continue TASK-002 from QIF residual gaps: implement richer permission overlay synthesis and RenderResult overlay controls before custom-element/src engine work; keep legacy render(model,{view}) behavior and v0.1 spec alignment green.",
+  "updated_at": "2026-06-26T18:51:58.932Z",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

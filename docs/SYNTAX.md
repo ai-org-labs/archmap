@@ -238,10 +238,11 @@ Set with `render(model, { view })` or the `view.default` key. All are SVG except
 `3d`.
 
 Stage 4 also accepts `render(model, { baseView, overlays })`. `baseView`
-selects the base renderer while `overlays` records enabled overlay projections
-on the SVG root (`data-overlays`, `archmap-overlay-*`) and validates overlay
-names without reparsing. Unknown overlays emit `unknown_overlay` warnings and do
-not block rendering.
+selects the base renderer while `overlays` applies semantic projections from
+the same parsed model without reparsing. Known overlays are recorded on the SVG
+root (`data-overlays`, `archmap-overlay-*`) and can emphasize relevant
+nodes/edges, add compact badges, or draw boundary boxes. Unknown overlays emit
+`unknown_overlay` warnings and do not block rendering.
 
 | View | Shows |
 | --- | --- |

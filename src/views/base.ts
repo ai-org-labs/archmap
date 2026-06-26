@@ -37,6 +37,7 @@ export interface DiagramSpec {
   boxes?: Box[];
   /** Group/box class, e.g. "archmap-zone" or "archmap-boundary". */
   boxClass?: string;
+  boxGroups?: Array<{ boxes: Box[]; boxClass: string }>;
   /**
    * When provided, nodes/edges in the set are emphasized and the rest faded.
    * Omit a channel to leave those elements at normal weight.
@@ -56,17 +57,22 @@ function channelClass(id: string, set: Set<string> | undefined): string {
 
 export function renderDiagram(spec: DiagramSpec): string {
   const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, nodeIcons } = spec;
-  const boxLabelClass = boxClass === "archmap-boundary" ? "archmap-boundary-label" : "archmap-zone-label";
-  const boxBoxClass = boxClass === "archmap-boundary" ? "archmap-boundary-box" : "archmap-zone-box";
+  const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
 
-  const boxesSvg = (boxes ?? [])
-    .map(
-      (b) =>
-        `<g class="${boxClass}" data-id="${escapeXml(b.id)}">` +
-        `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10" ry="10" />` +
-        `<text class="${boxLabelClass}" x="${b.x + 10}" y="${b.y + 18}">${escapeXml(b.label ?? b.id)}</text>` +
-        `</g>`,
-    )
+  const boxesSvg = boxGroups
+    .map((group) => {
+      const boxLabelClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-label" : "archmap-zone-label";
+      const boxBoxClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-box" : "archmap-zone-box";
+      return group.boxes
+        .map(
+          (b) =>
+            `<g class="${group.boxClass}" data-id="${escapeXml(b.id)}">` +
+            `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10" ry="10" />` +
+            `<text class="${boxLabelClass}" x="${b.x + 10}" y="${b.y + 18}">${escapeXml(b.label ?? b.id)}</text>` +
+            `</g>`,
+        )
+        .join("");
+    })
     .join("");
 
   const edgePaths = buildEdgePaths(layout.edges);

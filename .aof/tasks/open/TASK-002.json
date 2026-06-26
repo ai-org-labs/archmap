@@ -9,12 +9,12 @@
   "related_decision_record_id": null,
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "created_at": "2026-06-26T18:06:20.961Z",
-  "updated_at": "2026-06-26T18:44:15.974Z",
+  "updated_at": "2026-06-26T18:51:58.934Z",
   "assigned_at": null,
   "done_at": null,
   "retired_at": null,
   "last_triaged_at": null,
   "stale_candidate_at": null,
   "retire_candidate_at": null,
-  "triage_notes": "Stage 4 started. render(model,{baseView,overlays}) now coexists with legacy render(model,{view}); baseView selects the registered base renderer; overlays are validated without reparsing, stamped onto the SVG root as data-overlays and archmap-overlay-* classes, and unknown names emit non-blocking unknown_overlay diagnostics. Remaining: implement actual overlay projection composition for auth/dataflow/boundary/permission/validation on overview base, then acceptance checks for overlay combinations and legibility."
+  "triage_notes": "Stage 4 advanced by TASK-004. baseView+overlays now performs semantic projection composition for overview/zone using the same model without reparsing; auth/dataflow/boundary/validation flat views share the projection logic; core 3d fallback is registered. Remaining TASK-002 work: richer permission overlay edges, overlay conflict priority/inspector, RenderResult overlay controls, and engine/custom-element integration."
 }

@@ -27,6 +27,8 @@ export function validate(model: ArchMapModel): ArchMapModel {
   const boundaryIds = new Set(model.boundaries.map((b) => b.id));
   const identityIds = new Set(model.identities.map((i) => i.id));
   const edgeIds = new Set(model.edges.map((e) => e.id));
+  const dataIds = new Set(model.data.map((d) => d.id));
+  const principalIds = new Set(model.nodes.map((n) => n.principal).filter((p): p is string => !!p));
   const knownPlacementRefs = new Set([
     ...nodeIds,
     ...zoneIds,
@@ -143,11 +145,18 @@ export function validate(model: ArchMapModel): ArchMapModel {
 
   // §23.2 — permissions.
   for (const p of model.permissions) {
-    if (p.principal && !identityIds.has(p.principal)) {
+    if (p.principal && !identityIds.has(p.principal) && !principalIds.has(p.principal)) {
       warnings.push(diagnostic("permission_unknown_principal", `Permission "${p.id}" references unknown principal "${p.principal}".`, { type: "permission", id: p.id }));
     }
-    if (p.resource && !nodeIds.has(p.resource)) {
-      warnings.push(diagnostic("permission_unknown_resource", `Permission "${p.id}" references unknown resource "${p.resource}".`, { type: "permission", id: p.id }));
+    const resource = typeof p.resource === "string" ? { type: "node", id: p.resource } : p.resource;
+    const knownResource =
+      resource.type === "node" ? nodeIds.has(resource.id) :
+      resource.type === "zone" ? zoneIds.has(resource.id) :
+      resource.type === "boundary" ? boundaryIds.has(resource.id) :
+      resource.type === "data" ? dataIds.has(resource.id) :
+      false;
+    if (resource.id && !knownResource) {
+      warnings.push(diagnostic("permission_unknown_resource", `Permission "${p.id}" references unknown resource "${resource.type}:${resource.id}".`, { type: "permission", id: p.id }));
     }
   }
 

@@ -50,6 +50,14 @@ function asStringRecord(v: unknown): Record<string, string> | undefined {
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
+function parseResourceRef(v: unknown): Permission["resource"] | undefined {
+  if (typeof v === "string") return v;
+  if (!isObject(v)) return undefined;
+  const type = asString(v.type);
+  const id = asString(v.id);
+  return type && id ? { type, id } : undefined;
+}
+
 function parseBoundaryCrossing(v: unknown): BoundaryCrossing | undefined {
   if (typeof v === "boolean") {
     return v ? { crosses: [], reviewed: true } : { crosses: [], reviewed: true, assertedFalse: true };
@@ -297,7 +305,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     if (!isObject(value)) continue;
     const principal = asString(value.principal);
     const action = asString(value.action);
-    const resource = asString(value.resource);
+    const resource = parseResourceRef(value.resource);
     if (!principal || !action || !resource) {
       warnings.push(diagnostic("permission_incomplete", `Permission "${id}" is missing principal, action, or resource.`, { type: "permission", id }));
     }

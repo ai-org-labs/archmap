@@ -35,6 +35,45 @@ describe("render", () => {
     expect(svg).toContain('data-overlays="auth dataflow"');
     expect(svg).toContain("archmap-overlay-auth");
     expect(svg).toContain("archmap-overlay-dataflow");
+    expect(svg).toContain('class="archmap-edge archmap-emphasis" data-id="web_api"');
+    expect(svg).toContain(">JWT<");
+  });
+
+  it("combines boundary overlay boxes with overview base", () => {
+    const m = parse(example);
+    const { svg } = render(m, { baseView: "overview", overlays: ["boundary"] });
+    expect(svg).toContain("archmap-view-overview archmap-overlay-boundary");
+    expect(svg).toContain('class="archmap-boundary"');
+    expect(svg).toContain("GCP Private Boundary");
+  });
+
+  it("uses spec-shaped metadata view defaults", () => {
+    const m = parse(`graph LR
+      A[a] -->|JWT| B[b]
+      ---
+      nodes:
+        A: { kind: web_app }
+        B: { kind: api_gateway }
+      edges:
+        A->B:
+          auth: { token: JWT, issuer: A, validatedBy: B }
+      view:
+        default:
+          base: overview
+          overlays: [auth]
+    `);
+    const { svg, view } = render(m);
+    expect(view).toBe("overview");
+    expect(svg).toContain('data-overlays="auth"');
+    expect(svg).toContain(">JWT<");
+  });
+
+  it("reports unavailable 3d view from the core fallback", () => {
+    const m = parse(`graph LR\nA[a]`);
+    const { svg, view } = render(m, { baseView: "3d" });
+    expect(view).toBe("3d");
+    expect(svg).toContain("3D view is not installed");
+    expect(m.warnings.some((d) => d.code === "view_3d_unavailable")).toBe(true);
   });
 
   it("reports unknown overlays without blocking render", () => {
