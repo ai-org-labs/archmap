@@ -527,6 +527,14 @@ function routeEdges(
     return { flowLow, flowHigh: flowLow + flowSize, flowSize, flowCenter: flowLow + flowSize / 2, crossLow, crossHigh: crossLow + crossSize, crossSize, crossCenter: crossLow + crossSize / 2 };
   };
 
+  // Group node ids by (rank, lane) so we can tell whether a node is the extreme
+  // one in its lane cell — a straight drop is only safe past the cell edge.
+  const cell = new Map<string, { id: string; cross: number }[]>();
+  for (const id of laid.keys()) {
+    const key = `${rankOf.get(id)}|${laneOf.get(id)}`;
+    (cell.get(key) ?? (cell.set(key, []), cell.get(key)!)).push({ id, cross: geom(id).crossCenter });
+  }
+
   type Mode = "same" | "direct" | "trunk";
   interface End { node: string; face: Face; flow: number; cross: number }
   interface Plan {
@@ -557,7 +565,16 @@ function routeEdges(
     const targetAbove = b.crossCenter < a.crossCenter;
     // same lane -> flow faces; adjacent lanes -> direct top/bottom drop;
     // 2+ lanes apart -> route the trunk through a column gap to clear nodes.
-    const mode: Mode = la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
+    let mode: Mode = la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
+    if (mode === "direct") {
+      // A straight drop is only safe if no sibling in the same lane cell sits
+      // between the source and the target; otherwise fall back to the trunk.
+      const siblings = cell.get(`${rankOf.get(e.from)}|${la}`) ?? [];
+      const blocked = targetAbove
+        ? siblings.some((n) => n.id !== e.from && n.cross < a.crossCenter)
+        : siblings.some((n) => n.id !== e.from && n.cross > a.crossCenter);
+      if (blocked) mode = "trunk";
+    }
 
     let srcFace: Face;
     let dstFace: Face;
@@ -636,19 +653,14 @@ function routeEdges(
     const key = `${plan.e.to}|${plan.targetAbove ? "A" : "B"}`;
     (byTarget.get(key) ?? (byTarget.set(key, []), byTarget.get(key)!)).push(i);
   });
+  // Port positions come from the face loop (which distributes all ports on a
+  // face jointly); here we only spread the lane-gap channel depth so same-target
+  // horizontals stay distinct.
   for (const idxs of byTarget.values()) {
     idxs.sort((a, b) => geom(plans[a].e.from).crossCenter - geom(plans[b].e.from).crossCenter);
     const n = idxs.length;
     idxs.forEach((idx, k) => {
-      const plan = plans[idx];
-      plan.channelCross += (k - (n - 1) / 2) * CHANNEL_SPACING;
-      const frac = (k + 1) / (n + 1);
-      const tg = geom(plan.e.to);
-      plan.dst.flow = tg.flowLow + FACE_INSET + frac * (tg.flowSize - 2 * FACE_INSET);
-      if (plan.mode === "direct") {
-        const sg = geom(plan.e.from);
-        plan.src.flow = sg.flowLow + FACE_INSET + frac * (sg.flowSize - 2 * FACE_INSET);
-      }
+      plans[idx].channelCross += (k - (n - 1) / 2) * CHANNEL_SPACING;
     });
   }
 
