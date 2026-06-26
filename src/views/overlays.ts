@@ -8,6 +8,7 @@ export interface OverlayProjection {
   emphasizeNodes?: Set<string>;
   emphasizeEdges?: Set<string>;
   nodeBadges?: Map<string, string>;
+  overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   boxGroups?: Array<{ boxes: Box[]; boxClass: string }>;
 }
 
@@ -41,8 +42,17 @@ function setBadge(badges: Map<string, string>, id: string, value: string): void 
 
 function permissionResourceId(permission: Permission): string | undefined {
   if (typeof permission.resource === "string") return permission.resource;
-  if (permission.resource && typeof permission.resource === "object") return permission.resource.id;
+  if (permission.resource && typeof permission.resource === "object" && permission.resource.type === "node") return permission.resource.id;
   return undefined;
+}
+
+function attachedNodeIds(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  return value ? [value] : [];
+}
+
+function permissionLabel(permission: Permission): string {
+  return permission.role ?? permission.action ?? permission.effect ?? "permission";
 }
 
 export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult, overlays: string[]): OverlayProjection {
@@ -50,6 +60,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
   const nodes = new Set<string>();
   const edges = new Set<string>();
   const badges = new Map<string, string>();
+  const overlayEdges: OverlayProjection["overlayEdges"] = [];
   const boxGroups: Array<{ boxes: Box[]; boxClass: string }> = [];
   const nodeIds = new Set(model.nodes.map((n) => n.id));
   const edgeById = new Map(model.edges.map((e) => [e.id, e]));
@@ -58,6 +69,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
     if (!node.principal) continue;
     nodeByPrincipal.set(node.principal, [...(nodeByPrincipal.get(node.principal) ?? []), node.id]);
   }
+  const identityAttachment = new Map(model.identities.map((identity) => [identity.id, attachedNodeIds(identity.attachedTo)]));
 
   if (active.includes("boundary")) {
     boxGroups.push({ boxes: layout.boundaries, boxClass: "archmap-boundary" });
@@ -123,10 +135,25 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
   if (active.includes("permission")) {
     for (const permission of model.permissions) {
       const resource = permissionResourceId(permission);
-      addAll(nodes, nodeByPrincipal.get(permission.principal) ?? []);
+      const principalNodes = [
+        ...(nodeByPrincipal.get(permission.principal) ?? []),
+        ...(identityAttachment.get(permission.principal) ?? []),
+      ].filter((id, index, ids) => nodeIds.has(id) && ids.indexOf(id) === index);
+      addAll(nodes, principalNodes);
       if (resource && nodeIds.has(resource)) {
         nodes.add(resource);
-        setBadge(badges, resource, permission.role ?? permission.action ?? permission.effect ?? "permission");
+        const label = permissionLabel(permission);
+        setBadge(badges, resource, label);
+        for (const from of principalNodes) {
+          if (from === resource) continue;
+          overlayEdges.push({
+            id: `permission:${permission.id}:${from}->${resource}`,
+            from,
+            to: resource,
+            label,
+            className: "archmap-overlay-edge archmap-permission-edge",
+          });
+        }
       }
     }
   }
@@ -148,6 +175,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
     emphasizeNodes: nodes.size ? nodes : undefined,
     emphasizeEdges: edges.size ? edges : undefined,
     nodeBadges: badges.size ? badges : undefined,
+    overlayEdges: overlayEdges.length ? overlayEdges : undefined,
     boxGroups: boxGroups.length ? boxGroups : undefined,
   };
 }

@@ -46,6 +46,8 @@ export interface DiagramSpec {
   emphasizeEdges?: Set<string>;
   /** Node id -> short caption rendered beneath the node. */
   nodeBadges?: Map<string, string>;
+  /** Overlay-only edges, such as synthesized permission relationships. */
+  overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   /** Node id -> resolved provider/kind icon (from the icon registry). */
   nodeIcons?: Map<string, ResolvedIcon>;
 }
@@ -56,7 +58,7 @@ function channelClass(id: string, set: Set<string> | undefined): string {
 }
 
 export function renderDiagram(spec: DiagramSpec): string {
-  const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, nodeIcons } = spec;
+  const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, overlayEdges, nodeIcons } = spec;
   const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
 
   const boxesSvg = boxGroups
@@ -86,6 +88,21 @@ export function renderDiagram(spec: DiagramSpec): string {
     })
     .join("");
 
+  const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
+  const overlayEdgesSvg = (overlayEdges ?? [])
+    .map((e) => {
+      const from = nodeById.get(e.from);
+      const to = nodeById.get(e.to);
+      if (!from || !to) return "";
+      const a = { x: from.x + from.w / 2, y: from.y + from.h / 2 };
+      const b = { x: to.x + to.w / 2, y: to.y + to.h / 2 };
+      const d = `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+      const label = e.label ? edgeLabelSvg(e.label, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }) : "";
+      const cls = e.className ?? "archmap-overlay-edge";
+      return `<g class="${cls}" data-id="${escapeXml(e.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${label}</g>`;
+    })
+    .join("");
+
   const nodesSvg = layout.nodes
     .map((n) => {
       const node = nodeSvg(n, channelClass(n.id, emphasizeNodes).trim(), nodeIcons?.get(n.id)?.key);
@@ -111,6 +128,7 @@ export function renderDiagram(spec: DiagramSpec): string {
     `<style>${DEFAULT_STYLE}</style>` +
     `<g class="archmap-boxes">${boxesSvg}</g>` +
     `<g class="archmap-edges">${edgesSvg}</g>` +
+    `<g class="archmap-overlay-edges">${overlayEdgesSvg}</g>` +
     `<g class="archmap-nodes">${nodesSvg}</g>` +
     `</svg>`
   );

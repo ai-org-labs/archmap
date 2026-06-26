@@ -9,12 +9,12 @@
   "related_decision_record_id": null,
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "created_at": "2026-06-26T18:06:20.961Z",
-  "updated_at": "2026-06-26T18:51:58.934Z",
+  "updated_at": "2026-06-26T19:01:22.872Z",
   "assigned_at": null,
   "done_at": null,
   "retired_at": null,
   "last_triaged_at": null,
   "stale_candidate_at": null,
   "retire_candidate_at": null,
-  "triage_notes": "Stage 4 advanced by TASK-004. baseView+overlays now performs semantic projection composition for overview/zone using the same model without reparsing; auth/dataflow/boundary/validation flat views share the projection logic; core 3d fallback is registered. Remaining TASK-002 work: richer permission overlay edges, overlay conflict priority/inspector, RenderResult overlay controls, and engine/custom-element integration."
+  "triage_notes": "Stage 4 advanced: permission overlay now synthesizes annotation edges from principal-holder nodes to node resources, with role/action labels and resource badges; RenderResult now exposes setBaseView, setOverlays, toggleOverlay, fit/reset no-ops, and destroy, allowing overlay changes without reparsing and updating the original target. Verification: typecheck, test (82), build pass. Remaining before TASK-002 closure: decide whether current overlay composition is sufficient for Stage 4 completion, or add custom-element/src engine integration as a separate engine task."
 }

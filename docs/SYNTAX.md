@@ -241,8 +241,9 @@ Stage 4 also accepts `render(model, { baseView, overlays })`. `baseView`
 selects the base renderer while `overlays` applies semantic projections from
 the same parsed model without reparsing. Known overlays are recorded on the SVG
 root (`data-overlays`, `archmap-overlay-*`) and can emphasize relevant
-nodes/edges, add compact badges, or draw boundary boxes. Unknown overlays emit
-`unknown_overlay` warnings and do not block rendering.
+nodes/edges, synthesize permission overlay edges, add compact badges, or draw
+boundary boxes. Unknown overlays emit `unknown_overlay` warnings and do not
+block rendering.
 
 | View | Shows |
 | --- | --- |
@@ -274,9 +275,13 @@ import {
 const model = parse(source);                 // Text -> Model (+ errors/warnings)
 const { svg } = render(model, { view: "overview", target: el });
 const overlaid = render(model, { baseView: "overview", overlays: ["auth", "dataflow"] });
+overlaid.setOverlays(["permission", "validation"]);
+overlaid.toggleOverlay("boundary");
 ```
 
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
+- **Render results** can update base view/overlays without reparsing:
+  `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`, `destroy()`.
 - **Icons** are opt-in (core ships none). `registerIcon("aws", { viewBox, body })`;
   resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
   [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified

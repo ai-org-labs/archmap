@@ -66,6 +66,12 @@ export interface RenderResult {
   svg?: string;
   /** Present for mounted (3D) views when a target was supplied. */
   handle?: ViewHandle;
+  setBaseView(view: string): void;
+  setOverlays(overlays: string[]): void;
+  toggleOverlay(overlay: string): void;
+  fit(): void;
+  reset(): void;
+  destroy(): void;
 }
 
 const registry = new Map<string, ViewRenderer>();
@@ -168,38 +174,87 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     emphasizeNodes: projection.emphasizeNodes,
     emphasizeEdges,
     nodeBadges: projection.nodeBadges,
+    overlayEdges: projection.overlayEdges,
     nodeIcons: resolveNodeIcons(model),
   });
 }
 
 /** Render a model into an SVG string, optionally injecting it into a target. */
 export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
-  const overlays = options.overlays ?? metadataOverlays(model);
-  validateOverlays(model, overlays);
-  const view = options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview";
-  const renderer = registry.get(view);
-  if (!renderer) {
-    model.warnings.push(diagnostic("unknown_base_view", `Unknown view "${view}". Registered views: ${listViews().join(", ") || "(none)"}.`, { type: "view", id: view }));
-    syncDiagnostics(model);
-    throw new Error(`Unknown view "${view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
-  }
-  const rankBy = options.rankBy ?? VIEW_RANK_BY[view];
-  const layout = computeLayout(model, { direction: options.direction, rankBy });
-  const overlaidSvg = renderBaseViewWithOverlays(model, layout, view, overlays.filter((overlay) => OVERLAY_NAMES.has(overlay)));
-  const out = overlaidSvg ?? renderer({ model, layout, options });
+  const state = {
+    view: options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview",
+    overlays: [...(options.overlays ?? metadataOverlays(model))],
+  };
 
-  if (typeof out === "string") {
-    const svg = decorateSvgWithOverlays(out, overlays.filter((overlay) => OVERLAY_NAMES.has(overlay)));
-    syncDiagnostics(model);
-    if (options.target && "innerHTML" in options.target) {
-      options.target.innerHTML = svg;
+  const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
+    validateOverlays(model, state.overlays);
+    const renderer = registry.get(state.view);
+    if (!renderer) {
+      model.warnings.push(diagnostic("unknown_base_view", `Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`, { type: "view", id: state.view }));
+      syncDiagnostics(model);
+      throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
-    return { view, layout, model, svg };
-  }
-  // Mountable (imperative) view.
-  const handle = options.target ? out.mount(options.target) : undefined;
-  syncDiagnostics(model);
-  return { view, layout, model, handle };
+    const rankBy = options.rankBy ?? VIEW_RANK_BY[state.view];
+    const layout = computeLayout(model, { direction: options.direction, rankBy });
+    const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
+    const overlaidSvg = renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
+    const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.view, overlays: state.overlays } });
+
+    if (typeof out === "string") {
+      const svg = decorateSvgWithOverlays(out, knownOverlays);
+      syncDiagnostics(model);
+      if (options.target && "innerHTML" in options.target) {
+        options.target.innerHTML = svg;
+      }
+      return { view: state.view, layout, model, svg, handle: undefined };
+    }
+    const handle = options.target ? out.mount(options.target) : undefined;
+    syncDiagnostics(model);
+    return { view: state.view, layout, model, handle, svg: undefined };
+  };
+
+  const result: RenderResult = {
+    view: state.view,
+    layout: computeLayout(model, { direction: options.direction, rankBy: options.rankBy ?? VIEW_RANK_BY[state.view] }),
+    model,
+    svg: undefined,
+    handle: undefined,
+    setBaseView(view: string) {
+      state.view = view;
+      apply(snapshot());
+    },
+    setOverlays(overlays: string[]) {
+      state.overlays = [...overlays];
+      apply(snapshot());
+    },
+    toggleOverlay(overlay: string) {
+      state.overlays = state.overlays.includes(overlay)
+        ? state.overlays.filter((entry) => entry !== overlay)
+        : [...state.overlays, overlay];
+      apply(snapshot());
+    },
+    fit() {},
+    reset() {},
+    destroy() {
+      result.handle?.dispose();
+      result.handle = undefined;
+      result.svg = undefined;
+      if (options.target && "innerHTML" in options.target) {
+        options.target.innerHTML = "";
+      }
+    },
+  };
+
+  const apply = (next: Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle">): void => {
+    result.handle?.dispose();
+    result.view = next.view;
+    result.layout = next.layout;
+    result.svg = next.svg;
+    result.handle = next.handle;
+  };
+
+  apply(snapshot());
+  return result;
 }
 
 export interface InitializeOptions {

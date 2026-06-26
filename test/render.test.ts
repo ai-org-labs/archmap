@@ -47,6 +47,40 @@ describe("render", () => {
     expect(svg).toContain("GCP Private Boundary");
   });
 
+  it("synthesizes permission overlay edges", () => {
+    const m = parse(`graph LR
+      App[App] --> DB[(DB)]
+      ---
+      nodes:
+        App: { principal: app-sa }
+        DB: { kind: database }
+      permissions:
+        db_connect:
+          principal: app-sa
+          action: connect
+          resource: DB
+          role: roles/cloudsql.client
+    `);
+    const { svg } = render(m, { baseView: "overview", overlays: ["permission"] });
+    expect(svg).toContain('class="archmap-overlay-edge archmap-permission-edge"');
+    expect(svg).toContain('data-id="permission:db_connect:App-&gt;DB"');
+    expect(svg).toContain("roles/cloudsql.client");
+  });
+
+  it("updates overlays through the render result handle", () => {
+    const target = { innerHTML: "" } as Element & { innerHTML: string };
+    const m = parse(example);
+    const result = render(m, { baseView: "overview", target });
+    expect(target.innerHTML).not.toContain("data-overlays");
+    result.setOverlays(["boundary"]);
+    expect(result.svg).toContain('data-overlays="boundary"');
+    expect(target.innerHTML).toContain('class="archmap-boundary"');
+    result.toggleOverlay("boundary");
+    expect(result.svg).not.toContain("data-overlays");
+    result.destroy();
+    expect(target.innerHTML).toBe("");
+  });
+
   it("uses spec-shaped metadata view defaults", () => {
     const m = parse(`graph LR
       A[a] -->|JWT| B[b]
