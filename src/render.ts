@@ -80,10 +80,14 @@ registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
 registerView("validation", validationView);
 
-/** A view's preferred flow-axis ranking, unless the caller overrides it. */
-const VIEW_RANK_BY: Record<string, LayoutOptions["rankBy"]> = {
-  zone: "zone",
-};
+/**
+ * A view's preferred flow-axis ranking, unless the caller overrides it.
+ * The zone view intentionally uses the default topological ranking: zone
+ * grouping already comes from the swimlanes (cross axis), so ranking the flow
+ * axis by zone too would collapse both axes onto zone and route edges across
+ * nodes. It just emphasizes cross-zone edges on the normal layout.
+ */
+const VIEW_RANK_BY: Record<string, LayoutOptions["rankBy"]> = {};
 
 /** Render a model into an SVG string, optionally injecting it into a target. */
 export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
