@@ -53,7 +53,13 @@ export interface ArchEdge {
   id: string;
   from: string;
   to: string;
+  /** "from->to" selector key (spec 02 §6.2). */
+  pairKey?: string;
+  /** Where this edge came from (spec 02 §6). */
+  source?: "graph" | "metadata" | "graph+metadata";
   label?: string;
+  /** Graph-section label, preserved when metadata overrides `label` (02 §6.3). */
+  graphLabel?: string;
   flow?: string;
   protocol?: string;
   auth?: AuthMeta;

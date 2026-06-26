@@ -79,6 +79,48 @@ describe("metadata merge", () => {
   });
 });
 
+describe("pair-key edges (Stage 1, spec 01 §7 / 02 §6)", () => {
+  it("enriches the matching graph edge via a pair key, keeping a generated id", () => {
+    const m = parse(`graph LR
+      Web[Web App] -->|HTTPS| API[API Gateway]
+      ---
+      edges:
+        Web->API: { flow: request, protocol: HTTPS, auth: { token: JWT } }
+    `);
+    const e = m.edges.find((x) => x.from === "Web" && x.to === "API")!;
+    expect(e.flow).toBe("request");
+    expect(e.auth?.token).toBe("JWT");
+    expect(e.source).toBe("graph+metadata");
+    // pair key is a selector, not a stable id => generated id pattern.
+    expect(e.id).toMatch(/Web__API__\d+/);
+    expect(e.graphLabel).toBe("HTTPS");
+  });
+
+  it("emits edge_pair_ambiguous when a pair key matches multiple graph edges", () => {
+    const m = parse(`graph LR
+      A[a] --> B[b]
+      A --> B
+      ---
+      edges:
+        A->B: { flow: request }
+    `);
+    expect(m.warnings.some((w) => w.code === "edge_pair_ambiguous")).toBe(true);
+  });
+
+  it("creates a metadata-only edge when a pair key matches no graph edge", () => {
+    const m = parse(`graph LR
+      A[a]
+      B[b]
+      ---
+      edges:
+        A->B: { flow: request }
+    `);
+    const e = m.edges.find((x) => x.from === "A" && x.to === "B");
+    expect(e?.source).toBe("metadata");
+    expect(e?.flow).toBe("request");
+  });
+});
+
 describe("inference (§22)", () => {
   it("infers protocol and token from labels without overwriting explicit values", () => {
     const m = parse(`graph LR

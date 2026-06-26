@@ -68,7 +68,19 @@ nodes:
 ```
 
 ### 2.2 `edges`
-Explicit ids; `from`/`to` required.
+Two forms (spec 01 §7 / 02 §6):
+
+- **Pair-key** `Source->Target:` — selects the matching graph edge and enriches
+  it (keeps a generated id `from__to__index`; not a stable id). Ambiguous if it
+  matches multiple graph edges (`edge_pair_ambiguous`).
+- **Explicit-id** — the key is a stable id; `from`/`to` required. Use for
+  multiple edges between the same pair or stable `data.flows` references.
+
+```yaml
+edges:
+  Web->API: { flow: request, protocol: HTTPS }   # pair-key form
+  web_api_admin: { from: Web, to: API, flow: admin_operation }   # explicit-id
+```
 ```yaml
 edges:
   web_api:
