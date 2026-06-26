@@ -11,6 +11,14 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/archmap.js",
       "require": "./dist/archmap.umd.cjs"
+    },
+    "./views3d/three-view": {
+      "types": "./dist/views3d/three-view.d.ts",
+      "import": "./dist/views3d/three-view.js"
+    },
+    "./packs/cloud-icons": {
+      "types": "./dist/packs/cloud-icons.d.ts",
+      "import": "./dist/packs/cloud-icons.js"
     }
   },
   "files": [
@@ -18,13 +26,21 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

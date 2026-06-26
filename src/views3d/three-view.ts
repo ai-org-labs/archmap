@@ -15,10 +15,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
-import { registerView } from "../render.js";
-import type { MountableView, ViewContext, ViewHandle } from "../render.js";
-import { resolveNodeIcons } from "../icons.js";
-import type { RenderableIcon } from "../icons.js";
+import { registerView, resolveNodeIcons } from "archmap";
+import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "archmap";
 import { buildScene3D } from "./scene.js";
 import type { Scene3D } from "./scene.js";
 

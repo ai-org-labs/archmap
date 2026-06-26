@@ -15,8 +15,8 @@
 
 import { siDatadog, siFirebase, siGooglecloud } from "simple-icons";
 import type { SimpleIcon } from "simple-icons";
-import { registerIcon } from "../icons.js";
-import type { RenderableIcon } from "../icons.js";
+import { registerIcon } from "archmap";
+import type { RenderableIcon } from "archmap";
 
 function fromSimpleIcon(si: SimpleIcon): RenderableIcon {
   return { viewBox: "0 0 24 24", body: `<path fill="#${si.hex}" d="${si.path}" />` };
