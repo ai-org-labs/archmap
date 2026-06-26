@@ -28,6 +28,23 @@ describe("render", () => {
     expect(svg).toContain('class="archmap-zone"');
   });
 
+  it("supports the baseView plus overlays API", () => {
+    const m = parse(example);
+    const { svg, view } = render(m, { baseView: "overview", overlays: ["auth", "dataflow"] });
+    expect(view).toBe("overview");
+    expect(svg).toContain('data-overlays="auth dataflow"');
+    expect(svg).toContain("archmap-overlay-auth");
+    expect(svg).toContain("archmap-overlay-dataflow");
+  });
+
+  it("reports unknown overlays without blocking render", () => {
+    const m = parse(`graph LR\nA[a] --> B[b]`);
+    const { svg } = render(m, { baseView: "overview", overlays: ["made-up"] });
+    expect(svg).toContain("<svg");
+    expect(m.warnings.some((d) => d.code === "unknown_overlay")).toBe(true);
+    expect(m.diagnostics.some((d) => d.target?.type === "view" && d.target.id === "made-up")).toBe(true);
+  });
+
   it("escapes special characters in labels", () => {
     const m = parse(`graph LR
       A[a & <b>] --> B[b]
@@ -39,6 +56,8 @@ describe("render", () => {
   it("throws on an unknown view", () => {
     const m = parse(`graph LR\nA[a]`);
     expect(() => render(m, { view: "nope" })).toThrow(/Unknown view/);
+    expect(m.warnings.some((d) => d.code === "unknown_base_view")).toBe(true);
+    expect(m.diagnostics.some((d) => d.target?.type === "view" && d.target.id === "nope")).toBe(true);
   });
 
   it("supports custom registered views consuming the layout", () => {

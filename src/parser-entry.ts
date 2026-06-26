@@ -17,5 +17,6 @@ export function parse(source: string): ArchMapModel {
   const { graph, metadata } = splitSections(source);
   const graphResult = parseGraph(graph);
   const model = buildModel(graphResult, metadata);
+  model.source = { graph, metadata: metadata === "" ? undefined : metadata };
   return validate(model);
 }

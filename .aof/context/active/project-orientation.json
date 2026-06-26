@@ -1,0 +1,39 @@
+{
+  "orientation_type": "project-orientation",
+  "project_type": "library",
+  "domain_summary": "ArchMap DSL and renderer: align the existing parser, canonical model, diagnostics, and views with the v0.1 specs through alternating Claude/Codex development.",
+  "repo_boundaries": [
+    "src/: parser, normalization, validation, render, layout, view implementations.",
+    "test/: Vitest coverage for parser, render, layout, icons, views, 3D scene, canonical adapter.",
+    "docs/specs/v0.1/: authoritative v0.1 specs; read before changing semantics.",
+    "docs/aof/STATUS.md and .aof/: shared handoff/runtime state for Claude/Codex alternation.",
+    "examples/: demo ArchMap source and browser examples."
+  ],
+  "protected_areas": [
+    "Do not rewrite vendored specs in docs/specs/v0.1/ unless explicitly asked.",
+    "Do not break existing parse()/render() array-model compatibility without an explicit migration decision.",
+    "Do not remove existing examples or public exports without tests and a handoff note.",
+    "Do not run destructive git commands unless the human explicitly requests them."
+  ],
+  "required_commands": [
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "node /Users/mn/codex/.cache/aof-v3.1.0/src/cli.js <command> --project ."
+  ],
+  "verification_entrypoints": [
+    "Run npm run typecheck for TypeScript/API shape.",
+    "Run npm test for parser/layout/render/view regressions.",
+    "Run npm run build before handing off broad or public API changes.",
+    "Update .aof tasks/goals or docs/aof/STATUS.md with handoff state before ending an agent session."
+  ],
+  "release_constraints": [
+    "Keep incremental migration order: parse -> normalize -> diagnostics -> overview.",
+    "Warnings must not block render; errors should be trustworthy and spec-grounded.",
+    "Renderer legibility must remain protected: no edge over node and no shared endpoints regressions.",
+    "Existing browser-only usage and optional 3D/icons should remain opt-in compatible."
+  ],
+  "human_owner": "Project owner in this Codex/Claude alternating development thread.",
+  "approval_boundary": "Agents may make scoped implementation, test, and .aof state updates for the agreed stages. Ask before changing project direction, deleting public API, rewriting specs, or making destructive git/history changes.",
+  "updated_at": "2026-06-26T18:05:22.287Z"
+}

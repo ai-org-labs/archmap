@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-003",
+  "title": "Stage 3 diagnostics: migrate to four-level model",
+  "description": "Introduce diagnostics plus derived errors/warnings/suggestions/infos with {level, code, message, ref, target}; cover spec registry and preserve render behavior.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-26T18:06:20.972Z",
+  "updated_at": "2026-06-26T18:44:15.963Z",
+  "assigned_at": null,
+  "done_at": "2026-06-26T18:44:15.963Z",
+  "retired_at": null,
+  "last_triaged_at": null,
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "Stage 3 diagnostics DONE. Native diagnostic() helper is used across validate/parser/render paths; diagnostics sync to canonical diagnostics plus derived errors/warnings/suggestions/infos; registry coverage includes vocab, auth, boundary, data, telemetry, unknown_base_view, unknown_overlay, and view_3d_unavailable registration. Verification: npm run typecheck, npm test (76), npm run build, aof organization-verify 22/22. View overlay projection composition is now TASK-002 scope."
+}

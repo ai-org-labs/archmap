@@ -19,6 +19,7 @@ export type {
 } from "./layout.js";
 export { computeLayout } from "./layout.js";
 export { parse } from "./parser-entry.js";
+export { toCanonicalModel } from "./canonical.js";
 export {
   registerIcon,
   getIcon,

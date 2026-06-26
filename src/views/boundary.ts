@@ -5,18 +5,17 @@
  */
 
 import type { ViewContext } from "../render.js";
+import type { BoundaryCrossing } from "../types.js";
 import { resolveNodeIcons } from "../icons.js";
 import { renderDiagram } from "./base.js";
 
-function crosses(value: boolean | string[] | undefined): boolean {
-  if (value === undefined) return false;
-  if (typeof value === "boolean") return value;
-  return value.length > 0;
+function crosses(value: BoundaryCrossing | undefined): boolean {
+  return value !== undefined && !value.assertedFalse;
 }
 
 export function boundaryView(ctx: ViewContext): string {
   const { model, layout } = ctx;
-  const zoneOf = new Map(model.nodes.map((n) => [n.id, n.zone]));
+  const zoneOf = new Map(model.nodes.map((n) => [n.id, n.resolvedZone === "unknown" ? undefined : n.resolvedZone ?? n.zone]));
   const edgeById = new Map(model.edges.map((e) => [e.id, e]));
 
   const edges = new Set<string>();

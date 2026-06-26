@@ -28,6 +28,9 @@ const FLOW_RULES: FlowRule[] = [
   { test: /\bsqs\b/i, flow: "message_send" },
   { test: /replication/i, flow: "replication" },
   { test: /\bsync\b/i, flow: "sync" },
+  { test: /\bmetrics?\b|metric export/i, flow: "monitoring" },
+  { test: /\blogs?\b|logging/i, flow: "logging" },
+  { test: /\bscans?\b|security scan/i, flow: "security_scan" },
 ];
 
 /** Mutate an edge in place, filling fields inferable from its label. */
@@ -70,6 +73,17 @@ export function applyEdgeInference(edge: ArchEdge): void {
       auth.inferred = [...(auth.inferred ?? []), "method"];
       edge.auth = auth;
       inferred.push("auth.method");
+    }
+  }
+
+  if (/vpn/i.test(label)) {
+    if (edge.networkPath === undefined) {
+      edge.networkPath = ["vpn"];
+      inferred.push("networkPath");
+    }
+    if (edge.boundaryCrossing === undefined) {
+      edge.boundaryCrossing = { crosses: [], reviewed: false };
+      inferred.push("boundaryCrossing");
     }
   }
 

@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-001",
+  "title": "Stage 2 normalize: finish canonical model shape",
+  "description": "Preserve source/subgraphs in canonical output, add placement-derived zone inference, refine unknown child-zone diagnostics, and keep compatibility renderers green.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-26T18:06:20.949Z",
+  "updated_at": "2026-06-26T18:10:23.340Z",
+  "assigned_at": null,
+  "done_at": "2026-06-26T18:10:23.340Z",
+  "retired_at": null,
+  "last_triaged_at": null,
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "Stage 2 normalize completion reached: canonical adapter includes source/subgraphs, reference resolution covers data/zone/boundary, placement.zone inference added, inference vocab expanded, tests/typecheck/build pass."
+}

@@ -39,7 +39,7 @@ describe("graph section", () => {
   it("defaults to LR with a warning when no directive is present", () => {
     const m = parse(`A[a] --> B[b]`);
     expect(m.direction).toBe("LR");
-    expect(m.warnings.some((w) => w.code === "missing_direction")).toBe(true);
+    expect(m.infos.some((w) => w.code === "missing_direction")).toBe(true);
   });
 });
 
@@ -121,6 +121,132 @@ describe("pair-key edges (Stage 1, spec 01 §7 / 02 §6)", () => {
   });
 });
 
+describe("normalization (Stage 2, spec 02)", () => {
+  it("normalizes boundaryCrossing authoring forms to the canonical object", () => {
+    const m = parse(`graph LR
+      A[a] --> B[b]
+      B --> C[c]
+      C --> D[d]
+      ---
+      edges:
+        A->B: { boundaryCrossing: true }
+        B->C: { boundaryCrossing: false }
+        C->D: { boundaryCrossing: [public_edge, private_net] }
+    `);
+    const byPair = Object.fromEntries(m.edges.map((e) => [e.pairKey, e]));
+    expect(byPair["A->B"].boundaryCrossing).toEqual({ crosses: [], reviewed: true });
+    expect(byPair["B->C"].boundaryCrossing).toEqual({ crosses: [], reviewed: true, assertedFalse: true });
+    expect(byPair["C->D"].boundaryCrossing).toEqual({ crosses: ["public_edge", "private_net"], reviewed: true });
+  });
+
+  it("normalizes edge.data and data.flows into edge.dataIds and stable data flows", () => {
+    const m = parse(`graph LR
+      Web[Web] --> API[API]
+      API --> DB[(DB)]
+      ---
+      edges:
+        Web->API: { data: session }
+      data:
+        session:
+          flows: [API->DB]
+    `);
+    const webApi = m.edges.find((e) => e.pairKey === "Web->API")!;
+    const apiDb = m.edges.find((e) => e.pairKey === "API->DB")!;
+    const session = m.data.find((d) => d.id === "session")!;
+    expect(webApi.dataIds).toEqual(["session"]);
+    expect(apiDb.dataIds).toEqual(["session"]);
+    expect(session.flows?.sort()).toEqual([apiDb.id, webApi.id].sort());
+  });
+
+  it("resolves zone containment into node.resolvedZone and zone.resolvedContains", () => {
+    const m = parse(`graph LR
+      App[App]
+      DB[(DB)]
+      ---
+      zones:
+        private:
+          contains: [App, DB]
+    `);
+    expect(m.nodes.find((n) => n.id === "App")?.resolvedZone).toBe("private");
+    expect(m.zones.find((z) => z.id === "private")?.resolvedContains).toEqual([
+      { type: "node", id: "App" },
+      { type: "node", id: "DB" },
+    ]);
+  });
+
+  it("resolves zone parent links and detects parent conflicts", () => {
+    const m = parse(`graph LR
+      App[App]
+      ---
+      zones:
+        platform:
+          contains: [shared]
+        other:
+          contains: [shared]
+        shared:
+          parent: platform
+          contains: [App]
+    `);
+    expect(m.zones.find((z) => z.id === "platform")?.resolvedContains).toContainEqual({ type: "zone", id: "shared" });
+    expect(m.errors.some((e) => e.code === "zone_parent_conflict")).toBe(true);
+  });
+
+  it("detects zone nesting cycles", () => {
+    const m = parse(`graph LR
+      App[App]
+      ---
+      zones:
+        a: { parent: b }
+        b: { parent: a, contains: [App] }
+    `);
+    expect(m.errors.some((e) => e.code === "zone_cycle")).toBe(true);
+  });
+
+  it("warns when edge data and data flows disagree before normalization", () => {
+    const m = parse(`graph LR
+      Web[Web] --> API[API]
+      API --> DB[(DB)]
+      ---
+      edges:
+        Web->API: { data: session }
+      data:
+        session:
+          flows: [API->DB]
+    `);
+    expect(m.warnings.some((w) => w.code === "data_flow_mismatch")).toBe(true);
+  });
+
+  it("uses placement.zone as a primary-zone inference when it references a known zone", () => {
+    const m = parse(`graph LR
+      App[App]
+      ---
+      nodes:
+        App:
+          placement:
+            zone: private
+      zones:
+        private: { label: Private }
+    `);
+    const app = m.nodes.find((n) => n.id === "App")!;
+    expect(app.resolvedZone).toBe("private");
+    expect(app.zone).toBe("private");
+    expect(app.inferred).toContain("zone");
+  });
+
+  it("distinguishes unknown child zones from unknown nodes in zone contains", () => {
+    const m = parse(`graph LR
+      App[App]
+      ---
+      zones:
+        private:
+          contains: [missing-vpc-zone, MissingNode]
+    `);
+    const codes = m.warnings.map((w) => w.code);
+    expect(codes).toContain("zone_unknown_child_zone");
+    expect(codes).toContain("zone_unknown_node");
+  });
+});
+
 describe("inference (§22)", () => {
   it("infers protocol and token from labels without overwriting explicit values", () => {
     const m = parse(`graph LR
@@ -146,6 +272,22 @@ describe("inference (§22)", () => {
     const e = m.edges.find((x) => x.id === "e1")!;
     expect(e.protocol).toBe("HTTP");
     expect(e.inferred ?? []).not.toContain("protocol");
+  });
+
+  it("infers monitoring, logging, scan, and vpn hints from labels", () => {
+    const m = parse(`graph LR
+      A[a] -->|metrics export| B[b]
+      B -->|logs| C[c]
+      C -->|security scan| D[d]
+      D -->|VPN tunnel| E[e]
+    `);
+    const byLabel = Object.fromEntries(m.edges.map((e) => [e.label, e]));
+    expect(byLabel["metrics export"].flow).toBe("monitoring");
+    expect(byLabel.logs.flow).toBe("logging");
+    expect(byLabel["security scan"].flow).toBe("security_scan");
+    expect(byLabel["VPN tunnel"].networkPath).toEqual(["vpn"]);
+    expect(byLabel["VPN tunnel"].boundaryCrossing).toEqual({ crosses: [], reviewed: false });
+    expect(m.infos.some((d) => d.code === "inferred_flow")).toBe(true);
   });
 });
 
@@ -194,7 +336,7 @@ describe("validation (§23)", () => {
           flow: teleport
     `);
     const codes = m.warnings.map((w) => w.code);
-    expect(codes).toContain("unknown_kind");
+    expect(codes).toContain("unknown_node_kind");
     expect(codes).toContain("unknown_layer");
     expect(codes).toContain("unknown_flow");
   });
@@ -237,6 +379,135 @@ describe("validation (§23)", () => {
   it("the example model is error-free", () => {
     const m = parse(example);
     expect(m.errors).toEqual([]);
+  });
+
+  it("derives combined diagnostics with spec-level fields", () => {
+    const m = parse(`graph LR
+      A[a]
+      ---
+      nodes:
+        A: { kind: spaceship }
+    `);
+    const warning = m.warnings.find((d) => d.code === "unknown_node_kind")!;
+    expect(warning.level).toBe("warning");
+    expect(warning.target).toEqual({ type: "node", id: "A" });
+    expect(m.diagnostics).toContain(warning);
+    expect(m.suggestions.some((d) => d.code === "node_without_metadata")).toBe(false);
+    expect(m.infos).toEqual([]);
+  });
+
+  it("places improvement diagnostics in suggestions", () => {
+    const m = parse(`graph LR
+      App[App] --> DB[(DB)]
+      ---
+      nodes:
+        App:
+          zone: private
+          placement:
+            project: missing-project
+        DB:
+          zone: private
+      zones:
+        private: { label: Private }
+      data:
+        session:
+          flows: [App->DB]
+    `);
+    const codes = m.suggestions.map((d) => d.code);
+    expect(codes).toContain("placement_ref_unknown");
+    expect(codes).toContain("data_without_classification");
+    expect(codes).toContain("dataflow_missing_storage");
+    expect(m.warnings.map((d) => d.code)).not.toContain("data_without_classification");
+  });
+
+  it("validates auth references and flow-sensitive token metadata", () => {
+    const m = parse(`graph LR
+      IdP[IdP] --> API[API]
+      API --> Web[Web]
+      IdP --> Web
+      ---
+      edges:
+        issue:
+          from: IdP
+          to: API
+          flow: token_issue
+          auth: { recipient: GhostUser }
+        issue_missing_recipient:
+          from: IdP
+          to: Web
+          flow: token_issue
+          auth: { token: JWT, issuer: IdP }
+        validate:
+          from: API
+          to: Web
+          flow: token_validate
+          auth: { token: JWT, issuer: GhostIdP, validatedBy: GhostAPI }
+    `);
+    const warningCodes = m.warnings.map((d) => d.code);
+    const suggestionCodes = m.suggestions.map((d) => d.code);
+    expect(warningCodes).toContain("auth_flow_without_token");
+    expect(warningCodes).toContain("auth_token_without_issuer");
+    expect(warningCodes).toContain("auth_unknown_issuer");
+    expect(warningCodes).toContain("auth_unknown_validator");
+    expect(warningCodes).toContain("auth_unknown_recipient");
+    expect(suggestionCodes).toContain("auth_token_without_recipient");
+  });
+
+  it("validates boundary references and data classification vocabulary", () => {
+    const m = parse(`graph LR
+      App[App] --> Logs[Logs]
+      ---
+      zones:
+        private:
+          kind: magic_zone
+      identities:
+        app-id:
+          kind: magic_identity
+      boundaries:
+        public_edge:
+          kind: magic_boundary
+          zone: missing-zone
+          contains: [missing-boundary, missing-zone, MissingNode]
+      edges:
+        App->Logs: { flow: logging }
+      data:
+        event_log:
+          classification: cosmic
+          flows: [App->Logs]
+          processedBy: [GhostProcessor]
+    `);
+    const warningCodes = m.warnings.map((d) => d.code);
+    const suggestionCodes = m.suggestions.map((d) => d.code);
+    expect(warningCodes).toContain("unknown_zone_kind");
+    expect(warningCodes).toContain("unknown_identity_kind");
+    expect(warningCodes).toContain("unknown_boundary_kind");
+    expect(warningCodes).toContain("boundary_unknown_related_zone");
+    expect(warningCodes).toContain("boundary_unknown_boundary");
+    expect(warningCodes).toContain("boundary_unknown_zone");
+    expect(warningCodes).toContain("boundary_unknown_node");
+    expect(warningCodes).toContain("unknown_classification");
+    expect(warningCodes).toContain("data_unknown_node");
+    expect(suggestionCodes).toContain("dataflow_missing_storage");
+  });
+
+  it("detects boundary nesting cycles", () => {
+    const m = parse(`graph LR
+      App[App]
+      ---
+      boundaries:
+        public_edge:
+          contains: [private_edge]
+        private_edge:
+          contains: [public_edge]
+    `);
+    expect(m.errors.some((d) => d.code === "boundary_cycle")).toBe(true);
+  });
+
+  it("suggests telemetry data context when telemetry-like edges have no data object", () => {
+    const m = parse(`graph LR
+      App[App] -->|metrics| Monitor[Monitor]
+    `);
+    expect(m.suggestions.some((d) => d.code === "telemetry_without_data_classification")).toBe(true);
   });
 });
 

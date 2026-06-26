@@ -192,20 +192,39 @@ Protocol precedence: HTTPS before HTTP.
 
 ## 4. Validation
 
-Attached to the model as `errors` / `warnings` (each with a `code` and an
-optional `ref`).
+Attached to the model as `diagnostics`, with derived `errors`, `warnings`,
+`suggestions`, and `infos` arrays. Each diagnostic has a `level`, `code`,
+`message`, optional legacy `ref`, and spec-shaped `target`.
 
 **Errors:** `invalid_node_id`, `duplicate_node`, `invalid_yaml`,
 `metadata_not_object`, `edge_missing_endpoint`, `edge_unknown_source`,
-`edge_unknown_target`.
+`edge_unknown_target`, `zone_parent_conflict`, `zone_cycle`,
+`boundary_cycle`.
 
-**Warnings:** `missing_direction`, `unparsed_line`, `metadata_node_not_in_graph`,
-`node_without_metadata`, `unknown_kind`, `unknown_layer`, `unknown_flow`,
-`auth_token_without_issuer`, `auth_token_without_validator`,
-`zone_crossing_without_boundary`, `data_access_without_principal`,
+**Warnings:** `unparsed_line`, `metadata_node_not_in_graph`,
+`unknown_node_kind`, `unknown_layer`, `unknown_flow`,
+`unknown_zone_kind`, `unknown_boundary_kind`, `unknown_identity_kind`,
+`unknown_classification`, `edge_pair_ambiguous`, `edge_unknown_data`,
+`data_flow_mismatch`, `data_flow_ambiguous`, `auth_flow_without_token`,
+`auth_token_without_issuer`,
+`auth_token_without_validator`, `auth_unknown_issuer`,
+`auth_unknown_validator`, `auth_unknown_recipient`,
+`zone_crossing_without_boundary`,
+`zone_crossing_marked_false`, `data_access_without_principal`,
 `permission_incomplete`, `permission_unknown_principal`,
 `permission_unknown_resource`, `data_unknown_flow`, `data_unknown_node`,
-`zone_unknown_node`, `boundary_unknown_node`.
+`zone_unknown_node`, `zone_unknown_child_zone`, `zone_parent_unknown`,
+`boundary_unknown_node`, `boundary_unknown_zone`,
+`boundary_unknown_boundary`, `boundary_unknown_related_zone`,
+`unknown_base_view`, `unknown_overlay`, `view_3d_unavailable`.
+
+**Suggestions:** `node_without_metadata`, `node_zone_unknown`,
+`data_without_classification`, `dataflow_missing_storage`,
+`telemetry_without_data_classification`, `placement_ref_unknown`,
+`auth_token_without_recipient`.
+
+**Infos:** `missing_direction`, `inferred_protocol`, `inferred_auth_token`,
+`inferred_flow`, `inferred_zone`.
 
 `kind` / `layer` / `flow` are validated against the standard vocabularies in
 `src/types.ts` (`STANDARD_KINDS`, `STANDARD_LAYERS`, `STANDARD_FLOWS`); unknown
@@ -217,6 +236,12 @@ values are allowed but warned.
 
 Set with `render(model, { view })` or the `view.default` key. All are SVG except
 `3d`.
+
+Stage 4 also accepts `render(model, { baseView, overlays })`. `baseView`
+selects the base renderer while `overlays` records enabled overlay projections
+on the SVG root (`data-overlays`, `archmap-overlay-*`) and validates overlay
+names without reparsing. Unknown overlays emit `unknown_overlay` warnings and do
+not block rendering.
 
 | View | Shows |
 | --- | --- |
@@ -247,6 +272,7 @@ import {
 
 const model = parse(source);                 // Text -> Model (+ errors/warnings)
 const { svg } = render(model, { view: "overview", target: el });
+const overlaid = render(model, { baseView: "overview", overlays: ["auth", "dataflow"] });
 ```
 
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.

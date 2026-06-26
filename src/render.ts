@@ -8,6 +8,7 @@
 
 import { computeLayout } from "./layout.js";
 import type { LayoutOptions, LayoutResult } from "./layout.js";
+import { diagnostic, syncDiagnostics } from "./diagnostics.js";
 import { parse } from "./parser-entry.js";
 import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
@@ -41,6 +42,11 @@ export interface MountableView {
 export type ViewRenderer = (ctx: ViewContext) => string | MountableView;
 
 export interface RenderOptions {
+  /** Stage 4 base-view API; prefer this for overview/zone/3d selection. */
+  baseView?: string;
+  /** Stage 4 overlay names toggled on top of the selected base view. */
+  overlays?: string[];
+  /** Legacy flat view selector. Kept for compatibility with existing callers. */
   view?: string;
   direction?: Direction;
   rankBy?: LayoutOptions["rankBy"];
@@ -80,6 +86,8 @@ registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
 registerView("validation", validationView);
 
+const OVERLAY_NAMES = new Set(["auth", "dataflow", "boundary", "permission", "validation"]);
+
 /**
  * A view's preferred flow-axis ranking, unless the caller overrides it.
  * The zone view intentionally uses the default topological ranking: zone
@@ -89,11 +97,37 @@ registerView("validation", validationView);
  */
 const VIEW_RANK_BY: Record<string, LayoutOptions["rankBy"]> = {};
 
+function validateOverlays(model: ArchMapModel, overlays: string[]): void {
+  for (const overlay of overlays) {
+    if (OVERLAY_NAMES.has(overlay)) continue;
+    model.warnings.push(diagnostic("unknown_overlay", `Unknown overlay "${overlay}". Known overlays: ${[...OVERLAY_NAMES].join(", ")}.`, { type: "view", id: overlay }));
+  }
+}
+
+function decorateSvgWithOverlays(svg: string, overlays: string[]): string {
+  if (overlays.length === 0) return svg;
+  const suffix = overlays.map((overlay) => overlay.replace(/[^a-z0-9_-]/gi, "-")).join(" ");
+  const classes = overlays.map((overlay) => `archmap-overlay-${overlay.replace(/[^a-z0-9_-]/gi, "-")}`).join(" ");
+  return svg.replace(
+    /^<svg\b([^>]*)>/,
+    (_match, attrs: string) => {
+      const withClasses = attrs.includes('class="')
+        ? attrs.replace(/class="([^"]*)"/, `class="$1 ${classes}"`)
+        : `${attrs} class="${classes}"`;
+      return `<svg${withClasses} data-overlays="${suffix}">`;
+    },
+  );
+}
+
 /** Render a model into an SVG string, optionally injecting it into a target. */
 export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
-  const view = options.view ?? model.view?.default ?? "overview";
+  const overlays = options.overlays ?? [];
+  validateOverlays(model, overlays);
+  const view = options.baseView ?? options.view ?? model.view?.default ?? "overview";
   const renderer = registry.get(view);
   if (!renderer) {
+    model.warnings.push(diagnostic("unknown_base_view", `Unknown view "${view}". Registered views: ${listViews().join(", ") || "(none)"}.`, { type: "view", id: view }));
+    syncDiagnostics(model);
     throw new Error(`Unknown view "${view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
   }
   const rankBy = options.rankBy ?? VIEW_RANK_BY[view];
@@ -101,13 +135,16 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   const out = renderer({ model, layout, options });
 
   if (typeof out === "string") {
+    const svg = decorateSvgWithOverlays(out, overlays.filter((overlay) => OVERLAY_NAMES.has(overlay)));
+    syncDiagnostics(model);
     if (options.target && "innerHTML" in options.target) {
-      options.target.innerHTML = out;
+      options.target.innerHTML = svg;
     }
-    return { view, layout, model, svg: out };
+    return { view, layout, model, svg };
   }
   // Mountable (imperative) view.
   const handle = options.target ? out.mount(options.target) : undefined;
+  syncDiagnostics(model);
   return { view, layout, model, handle };
 }
 

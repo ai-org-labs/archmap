@@ -12,15 +12,30 @@ export type Direction = "LR" | "TD";
 export type NodeShape = "rectangle" | "database" | "circle" | "diamond";
 
 export type DiagnosticSeverity = "error" | "warning" | "info";
+export type DiagnosticLevel = "error" | "warning" | "suggestion" | "info";
+export type DiagnosticKind = "node" | "edge" | "zone" | "boundary" | "identity" | "permission" | "data" | "view";
+
+export interface DiagnosticTarget {
+  type: DiagnosticKind;
+  id: string;
+}
+
+export interface LegacyDiagnosticRef {
+  kind: Exclude<DiagnosticKind, "view">;
+  id: string;
+}
 
 /** A validation / inference message attached to the model. */
 export interface Diagnostic {
+  /** Spec v0.1 diagnostic level. During Stage 3, `severity` remains for compatibility. */
+  level?: DiagnosticLevel;
   severity: DiagnosticSeverity;
   /** Stable machine-readable code, e.g. "duplicate_node", "unknown_kind". */
   code: string;
   message: string;
   /** Optional pointer to the offending element. */
-  ref?: { kind: "node" | "edge" | "zone" | "boundary" | "identity" | "permission" | "data"; id: string };
+  ref?: LegacyDiagnosticRef;
+  target?: DiagnosticTarget;
 }
 
 export interface AuthMeta {
@@ -29,6 +44,7 @@ export interface AuthMeta {
   issuer?: string;
   audience?: string;
   validatedBy?: string;
+  recipient?: string;
   scopes?: string[];
   claims?: unknown;
   /** Fields populated by label inference rather than explicit metadata (§22). */
@@ -40,13 +56,23 @@ export interface ArchNode {
   label: string;
   shape: NodeShape;
   zone?: string;
+  resolvedZone?: string;
   layer?: string;
   kind?: string;
   provider?: string;
   principal?: string;
+  placement?: Record<string, string>;
   contains?: string[];
   tags?: string[];
   description?: string;
+  /** Fields populated by inference rather than explicit metadata. */
+  inferred?: string[];
+}
+
+export interface BoundaryCrossing {
+  crosses: string[];
+  reviewed: boolean;
+  assertedFalse?: boolean;
 }
 
 export interface ArchEdge {
@@ -64,9 +90,11 @@ export interface ArchEdge {
   protocol?: string;
   auth?: AuthMeta;
   principal?: string;
+  dataIds?: string[];
+  /** Raw authoring value retained for backwards compatibility during Stage 2. */
   data?: unknown;
   networkPath?: string[];
-  boundaryCrossing?: boolean | string[];
+  boundaryCrossing?: BoundaryCrossing;
   direction?: "one_way" | "two_way" | "request_response";
   tags?: string[];
   description?: string;
@@ -79,8 +107,11 @@ export interface Zone {
   label?: string;
   kind?: string;
   provider?: string;
+  parent?: string;
   contains?: string[];
+  resolvedContains?: Array<{ type: "node" | "zone"; id: string }>;
   trustLevel?: string;
+  owner?: string;
   description?: string;
 }
 
@@ -89,6 +120,7 @@ export interface Boundary {
   label?: string;
   kind?: string;
   contains?: string[];
+  resolvedContains?: Array<{ type: "node" | "zone" | "boundary"; id: string }>;
   zone?: string;
   description?: string;
 }
@@ -119,6 +151,7 @@ export interface DataObject {
   storedIn?: string[];
   processedBy?: string[];
   flows?: string[];
+  storage?: string;
   retention?: string;
   description?: string;
 }
@@ -140,11 +173,25 @@ export interface ViewConfig {
   };
 }
 
+export interface GraphSubgraph {
+  id: string;
+  label?: string;
+  members: string[];
+}
+
 export interface ArchMapModel {
   version: string;
   direction: Direction;
   title?: string;
   description?: string;
+  source?: {
+    graph: string;
+    metadata?: string;
+  };
+  graph: {
+    direction: Direction;
+    subgraphs: Record<string, GraphSubgraph>;
+  };
   nodes: ArchNode[];
   edges: ArchEdge[];
   zones: Zone[];
@@ -154,8 +201,39 @@ export interface ArchMapModel {
   data: DataObject[];
   layout?: Layout;
   view?: ViewConfig;
+  diagnostics: Diagnostic[];
   warnings: Diagnostic[];
   errors: Diagnostic[];
+  suggestions: Diagnostic[];
+  infos: Diagnostic[];
+}
+
+export interface CanonicalArchMapModel {
+  version: string;
+  title?: string;
+  description?: string;
+  source?: {
+    graph: string;
+    metadata?: string;
+  };
+  graph: {
+    direction: Direction;
+    subgraphs: Record<string, GraphSubgraph>;
+  };
+  nodes: Record<string, ArchNode>;
+  edges: Record<string, ArchEdge>;
+  zones: Record<string, Zone>;
+  boundaries: Record<string, Boundary>;
+  identities: Record<string, Identity>;
+  permissions: Record<string, Permission>;
+  data: Record<string, DataObject>;
+  layout?: Layout;
+  view?: ViewConfig;
+  diagnostics: Diagnostic[];
+  errors: Diagnostic[];
+  warnings: Diagnostic[];
+  suggestions: Diagnostic[];
+  infos: Diagnostic[];
 }
 
 // --- Standard vocabulary (used for validation warnings, §23.2) -------------
@@ -195,5 +273,25 @@ export const STANDARD_FLOWS: ReadonlySet<string> = new Set([
   "data_read", "replication", "sync", "batch", "event_publish", "event_subscribe",
   "message_send", "message_receive", "auth", "token_issue", "token_validate",
   "permission_grant", "admin_operation", "deployment", "monitoring",
-  "logging", "network_route",
+  "logging", "metrics_export", "security_scan", "compliance_scan", "network_route",
+]);
+
+export const STANDARD_BOUNDARY_KINDS: ReadonlySet<string> = new Set([
+  "trust_boundary", "network_boundary", "cloud_boundary", "region_boundary",
+  "subnet_boundary", "org_boundary", "policy_boundary",
+]);
+
+export const STANDARD_ZONE_KINDS: ReadonlySet<string> = new Set([
+  "provider", "cloud", "folder", "project", "region", "zone", "network",
+  "subnet", "cluster", "namespace", "client", "internet", "saas", "onprem",
+  "partner", "operations", "identity",
+]);
+
+export const STANDARD_IDENTITY_KINDS: ReadonlySet<string> = new Set([
+  "identity_provider", "oauth_provider", "auth_service", "service_account",
+  "iam_role", "iam_policy", "rbac_role", "secret", "certificate", "token",
+]);
+
+export const STANDARD_DATA_CLASSIFICATIONS: ReadonlySet<string> = new Set([
+  "public", "internal", "confidential", "personal", "secret", "restricted", "regulated",
 ]);

@@ -6,6 +6,7 @@
  * and are surfaced so metadata can promote them to zones/boundaries later.
  */
 
+import { diagnostic } from "../diagnostics.js";
 import type { Diagnostic, Direction, NodeShape } from "../types.js";
 
 export interface RawGraphNode {
@@ -88,7 +89,7 @@ export function parseGraph(graphSource: string): GraphParseResult {
   ): boolean => {
     const { id, label, shape } = parsed;
     if (!NODE_ID.test(id)) {
-      errors.push({ severity: "error", code: "invalid_node_id", message: `Invalid node id "${id}".`, ref: { kind: "node", id } });
+      errors.push(diagnostic("invalid_node_id", `Invalid node id "${id}".`, { type: "node", id }));
       return false;
     }
     const isDefinition = shape !== undefined;
@@ -96,7 +97,7 @@ export function parseGraph(graphSource: string): GraphParseResult {
     if (existing) {
       if (isDefinition) {
         if (existing.defined) {
-          errors.push({ severity: "error", code: "duplicate_node", message: `Duplicate definition of node "${id}".`, ref: { kind: "node", id } });
+          errors.push(diagnostic("duplicate_node", `Duplicate definition of node "${id}".`, { type: "node", id }));
         } else {
           // Fill a previously bare reference with its definition.
           existing.label = label ?? id;
@@ -151,7 +152,7 @@ export function parseGraph(graphSource: string): GraphParseResult {
       const rhs = parseNodeToken(edgeMatch[3]);
       const label = edgeMatch[2]?.trim();
       if (!lhs || !rhs) {
-        warnings.push({ severity: "warning", code: "unparsed_line", message: `Could not parse edge line: "${line}".` });
+        warnings.push(diagnostic("unparsed_line", `Could not parse edge line: "${line}".`));
         continue;
       }
       const okFrom = registerNode(lhs);
@@ -169,11 +170,11 @@ export function parseGraph(graphSource: string): GraphParseResult {
       continue;
     }
 
-    warnings.push({ severity: "warning", code: "unparsed_line", message: `Ignored unrecognized line: "${line}".` });
+    warnings.push(diagnostic("unparsed_line", `Ignored unrecognized line: "${line}".`));
   }
 
   if (!sawDirective) {
-    warnings.push({ severity: "warning", code: "missing_direction", message: "No `graph LR|TD` directive found; defaulting to LR." });
+    warnings.push(diagnostic("missing_direction", "No `graph LR|TD` directive found; defaulting to LR."));
   }
 
   return { direction, nodes, edges, subgraphs, errors, warnings };
