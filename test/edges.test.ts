@@ -42,6 +42,22 @@ describe("cross-lane routing via top/bottom faces", () => {
     expect(onTopOrBottom).toBe(true);
   });
 
+  it("drops an adjacent-lane edge directly from the source's top/bottom face", () => {
+    const m = parse(`graph LR
+      A[a] --> B[b]
+      ---
+      nodes:
+        A: { zone: client }
+        B: { zone: gcp }
+    `);
+    const layout = computeLayout(m);
+    const a = layout.nodes.find((n) => n.id === "A")!;
+    const start = layout.edges[0].points[0];
+    // client and gcp are adjacent lanes => source exits its top/bottom face.
+    const onTopOrBottom = Math.abs(start.y - a.y) < 0.5 || Math.abs(start.y - (a.y + a.h)) < 0.5;
+    expect(onTopOrBottom).toBe(true);
+  });
+
   it("keeps a same-lane edge on the side (left/right) faces", () => {
     const m = parse(`graph LR
       A[a] --> B[b]

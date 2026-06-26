@@ -452,16 +452,17 @@ function routeEdges(
     return { flowLow, flowHigh: flowLow + flowSize, flowSize, flowCenter: flowLow + flowSize / 2, crossLow, crossHigh: crossLow + crossSize, crossSize, crossCenter: crossLow + crossSize / 2 };
   };
 
+  type Mode = "same" | "direct" | "trunk";
   interface End { node: string; face: Face; flow: number; cross: number }
   interface Plan {
     e: { id: string; from: string; to: string; label?: string };
-    crossLane: boolean;
+    mode: Mode;
     forward: boolean;
     targetAbove: boolean;
     src: End;
     dst: End;
-    trunk: number; // flow coord of the vertical trunk (in a column gap)
-    channelCross: number; // cross-lane: cross coord of the lane-gap horizontal
+    trunk: number; // flow coord of the vertical trunk (same/trunk modes)
+    channelCross: number; // cross coord of the lane-gap horizontal (direct/trunk)
   }
   const plans: Plan[] = [];
 
@@ -475,24 +476,42 @@ function routeEdges(
   for (const e of list) {
     const a = geom(e.from);
     const b = geom(e.to);
-    const crossLane = laneOf.get(e.from) !== laneOf.get(e.to);
+    const la = laneOf.get(e.from)!;
+    const lb = laneOf.get(e.to)!;
     const forward = b.flowCenter >= a.flowCenter;
     const targetAbove = b.crossCenter < a.crossCenter;
-    const srcFace: Face = forward ? "fH" : "fL"; // source always exits its flow face
-    const dstFace: Face = crossLane ? (targetAbove ? "cH" : "cL") : forward ? "fL" : "fH";
+    // same lane -> flow faces; adjacent lanes -> direct top/bottom drop;
+    // 2+ lanes apart -> route the trunk through a column gap to clear nodes.
+    const mode: Mode = la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
+
+    let srcFace: Face;
+    let dstFace: Face;
+    let channelCross: number;
+    if (mode === "same") {
+      srcFace = forward ? "fH" : "fL";
+      dstFace = forward ? "fL" : "fH";
+      channelCross = 0;
+    } else if (mode === "direct") {
+      srcFace = targetAbove ? "cL" : "cH"; // exit the face that points at the target
+      dstFace = targetAbove ? "cH" : "cL";
+      channelCross = targetAbove ? (b.crossHigh + a.crossLow) / 2 : (a.crossHigh + b.crossLow) / 2;
+    } else {
+      srcFace = forward ? "fH" : "fL";
+      dstFace = targetAbove ? "cH" : "cL";
+      channelCross = targetAbove ? b.crossHigh + CHANNEL_INSET : b.crossLow - CHANNEL_INSET;
+    }
+
     const plan: Plan = {
-      e, crossLane, forward, targetAbove,
+      e, mode, forward, targetAbove,
       src: { node: e.from, face: srcFace, flow: 0, cross: 0 },
       dst: { node: e.to, face: dstFace, flow: 0, cross: 0 },
       trunk: (forward ? a.flowHigh + b.flowLow : a.flowLow + b.flowHigh) / 2,
-      channelCross: targetAbove ? b.crossHigh + CHANNEL_INSET : b.crossLow - CHANNEL_INSET,
+      channelCross,
     };
     const i = plans.push(plan) - 1;
-    // Order ports by the other endpoint's cross position so trunks and entries
-    // line up (source ports go where they head vertically; target ports follow
-    // the source order), which avoids local crossings.
-    push(e.from, srcFace, { planIndex: i, isSource: true, sortKey: b.crossCenter });
-    push(e.to, dstFace, { planIndex: i, isSource: false, sortKey: a.crossCenter });
+    // Flow faces order by the other end's cross; cross faces by the other end's flow.
+    push(e.from, srcFace, { planIndex: i, isSource: true, sortKey: srcFace[0] === "f" ? b.crossCenter : b.flowCenter });
+    push(e.to, dstFace, { planIndex: i, isSource: false, sortKey: dstFace[0] === "f" ? a.crossCenter : a.flowCenter });
   }
 
   // Distribute ports along each face (cross faces vary in flow, flow faces in cross).
@@ -515,10 +534,10 @@ function routeEdges(
     });
   }
 
-  // Distribute vertical trunks for forward edges within the column gap after source.
+  // Distribute vertical trunks for forward same/trunk edges in the column gap.
   const byCol = new Map<number, number[]>();
   plans.forEach((plan, i) => {
-    if (!plan.forward) return;
+    if (plan.mode === "direct" || !plan.forward) return;
     const si = colIndex.get(rankOf.get(plan.e.from)!)!;
     if (si + 1 >= ranks.length) return;
     (byCol.get(si) ?? (byCol.set(si, []), byCol.get(si)!)).push(i);
@@ -533,20 +552,28 @@ function routeEdges(
     });
   }
 
-  // Spread same-target lane-gap channels so cross-lane horizontals don't coincide.
+  // For cross-lane edges sharing a target/side: spread the lane-gap channel, and
+  // fan the source/target cross-face ports across each node's width so stacked
+  // sources don't drop on the same vertical.
   const byTarget = new Map<string, number[]>();
   plans.forEach((plan, i) => {
-    if (!plan.crossLane) return;
+    if (plan.mode === "same") return;
     const key = `${plan.e.to}|${plan.targetAbove ? "A" : "B"}`;
     (byTarget.get(key) ?? (byTarget.set(key, []), byTarget.get(key)!)).push(i);
   });
   for (const idxs of byTarget.values()) {
-    idxs.sort((a, b) => plans[a].trunk - plans[b].trunk);
+    idxs.sort((a, b) => geom(plans[a].e.from).crossCenter - geom(plans[b].e.from).crossCenter);
     const n = idxs.length;
-    // Spread the lane-gap horizontals symmetrically around the base depth so
-    // same-target channels stay distinct (and ordered to match their trunks).
     idxs.forEach((idx, k) => {
-      plans[idx].channelCross += (k - (n - 1) / 2) * CHANNEL_SPACING;
+      const plan = plans[idx];
+      plan.channelCross += (k - (n - 1) / 2) * CHANNEL_SPACING;
+      const frac = (k + 1) / (n + 1);
+      const tg = geom(plan.e.to);
+      plan.dst.flow = tg.flowLow + FACE_INSET + frac * (tg.flowSize - 2 * FACE_INSET);
+      if (plan.mode === "direct") {
+        const sg = geom(plan.e.from);
+        plan.src.flow = sg.flowLow + FACE_INSET + frac * (sg.flowSize - 2 * FACE_INSET);
+      }
     });
   }
 
@@ -555,24 +582,15 @@ function routeEdges(
     const s = toXY(plan.src.flow, plan.src.cross, horizontal);
     const d = toXY(plan.dst.flow, plan.dst.cross, horizontal);
     let points: LayoutPoint[];
-    if (!plan.crossLane) {
+    if (plan.mode === "same") {
       // H-V-H: source flow face -> trunk -> target flow face.
-      points = simplifyPolyline([
-        s,
-        toXY(plan.trunk, plan.src.cross, horizontal),
-        toXY(plan.trunk, plan.dst.cross, horizontal),
-        d,
-      ]);
+      points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.dst.cross, horizontal), d]);
+    } else if (plan.mode === "direct") {
+      // V-H-V: drop/rise from the source face, cross the single lane gap, into target.
+      points = simplifyPolyline([s, toXY(plan.src.flow, plan.channelCross, horizontal), toXY(plan.dst.flow, plan.channelCross, horizontal), d]);
     } else {
-      // H-V-H-V: into the column-gap trunk, across to the target's lane gap,
-      // then a short vertical into the target's top/bottom face.
-      points = simplifyPolyline([
-        s,
-        toXY(plan.trunk, plan.src.cross, horizontal),
-        toXY(plan.trunk, plan.channelCross, horizontal),
-        toXY(plan.dst.flow, plan.channelCross, horizontal),
-        d,
-      ]);
+      // H-V-H-V: into a column-gap trunk, across the lane gap, into target top/bottom.
+      points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.channelCross, horizontal), toXY(plan.dst.flow, plan.channelCross, horizontal), d]);
     }
     // Offset the label off the line (above for H, to the right for V) so a
     // short segment isn't hidden under the label's background.
