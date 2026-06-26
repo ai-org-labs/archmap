@@ -215,6 +215,40 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     });
   }
 
+  // Crossing reduction: reorder nodes *within their lane* by the barycenter of
+  // their neighbors' cross-order (Sugiyama-style sweeps). Lanes and ranks stay
+  // fixed, so this only untangles multi-node lane cells — no layout regression.
+  {
+    const adj = new Map<string, string[]>();
+    for (const id of nodeIds) adj.set(id, []);
+    for (const e of validEdges) {
+      adj.get(e.from)!.push(e.to);
+      adj.get(e.to)!.push(e.from);
+    }
+    const indexOf = new Map<string, number>();
+    const reindex = () => {
+      for (const r of ranks) byRank.get(r)!.forEach((n, i) => indexOf.set(n.id, i));
+    };
+    reindex();
+    for (let iter = 0; iter < 6; iter++) {
+      for (const r of ranks) {
+        const nodes = byRank.get(r)!;
+        const bary = new Map<string, number>();
+        for (const n of nodes) {
+          const vals = adj.get(n.id)!.map((id) => indexOf.get(id)).filter((v): v is number => v !== undefined);
+          bary.set(n.id, vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : indexOf.get(n.id)!);
+        }
+        nodes.sort((a, b) => {
+          const la = laneIndex.get(laneKey(a))!;
+          const lb = laneIndex.get(laneKey(b))!;
+          if (la !== lb) return la - lb;
+          return (bary.get(a.id)! - bary.get(b.id)!) || (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
+        });
+        nodes.forEach((n, i) => indexOf.set(n.id, i));
+      }
+    }
+  }
+
   // --- Positions ------------------------------------------------------------
   // Cross axis size per band (width for LR, height for TD).
   const laid = new Map<string, LayoutNode>();
