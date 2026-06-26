@@ -353,6 +353,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   // --- Edges: orthogonal routing with port + channel distribution -----------
   const nodeLane = new Map(model.nodes.map((n) => [n.id, laneIndex.get(laneKey(n))!]));
   const edges = routeEdges(validEdges, laid, rank, ranks, bandStart, bandExtent, horizontal, nodeLane);
+  resolveLabelCollisions(edges);
 
   const depth = Math.max(1, new Set([...laid.values()].map((n) => n.z)).size);
 
@@ -371,6 +372,46 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
 /** Project a (flow, cross) coordinate pair back to (x, y) for the given axis. */
 function toXY(flow: number, cross: number, horizontal: boolean): LayoutPoint {
   return horizontal ? { x: flow, y: cross } : { x: cross, y: flow };
+}
+
+// Edge-label box geometry (must match edgeLabelSvg in views/svg.ts).
+const LABEL_CHAR_W = 6.5;
+const LABEL_PAD = 8;
+const LABEL_H = 18;
+
+/**
+ * Nudge overlapping edge labels apart vertically so they stay readable. Labels
+ * keep their x (near their line); only the y is shifted, by the minimum needed.
+ */
+function resolveLabelCollisions(edges: LayoutEdge[]): void {
+  interface Box { at: LayoutPoint; x0: number; x1: number; y0: number; y1: number }
+  const boxes: Box[] = [];
+  for (const e of edges) {
+    if (!e.label) continue;
+    const w = e.label.length * LABEL_CHAR_W + LABEL_PAD;
+    const x0 = e.labelOrient === "v" ? e.labelAt.x - 2 : e.labelAt.x - w / 2;
+    boxes.push({ at: e.labelAt, x0, x1: x0 + w, y0: e.labelAt.y - LABEL_H / 2, y1: e.labelAt.y + LABEL_H / 2 });
+  }
+  const GAP = 3;
+  for (let iter = 0; iter < 30; iter++) {
+    let moved = false;
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+        const oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+        if (ox <= 0 || oy <= 0) continue;
+        const push = (oy + GAP) / 2;
+        // Move the upper box further up, the lower box further down.
+        const aUp = a.y0 + a.y1 <= b.y0 + b.y1 ? -1 : 1;
+        a.y0 += aUp * push; a.y1 += aUp * push; a.at.y += aUp * push;
+        b.y0 -= aUp * push; b.y1 -= aUp * push; b.at.y -= aUp * push;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
 }
 
 /** Midpoint + orientation of the longest segment of a polyline. */

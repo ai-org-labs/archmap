@@ -74,6 +74,47 @@ describe("cross-lane routing via top/bottom faces", () => {
   });
 });
 
+describe("label collision avoidance", () => {
+  it("leaves no two edge-label boxes overlapping", () => {
+    // A graph where several labeled edges converge, stressing label placement.
+    const m = parse(`graph LR
+      U[User] --> W[Web App]
+      U --> A[Android App]
+      W -->|HTTPS + JWT| G[API Gateway]
+      A -->|HTTPS + JWT| G
+      F[Firebase Auth] -->|issues JWT| W
+      G -->|HTTPS| R[Cloud Run]
+      R -->|SQL| D[(Cloud SQL)]
+      ---
+      nodes:
+        U: { zone: client }
+        W: { zone: client }
+        A: { zone: client }
+        F: { zone: identity }
+        G: { zone: gcp }
+        R: { zone: gcp }
+        D: { zone: gcp }
+    `);
+    const layout = computeLayout(m);
+    const boxes = layout.edges
+      .filter((e) => e.label)
+      .map((e) => {
+        const w = e.label!.length * 6.5 + 8;
+        const x0 = e.labelOrient === "v" ? e.labelAt.x - 2 : e.labelAt.x - w / 2;
+        return { x0, x1: x0 + w, y0: e.labelAt.y - 9, y1: e.labelAt.y + 9 };
+      });
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+        const oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+        expect(ox > 0 && oy > 0).toBe(false);
+      }
+    }
+  });
+});
+
 describe("crossing jumps (buildEdgePaths)", () => {
   it("breaks the horizontal line where a vertical of another edge crosses", () => {
     const edges = [
