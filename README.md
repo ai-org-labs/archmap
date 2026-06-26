@@ -42,21 +42,34 @@ no build). Or `npm run build` and open `examples/demo.html` directly from disk
 ### Vendor icons (opt-in)
 
 The core ships **no icon assets** — only the registry mechanism — so it stays
-dependency-free and clear of vendor-logo licensing. Register icons (resolved
-per node by `provider`/`kind`, most specific first) yourself, or import the
-sample pack:
+dependency-free and clear of vendor-logo licensing. Icons are resolved per node
+by `provider`/`kind` (most specific first: `provider/kind` → `provider` →
+`kind`).
+
+**Recommended icon source: [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons).**
+It registers AWS/GCP/Azure service-kind icons (keyed `provider/kind`) plus a
+famous-services pack through ArchMap's `registerIcon` — a verified drop-in (same
+`RegisterIcon`/`RenderableIcon` types; 2293 icons register against this API):
 
 ```ts
-import { installCloudIcons } from "archmap/packs/cloud-icons"; // sample, dev only
+import { registerIcon } from "archmap";
+import { installAwsIcons, installFamousServiceIcons } from "@archmap/icons";
+installAwsIcons(registerIcon);
+installFamousServiceIcons(registerIcon);
+```
+
+Or register your own / use the bundled minimal sample:
+
+```ts
+import { installCloudIcons } from "archmap/packs/cloud-icons"; // tiny sample
 installCloudIcons();
-// or your own asset:
 registerIcon("aws", { viewBox: "0 0 24 24", body: '<path .../>' });
 ```
 
-> Licensing note: AWS and Azure logos were removed from the CC0 `simple-icons`
-> set for trademark reasons, and Wiz isn't in it at all. The sample pack uses
-> real CC0 logos for GCP/Datadog/Firebase and lettered-badge stand-ins for
-> AWS/Azure/Wiz — register the official (licensed) SVGs in real use.
+> Note: `@archmap/icons` v0.1.0 is not yet on npm and its GitHub tag ships no
+> build output — publish it (or add a `prepare`/`dist`) before depending on it.
+> The bundled sample uses CC0 logos for GCP/Datadog/Firebase and lettered-badge
+> stand-ins for AWS/Azure/Wiz (AWS/Azure/Wiz aren't in CC0 simple-icons).
 
 ### 3D view (opt-in)
 

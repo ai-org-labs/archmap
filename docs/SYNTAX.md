@@ -239,7 +239,10 @@ const { svg } = render(model, { view: "overview", target: el });
 
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
 - **Icons** are opt-in (core ships none). `registerIcon("aws", { viewBox, body })`;
-  resolved per node by `provider/kind` → `provider` → `kind`.
+  resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
+  [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified
+  drop-in (`installAwsIcons(registerIcon)`, etc.; AWS/GCP/Azure `provider/kind`
+  icons + famous services). The bundled `archmap/packs/cloud-icons` is a tiny sample.
 - **3D / icon packs** live outside the core bundle:
   `import { installThreeView } from "archmap/views3d/three-view"` (needs `three`),
   `import { installCloudIcons } from "archmap/packs/cloud-icons"`.
