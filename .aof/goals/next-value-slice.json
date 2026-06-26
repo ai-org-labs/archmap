@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Assess TASK-002 closure: overlay composition and RenderResult controls are implemented; next either close Stage 4 after final QIF/spec check, or open a separate engine API task for <archmap-viewer>, external src, diagnostics target, and richer controls.",
-  "updated_at": "2026-06-26T19:01:22.871Z",
+  "content": "Continue TASK-005: add external src loading for <archmap-viewer>, emit src_fetch_failed diagnostics on failure, and render diagnostics to a diagnostics-target or internal panel.",
+  "updated_at": "2026-06-26T19:04:28.709Z",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-002",
+  "title": "Stage 4 overview: base view plus overlay API",
+  "description": "Add render(model,{baseView,overlays}) path so overview base view and auth/dataflow/boundary/permission/validation overlays combine without reparsing.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-26T18:06:20.961Z",
+  "updated_at": "2026-06-26T19:02:57.726Z",
+  "assigned_at": null,
+  "done_at": "2026-06-26T19:02:57.726Z",
+  "retired_at": null,
+  "last_triaged_at": null,
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "Stage 4 DONE. Completion: render(model,{baseView,overlays}) coexists with legacy view API; overview and zone render from the normalized model; auth/dataflow/boundary/permission/validation overlays combine without reparsing; permission overlay synthesizes principal-resource annotation edges; RenderResult supports setBaseView/setOverlays/toggleOverlay/destroy. Success: 03 view acceptance for overview + overlay combinations is covered by tests, legibility invariants rely on existing layout/routing tests, and warnings remain non-blocking. Verification: typecheck, test (82), build, organization-verify 22/22. Engine API work is split to TASK-005."
+}

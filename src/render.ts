@@ -262,6 +262,110 @@ export interface InitializeOptions {
   defaultView?: string;
   /** CSS selector for elements whose text content is ArchMap source. */
   selector?: string;
+  /** Define the <archmap-viewer> custom element when available. */
+  defineCustomElement?: boolean;
+}
+
+export interface ViewerAttributeOptions {
+  baseView?: string;
+  overlays: string[];
+  width: string;
+  height: string;
+}
+
+export function parseOverlaysAttribute(value: string | null): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">): ViewerAttributeOptions {
+  return {
+    baseView: attrs.getAttribute("base-view") ?? undefined,
+    overlays: parseOverlaysAttribute(attrs.getAttribute("overlays")),
+    width: attrs.getAttribute("width") ?? "100%",
+    height: attrs.getAttribute("height") ?? "600px",
+  };
+}
+
+/** Define the long-term <archmap-viewer> embedding element when running in a browser. */
+export function defineArchMapViewerElement(): void {
+  if (typeof customElements === "undefined" || typeof HTMLElement === "undefined") return;
+  if (customElements.get("archmap-viewer")) return;
+
+  class ArchMapViewerElement extends HTMLElement {
+    static get observedAttributes(): string[] {
+      return ["base-view", "overlays", "width", "height"];
+    }
+
+    private source = "";
+    private container?: HTMLDivElement;
+    private result?: RenderResult;
+
+    connectedCallback(): void {
+      if (!this.source) this.source = this.textContent ?? "";
+      this.renderInlineSource();
+    }
+
+    disconnectedCallback(): void {
+      this.result?.destroy();
+      this.result = undefined;
+    }
+
+    attributeChangedCallback(name: string): void {
+      if (!this.isConnected) return;
+      if (!this.result) {
+        this.renderInlineSource();
+        return;
+      }
+      const options = viewerOptionsFromAttributes(this);
+      if (name === "base-view" && options.baseView) {
+        this.result.setBaseView(options.baseView);
+      } else if (name === "overlays") {
+        this.result.setOverlays(options.overlays);
+      } else if (name === "width" || name === "height") {
+        this.applyFrameStyle();
+      }
+    }
+
+    private ensureContainer(): HTMLDivElement {
+      if (this.container) return this.container;
+      this.innerHTML = "";
+      const container = document.createElement("div");
+      container.className = "archmap-viewer-frame";
+      this.appendChild(container);
+      this.container = container;
+      return container;
+    }
+
+    private applyFrameStyle(): void {
+      const options = viewerOptionsFromAttributes(this);
+      this.style.display = this.style.display || "block";
+      this.style.width = options.width;
+      this.style.height = options.height;
+      const container = this.ensureContainer();
+      container.style.width = "100%";
+      container.style.height = "100%";
+      container.style.overflow = "auto";
+    }
+
+    private renderInlineSource(): void {
+      const source = this.source.trim();
+      if (!source) return;
+      this.applyFrameStyle();
+      const options = viewerOptionsFromAttributes(this);
+      const model = parse(source);
+      this.result?.destroy();
+      this.result = render(model, {
+        baseView: options.baseView,
+        overlays: options.overlays,
+        target: this.ensureContainer(),
+      });
+    }
+  }
+
+  customElements.define("archmap-viewer", ArchMapViewerElement);
 }
 
 /**
@@ -271,6 +375,7 @@ export interface InitializeOptions {
  */
 export function initialize(options: InitializeOptions = {}): void {
   if (typeof document === "undefined") return;
+  if (options.defineCustomElement !== false) defineArchMapViewerElement();
   const selector = options.selector ?? "pre.archmap, code.language-archmap, .archmap-src";
   const defaultView = options.defaultView ?? "overview";
 

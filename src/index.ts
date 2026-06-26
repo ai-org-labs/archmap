@@ -36,6 +36,9 @@ export {
   getView,
   listViews,
   initialize,
+  defineArchMapViewerElement,
+  parseOverlaysAttribute,
+  viewerOptionsFromAttributes,
 } from "./render.js";
 export type {
   ViewRenderer,
@@ -43,6 +46,7 @@ export type {
   RenderOptions,
   RenderResult,
   InitializeOptions,
+  ViewerAttributeOptions,
   ViewHandle,
   MountableView,
 } from "./render.js";

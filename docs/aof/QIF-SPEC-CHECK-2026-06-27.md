@@ -25,8 +25,8 @@ quality intent, risk, and loss framing. Authority order follows
 | View metadata | Spec allows `view.default: { base, overlays }`; implementation only used compact string before this check. | Fixed in `TASK-004` |
 | 3D base view | Spec requires `3d` as a base view name and `view_3d_unavailable` fallback when the renderer is absent. Core registry lacked a fallback before this check. | Fixed in `TASK-004` |
 | Overlay API | Previous scaffold validated overlay names but did not apply semantic projections. That risked drifting into a class-only API. | Improved in `TASK-004` |
-| Engine API | Custom element, `src`, controls, diagnostics target, pan/zoom lifecycle, and mutable `RenderResult` controls remain mostly future work. | Residual gap |
-| Rendering quality | Current layout protects many legibility basics, but full overlay conflict priority, inspector behavior, and dense-diagram controls are not complete. | Residual gap |
+| Engine API | Custom element, `src`, diagnostics target, SVG pan/zoom lifecycle, and viewer UI controls remain future work. Mutable `RenderResult` controls are now implemented. | Split to engine task |
+| Rendering quality | Current layout protects many legibility basics and overlays now combine, but full inspector behavior and dense-diagram controls are not complete. | Residual gap |
 
 ## Fixes Applied In TASK-004
 
@@ -45,21 +45,29 @@ quality intent, risk, and loss framing. Authority order follows
   `{ type: "zone", id: "gcp" }`, and permission principals can resolve through
   `nodes.*.principal` as required by the model spec.
 
+## Follow-up Applied In TASK-002
+
+- Permission overlay now synthesizes principal-to-resource annotation edges
+  with role/action labels and resource badges.
+- `RenderResult` now exposes `setBaseView(view)`, `setOverlays(overlays)`,
+  `toggleOverlay(overlay)`, `fit()`, `reset()`, and `destroy()`. The overlay
+  and base-view mutators rerender the existing model into the original target
+  without reparsing.
+
 ## Residual Gaps
 
-- `permission` overlay is intentionally minimal: it highlights known principal
-  holder nodes and typed resources, but does not yet synthesize permission edges.
-- `RenderResult.setOverlays()`, `toggleOverlay()`, `setBaseView()`, `fit()`,
-  `reset()`, and `destroy()` are not implemented as the engine API shape.
 - The preferred custom element `<archmap-viewer>` and external `src` loading are
   still future engine work, including `src_fetch_failed`.
-- Overlay conflict priority is only partially represented through badge
-  overwrites; a full inspector and conflict-collapse system remains open.
+- SVG pan/zoom, diagnostics target/panel, console diagnostics, and viewer UI
+  controls remain engine API work.
+- Overlay conflict priority is represented only by current composition order and
+  badge overwrites; a full inspector and conflict-collapse system remains open.
 
 ## Completion And Success
 
-- Completion for this check: report written, low-risk drift fixed, tests added,
-  verification commands pass, and `.aof` handoff updated.
-- Success for the broader v0.1 effort: remaining engine API and overlay
+- Completion for the parse→normalize→diagnostics→overview epic: report written,
+  low-risk drift fixed, overlays combine on base views, mutable render controls
+  exist, verification commands pass, and `.aof` handoff is updated.
+- Success for the broader v0.1 product: remaining engine API and viewer
   interaction gaps are implemented without regressing graph-only rendering or
   legacy public APIs.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parse } from "../src/parser-entry.js";
-import { render, registerView, listViews } from "../src/render.js";
+import { parseOverlaysAttribute, render, registerView, listViews, viewerOptionsFromAttributes } from "../src/render.js";
 
 const example = readFileSync(
   fileURLToPath(new URL("../examples/multi-cloud.archmap", import.meta.url)),
@@ -138,5 +138,28 @@ describe("render", () => {
     const m = parse(`graph LR\nA[a] --> B[b]`);
     const { svg } = render(m, { view: "count" });
     expect(svg).toContain('data-nodes="2"');
+  });
+});
+
+describe("archmap-viewer attributes", () => {
+  it("parses comma-separated overlays", () => {
+    expect(parseOverlaysAttribute("auth, dataflow,boundary")).toEqual(["auth", "dataflow", "boundary"]);
+    expect(parseOverlaysAttribute("")).toEqual([]);
+  });
+
+  it("uses viewer attribute defaults", () => {
+    const attrs = new Map<string, string>([
+      ["base-view", "zone"],
+      ["overlays", "auth,validation"],
+    ]);
+    const options = viewerOptionsFromAttributes({
+      getAttribute: (name: string) => attrs.get(name) ?? null,
+    });
+    expect(options).toEqual({
+      baseView: "zone",
+      overlays: ["auth", "validation"],
+      width: "100%",
+      height: "600px",
+    });
   });
 });

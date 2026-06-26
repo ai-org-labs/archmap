@@ -267,7 +267,7 @@ lines get a small jump gap.
 ```js
 import {
   parse, render, computeLayout,
-  registerView, getView, listViews, initialize,
+  registerView, getView, listViews, initialize, defineArchMapViewerElement,
   registerIcon, getIcon, listIcons, clearIcons, resolveIcon, resolveNodeIcons,
   extractArchMapBlocks, version,
 } from "archmap";
@@ -282,6 +282,10 @@ overlaid.toggleOverlay("boundary");
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
 - **Render results** can update base view/overlays without reparsing:
   `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`, `destroy()`.
+- **Custom element (inline source):** `initialize()` defines
+  `<archmap-viewer>` by default when `customElements` is available; call
+  `defineArchMapViewerElement()` directly if you do not use `initialize()`.
+  Supported first-pass attributes: `base-view`, `overlays`, `width`, `height`.
 - **Icons** are opt-in (core ships none). `registerIcon("aws", { viewBox, body })`;
   resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
   [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified
@@ -299,4 +303,6 @@ overlaid.toggleOverlay("boundary");
 
 Parsed/modeled but **not rendered**: node `contains` nesting, nested boundary
 rendering, manual `layout` positions, `view.enabled` / `view.filters`. Not
-modeled: zone-in-zone. (Nesting is tracked in the backlog.)
+modeled: zone-in-zone. Custom element external `src`, diagnostics target/panel,
+and SVG pan/zoom controls are still engine API follow-up work. (Nesting is
+tracked in the backlog.)

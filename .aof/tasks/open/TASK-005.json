@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-005",
+  "title": "Engine API: viewer element, src loading, diagnostics UI",
+  "description": "Implement the 04-engine-api surface after Stage 4: <archmap-viewer>, external src with src_fetch_failed, diagnostics target/panel, SVG pan/zoom controls, and viewer UI state without reparsing.",
+  "status": "open",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-26T19:02:57.737Z",
+  "updated_at": "2026-06-26T19:04:28.710Z",
+  "assigned_at": null,
+  "done_at": null,
+  "retired_at": null,
+  "last_triaged_at": null,
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "Engine API started. Added first-pass inline <archmap-viewer>: initialize() defines it by default, defineArchMapViewerElement() is exported, and attributes base-view/overlays/width/height render inline source while base-view/overlay attribute changes reuse RenderResult mutators without reparsing. Added attribute parser helpers and tests. Verification: typecheck, test (84), build pass. Remaining: external src with src_fetch_failed, diagnostics target/panel, controls UI, SVG pan/zoom/fit/reset behavior."
+}
