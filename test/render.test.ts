@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parse } from "../src/parser-entry.js";
-import { parseOverlaysAttribute, render, registerView, listViews, viewerOptionsFromAttributes } from "../src/render.js";
+import {
+  diagnosticsHtml,
+  fetchArchMapSource,
+  parseOverlaysAttribute,
+  render,
+  renderDiagnostics,
+  registerView,
+  listViews,
+  viewerOptionsFromAttributes,
+} from "../src/render.js";
 
 const example = readFileSync(
   fileURLToPath(new URL("../examples/multi-cloud.archmap", import.meta.url)),
@@ -118,6 +127,15 @@ describe("render", () => {
     expect(m.diagnostics.some((d) => d.target?.type === "view" && d.target.id === "made-up")).toBe(true);
   });
 
+  it("renders diagnostics to an external target", () => {
+    const target = { innerHTML: "" } as Element & { innerHTML: string };
+    const m = parse(`graph LR\nA[a]`);
+    render(m, { diagnosticsTarget: target });
+    expect(target.innerHTML).toContain("archmap-diagnostics");
+    expect(target.innerHTML).toContain("node_without_metadata");
+    expect(diagnosticsHtml(m)).toContain("Errors 0 / Warnings 0");
+  });
+
   it("escapes special characters in labels", () => {
     const m = parse(`graph LR
       A[a & <b>] --> B[b]
@@ -151,15 +169,41 @@ describe("archmap-viewer attributes", () => {
     const attrs = new Map<string, string>([
       ["base-view", "zone"],
       ["overlays", "auth,validation"],
+      ["diagnostics-target", "#warnings"],
+      ["src", "./arch.archmap"],
     ]);
     const options = viewerOptionsFromAttributes({
       getAttribute: (name: string) => attrs.get(name) ?? null,
+      hasAttribute: (name: string) => name === "diagnostics" || name === "fallback-to-inline",
     });
     expect(options).toEqual({
       baseView: "zone",
       overlays: ["auth", "validation"],
       width: "100%",
       height: "600px",
+      src: "./arch.archmap",
+      diagnostics: true,
+      diagnosticsTarget: "#warnings",
+      fallbackToInline: true,
     });
+  });
+
+  it("fetches external ArchMap source", async () => {
+    const text = await fetchArchMapSource("./ok.archmap", async () => ({
+      ok: true,
+      status: 200,
+      text: async () => "graph LR\nA[a]",
+    } as Response));
+    await expect(fetchArchMapSource("./missing.archmap", async () => ({
+      ok: false,
+      status: 404,
+      text: async () => "",
+    } as Response))).rejects.toThrow("HTTP 404");
+    expect(text).toContain("graph LR");
+  });
+
+  it("can render diagnostics without a target", () => {
+    const m = parse(`graph LR\nA[a]`);
+    expect(renderDiagnostics(m, null)).toContain("archmap-diagnostics-summary");
   });
 });

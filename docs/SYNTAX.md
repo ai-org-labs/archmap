@@ -285,7 +285,10 @@ overlaid.toggleOverlay("boundary");
 - **Custom element (inline source):** `initialize()` defines
   `<archmap-viewer>` by default when `customElements` is available; call
   `defineArchMapViewerElement()` directly if you do not use `initialize()`.
-  Supported first-pass attributes: `base-view`, `overlays`, `width`, `height`.
+  Supported first-pass attributes: `base-view`, `overlays`, `width`, `height`,
+  `src`, `fallback-to-inline`, `diagnostics`, and `diagnostics-target`.
+  External `src` takes priority; failed loads emit `src_fetch_failed` and show
+  diagnostics. Inline fallback is used only when `fallback-to-inline` is present.
 - **Icons** are opt-in (core ships none). `registerIcon("aws", { viewBox, body })`;
   resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
   [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified
@@ -303,6 +306,5 @@ overlaid.toggleOverlay("boundary");
 
 Parsed/modeled but **not rendered**: node `contains` nesting, nested boundary
 rendering, manual `layout` positions, `view.enabled` / `view.filters`. Not
-modeled: zone-in-zone. Custom element external `src`, diagnostics target/panel,
-and SVG pan/zoom controls are still engine API follow-up work. (Nesting is
-tracked in the backlog.)
+modeled: zone-in-zone. SVG pan/zoom controls and richer diagnostics/inspector UI
+are still engine API follow-up work. (Nesting is tracked in the backlog.)

@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Continue TASK-005 first: external src loading, src_fetch_failed diagnostics, and diagnostics target/panel. Keep TASK-011 QIF audit active at each task closure, then proceed through TASK-006 controls/SVG interaction, TASK-007 inspector UX, TASK-008 nested rendering quality, TASK-009 3D completion, and TASK-010 delivery/security acceptance.",
-  "updated_at": "2026-06-26T19:10:02.229Z",
+  "content": "Continue TASK-005/TASK-006 boundary: add configurable console diagnostics and begin controls/SVG interaction (controls=true UI, base-view selector, overlay checkboxes, fit/reset, pan/zoom) while keeping TASK-011 QIF active before closure.",
+  "updated_at": "2026-06-26T19:16:28.840Z",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

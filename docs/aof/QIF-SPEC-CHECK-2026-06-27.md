@@ -54,12 +54,20 @@ quality intent, risk, and loss framing. Authority order follows
   and base-view mutators rerender the existing model into the original target
   without reparsing.
 
+## Follow-up Applied In TASK-005
+
+- `<archmap-viewer src>` now loads external ArchMap source before inline content.
+- Failed external source loads emit `src_fetch_failed` on the rendered model and
+  show diagnostics. Inline fallback is used only when `fallback-to-inline` is
+  present.
+- `render(model,{diagnosticsTarget})` and `<archmap-viewer diagnostics>` /
+  `diagnostics-target` can render a diagnostics summary/list to an internal
+  panel or external element.
+
 ## Residual Gaps
 
-- The preferred custom element `<archmap-viewer>` and external `src` loading are
-  still future engine work, including `src_fetch_failed`.
-- SVG pan/zoom, diagnostics target/panel, console diagnostics, and viewer UI
-  controls remain engine API work.
+- SVG pan/zoom, configurable console diagnostics, richer diagnostics
+  interaction, and viewer UI controls remain engine API work.
 - Overlay conflict priority is represented only by current composition order and
   badge overwrites; a full inspector and conflict-collapse system remains open.
 

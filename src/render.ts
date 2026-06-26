@@ -56,6 +56,8 @@ export interface RenderOptions {
   rankBy?: LayoutOptions["rankBy"];
   /** DOM element to inject the SVG into (browser only). */
   target?: Element | null;
+  /** DOM element or selector to receive diagnostics after render. */
+  diagnosticsTarget?: Element | string | null;
 }
 
 export interface RenderResult {
@@ -86,6 +88,41 @@ export function getView(name: string): ViewRenderer | undefined {
 
 export function listViews(): string[] {
   return [...registry.keys()];
+}
+
+function diagnosticLabel(model: ArchMapModel): string {
+  return `Errors ${model.errors.length} / Warnings ${model.warnings.length} / Suggestions ${model.suggestions.length} / Infos ${model.infos.length}`;
+}
+
+function diagnosticTarget(target: Element | string | null | undefined): Element | undefined {
+  if (!target) return undefined;
+  if (typeof target !== "string") return target;
+  return typeof document !== "undefined" ? document.querySelector(target) ?? undefined : undefined;
+}
+
+export function diagnosticsHtml(model: ArchMapModel): string {
+  syncDiagnostics(model);
+  const items = model.diagnostics
+    .map((d) => {
+      const target = d.target ? ` ${d.target.type}:${d.target.id}` : "";
+      return `<li class="archmap-diagnostic archmap-diagnostic-${escapeXml(d.level ?? d.severity)}">` +
+        `<strong>${escapeXml(d.code)}</strong>${escapeXml(target)}: ${escapeXml(d.message)}` +
+        `</li>`;
+    })
+    .join("");
+  return (
+    `<div class="archmap-diagnostics" role="status">` +
+    `<div class="archmap-diagnostics-summary">${escapeXml(diagnosticLabel(model))}</div>` +
+    `<ul>${items}</ul>` +
+    `</div>`
+  );
+}
+
+export function renderDiagnostics(model: ArchMapModel, target: Element | string | null | undefined): string {
+  const html = diagnosticsHtml(model);
+  const el = diagnosticTarget(target);
+  if (el && "innerHTML" in el) el.innerHTML = html;
+  return html;
 }
 
 // Built-in views.
@@ -203,6 +240,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     if (typeof out === "string") {
       const svg = decorateSvgWithOverlays(out, knownOverlays);
       syncDiagnostics(model);
+      renderDiagnostics(model, options.diagnosticsTarget);
       if (options.target && "innerHTML" in options.target) {
         options.target.innerHTML = svg;
       }
@@ -210,6 +248,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     }
     const handle = options.target ? out.mount(options.target) : undefined;
     syncDiagnostics(model);
+    renderDiagnostics(model, options.diagnosticsTarget);
     return { view: state.view, layout, model, handle, svg: undefined };
   };
 
@@ -271,6 +310,10 @@ export interface ViewerAttributeOptions {
   overlays: string[];
   width: string;
   height: string;
+  src?: string;
+  diagnostics: boolean;
+  diagnosticsTarget?: string;
+  fallbackToInline: boolean;
 }
 
 export function parseOverlaysAttribute(value: string | null): string[] {
@@ -280,13 +323,23 @@ export function parseOverlaysAttribute(value: string | null): string[] {
     .filter(Boolean);
 }
 
-export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">): ViewerAttributeOptions {
+export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute"> & Partial<Pick<Element, "hasAttribute">>): ViewerAttributeOptions {
   return {
     baseView: attrs.getAttribute("base-view") ?? undefined,
     overlays: parseOverlaysAttribute(attrs.getAttribute("overlays")),
     width: attrs.getAttribute("width") ?? "100%",
     height: attrs.getAttribute("height") ?? "600px",
+    src: attrs.getAttribute("src") ?? undefined,
+    diagnostics: attrs.getAttribute("diagnostics") === "true" || attrs.hasAttribute?.("diagnostics") === true,
+    diagnosticsTarget: attrs.getAttribute("diagnostics-target") ?? undefined,
+    fallbackToInline: attrs.hasAttribute?.("fallback-to-inline") === true,
   };
+}
+
+export async function fetchArchMapSource(src: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const response = await fetchImpl(src);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.text();
 }
 
 /** Define the long-term <archmap-viewer> embedding element when running in a browser. */
@@ -296,16 +349,18 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "overlays", "width", "height"];
+      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "fallback-to-inline"];
     }
 
     private source = "";
     private container?: HTMLDivElement;
+    private diagnosticsPanel?: HTMLDivElement;
     private result?: RenderResult;
+    private loadVersion = 0;
 
     connectedCallback(): void {
       if (!this.source) this.source = this.textContent ?? "";
-      this.renderInlineSource();
+      void this.renderSource();
     }
 
     disconnectedCallback(): void {
@@ -316,7 +371,7 @@ export function defineArchMapViewerElement(): void {
     attributeChangedCallback(name: string): void {
       if (!this.isConnected) return;
       if (!this.result) {
-        this.renderInlineSource();
+        void this.renderSource();
         return;
       }
       const options = viewerOptionsFromAttributes(this);
@@ -326,6 +381,8 @@ export function defineArchMapViewerElement(): void {
         this.result.setOverlays(options.overlays);
       } else if (name === "width" || name === "height") {
         this.applyFrameStyle();
+      } else {
+        void this.renderSource();
       }
     }
 
@@ -339,6 +396,15 @@ export function defineArchMapViewerElement(): void {
       return container;
     }
 
+    private ensureDiagnosticsPanel(): HTMLDivElement {
+      if (this.diagnosticsPanel) return this.diagnosticsPanel;
+      const panel = document.createElement("div");
+      panel.className = "archmap-viewer-diagnostics";
+      this.appendChild(panel);
+      this.diagnosticsPanel = panel;
+      return panel;
+    }
+
     private applyFrameStyle(): void {
       const options = viewerOptionsFromAttributes(this);
       this.style.display = this.style.display || "block";
@@ -350,18 +416,46 @@ export function defineArchMapViewerElement(): void {
       container.style.overflow = "auto";
     }
 
-    private renderInlineSource(): void {
-      const source = this.source.trim();
-      if (!source) return;
+    private diagnosticsTarget(options: ViewerAttributeOptions): Element | undefined {
+      if (options.diagnosticsTarget) return document.querySelector(options.diagnosticsTarget) ?? undefined;
+      return options.diagnostics ? this.ensureDiagnosticsPanel() : undefined;
+    }
+
+    private renderModel(model: ArchMapModel, options: ViewerAttributeOptions): void {
       this.applyFrameStyle();
-      const options = viewerOptionsFromAttributes(this);
-      const model = parse(source);
       this.result?.destroy();
       this.result = render(model, {
         baseView: options.baseView,
         overlays: options.overlays,
         target: this.ensureContainer(),
+        diagnosticsTarget: this.diagnosticsTarget(options),
       });
+    }
+
+    private renderSourceFailure(src: string, error: unknown, options: ViewerAttributeOptions): void {
+      const fallback = options.fallbackToInline ? this.source.trim() : "";
+      const model = parse(fallback || "graph LR");
+      const message = error instanceof Error ? error.message : String(error);
+      model.errors.push(diagnostic("src_fetch_failed", `External ArchMap source "${src}" failed to load: ${message}.`, { type: "view", id: src }));
+      syncDiagnostics(model);
+      this.renderModel(model, options);
+    }
+
+    private async renderSource(): Promise<void> {
+      const version = ++this.loadVersion;
+      const options = viewerOptionsFromAttributes(this);
+      let source = this.source.trim();
+      if (options.src) {
+        try {
+          source = await fetchArchMapSource(options.src);
+        } catch (e) {
+          if (version === this.loadVersion) this.renderSourceFailure(options.src, e, options);
+          return;
+        }
+      }
+      if (version !== this.loadVersion) return;
+      if (!source) return;
+      this.renderModel(parse(source), options);
     }
   }
 

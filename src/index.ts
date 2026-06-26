@@ -37,7 +37,10 @@ export {
   listViews,
   initialize,
   defineArchMapViewerElement,
+  diagnosticsHtml,
+  fetchArchMapSource,
   parseOverlaysAttribute,
+  renderDiagnostics,
   viewerOptionsFromAttributes,
 } from "./render.js";
 export type {
