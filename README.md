@@ -2,7 +2,10 @@
 
 Browser-only semantic architecture diagram rendering framework — a Mermaid-like
 DSL that compiles to a rich semantic model and multiple architecture views.
-See the [v0.1 spec](./SPEC.md) for the full language definition.
+
+- [docs/SYNTAX.md](./docs/SYNTAX.md) — reference for every **currently
+  implemented** syntax/feature (start here to author diagrams)
+- [SPEC.md](./SPEC.md) — the v0.1 language design
 
 > **Status:** Stage 4 complete — all six required v0.1 SVG views, an opt-in
 > vendor-icon registry, and an **opt-in three.js 3D view** that consumes the
