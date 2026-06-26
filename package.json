@@ -29,7 +29,8 @@
     "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
@@ -43,6 +44,7 @@
     }
   },
   "devDependencies": {
+    "@archmap/icons": "^0.1.0",
     "@types/js-yaml": "^4.0.9",
     "@types/three": "^0.184.1",
     "simple-icons": "^16.24.0",

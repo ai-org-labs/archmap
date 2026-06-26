@@ -118,10 +118,11 @@ boundaries:
   </script>
 
   <script type="module">
-    import { parse, render } from "/src/index.ts";
-    import { installCloudIcons } from "/src/packs/cloud-icons.ts";
+    import { parse, render, registerIcon } from "/src/index.ts";
+    import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "/src/views3d/three-view.ts";
-    installCloudIcons(); // opt-in sample pack; core ships no icons
+    installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons (opt-in)
+    installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
     installThreeView(); // opt-in 3D view; core does not bundle three.js
     const $ = (id) => document.getElementById(id);
     $("src").value = $("seed").textContent.trim();

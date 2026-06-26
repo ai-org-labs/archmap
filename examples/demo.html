@@ -31,7 +31,7 @@
   </style>
 </head>
 <body>
-  <header><h1>ArchMap <span>Overview view · Stage 2 demo</span></h1></header>
+  <header><h1>ArchMap <span>static demo · @archmap/icons + 3D via CDN</span></h1></header>
   <main>
     <div class="panel">
       <textarea id="src" spellcheck="false"></textarea>
@@ -45,6 +45,7 @@
             <option value="dataflow">dataflow</option>
             <option value="boundary">boundary</option>
             <option value="validation">validation</option>
+            <option value="3d">3d</option>
           </select>
         </label>
       </div>
@@ -64,17 +65,21 @@ graph LR
   GCPApp -->|SQL| CloudSQL[(Cloud SQL)]
   GCPApp -->|HTTPS / VPN| AWSApp[AWS Service]
   AWSApp -->|SQL| RDS[(RDS)]
+  GCPApp -->|metrics| Datadog[Datadog]
+  Wiz[Wiz] -->|scans| GCPApp
 ---
 nodes:
   User: { zone: client, layer: client, kind: user }
   Web: { zone: client, layer: client, kind: web_app }
   Android: { zone: client, layer: client, kind: android_app }
-  FirebaseAuth: { zone: identity, layer: identity, kind: identity_provider }
-  APIGW: { zone: gcp, layer: edge, kind: api_gateway }
-  GCPApp: { zone: gcp, layer: runtime, kind: serverless_service, principal: gcp-app-sa }
-  CloudSQL: { zone: gcp, layer: data, kind: relational_database }
-  AWSApp: { zone: aws, layer: runtime, kind: runtime_service }
-  RDS: { zone: aws, layer: data, kind: relational_database }
+  FirebaseAuth: { zone: identity, layer: identity, kind: identity_provider, provider: firebase }
+  APIGW: { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
+  GCPApp: { zone: gcp, layer: runtime, kind: serverless_service, provider: gcp, principal: gcp-app-sa }
+  CloudSQL: { zone: gcp, layer: data, kind: relational_database, provider: gcp }
+  AWSApp: { zone: aws, layer: runtime, kind: runtime_service, provider: aws }
+  RDS: { zone: aws, layer: data, kind: relational_database, provider: aws }
+  Datadog: { zone: saas, layer: operations, kind: monitoring, provider: datadog }
+  Wiz: { zone: saas, layer: operations, kind: monitoring, provider: wiz }
 edges:
   web_api:
     from: Web
@@ -112,16 +117,40 @@ boundaries:
   gcp_private: { label: GCP Private Network, kind: network_boundary, contains: [GCPApp, CloudSQL] }
   </script>
 
-  <!-- Build first: `npm run build`, then open this file directly. -->
-  <script src="../dist/archmap.umd.cjs"></script>
-  <script>
+  <!--
+    Static, no-build demo. Core + 3D load from the local build (run
+    `npm run build` first); icons and three.js load from CDN. For a pure-CDN
+    page, map "archmap" to https://cdn.jsdelivr.net/npm/archmap@<ver>/dist/archmap.js
+    and three-view to .../dist/views3d/three-view.js (needs a complete publish).
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "archmap": "../dist/archmap.js",
+      "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
+      "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
+      "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.0/+esm"
+    }
+  }
+  </script>
+  <script type="module">
+    import { parse, render, registerIcon } from "archmap";
+    import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
+    import { installThreeView } from "../dist/views3d/three-view.js";
+
+    installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons
+    installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
+    installThreeView(); // 3D view (three.js from CDN)
+
     const $ = (id) => document.getElementById(id);
     $("src").value = $("seed").textContent.trim();
 
+    let handle = null;
     function draw() {
-      const model = ArchMap.parse($("src").value);
-      const { svg } = ArchMap.render(model, { view: $("view").value });
-      $("diagram").innerHTML = svg;
+      if (handle) { handle.dispose(); handle = null; } // tear down a live 3D scene
+      const model = parse($("src").value);
+      const res = render(model, { view: $("view").value, target: $("diagram") });
+      handle = res.handle ?? null;
       const log = [
         ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),
         ...model.warnings.map((d) => `<div class="warn">▲ ${d.code}: ${d.message}</div>`),
