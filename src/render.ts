@@ -8,7 +8,8 @@
 
 import { computeLayout } from "./layout.js";
 import type { LayoutOptions, LayoutResult } from "./layout.js";
-import { diagnostic, syncDiagnostics } from "./diagnostics.js";
+import { diagnostic, syncDiagnostics, reportDiagnosticsToConsole } from "./diagnostics.js";
+import type { ConsoleReportOptions } from "./diagnostics.js";
 import { parse } from "./parser-entry.js";
 import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
@@ -58,6 +59,9 @@ export interface RenderOptions {
   target?: Element | null;
   /** DOM element or selector to receive diagnostics after render. */
   diagnosticsTarget?: Element | string | null;
+  /** Report diagnostics to the console (spec 02 §23). Default: off for the
+   * programmatic API; engines (viewer/initialize) default it on. */
+  console?: boolean | ConsoleReportOptions;
 }
 
 export interface RenderResult {
@@ -241,6 +245,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       const svg = decorateSvgWithOverlays(out, knownOverlays);
       syncDiagnostics(model);
       renderDiagnostics(model, options.diagnosticsTarget);
+      if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
       if (options.target && "innerHTML" in options.target) {
         options.target.innerHTML = svg;
       }
@@ -249,6 +254,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const handle = options.target ? out.mount(options.target) : undefined;
     syncDiagnostics(model);
     renderDiagnostics(model, options.diagnosticsTarget);
+    if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
     return { view: state.view, layout, model, handle, svg: undefined };
   };
 
@@ -314,6 +320,8 @@ export interface ViewerAttributeOptions {
   diagnostics: boolean;
   diagnosticsTarget?: string;
   fallbackToInline: boolean;
+  /** Console diagnostics reporting; default on for the viewer (spec 02 §23). */
+  consoleReport: boolean;
 }
 
 export function parseOverlaysAttribute(value: string | null): string[] {
@@ -333,6 +341,7 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     diagnostics: attrs.getAttribute("diagnostics") === "true" || attrs.hasAttribute?.("diagnostics") === true,
     diagnosticsTarget: attrs.getAttribute("diagnostics-target") ?? undefined,
     fallbackToInline: attrs.hasAttribute?.("fallback-to-inline") === true,
+    consoleReport: attrs.getAttribute("console") !== "false",
   };
 }
 
@@ -349,7 +358,7 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "fallback-to-inline"];
+      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "fallback-to-inline", "console"];
     }
 
     private source = "";
@@ -429,6 +438,7 @@ export function defineArchMapViewerElement(): void {
         overlays: options.overlays,
         target: this.ensureContainer(),
         diagnosticsTarget: this.diagnosticsTarget(options),
+        console: options.consoleReport,
       });
     }
 

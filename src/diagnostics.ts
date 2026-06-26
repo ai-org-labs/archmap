@@ -72,6 +72,50 @@ export function diagnostic(
   };
 }
 
+const CONSOLE_METHOD: Record<DiagnosticLevel, "error" | "warn" | "info" | "log"> = {
+  error: "error",
+  warning: "warn",
+  suggestion: "info",
+  info: "info",
+};
+
+export interface ConsoleReportOptions {
+  /** Set false to silence console reporting. */
+  enabled?: boolean;
+  /** Levels to report. Default: errors and warnings (spec 02 §23). */
+  levels?: DiagnosticLevel[];
+  /** Custom sink: a single function, or per-level functions. Defaults to console. */
+  logger?: ((diagnostic: Diagnostic, message: string) => void) | Partial<Record<DiagnosticLevel, (message: string) => void>>;
+}
+
+/**
+ * Report diagnostics to the console (or a custom sink). Configurable per spec
+ * 02 §23: by default engines log warnings and errors as
+ * `[ArchMap <level>] <code>: <message>`.
+ */
+export function reportDiagnosticsToConsole(model: ArchMapModel, options: ConsoleReportOptions | boolean = true): void {
+  const opts: ConsoleReportOptions = typeof options === "boolean" ? { enabled: options } : options;
+  if (opts.enabled === false) return;
+  const levels = new Set<DiagnosticLevel>(opts.levels ?? ["error", "warning"]);
+  for (const d of model.diagnostics) {
+    const level = (d.level ?? d.severity) as DiagnosticLevel;
+    if (!levels.has(level)) continue;
+    const message = `[ArchMap ${level}] ${d.code}: ${d.message}`;
+    if (typeof opts.logger === "function") {
+      opts.logger(d, message);
+      continue;
+    }
+    const perLevel = opts.logger?.[level];
+    if (perLevel) {
+      perLevel(message);
+      continue;
+    }
+    if (typeof console === "undefined") continue;
+    const method = CONSOLE_METHOD[level] ?? "log";
+    (console[method] ?? console.log)(message);
+  }
+}
+
 export function syncDiagnostics(model: ArchMapModel): void {
   const diagnostics = [
     ...model.errors,

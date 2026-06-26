@@ -29,6 +29,8 @@ export {
   resolveNodeIcons,
 } from "./icons.js";
 export type { RenderableIcon, ResolvedIcon } from "./icons.js";
+export { reportDiagnosticsToConsole } from "./diagnostics.js";
+export type { ConsoleReportOptions } from "./diagnostics.js";
 export { extractArchMapBlocks } from "./parser/sections.js";
 export {
   render,

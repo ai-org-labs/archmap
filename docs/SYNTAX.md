@@ -286,9 +286,13 @@ overlaid.toggleOverlay("boundary");
   `<archmap-viewer>` by default when `customElements` is available; call
   `defineArchMapViewerElement()` directly if you do not use `initialize()`.
   Supported first-pass attributes: `base-view`, `overlays`, `width`, `height`,
-  `src`, `fallback-to-inline`, `diagnostics`, and `diagnostics-target`.
+  `src`, `fallback-to-inline`, `diagnostics`, `diagnostics-target`, and `console`.
   External `src` takes priority; failed loads emit `src_fetch_failed` and show
   diagnostics. Inline fallback is used only when `fallback-to-inline` is present.
+- **Console diagnostics** (spec 02 §23): the viewer logs warnings+errors to the
+  console by default (`console="false"` to silence). The programmatic
+  `render(model, { console })` is opt-in; `reportDiagnosticsToConsole(model,
+  opts)` exposes it directly (configurable `levels` and `logger`).
 - **Icons** are opt-in (core ships none). `registerIcon("aws", { viewBox, body })`;
   resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
   [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified
