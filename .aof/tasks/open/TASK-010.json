@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-010",
+  "title": "Delivery, security, and v0.1 acceptance matrix",
+  "description": "Finalize CDN/npm/local delivery docs and examples, security review for untrusted DSL/SVG output, acceptance matrix across product/model/syntax/views/engine specs, and release-ready examples.",
+  "status": "open",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-26T19:09:46.752Z",
+  "updated_at": "2026-06-26T19:09:46.752Z",
+  "assigned_at": null,
+  "done_at": null,
+  "retired_at": null,
+  "last_triaged_at": null,
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "Cut from 00/04 delivery modes, security, and minimal acceptance criteria. Completion: docs/examples demonstrate CDN/npm/local/custom-element usage; labels are escaped/sanitized; acceptance matrix maps every v0.1 criterion to pass/defer evidence."
+}

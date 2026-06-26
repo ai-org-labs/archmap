@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Continue TASK-005: add external src loading for <archmap-viewer>, emit src_fetch_failed diagnostics on failure, and render diagnostics to a diagnostics-target or internal panel.",
-  "updated_at": "2026-06-26T19:04:28.709Z",
+  "content": "Continue TASK-005 first: external src loading, src_fetch_failed diagnostics, and diagnostics target/panel. Keep TASK-011 QIF audit active at each task closure, then proceed through TASK-006 controls/SVG interaction, TASK-007 inspector UX, TASK-008 nested rendering quality, TASK-009 3D completion, and TASK-010 delivery/security acceptance.",
+  "updated_at": "2026-06-26T19:10:02.229Z",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
