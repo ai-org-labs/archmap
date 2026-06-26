@@ -488,8 +488,11 @@ function routeEdges(
       channelCross: targetAbove ? b.crossHigh + CHANNEL_INSET : b.crossLow - CHANNEL_INSET,
     };
     const i = plans.push(plan) - 1;
-    push(e.from, srcFace, { planIndex: i, isSource: true, sortKey: crossLane ? b.flowCenter : b.crossCenter });
-    push(e.to, dstFace, { planIndex: i, isSource: false, sortKey: crossLane ? a.flowCenter : a.crossCenter });
+    // Order ports by the other endpoint's cross position so trunks and entries
+    // line up (source ports go where they head vertically; target ports follow
+    // the source order), which avoids local crossings.
+    push(e.from, srcFace, { planIndex: i, isSource: true, sortKey: b.crossCenter });
+    push(e.to, dstFace, { planIndex: i, isSource: false, sortKey: a.crossCenter });
   }
 
   // Distribute ports along each face (cross faces vary in flow, flow faces in cross).
@@ -540,10 +543,10 @@ function routeEdges(
   for (const idxs of byTarget.values()) {
     idxs.sort((a, b) => plans[a].trunk - plans[b].trunk);
     const n = idxs.length;
+    // Spread the lane-gap horizontals symmetrically around the base depth so
+    // same-target channels stay distinct (and ordered to match their trunks).
     idxs.forEach((idx, k) => {
-      const offset = (k - (n - 1) / 2) * CHANNEL_SPACING;
-      // Push further into the gap (away from the target face) as k grows.
-      plans[idx].channelCross += plans[idx].targetAbove ? Math.abs(offset) : -Math.abs(offset);
+      plans[idx].channelCross += (k - (n - 1) / 2) * CHANNEL_SPACING;
     });
   }
 
