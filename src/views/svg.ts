@@ -144,6 +144,7 @@ function parallelOffsets(allSegs: Seg[], spacing = 6): WeakMap<Seg, number> {
   const groups = new Map<string, Seg[]>();
   for (const seg of allSegs) {
     if (seg.orient === "diag") continue;
+    if (seg.count <= 2) continue;
     const lane = seg.orient === "h" ? seg.y0 : seg.x0;
     const key = `${seg.orient}|${Math.round(lane * 2) / 2}`;
     (groups.get(key) ?? (groups.set(key, []), groups.get(key)!)).push(seg);

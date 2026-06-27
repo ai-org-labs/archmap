@@ -666,12 +666,6 @@ function routeEdges(
   const isHub = (id: string) => (degree.get(id) ?? 0) >= 6;
   const isMultiEdgePair = (e: { from: string; to: string }) => e.from !== e.to && (pairCounts.get(unorderedPairKey(e.from, e.to)) ?? 0) > 1;
 
-  const faceToward = (from: ReturnType<typeof geom>, to: ReturnType<typeof geom>): Face => {
-    const df = to.flowCenter - from.flowCenter;
-    const dc = to.crossCenter - from.crossCenter;
-    if (Math.abs(df) >= Math.abs(dc)) return df >= 0 ? "fH" : "fL";
-    return dc >= 0 ? "cH" : "cL";
-  };
   const faceUse = new Map<string, number>();
   const faceCost = (candidate: Face, preferred: Face): number => {
     if (candidate === preferred) return 0;
@@ -683,12 +677,11 @@ function routeEdges(
     ) return 2;
     return 1;
   };
-  const balancedHubFace = (node: string, preferred: Face): Face => {
+  const balancedHubFace = (node: string, preferred: Face, allowed: Face[] = ["fL", "fH", "cL", "cH"]): Face => {
     const g = geom(node);
     const maxCapacity = Math.max(g.flowSize, g.crossSize, 1);
     const faceCapacity = (face: Face): number => face === "fL" || face === "fH" ? g.crossSize : g.flowSize;
-    const faces: Face[] = ["fL", "fH", "cL", "cH"];
-    const best = faces
+    const best = allowed
       .map((face) => {
         const capacityPenalty = maxCapacity / Math.max(faceCapacity(face), 1);
         return {
@@ -701,12 +694,26 @@ function routeEdges(
     return best;
   };
   const pairedTrackFace = (preferred: Face, ordinal: number): Face => {
-    // Multiple edges between the same two boxes need distinct outside tracks.
-    // If the nodes mainly face each other along flow, alternate top/bottom;
-    // otherwise alternate left/right.
-    const flowAligned = preferred === "fL" || preferred === "fH";
-    if (flowAligned) return ordinal % 2 === 0 ? "cL" : "cH";
-    return ordinal % 2 === 0 ? "fL" : "fH";
+    return ordinal % 2 === 0 ? preferred : preferred[0] === "f" ? (preferred === "fH" ? "cH" : "cL") : (preferred === "cH" ? "fH" : "fL");
+  };
+  const complementaryTargetFace = (srcFace: Face, source: ReturnType<typeof geom>, target: ReturnType<typeof geom>): Face => {
+    if (srcFace === "fL" || srcFace === "fH") {
+      const dc = target.crossCenter - source.crossCenter;
+      if (Math.abs(dc) < 0.5) return target.flowCenter >= source.flowCenter ? "fL" : "fH";
+      return dc >= 0 ? "cL" : "cH";
+    }
+    const df = target.flowCenter - source.flowCenter;
+    if (Math.abs(df) < 0.5) return target.crossCenter >= source.crossCenter ? "cL" : "cH";
+    return df >= 0 ? "fL" : "fH";
+  };
+  const oneBendSourceFaces = (source: ReturnType<typeof geom>, target: ReturnType<typeof geom>): Face[] => {
+    const df = target.flowCenter - source.flowCenter;
+    const dc = target.crossCenter - source.crossCenter;
+    const flowFace: Face = df >= 0 ? "fH" : "fL";
+    const crossFace: Face = dc >= 0 ? "cH" : "cL";
+    if (Math.abs(dc) < 0.5) return [flowFace];
+    if (Math.abs(df) < 0.5) return [crossFace];
+    return Math.abs(df) >= Math.abs(dc) ? [flowFace, crossFace] : [crossFace, flowFace];
   };
 
   interface PortEntry { planIndex: number; isSource: boolean; sortKey: number }
@@ -741,25 +748,17 @@ function routeEdges(
     let srcFace: Face;
     let dstFace: Face;
     let channelCross: number;
-    if (mode === "side") {
-      const preferredSrc = faceToward(a, b);
-      const preferredDst = faceToward(b, a);
+    {
+      const allowedSrcFaces = oneBendSourceFaces(a, b);
       const ordinal = pairOrdinals.get(e.id) ?? 0;
-      srcFace = isHub(e.from) ? balancedHubFace(e.from, preferredSrc) : multiEdgePair ? pairedTrackFace(preferredSrc, ordinal) : preferredSrc;
-      dstFace = isHub(e.to) ? balancedHubFace(e.to, preferredDst) : multiEdgePair ? pairedTrackFace(preferredDst, ordinal) : preferredDst;
-      channelCross = 0;
-    } else if (mode === "same") {
-      srcFace = forward ? "fH" : "fL";
-      dstFace = forward ? "fL" : "fH";
-      channelCross = 0;
-    } else if (mode === "direct") {
-      srcFace = targetAbove ? "cL" : "cH"; // exit the face that points at the target
-      dstFace = targetAbove ? "cH" : "cL";
-      channelCross = targetAbove ? (b.crossHigh + a.crossLow) / 2 : (a.crossHigh + b.crossLow) / 2;
-    } else {
-      srcFace = forward ? "fH" : "fL";
-      dstFace = targetAbove ? "cH" : "cL";
-      channelCross = targetAbove ? b.crossHigh + CHANNEL_INSET : b.crossLow - CHANNEL_INSET;
+      const paired = multiEdgePair ? pairedTrackFace(allowedSrcFaces[0], ordinal) : allowedSrcFaces[0];
+      srcFace = isHub(e.from)
+        ? balancedHubFace(e.from, allowedSrcFaces[0], allowedSrcFaces)
+        : allowedSrcFaces.includes(paired) ? paired : allowedSrcFaces[0];
+      dstFace = complementaryTargetFace(srcFace, a, b);
+      channelCross = srcFace === "fL" || srcFace === "fH"
+        ? (targetAbove ? b.crossHigh + CHANNEL_INSET : b.crossLow - CHANNEL_INSET)
+        : (forward ? b.flowLow - CHANNEL_INSET : b.flowHigh + CHANNEL_INSET);
     }
 
     const plan: Plan = {
@@ -834,42 +833,23 @@ function routeEdges(
     });
   }
 
-  // Build polylines.
-  return plans.map((plan) => {
-    const s = toXY(plan.src.flow, plan.src.cross, horizontal);
-    const d = toXY(plan.dst.flow, plan.dst.cross, horizontal);
-    let points: LayoutPoint[];
-    if (plan.mode === "side") {
-      const stub = 24;
-      const offset = (end: End): { flow: number; cross: number } => {
-        if (end.face === "fL") return { flow: end.flow - stub, cross: end.cross };
-        if (end.face === "fH") return { flow: end.flow + stub, cross: end.cross };
-        if (end.face === "cL") return { flow: end.flow, cross: end.cross - stub };
-        return { flow: end.flow, cross: end.cross + stub };
-      };
-      const so = offset(plan.src);
-      const de = offset(plan.dst);
-      const mid =
-        Math.abs(so.flow - de.flow) >= Math.abs(so.cross - de.cross)
-          ? [{ flow: (so.flow + de.flow) / 2, cross: so.cross }, { flow: (so.flow + de.flow) / 2, cross: de.cross }]
-          : [{ flow: so.flow, cross: (so.cross + de.cross) / 2 }, { flow: de.flow, cross: (so.cross + de.cross) / 2 }];
-      points = simplifyPolyline([
-        s,
-        toXY(so.flow, so.cross, horizontal),
-        ...mid.map((p) => toXY(p.flow, p.cross, horizontal)),
-        toXY(de.flow, de.cross, horizontal),
-        d,
-      ]);
-    } else if (plan.mode === "same") {
-      // H-V-H: source flow face -> trunk -> target flow face.
-      points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.dst.cross, horizontal), d]);
-    } else if (plan.mode === "direct") {
-      // V-H-V: drop/rise from the source face, cross the single lane gap, into target.
-      points = simplifyPolyline([s, toXY(plan.src.flow, plan.channelCross, horizontal), toXY(plan.dst.flow, plan.channelCross, horizontal), d]);
-    } else {
-      // H-V-H-V: into a column-gap trunk, across the lane gap, into target top/bottom.
-      points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.channelCross, horizontal), toXY(plan.dst.flow, plan.channelCross, horizontal), d]);
+  const minimalPolyline = (src: End, dst: End): LayoutPoint[] => {
+    const s = toXY(src.flow, src.cross, horizontal);
+    const d = toXY(dst.flow, dst.cross, horizontal);
+    if (Math.abs(src.flow - dst.flow) < 0.5 || Math.abs(src.cross - dst.cross) < 0.5) {
+      return simplifyPolyline([s, d]);
     }
+    const sourceIsFlow = src.face === "fL" || src.face === "fH";
+    const corner = sourceIsFlow
+      ? toXY(dst.flow, src.cross, horizontal)
+      : toXY(src.flow, dst.cross, horizontal);
+    return simplifyPolyline([s, corner, d]);
+  };
+
+  // Build polylines. The default route is at most one bend (3 points); more
+  // complex tracks are reserved for a future explicit router mode.
+  return plans.map((plan) => {
+    const points = minimalPolyline(plan.src, plan.dst);
     // Offset the label off the line (above for H, to the right for V) so a
     // short segment isn't hidden under the label's background.
     const seg = longestSegment(points);

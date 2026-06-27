@@ -155,6 +155,14 @@ describe("computeLayout", () => {
     expect(gap).toBeGreaterThanOrEqual(72);
   });
 
+  it("keeps ordinary routed edges to at most one bend", () => {
+    const m = parse(example);
+    const layout = computeLayout(m);
+    for (const edge of layout.edges) {
+      expect(edge.points.length).toBeLessThanOrEqual(3);
+    }
+  });
+
   it("counts permission overlay relationships when sizing hub components", () => {
     const m = parse(`graph LR
       Principal[Service] --> Hub[Service]

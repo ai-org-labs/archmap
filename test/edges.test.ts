@@ -25,7 +25,7 @@ function pathSegments(d: string): Array<{ orient: "h" | "v" | "diag"; len: numbe
 }
 
 describe("orthogonal routing", () => {
-  it("bends (4 points) when endpoints are not aligned on the flow axis", () => {
+  it("uses at most one bend when endpoints are not aligned on the flow axis", () => {
     // A and B share rank 0 (stacked at different y); both point at C in rank 1.
     const m = parse(`graph LR
       A[a] --> C[c]
@@ -33,9 +33,10 @@ describe("orthogonal routing", () => {
     `);
     const layout = computeLayout(m);
     const bent = layout.edges.find((e) => e.from === "B" && e.to === "C")!;
-    expect(bent.points.length).toBe(4);
-    // Right-angle: the two mid points share x (the vertical run).
-    expect(bent.points[1].x).toBeCloseTo(bent.points[2].x);
+    expect(bent.points.length).toBeLessThanOrEqual(3);
+    for (let i = 0; i < bent.points.length - 1; i++) {
+      expect(Math.abs(bent.points[i].x - bent.points[i + 1].x) < 0.5 || Math.abs(bent.points[i].y - bent.points[i + 1].y) < 0.5).toBe(true);
+    }
   });
 
   it("stays straight (2 points) when endpoints are aligned", () => {
@@ -63,7 +64,7 @@ describe("cross-lane routing via top/bottom faces", () => {
     expect(onTopOrBottom).toBe(true);
   });
 
-  it("drops an adjacent-lane edge directly from the source's top/bottom face", () => {
+  it("keeps adjacent-lane edges to at most one bend", () => {
     const m = parse(`graph LR
       A[a] --> B[b]
       ---
@@ -72,11 +73,7 @@ describe("cross-lane routing via top/bottom faces", () => {
         B: { zone: gcp }
     `);
     const layout = computeLayout(m);
-    const a = layout.nodes.find((n) => n.id === "A")!;
-    const start = layout.edges[0].points[0];
-    // client and gcp are adjacent lanes => source exits its top/bottom face.
-    const onTopOrBottom = Math.abs(start.y - a.y) < 0.5 || Math.abs(start.y - (a.y + a.h)) < 0.5;
-    expect(onTopOrBottom).toBe(true);
+    expect(layout.edges[0].points.length).toBeLessThanOrEqual(3);
   });
 
   it("keeps a same-lane edge on the side (left/right) faces", () => {
@@ -168,15 +165,14 @@ describe("crossing jumps (buildEdgePaths)", () => {
     expect(paths.get("h")!.match(/M /g)!.length).toBe(1);
   });
 
-  it("offsets overlapping parallel segments onto separate lanes", () => {
+  it("does not add bend points solely to offset simple overlapping routes", () => {
     const edges = [
       { id: "a", points: [{ x: 0, y: 50 }, { x: 120, y: 50 }] },
       { id: "b", points: [{ x: 0, y: 50 }, { x: 120, y: 50 }] },
     ];
     const paths = buildEdgePaths(edges, 7);
-    expect(paths.get("a")).not.toBe(paths.get("b"));
-    expect(paths.get("a")).toContain("47.0");
-    expect(paths.get("b")).toContain("53.0");
+    expect(paths.get("a")).toBe("M 0.0 50.0 L 120.0 50.0");
+    expect(paths.get("b")).toBe("M 0.0 50.0 L 120.0 50.0");
   });
 
   it("keeps offset route corners aligned without interior tick marks", () => {
@@ -195,13 +191,13 @@ describe("crossing jumps (buildEdgePaths)", () => {
     }
   });
 
-  it("does not offset the first component-exit segment", () => {
+  it("keeps simple component-exit routes to at most one bend", () => {
     const edges = [
       { id: "a", points: [{ x: 0, y: 50 }, { x: 40, y: 50 }, { x: 40, y: 120 }] },
       { id: "b", points: [{ x: 0, y: 50 }, { x: 40, y: 50 }, { x: 40, y: 0 }] },
     ];
     const paths = buildEdgePaths(edges, 7);
-    expect(paths.get("a")).toContain("M 0.0 50.0 L 14.0 50.0");
-    expect(paths.get("b")).toContain("M 0.0 50.0 L 14.0 50.0");
+    expect(pathSegments(paths.get("a")!)).toHaveLength(2);
+    expect(pathSegments(paths.get("b")!)).toHaveLength(2);
   });
 });
