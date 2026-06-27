@@ -1,0 +1,173 @@
+graph LR
+  %% 01. Small system: Web frontend, server, DB
+  User((User))
+  Web[Web Frontend]
+  API[Application Server]
+  DB[(Database)]
+
+  User -->|HTTPS| Web
+  Web -->|HTTPS + JWT| API
+  API -->|SQL| DB
+---
+title: 01 Small Web System
+description: Minimal web architecture with a frontend, application server, and database.
+nodes:
+  User:
+    label: User
+    zone: public_client
+    layer: client
+    kind: user
+    service: human_user
+    icon: generic:user
+
+  Web:
+    label: Web Frontend
+    zone: public_client
+    layer: client
+    kind: web_app
+    provider: browser
+    owner: frontend-team
+    service: web_app
+    icon: generic:web-app
+
+  API:
+    label: Application Server
+    zone: app_runtime
+    layer: runtime
+    kind: runtime_service
+    provider: generic
+    principal: app-sa
+    owner: app-team
+    service: app_server
+    icon: generic:server
+
+  DB:
+    label: Primary Database
+    zone: app_data
+    layer: data
+    kind: relational_database
+    provider: generic
+    owner: app-team
+    service: relational_database
+    icon: generic:database
+
+edges:
+  User->Web:
+    flow: request
+    protocol: HTTPS
+    boundaryCrossing:
+      - public_boundary
+    data:
+      - browser_request
+    description: User opens the web application.
+
+  Web->API:
+    flow: request_response
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: API
+      validatedBy: API
+      method: bearer
+    boundaryCrossing:
+      - app_boundary
+    data:
+      - access_token
+      - customer_profile
+    description: Frontend calls the application server.
+
+  API->DB:
+    flow: data_access
+    protocol: SQL
+    principal: app-sa
+    boundaryCrossing: false
+    data:
+      - customer_profile
+    description: Application server reads and writes customer profile data.
+
+identities:
+  app-sa:
+    kind: service_account
+    provider: generic
+    attachedTo: API
+    description: Runtime identity for the application server.
+
+permissions:
+  api_db_connect:
+    principal: app-sa
+    action: connect
+    resource: DB
+    effect: allow
+    role: db.client
+    description: API server may connect to the database.
+
+data:
+  browser_request:
+    label: Browser Request
+    classification: public
+    storage: transient
+    processedBy: [Web]
+    flows: [User->Web]
+    retention: request
+
+  access_token:
+    label: Access Token
+    classification: secret
+    storage: transient
+    processedBy: [Web, API]
+    flows: [Web->API]
+    retention: session
+
+  customer_profile:
+    label: Customer Profile
+    classification: personal
+    storedIn: [DB]
+    processedBy: [API]
+    flows: [Web->API, API->DB]
+    retention: 365d
+
+zones:
+  public_client:
+    label: Public Client
+    kind: client
+    trustLevel: public
+    contains: [User, Web]
+    owner: frontend-team
+
+  app_runtime:
+    label: Application Runtime
+    kind: project
+    trustLevel: private
+    contains: [API]
+    owner: app-team
+
+  app_data:
+    label: Application Data
+    kind: project
+    trustLevel: restricted
+    contains: [DB]
+    owner: app-team
+
+boundaries:
+  public_boundary:
+    label: Public Access Boundary
+    kind: trust_boundary
+    contains:
+      - zone: public_client
+      - node: Web
+
+  app_boundary:
+    label: Client to Runtime Boundary
+    kind: trust_boundary
+    contains:
+      - zone: public_client
+      - zone: app_runtime
+      - node: API
+
+view:
+  default:
+    base: overview
+    overlays: [boundary, validation]
+layout:
+  mode: auto
+  direction: LR

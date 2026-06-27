@@ -1,0 +1,190 @@
+graph LR
+  %% 02. Medium system: multiple small systems, auth, external integrations
+  subgraph Client
+    User((User))
+    Admin((Admin))
+    Web[Web Frontend]
+    AdminWeb[Admin Console]
+  end
+
+  subgraph Identity
+    Auth0[Auth Provider]
+  end
+
+  subgraph App_System
+    APIGW[API Gateway]
+    UserAPI[User API]
+    OrderAPI[Order API]
+    Worker[Async Worker]
+    EventBus[(Event Bus)]
+    Cache[(Cache)]
+    AppDB[(Application DB)]
+  end
+
+  subgraph External_Services
+    PaymentGateway[Payment Gateway]
+    EmailService[Email Service]
+  end
+
+  User --> Web
+  Admin --> AdminWeb
+  Auth0 -->|issues JWT| Web
+  Auth0 -->|issues JWT| AdminWeb
+  Web -->|HTTPS + JWT| APIGW
+  AdminWeb -->|Admin HTTPS + JWT| APIGW
+  APIGW -->|HTTPS| UserAPI
+  APIGW -->|HTTPS| OrderAPI
+  UserAPI -->|SQL| AppDB
+  OrderAPI -->|SQL| AppDB
+  OrderAPI -->|cache| Cache
+  OrderAPI -->|payment API| PaymentGateway
+  OrderAPI -->|publish order event| EventBus
+  EventBus -->|message| Worker
+  Worker -->|send email| EmailService
+---
+title: 02 Medium Web System with Auth and External Integrations
+description: A medium system composed of multiple backend APIs, authentication, event processing, cache, database, and external payment/email providers.
+nodes:
+  User: { zone: client, layer: client, kind: user, service: human_user, icon: generic:user }
+  Admin: { zone: client, layer: client, kind: user, principal: admin-user, service: human_user, icon: generic:admin-user }
+  Web: { zone: client, layer: client, kind: web_app, provider: browser, owner: frontend-team, service: web_app, icon: generic:web-app }
+  AdminWeb: { label: Admin Console, zone: client, layer: client, kind: admin_console, provider: browser, principal: admin-user, owner: ops-team, service: admin_console, icon: generic:admin-console }
+  Auth0: { label: Auth Provider, zone: identity, layer: identity, kind: identity_provider, provider: auth0, service: auth0, icon: simple-icons:auth0 }
+  APIGW: { label: API Gateway, zone: app_edge, layer: edge, kind: api_gateway, provider: cloud, principal: api-gateway-sa, owner: platform-team, service: api_gateway, icon: generic:api-gateway }
+  UserAPI: { label: User API, zone: app_runtime, layer: runtime, kind: runtime_service, role: microservice, domain: user, provider: cloud, principal: user-api-sa, owner: identity-team, service: user_api, icon: generic:service }
+  OrderAPI: { label: Order API, zone: app_runtime, layer: runtime, kind: runtime_service, role: microservice, domain: order, provider: cloud, principal: order-api-sa, owner: order-team, service: order_api, icon: generic:service }
+  Worker: { label: Async Worker, zone: app_runtime, layer: runtime, kind: batch_job, role: worker_service, domain: notification, provider: cloud, principal: worker-sa, owner: order-team, service: async_worker, icon: generic:worker }
+  EventBus: { label: Event Bus, zone: app_runtime, layer: messaging, kind: event_bus, provider: cloud, owner: platform-team, service: event_bus, icon: generic:event-bus }
+  Cache: { label: Cache, zone: app_data, layer: data, kind: cache, provider: cloud, owner: order-team, service: cache, icon: generic:cache }
+  AppDB: { label: Application DB, zone: app_data, layer: data, kind: relational_database, provider: cloud, owner: app-team, service: relational_database, icon: generic:database }
+  PaymentGateway: { label: Payment Gateway, zone: external, layer: external, kind: external_partner, provider: payment_vendor, service: payment_gateway, icon: generic:payment }
+  EmailService: { label: Email Service, zone: external, layer: external, kind: external_partner, provider: email_vendor, service: email_service, icon: generic:email }
+edges:
+  auth0_web_token_issue:
+    from: Auth0
+    to: Web
+    label: issues JWT
+    flow: token_issue
+    protocol: HTTPS
+    auth: { token: JWT, issuer: Auth0, recipient: Web, method: oidc }
+    data: [access_token]
+    boundaryCrossing: [identity_client_boundary]
+  auth0_admin_token_issue:
+    from: Auth0
+    to: AdminWeb
+    label: issues JWT
+    flow: token_issue
+    protocol: HTTPS
+    auth: { token: JWT, issuer: Auth0, recipient: AdminWeb, method: oidc }
+    data: [access_token]
+    boundaryCrossing: [identity_client_boundary]
+  Web->APIGW:
+    flow: request_response
+    protocol: HTTPS
+    auth: { token: JWT, issuer: Auth0, validatedBy: APIGW, method: bearer }
+    data: [access_token, user_profile, order_command]
+    boundaryCrossing: [public_api_boundary]
+  AdminWeb->APIGW:
+    flow: admin_operation
+    protocol: HTTPS
+    auth: { token: JWT, issuer: Auth0, validatedBy: APIGW, method: bearer }
+    principal: admin-user
+    data: [admin_command]
+    boundaryCrossing: [public_api_boundary]
+  APIGW->UserAPI:
+    flow: request_response
+    protocol: HTTPS
+    principal: api-gateway-sa
+    data: [user_profile]
+    boundaryCrossing: false
+  APIGW->OrderAPI:
+    flow: request_response
+    protocol: HTTPS
+    principal: api-gateway-sa
+    data: [order_command]
+    boundaryCrossing: false
+  UserAPI->AppDB:
+    flow: data_access
+    protocol: SQL
+    principal: user-api-sa
+    data: [user_profile]
+    boundaryCrossing: [data_boundary]
+  OrderAPI->AppDB:
+    flow: data_access
+    protocol: SQL
+    principal: order-api-sa
+    data: [order_record]
+    boundaryCrossing: [data_boundary]
+  OrderAPI->Cache:
+    flow: data_write
+    protocol: Redis
+    principal: order-api-sa
+    data: [order_cache]
+    boundaryCrossing: false
+  OrderAPI->PaymentGateway:
+    flow: request_response
+    protocol: HTTPS
+    principal: order-api-sa
+    data: [payment_request]
+    boundaryCrossing: [external_payment_boundary]
+  OrderAPI->EventBus:
+    flow: event_publish
+    protocol: EventBus
+    principal: order-api-sa
+    data: [order_event]
+    boundaryCrossing: false
+  EventBus->Worker:
+    flow: event_subscribe
+    protocol: EventBus
+    principal: worker-sa
+    data: [order_event]
+    boundaryCrossing: false
+  Worker->EmailService:
+    flow: request
+    protocol: HTTPS
+    principal: worker-sa
+    data: [email_message]
+    boundaryCrossing: [external_email_boundary]
+identities:
+  admin-user: { kind: user, provider: internal, attachedTo: [Admin, AdminWeb] }
+  api-gateway-sa: { kind: service_account, provider: cloud, attachedTo: APIGW }
+  user-api-sa: { kind: service_account, provider: cloud, attachedTo: UserAPI }
+  order-api-sa: { kind: service_account, provider: cloud, attachedTo: OrderAPI }
+  worker-sa: { kind: service_account, provider: cloud, attachedTo: Worker }
+permissions:
+  user_api_db_access: { principal: user-api-sa, action: readWrite, resource: AppDB, effect: allow, role: db.user-profile-writer }
+  order_api_db_access: { principal: order-api-sa, action: readWrite, resource: AppDB, effect: allow, role: db.order-writer }
+  order_api_cache_access: { principal: order-api-sa, action: write, resource: Cache, effect: allow, role: cache.writer }
+  order_api_event_publish: { principal: order-api-sa, action: publish, resource: EventBus, effect: allow, role: event.publisher }
+  worker_event_subscribe: { principal: worker-sa, action: subscribe, resource: EventBus, effect: allow, role: event.subscriber }
+  admin_api_invoke: { principal: admin-user, action: adminInvoke, resource: APIGW, effect: allow, role: custom.admin }
+data:
+  access_token: { label: Access Token, classification: secret, storage: transient, processedBy: [Web, AdminWeb, APIGW], flows: [auth0_web_token_issue, auth0_admin_token_issue, Web->APIGW, AdminWeb->APIGW], retention: session }
+  user_profile: { label: User Profile, classification: personal, storedIn: [AppDB], processedBy: [UserAPI], flows: [Web->APIGW, APIGW->UserAPI, UserAPI->AppDB], retention: 365d }
+  order_command: { label: Order Command, classification: confidential, storage: transient, processedBy: [Web, OrderAPI], flows: [Web->APIGW, APIGW->OrderAPI], retention: request }
+  order_record: { label: Order Record, classification: confidential, storedIn: [AppDB], processedBy: [OrderAPI], flows: [OrderAPI->AppDB], retention: 365d }
+  order_cache: { label: Order Cache, classification: internal, storedIn: [Cache], processedBy: [OrderAPI], flows: [OrderAPI->Cache], retention: 1h }
+  payment_request: { label: Payment Request, classification: confidential, storage: transient, processedBy: [OrderAPI, PaymentGateway], flows: [OrderAPI->PaymentGateway], retention: request }
+  order_event: { label: Order Event, classification: confidential, storedIn: [EventBus], processedBy: [OrderAPI, Worker], flows: [OrderAPI->EventBus, EventBus->Worker], retention: 30d }
+  email_message: { label: Email Message, classification: personal, storage: transient, processedBy: [Worker, EmailService], flows: [Worker->EmailService], retention: request }
+  admin_command: { label: Admin Command, classification: secret, storage: transient, processedBy: [AdminWeb, APIGW], flows: [AdminWeb->APIGW], retention: request }
+zones:
+  client: { label: Client Apps, kind: client, trustLevel: public, contains: [User, Admin, Web, AdminWeb], owner: frontend-team }
+  identity: { label: Identity Zone, kind: identity, trustLevel: restricted, contains: [Auth0], owner: security-team }
+  app_edge: { label: App Edge, kind: project, trustLevel: restricted, contains: [APIGW], owner: platform-team }
+  app_runtime: { label: App Runtime, kind: project, trustLevel: private, contains: [UserAPI, OrderAPI, Worker, EventBus], owner: app-team }
+  app_data: { label: App Data, kind: project, trustLevel: restricted, contains: [AppDB, Cache], owner: data-team }
+  external: { label: External Providers, kind: saas, trustLevel: external, contains: [PaymentGateway, EmailService], owner: vendor-management }
+boundaries:
+  identity_client_boundary: { label: Identity to Client Boundary, kind: trust_boundary, contains: [zone: identity, zone: client] }
+  public_api_boundary: { label: Public API Boundary, kind: trust_boundary, contains: [zone: client, zone: app_edge, node: APIGW] }
+  data_boundary: { label: Data Boundary, kind: trust_boundary, contains: [zone: app_runtime, zone: app_data] }
+  external_payment_boundary: { label: Payment Provider Boundary, kind: trust_boundary, contains: [zone: app_runtime, node: PaymentGateway] }
+  external_email_boundary: { label: Email Provider Boundary, kind: trust_boundary, contains: [zone: app_runtime, node: EmailService] }
+view:
+  default:
+    base: zone
+    overlays: [auth, dataflow, boundary, permission, validation]
+layout:
+  mode: auto
+  direction: LR

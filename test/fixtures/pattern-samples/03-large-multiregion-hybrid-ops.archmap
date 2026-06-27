@@ -1,0 +1,209 @@
+graph LR
+  %% 03. Large system: multi-region, CI/CD, operations, dedicated/on-prem connectivity
+  subgraph Global_Edge
+    User((User))
+    DNS[Global DNS]
+    CDN[CDN]
+    WAF[Global WAF]
+  end
+
+  subgraph JP_Region
+    APIGW_JP[API Gateway JP]
+    App_JP[App Service JP]
+    Worker_JP[Worker JP]
+    EventBus_JP[(Event Bus JP)]
+    DB_Primary[(Primary DB JP)]
+  end
+
+  subgraph US_Region
+    APIGW_US[API Gateway US]
+    App_US[App Service US]
+    Worker_US[Worker US]
+    EventBus_US[(Event Bus US)]
+    DB_Replica[(Read Replica US)]
+  end
+
+  subgraph Shared_Platform
+    Auth[Identity Provider]
+    ArtifactRegistry[(Artifact Registry)]
+    CICD[CI/CD Pipeline]
+    ConfigStore[(Config Store)]
+  end
+
+  subgraph Operations
+    Logging[Central Logging]
+    Monitoring[Monitoring]
+    Tracing[Tracing]
+    Incident[Incident Management]
+    DataWarehouse[(Data Warehouse)]
+  end
+
+  subgraph Hybrid_Network
+    Interconnect[Dedicated Interconnect]
+    CloudVPN[Cloud VPN Backup]
+    OnPremDC[On-prem Data Center]
+    LegacyERP[Legacy ERP]
+  end
+
+  User --> DNS
+  DNS --> CDN
+  CDN --> WAF
+  WAF -->|route JP| APIGW_JP
+  WAF -->|route US| APIGW_US
+  Auth -->|issues JWT| User
+  APIGW_JP -->|HTTPS + JWT| App_JP
+  APIGW_US -->|HTTPS + JWT| App_US
+  App_JP -->|SQL| DB_Primary
+  App_US -->|read SQL| DB_Replica
+  DB_Primary -->|replication| DB_Replica
+  App_JP -->|publish| EventBus_JP
+  EventBus_JP -->|message| Worker_JP
+  App_US -->|publish| EventBus_US
+  EventBus_US -->|message| Worker_US
+  App_JP -->|private API| LegacyERP
+  Interconnect --> OnPremDC
+  CloudVPN --> OnPremDC
+  OnPremDC --> LegacyERP
+  CICD -->|push image| ArtifactRegistry
+  ArtifactRegistry -->|deploy JP| App_JP
+  ArtifactRegistry -->|deploy US| App_US
+  CICD -->|write config| ConfigStore
+  App_JP -->|read config| ConfigStore
+  App_US -->|read config| ConfigStore
+  App_JP -->|logs| Logging
+  App_US -->|logs| Logging
+  Logging -->|export| DataWarehouse
+  App_JP -->|metrics| Monitoring
+  App_US -->|metrics| Monitoring
+  App_JP -->|traces| Tracing
+  App_US -->|traces| Tracing
+  Monitoring -->|alert| Incident
+---
+title: 03 Large Multi-region Hybrid System
+description: Multi-region production architecture with global edge routing, active regions, replication, CI/CD, telemetry, and dedicated on-prem connectivity.
+nodes:
+  User: { zone: public, layer: client, kind: user, service: human_user, icon: generic:user }
+  DNS: { label: Global DNS, zone: global_edge, layer: edge, kind: dns, provider: cloud, owner: platform-team, service: global_dns, icon: generic:dns }
+  CDN: { zone: global_edge, layer: edge, kind: cdn, provider: cloud, owner: platform-team, service: cdn, icon: generic:cdn }
+  WAF: { label: Global WAF, zone: global_edge, layer: edge, kind: waf, provider: cloud, owner: security-team, service: waf, icon: generic:waf }
+  Auth: { label: Identity Provider, zone: shared_platform, layer: identity, kind: identity_provider, provider: cloud, owner: security-team, service: identity_provider, icon: generic:identity-provider }
+  APIGW_JP: { label: API Gateway JP, zone: jp_region, layer: edge, kind: api_gateway, provider: cloud, principal: gateway-sa, placement: { region: asia-northeast1, environment: prod }, service: api_gateway, icon: generic:api-gateway }
+  App_JP: { label: App Service JP, zone: jp_region, layer: runtime, kind: runtime_service, role: microservice, domain: core, provider: cloud, principal: app-jp-sa, owner: app-team, placement: { region: asia-northeast1, environment: prod }, service: app_service, icon: generic:service }
+  Worker_JP: { label: Worker JP, zone: jp_region, layer: runtime, kind: batch_job, provider: cloud, principal: worker-jp-sa, placement: { region: asia-northeast1 }, service: worker, icon: generic:worker }
+  EventBus_JP: { label: Event Bus JP, zone: jp_region, layer: messaging, kind: event_bus, provider: cloud, service: event_bus, icon: generic:event-bus }
+  DB_Primary: { label: Primary DB JP, zone: jp_region, layer: data, kind: relational_database, provider: cloud, owner: data-team, placement: { region: asia-northeast1 }, service: relational_database, icon: generic:database }
+  APIGW_US: { label: API Gateway US, zone: us_region, layer: edge, kind: api_gateway, provider: cloud, principal: gateway-sa, placement: { region: us-central1, environment: prod }, service: api_gateway, icon: generic:api-gateway }
+  App_US: { label: App Service US, zone: us_region, layer: runtime, kind: runtime_service, role: microservice, domain: core, provider: cloud, principal: app-us-sa, owner: app-team, placement: { region: us-central1, environment: prod }, service: app_service, icon: generic:service }
+  Worker_US: { label: Worker US, zone: us_region, layer: runtime, kind: batch_job, provider: cloud, principal: worker-us-sa, placement: { region: us-central1 }, service: worker, icon: generic:worker }
+  EventBus_US: { label: Event Bus US, zone: us_region, layer: messaging, kind: event_bus, provider: cloud, service: event_bus, icon: generic:event-bus }
+  DB_Replica: { label: Read Replica US, zone: us_region, layer: data, kind: relational_database, provider: cloud, owner: data-team, placement: { region: us-central1 }, service: relational_database, icon: generic:database }
+  ArtifactRegistry: { label: Artifact Registry, zone: shared_platform, layer: data, kind: artifact_registry, provider: cloud, owner: platform-team, service: artifact_registry, icon: generic:artifact-registry }
+  CICD: { label: CI/CD Pipeline, zone: shared_platform, layer: operations, kind: ci_cd, provider: cloud, principal: deployer-sa, owner: platform-team, service: ci_cd, icon: generic:ci-cd }
+  ConfigStore: { label: Config Store, zone: shared_platform, layer: data, kind: secret, provider: cloud, owner: platform-team, service: config_store, icon: generic:config-store }
+  Logging: { label: Central Logging, zone: operations, layer: operations, kind: logging, provider: cloud, owner: sre-team, service: logging, icon: generic:logging }
+  Monitoring: { zone: operations, layer: operations, kind: monitoring, provider: cloud, owner: sre-team, service: monitoring, icon: generic:monitoring }
+  Tracing: { zone: operations, layer: operations, kind: tracing, provider: cloud, owner: sre-team, service: tracing, icon: generic:tracing }
+  Incident: { label: Incident Management, zone: operations, layer: operations, kind: alerting, provider: saas, owner: sre-team, service: incident_management, icon: generic:incident }
+  DataWarehouse: { label: Data Warehouse, zone: operations, layer: data, kind: data_warehouse, provider: cloud, owner: data-team, service: data_warehouse, icon: generic:data-warehouse }
+  Interconnect: { label: Dedicated Interconnect, zone: hybrid_network, layer: network, kind: interconnect, provider: cloud, owner: network-team, service: dedicated_interconnect, icon: generic:interconnect }
+  CloudVPN: { label: Cloud VPN Backup, zone: hybrid_network, layer: network, kind: vpn, provider: cloud, owner: network-team, service: vpn, icon: generic:vpn }
+  OnPremDC: { label: On-prem Data Center, zone: onprem, layer: network, kind: runtime_service, provider: onprem, owner: corporate-it, service: data_center, icon: generic:datacenter }
+  LegacyERP: { label: Legacy ERP, zone: onprem, layer: runtime, kind: legacy_api, provider: onprem, owner: corporate-it, service: legacy_erp, icon: generic:legacy-erp }
+edges:
+  User->DNS: { flow: request, protocol: DNS, boundaryCrossing: [public_edge], data: [browser_request] }
+  DNS->CDN: { flow: network_route, protocol: DNS, boundaryCrossing: false }
+  CDN->WAF: { flow: request_response, protocol: HTTPS, boundaryCrossing: false, data: [browser_request] }
+  WAF->APIGW_JP: { flow: request_response, protocol: HTTPS, boundaryCrossing: [region_jp_boundary], data: [browser_request, access_token] }
+  WAF->APIGW_US: { flow: request_response, protocol: HTTPS, boundaryCrossing: [region_us_boundary], data: [browser_request, access_token] }
+  auth_user_token_issue:
+    from: Auth
+    to: User
+    label: issues JWT
+    flow: token_issue
+    protocol: HTTPS
+    auth: { token: JWT, issuer: Auth, recipient: User, method: oidc }
+    data: [access_token]
+    boundaryCrossing: [identity_boundary]
+  APIGW_JP->App_JP: { flow: request_response, protocol: HTTPS, auth: { token: JWT, issuer: Auth, validatedBy: APIGW_JP }, data: [access_token, transaction_command], boundaryCrossing: false }
+  APIGW_US->App_US: { flow: request_response, protocol: HTTPS, auth: { token: JWT, issuer: Auth, validatedBy: APIGW_US }, data: [access_token, transaction_command], boundaryCrossing: false }
+  App_JP->DB_Primary: { flow: data_access, protocol: SQL, principal: app-jp-sa, data: [transaction_record], boundaryCrossing: [data_boundary_jp] }
+  App_US->DB_Replica: { flow: data_read, protocol: SQL, principal: app-us-sa, data: [transaction_record], boundaryCrossing: [data_boundary_us] }
+  DB_Primary->DB_Replica: { flow: replication, protocol: DatabaseReplication, data: [transaction_record], boundaryCrossing: [cross_region_boundary] }
+  App_JP->EventBus_JP: { flow: event_publish, protocol: EventBus, principal: app-jp-sa, data: [transaction_event], boundaryCrossing: false }
+  EventBus_JP->Worker_JP: { flow: event_subscribe, protocol: EventBus, principal: worker-jp-sa, data: [transaction_event], boundaryCrossing: false }
+  App_US->EventBus_US: { flow: event_publish, protocol: EventBus, principal: app-us-sa, data: [transaction_event], boundaryCrossing: false }
+  EventBus_US->Worker_US: { flow: event_subscribe, protocol: EventBus, principal: worker-us-sa, data: [transaction_event], boundaryCrossing: false }
+  App_JP->LegacyERP: { flow: sync, protocol: HTTPS, principal: app-jp-sa, data: [erp_sync_record], networkPath: [Interconnect, OnPremDC], boundaryCrossing: [hybrid_boundary, onprem_boundary] }
+  Interconnect->OnPremDC: { flow: network_route, protocol: PrivateLine, networkPath: [Interconnect, OnPremDC], boundaryCrossing: [hybrid_boundary] }
+  CloudVPN->OnPremDC: { flow: network_route, protocol: IPsec VPN, networkPath: [CloudVPN, OnPremDC], boundaryCrossing: [hybrid_boundary] }
+  OnPremDC->LegacyERP: { flow: network_route, protocol: ONPREM_INTERNAL, boundaryCrossing: false }
+  CICD->ArtifactRegistry: { flow: deployment, protocol: HTTPS, principal: deployer-sa, data: [deployment_artifact], boundaryCrossing: [deployment_boundary] }
+  ArtifactRegistry->App_JP: { flow: deployment, protocol: HTTPS, principal: deployer-sa, data: [deployment_artifact], boundaryCrossing: [deployment_boundary] }
+  ArtifactRegistry->App_US: { flow: deployment, protocol: HTTPS, principal: deployer-sa, data: [deployment_artifact], boundaryCrossing: [deployment_boundary] }
+  CICD->ConfigStore: { flow: data_write, protocol: HTTPS, principal: deployer-sa, data: [runtime_config], boundaryCrossing: [deployment_boundary] }
+  App_JP->ConfigStore: { flow: data_read, protocol: HTTPS, principal: app-jp-sa, data: [runtime_config], boundaryCrossing: false }
+  App_US->ConfigStore: { flow: data_read, protocol: HTTPS, principal: app-us-sa, data: [runtime_config], boundaryCrossing: false }
+  App_JP->Logging: { flow: log_export, protocol: OTLP, data: [audit_logs], boundaryCrossing: [ops_boundary] }
+  App_US->Logging: { flow: log_export, protocol: OTLP, data: [audit_logs], boundaryCrossing: [ops_boundary] }
+  Logging->DataWarehouse: { flow: log_export, protocol: BatchExport, data: [audit_logs], boundaryCrossing: [ops_boundary] }
+  App_JP->Monitoring: { flow: metrics_export, protocol: OTLP, data: [runtime_metrics], boundaryCrossing: [ops_boundary] }
+  App_US->Monitoring: { flow: metrics_export, protocol: OTLP, data: [runtime_metrics], boundaryCrossing: [ops_boundary] }
+  App_JP->Tracing: { flow: trace_export, protocol: OTLP, data: [trace_spans], boundaryCrossing: [ops_boundary] }
+  App_US->Tracing: { flow: trace_export, protocol: OTLP, data: [trace_spans], boundaryCrossing: [ops_boundary] }
+  Monitoring->Incident: { flow: monitoring, protocol: Webhook, data: [incident_alert], boundaryCrossing: [ops_boundary] }
+identities:
+  gateway-sa: { kind: service_account, provider: cloud, attachedTo: [APIGW_JP, APIGW_US] }
+  app-jp-sa: { kind: service_account, provider: cloud, attachedTo: App_JP }
+  app-us-sa: { kind: service_account, provider: cloud, attachedTo: App_US }
+  worker-jp-sa: { kind: service_account, provider: cloud, attachedTo: Worker_JP }
+  worker-us-sa: { kind: service_account, provider: cloud, attachedTo: Worker_US }
+  deployer-sa: { kind: service_account, provider: cloud, attachedTo: CICD }
+permissions:
+  app_jp_db: { principal: app-jp-sa, action: readWrite, resource: DB_Primary, effect: allow, role: db.writer }
+  app_us_replica: { principal: app-us-sa, action: read, resource: DB_Replica, effect: allow, role: db.reader }
+  deploy_artifact_push: { principal: deployer-sa, action: push, resource: ArtifactRegistry, effect: allow, role: artifact.writer }
+  deploy_jp: { principal: deployer-sa, action: deploy, resource: App_JP, effect: allow, role: runtime.deployer }
+  deploy_us: { principal: deployer-sa, action: deploy, resource: App_US, effect: allow, role: runtime.deployer }
+  app_config_read_jp: { principal: app-jp-sa, action: read, resource: ConfigStore, effect: allow, role: config.reader }
+  app_config_read_us: { principal: app-us-sa, action: read, resource: ConfigStore, effect: allow, role: config.reader }
+data:
+  browser_request: { label: Browser Request, classification: public, storage: transient, processedBy: [CDN, WAF], flows: [User->DNS, CDN->WAF, WAF->APIGW_JP, WAF->APIGW_US], retention: request }
+  access_token: { label: Access Token, classification: secret, storage: transient, processedBy: [User, APIGW_JP, APIGW_US], flows: [auth_user_token_issue, WAF->APIGW_JP, WAF->APIGW_US, APIGW_JP->App_JP, APIGW_US->App_US], retention: session }
+  transaction_command: { label: Transaction Command, classification: confidential, storage: transient, processedBy: [App_JP, App_US], flows: [APIGW_JP->App_JP, APIGW_US->App_US], retention: request }
+  transaction_record: { label: Transaction Record, classification: personal, storedIn: [DB_Primary, DB_Replica], processedBy: [App_JP, App_US], flows: [App_JP->DB_Primary, App_US->DB_Replica, DB_Primary->DB_Replica], retention: 365d }
+  transaction_event: { label: Transaction Event, classification: confidential, storedIn: [EventBus_JP, EventBus_US], processedBy: [App_JP, App_US, Worker_JP, Worker_US], flows: [App_JP->EventBus_JP, EventBus_JP->Worker_JP, App_US->EventBus_US, EventBus_US->Worker_US], retention: 30d }
+  erp_sync_record: { label: ERP Sync Record, classification: confidential, storedIn: [LegacyERP], processedBy: [App_JP, LegacyERP], flows: [App_JP->LegacyERP], retention: 365d }
+  deployment_artifact: { label: Deployment Artifact, classification: internal, storedIn: [ArtifactRegistry], processedBy: [CICD, App_JP, App_US], flows: [CICD->ArtifactRegistry, ArtifactRegistry->App_JP, ArtifactRegistry->App_US], retention: 180d }
+  runtime_config: { label: Runtime Config, classification: secret, storedIn: [ConfigStore], processedBy: [CICD, App_JP, App_US], flows: [CICD->ConfigStore, App_JP->ConfigStore, App_US->ConfigStore], retention: managed }
+  audit_logs: { label: Audit Logs, classification: confidential, storedIn: [Logging, DataWarehouse], processedBy: [App_JP, App_US, Logging], flows: [App_JP->Logging, App_US->Logging, Logging->DataWarehouse], retention: 400d }
+  runtime_metrics: { label: Runtime Metrics, classification: internal, storedIn: [Monitoring], processedBy: [App_JP, App_US, Monitoring], flows: [App_JP->Monitoring, App_US->Monitoring], retention: 30d }
+  trace_spans: { label: Trace Spans, classification: internal, storedIn: [Tracing], processedBy: [App_JP, App_US, Tracing], flows: [App_JP->Tracing, App_US->Tracing], retention: 14d }
+  incident_alert: { label: Incident Alert, classification: internal, storedIn: [Incident], processedBy: [Monitoring, Incident], flows: [Monitoring->Incident], retention: 90d }
+zones:
+  public: { label: Public Internet, kind: internet, trustLevel: public, contains: [User] }
+  global_edge: { label: Global Edge, kind: cloud, trustLevel: restricted, contains: [DNS, CDN, WAF], owner: platform-team }
+  jp_region: { label: JP Region, kind: region, trustLevel: private, contains: [APIGW_JP, App_JP, Worker_JP, EventBus_JP, DB_Primary], owner: app-team }
+  us_region: { label: US Region, kind: region, trustLevel: private, contains: [APIGW_US, App_US, Worker_US, EventBus_US, DB_Replica], owner: app-team }
+  shared_platform: { label: Shared Platform, kind: project, trustLevel: restricted, contains: [Auth, ArtifactRegistry, CICD, ConfigStore], owner: platform-team }
+  operations: { label: Operations, kind: operations, trustLevel: private, contains: [Logging, Monitoring, Tracing, Incident, DataWarehouse], owner: sre-team }
+  hybrid_network: { label: Hybrid Network, kind: network, trustLevel: private, contains: [Interconnect, CloudVPN], owner: network-team }
+  onprem: { label: On-premises, kind: onprem, trustLevel: private, contains: [OnPremDC, LegacyERP], owner: corporate-it }
+boundaries:
+  public_edge: { label: Public Edge Boundary, kind: trust_boundary, contains: [zone: public, zone: global_edge] }
+  identity_boundary: { label: Identity Boundary, kind: trust_boundary, contains: [zone: shared_platform, node: Auth] }
+  region_jp_boundary: { label: JP Region Boundary, kind: region_boundary, contains: [zone: global_edge, zone: jp_region] }
+  region_us_boundary: { label: US Region Boundary, kind: region_boundary, contains: [zone: global_edge, zone: us_region] }
+  cross_region_boundary: { label: Cross-region Data Boundary, kind: region_boundary, contains: [zone: jp_region, zone: us_region] }
+  data_boundary_jp: { label: JP Data Boundary, kind: trust_boundary, contains: [node: DB_Primary] }
+  data_boundary_us: { label: US Data Boundary, kind: trust_boundary, contains: [node: DB_Replica] }
+  hybrid_boundary: { label: Hybrid Connectivity Boundary, kind: network_boundary, contains: [zone: hybrid_network, zone: onprem] }
+  onprem_boundary: { label: On-prem Org Boundary, kind: org_boundary, contains: [zone: onprem] }
+  deployment_boundary: { label: Deployment Boundary, kind: policy_boundary, contains: [node: CICD, node: ArtifactRegistry, node: App_JP, node: App_US] }
+  ops_boundary: { label: Operations Boundary, kind: policy_boundary, contains: [zone: operations] }
+view:
+  default:
+    base: 3d
+    overlays: [boundary, dataflow, permission, validation]
+layout:
+  mode: auto
+  direction: LR

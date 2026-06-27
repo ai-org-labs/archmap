@@ -9,12 +9,12 @@
   "related_decision_record_id": null,
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "created_at": "2026-06-26T19:09:52.981Z",
-  "updated_at": "2026-06-26T19:16:28.854Z",
+  "updated_at": "2026-06-27T18:45:00.000+09:00",
   "assigned_at": null,
   "done_at": null,
   "retired_at": null,
   "last_triaged_at": null,
   "stale_candidate_at": null,
   "retire_candidate_at": null,
-  "triage_notes": "QIF cadence applied after TASK-005 public API/render changes: docs/aof/QIF-SPEC-CHECK-2026-06-27.md updated with external src, src_fetch_failed, and diagnostics target/panel progress. Keep open; run again before closing TASK-005 and at each TASK-006+ closure."
+  "triage_notes": "QIF cadence applied after TASK-005 public API/render changes: docs/aof/QIF-SPEC-CHECK-2026-06-27.md updated with external src, src_fetch_failed, and diagnostics target/panel progress. Pattern sample audit added in docs/aof/PATTERN-SAMPLES-CHECK-2026-06-27.md and fixtures under test/fixtures/pattern-samples; only zone_crossing_marked_false is expected for the new sample set. Keep open; run again before closing major tasks and include pattern samples in recurring audits."
 }
