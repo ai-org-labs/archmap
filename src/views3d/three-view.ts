@@ -119,6 +119,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
   const emphasizeNodes = projection.emphasizeNodes ?? new Set<string>();
   const emphasizeEdges = projection.emphasizeEdges ?? new Set<string>();
   const badges = projection.nodeBadges ?? new Map<string, string>();
+  const edgeBadges = projection.edgeBadges ?? new Map<string, Array<{ kind: string; label: string }>>();
   const nodeById = new Map(scene3d.nodes.map((n) => [n.id, n]));
 
   // Nodes as boxes + labels.
@@ -185,6 +186,19 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
     if (isEmphasized && e.label) {
       const label = makeTextSprite(e.label, { fg: "#3a4a63", bg: "rgba(255,255,255,0.84)", scaleY: 0.36 });
       label.position.set((e.a.x + e.b.x) / 2, Math.max(e.a.y, e.b.y) + 0.42, (e.a.z + e.b.z) / 2);
+      disposeSprite(label, disposables);
+      root.add(label);
+    }
+    const authBadge = edgeBadges.get(e.id)?.find((badge) => badge.kind === "auth-token");
+    if (authBadge) {
+      const label = makeTextSprite(authBadge.label, {
+        fg: "#7f1d1d",
+        bg: "rgba(255,247,237,0.96)",
+        scaleY: 0.42,
+        bold: true,
+        icon: "auth",
+      });
+      label.position.set((e.a.x + e.b.x) / 2, Math.max(e.a.y, e.b.y) + 0.82, (e.a.z + e.b.z) / 2);
       disposeSprite(label, disposables);
       root.add(label);
     }

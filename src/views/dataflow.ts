@@ -21,6 +21,7 @@ export function dataflowView(ctx: ViewContext): string {
     emphasizeNodes: projection.emphasizeNodes,
     emphasizeEdges: projection.emphasizeEdges,
     nodeBadges: projection.nodeBadges,
+    edgeBadges: projection.edgeBadges,
     nodeIcons: resolveNodeIcons(model),
   });
 }

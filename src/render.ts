@@ -363,6 +363,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     emphasizeNodes: projection.emphasizeNodes,
     emphasizeEdges,
     nodeBadges: projection.nodeBadges,
+    edgeBadges: projection.edgeBadges,
     overlayEdges: projection.overlayEdges,
     nodeIcons: resolveNodeIcons(model),
   });

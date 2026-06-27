@@ -14,6 +14,7 @@ import {
   DEFAULT_STYLE,
   MARKERS,
   buildEdgePaths,
+  edgeBadgesSvg,
   edgeLabelSvg,
   edgeStartpointSvg,
   edgePathFromD,
@@ -48,6 +49,8 @@ export interface DiagramSpec {
   emphasizeEdges?: Set<string>;
   /** Node id -> short caption rendered beneath the node. */
   nodeBadges?: Map<string, string>;
+  /** Edge id -> compact semantic badges rendered near the edge. */
+  edgeBadges?: Map<string, Array<{ kind: "auth-token" | "auth-issuer" | "auth-validator"; label: string; title?: string }>>;
   /** Overlay-only edges, such as synthesized permission relationships. */
   overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   /** Node id -> resolved provider/kind icon (from the icon registry). */
@@ -371,7 +374,7 @@ function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, d
 }
 
 export function renderDiagram(spec: DiagramSpec): string {
-  const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, overlayEdges, nodeIcons } = spec;
+  const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, edgeBadges, overlayEdges, nodeIcons } = spec;
   const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
   const reservedBoxLabels: Box[] = [];
   const boxLabelBlockers: Box[] = [
@@ -418,7 +421,9 @@ export function renderDiagram(spec: DiagramSpec): string {
       const path = edgePathFromD(edgePaths.get(e.id) ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
       const startpoint = edgeStartpointSvg(e.points[0]);
       const label = e.label ? edgeLabelSvg(e.label, e.labelAt, e.labelOrient) : "";
-      return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}">${path}${startpoint}${label}</g>`;
+      const badges = edgeBadges?.get(e.id);
+      const badgeSvg = badges ? edgeBadgesSvg(badges, e.labelAt) : "";
+      return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}">${path}${startpoint}${label}${badgeSvg}</g>`;
     })
     .join("");
 

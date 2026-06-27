@@ -4,10 +4,17 @@ import type { Box } from "./base.js";
 
 export const OVERLAY_NAMES = new Set(["zone", "auth", "dataflow", "boundary", "permission", "validation"]);
 
+export interface OverlayEdgeBadge {
+  kind: "auth-token" | "auth-issuer" | "auth-validator";
+  label: string;
+  title?: string;
+}
+
 export interface OverlayProjection {
   emphasizeNodes?: Set<string>;
   emphasizeEdges?: Set<string>;
   nodeBadges?: Map<string, string>;
+  edgeBadges?: Map<string, OverlayEdgeBadge[]>;
   overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   boxGroups?: Array<{ boxes: Box[]; boxClass: string }>;
 }
@@ -60,6 +67,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
   const nodes = new Set<string>();
   const edges = new Set<string>();
   const badges = new Map<string, string>();
+  const edgeBadges = new Map<string, OverlayEdgeBadge[]>();
   const overlayEdges: OverlayProjection["overlayEdges"] = [];
   const boxGroups: Array<{ boxes: Box[]; boxClass: string }> = [];
   const nodeIds = new Set(model.nodes.map((n) => n.id));
@@ -137,7 +145,21 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
       if (edge.auth?.issuer && nodeIds.has(edge.auth.issuer)) nodes.add(edge.auth.issuer);
       if (edge.auth?.validatedBy && nodeIds.has(edge.auth.validatedBy)) nodes.add(edge.auth.validatedBy);
       if (edge.auth?.recipient && nodeIds.has(edge.auth.recipient)) nodes.add(edge.auth.recipient);
-      if (edge.auth?.token) setBadge(badges, edge.to, `auth:${edge.auth.token}`);
+      const title = [
+        edge.auth?.token ? `token: ${edge.auth.token}` : undefined,
+        edge.auth?.method ? `method: ${edge.auth.method}` : undefined,
+        edge.auth?.issuer ? `issuer: ${edge.auth.issuer}` : undefined,
+        edge.auth?.validatedBy ? `validator: ${edge.auth.validatedBy}` : undefined,
+        edge.auth?.recipient ? `recipient: ${edge.auth.recipient}` : undefined,
+      ].filter(Boolean).join("\n");
+      const authBadges: OverlayEdgeBadge[] = [];
+      if (edge.auth?.token) {
+        setBadge(badges, edge.to, `auth:${edge.auth.token}`);
+        authBadges.push({ kind: "auth-token", label: edge.auth.token, title });
+      }
+      if (edge.auth?.issuer) authBadges.push({ kind: "auth-issuer", label: `iss ${edge.auth.issuer}`, title });
+      if (edge.auth?.validatedBy) authBadges.push({ kind: "auth-validator", label: `val ${edge.auth.validatedBy}`, title });
+      if (authBadges.length) edgeBadges.set(edge.id, authBadges);
     }
   }
 
@@ -200,6 +222,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
     emphasizeNodes: nodes.size ? nodes : undefined,
     emphasizeEdges: edges.size ? edges : undefined,
     nodeBadges: badges.size ? badges : undefined,
+    edgeBadges: edgeBadges.size ? edgeBadges : undefined,
     overlayEdges: overlayEdges.length ? overlayEdges : undefined,
     boxGroups: boxGroups.length ? boxGroups : undefined,
   };
