@@ -346,7 +346,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   cube.className = "archmap-view-cube";
   cube.style.cssText =
     "position:absolute;right:18px;bottom:18px;z-index:4;width:96px;height:96px;perspective:260px;" +
-    "pointer-events:none;";
+    "pointer-events:auto;";
   const cubeBody = document.createElement("div");
   cubeBody.style.cssText =
     "position:absolute;left:22px;top:18px;width:56px;height:56px;transform-style:preserve-3d;" +
@@ -361,13 +361,34 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     btn.textContent = label;
     btn.title = `${label} view`;
     btn.style.cssText = `${faceCss}transform:${transform};`;
-    btn.addEventListener("click", (event) => {
+    btn.dataset.view = view;
+    btn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    btn.addEventListener("pointerup", (event) => {
       event.preventDefault();
       event.stopPropagation();
       snapCamera(view);
     });
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
     return btn;
   };
+  cubeBody.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
+  cubeBody.addEventListener("pointerup", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if ((event.target as HTMLElement).dataset.view) return;
+    const rect = cubeBody.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    snapCamera(y < rect.height * 0.34 ? "top" : x > rect.width * 0.58 ? "right" : "front");
+  });
   cubeBody.append(
     face("正面", "front", "translateZ(28px)"),
     face("上面", "top", "rotateX(90deg) translateZ(28px)"),
