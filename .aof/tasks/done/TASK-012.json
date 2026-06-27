@@ -1,0 +1,22 @@
+{
+  "task_id": "TASK-012",
+  "title": "Comprehensive sample acceptance vocabulary and auth alignment",
+  "description": "Make the comprehensive v2 ArchMap sample and QIF expectation pass without spurious diagnostics by aligning standard vocabulary and flow-sensitive auth validation with docs/specs/v0.1 and the sample's canonical intent.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [
+    "codex-comprehensive-sample-v2"
+  ],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-27T03:00:00Z",
+  "updated_at": "2026-06-27T03:05:00Z",
+  "assigned_at": "2026-06-27T03:00:00Z",
+  "done_at": "2026-06-27T03:05:00Z",
+  "retired_at": null,
+  "last_triaged_at": "2026-06-27T03:00:00Z",
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "DONE (Codex interrupt): aligned standard vocabulary and flow-sensitive auth validation for the provided comprehensive v2 sample. Added STANDARD_KINDS kubernetes_cluster plus spec-missing vpc_peering; STANDARD_IDENTITY_KINDS user/external_user; STANDARD_FLOWS telemetry_export/log_export/trace_export; telemetry-like flow set includes telemetry/log/trace exports. Fixed auth validation so token_issue requires token+issuer, suggests recipient, and does not require validatedBy; request/request_response/token_validate still require validator when a token is present. Narrowed placement_ref_unknown so standard/freeform placement dimensions (project/account/network/subnet/cluster/fleet/etc.) do not emit modeled-object suggestions. Actual sample parse via dist: errors 0, warnings 0, suggestions 0, infos 2 (the QIF-expected inferred_flow infos for app_monitoring_metrics and app_cloud_logging). Verified: npm run typecheck, npm test (97), npm run build. Remaining: run AOF verify before commit; next slice returns to TASK-008."
+}

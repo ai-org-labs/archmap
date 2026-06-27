@@ -84,6 +84,21 @@ quality intent, risk, and loss framing. Authority order follows
 - Diagnostics panel rows now carry diagnostic index and target data attributes
   so follow-up focus/filter/highlight behavior can bind without parsing text.
 
+## Follow-up Applied In TASK-012
+
+- The provided comprehensive v2 sample now parses cleanly against its QIF
+  intent: 0 errors, 0 warnings, 0 suggestions, and 2 expected `inferred_flow`
+  infos.
+- Standard vocabulary was synchronized for `kubernetes_cluster`,
+  `vpc_peering`, `user` / `external_user` identity kinds, and
+  `telemetry_export` / `log_export` / `trace_export` flows.
+- Flow-sensitive auth validation now follows spec §18: `token_issue` does not
+  require `validatedBy`; request-like/token-validate flows still require a
+  validator when a token is present.
+- `placement_ref_unknown` no longer treats standard placement dimensions such as
+  project, account, network, subnet, cluster, and fleet as required modeled
+  object references.
+
 ## Residual Gaps
 
 - Visual selected-element highlighting and diagnostics-to-diagram focus are not

@@ -250,7 +250,7 @@ export const STANDARD_KINDS: ReadonlySet<string> = new Set([
   "cdn", "waf", "load_balancer", "api_gateway", "ingress", "reverse_proxy", "firewall",
   // runtime
   "runtime_service", "serverless_service", "container_service", "function",
-  "kubernetes_service", "pod", "vm", "batch_job", "workflow", "legacy_api",
+  "kubernetes_service", "kubernetes_cluster", "pod", "vm", "batch_job", "workflow", "legacy_api",
   // data / messaging
   "database", "relational_database", "nosql_database", "object_storage",
   "file_storage", "queue", "topic", "event_bus", "cache", "data_warehouse", "legacy_database",
@@ -259,7 +259,7 @@ export const STANDARD_KINDS: ReadonlySet<string> = new Set([
   "iam_role", "iam_policy", "rbac_role", "secret", "certificate", "token",
   // network
   "vpc", "subnet", "nat", "vpn", "interconnect", "direct_connect",
-  "private_link", "dns", "router", "network_boundary",
+  "private_link", "vpc_peering", "dns", "router", "network_boundary",
   // operations
   "logging", "monitoring", "alerting", "tracing", "ci_cd", "repository", "artifact_registry",
 ]);
@@ -276,7 +276,8 @@ export const STANDARD_FLOWS: ReadonlySet<string> = new Set([
   "data_read", "replication", "sync", "batch", "event_publish", "event_subscribe",
   "message_send", "message_receive", "auth", "token_issue", "token_validate",
   "permission_grant", "admin_operation", "deployment", "monitoring",
-  "logging", "metrics_export", "security_scan", "compliance_scan", "network_route",
+  "logging", "telemetry_export", "metrics_export", "log_export", "trace_export",
+  "security_scan", "compliance_scan", "network_route",
 ]);
 
 export const STANDARD_BOUNDARY_KINDS: ReadonlySet<string> = new Set([
@@ -291,6 +292,7 @@ export const STANDARD_ZONE_KINDS: ReadonlySet<string> = new Set([
 ]);
 
 export const STANDARD_IDENTITY_KINDS: ReadonlySet<string> = new Set([
+  "user", "external_user",
   "identity_provider", "oauth_provider", "auth_service", "service_account",
   "iam_role", "iam_policy", "rbac_role", "secret", "certificate", "token",
 ]);

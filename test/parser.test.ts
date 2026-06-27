@@ -350,6 +350,64 @@ describe("validation (§23)", () => {
     expect(codes).toContain("auth_token_without_validator");
   });
 
+  it("accepts comprehensive sample vocabulary and token issue auth shape", () => {
+    const m = parse(`graph LR
+      FirebaseAuth[Firebase Auth] --> Web[Web]
+      FirebaseAuth --> Mobile[Mobile]
+      CloudRun[Cloud Run] --> GKECluster[GKE Cluster]
+      CloudLogging[Cloud Logging] --> BigQuery[(BigQuery)]
+      CloudRun --> TraceBackend[Trace Backend]
+      VPCPeering[VPC Peering] --> CloudRun
+      CloudRun --> TelemetrySink[Telemetry Sink]
+      ---
+      nodes:
+        FirebaseAuth: { kind: identity_provider, layer: identity }
+        Web: { kind: web_app, layer: client }
+        Mobile: { kind: mobile_app, layer: client }
+        CloudRun: { kind: serverless_service, layer: runtime }
+        GKECluster: { kind: kubernetes_cluster, layer: runtime }
+        CloudLogging: { kind: logging, layer: operations }
+        BigQuery: { kind: data_warehouse, layer: data }
+        TraceBackend: { kind: tracing, layer: operations }
+        VPCPeering: { kind: vpc_peering, layer: network }
+        TelemetrySink: { kind: monitoring, layer: operations }
+      identities:
+        admin-user: { kind: user, attachedTo: Web }
+      edges:
+        firebase_web_token_issue:
+          from: FirebaseAuth
+          to: Web
+          flow: token_issue
+          auth: { token: JWT, issuer: FirebaseAuth, recipient: Web }
+        firebase_mobile_token_issue:
+          from: FirebaseAuth
+          to: Mobile
+          flow: token_issue
+          auth: { token: JWT, issuer: FirebaseAuth, recipient: Mobile }
+        cloudlogging_bigquery_export:
+          from: CloudLogging
+          to: BigQuery
+          flow: log_export
+        cloudrun_trace_export:
+          from: CloudRun
+          to: TraceBackend
+          flow: trace_export
+        cloudrun_telemetry_export:
+          from: CloudRun
+          to: TelemetrySink
+          flow: telemetry_export
+    `);
+    const messages = m.warnings.map((w) => `${w.code}: ${w.message}`);
+    expect(messages.some((message) => message.includes("kubernetes_cluster"))).toBe(false);
+    expect(messages.some((message) => message.includes("admin-user") && message.includes("unknown_identity_kind"))).toBe(false);
+    expect(messages.some((message) => message.includes("firebase_web_token_issue") && message.includes("auth_token_without_validator"))).toBe(false);
+    expect(messages.some((message) => message.includes("firebase_mobile_token_issue") && message.includes("auth_token_without_validator"))).toBe(false);
+    expect(messages.some((message) => message.includes("log_export"))).toBe(false);
+    expect(messages.some((message) => message.includes("trace_export"))).toBe(false);
+    expect(messages.some((message) => message.includes("vpc_peering"))).toBe(false);
+    expect(messages.some((message) => message.includes("telemetry_export"))).toBe(false);
+  });
+
   it("warns when an edge crosses zones without boundaryCrossing", () => {
     const m = parse(`graph LR
       A[a] --> B[b]
@@ -430,7 +488,7 @@ describe("validation (§23)", () => {
         App:
           zone: private
           placement:
-            project: missing-project
+            dependency: missing-project
         DB:
           zone: private
       zones:

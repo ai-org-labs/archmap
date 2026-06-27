@@ -18,7 +18,12 @@ import {
 } from "./types.js";
 
 const TOKEN_REQUIRED_FLOWS = new Set(["token_issue", "token_validate"]);
-const TELEMETRY_FLOWS = new Set(["monitoring", "logging", "metrics_export"]);
+const TOKEN_VALIDATOR_REQUIRED_FLOWS = new Set(["request", "request_response", "token_validate"]);
+const TELEMETRY_FLOWS = new Set(["monitoring", "logging", "telemetry_export", "metrics_export", "log_export", "trace_export"]);
+const FREEFORM_PLACEMENT_KEYS = new Set([
+  "provider", "cloud", "folder", "project", "account", "region", "zone",
+  "network", "subnet", "cluster", "fleet", "namespace", "environment",
+]);
 
 export function validate(model: ArchMapModel): ArchMapModel {
   const { errors, warnings, suggestions, infos } = model;
@@ -59,7 +64,7 @@ export function validate(model: ArchMapModel): ArchMapModel {
       warnings.push(diagnostic("unknown_layer", `Node "${n.id}" uses unknown layer "${n.layer}".`, { type: "node", id: n.id }));
     }
     for (const [key, value] of Object.entries(n.placement ?? {})) {
-      if (["provider", "region", "environment", "zone"].includes(key)) continue;
+      if (FREEFORM_PLACEMENT_KEYS.has(key)) continue;
       if (!knownPlacementRefs.has(value)) {
         suggestions.push(diagnostic("placement_ref_unknown", `Node "${n.id}" placement "${key}" references unknown modeled object "${value}".`, { type: "node", id: n.id }));
       }
@@ -94,7 +99,7 @@ export function validate(model: ArchMapModel): ArchMapModel {
       if (!e.auth.issuer) {
         warnings.push(diagnostic("auth_token_without_issuer", `Edge "${e.id}" carries a token but declares no issuer.`, { type: "edge", id: e.id }));
       }
-      if (!e.auth.validatedBy) {
+      if (!e.auth.validatedBy && TOKEN_VALIDATOR_REQUIRED_FLOWS.has(e.flow ?? "request_response")) {
         warnings.push(diagnostic("auth_token_without_validator", `Edge "${e.id}" carries a token but declares no validatedBy.`, { type: "edge", id: e.id }));
       }
     }
