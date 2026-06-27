@@ -319,7 +319,7 @@ export function renderDiagram(spec: DiagramSpec): string {
           reservedBoxLabels.push(textBox(label, x, y));
           return (
             `<g class="${group.boxClass}" data-id="${escapeXml(b.id)}">` +
-            `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10" ry="10" />` +
+            `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14" ry="14" />` +
             `<text class="${boxLabelClass}" x="${x}" y="${y}">${escapeXml(label)}</text>` +
             `</g>`
           );

@@ -81,6 +81,17 @@ describe("render", () => {
     }
   });
 
+  it("draws zone and boundary containers as solid area panels", () => {
+    const m = parse(example);
+    const svg = render(m, { baseView: "overview", overlays: ["boundary"] }).svg!;
+    const style = svg.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? "";
+    expect(style).toContain(".archmap-zone-box { fill:");
+    expect(style).toContain(".archmap-boundary-box { fill:");
+    expect(style.match(/\.archmap-zone-box \{[^}]*stroke-dasharray/)).toBeNull();
+    expect(style.match(/\.archmap-boundary-box \{[^}]*stroke-dasharray/)).toBeNull();
+    expect(svg).toContain('rx="14" ry="14"');
+  });
+
   it("supports the baseView plus overlays API", () => {
     const m = parse(example);
     const { svg, view } = render(m, { baseView: "overview", overlays: ["auth", "dataflow"] });

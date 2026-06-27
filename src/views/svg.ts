@@ -339,8 +339,8 @@ export const MARKERS = ARROW_MARKER + ARROW_MARKER_EMPH;
 
 /** Default theme: CSS variables with sensible fallbacks so the SVG renders standalone. */
 export const DEFAULT_STYLE = `
-.archmap-zone-box { fill: var(--archmap-zone-fill, rgba(120,140,170,0.08)); stroke: var(--archmap-zone-stroke, #8aa0c0); stroke-width: 1; stroke-dasharray: 4 4; rx: 10; }
-.archmap-zone-label { fill: var(--archmap-zone-label, #5b6b86); font: 600 12px var(--archmap-font, system-ui, sans-serif); }
+.archmap-zone-box { fill: var(--archmap-zone-fill, rgba(226,238,250,0.62)); stroke: var(--archmap-zone-stroke, #8aa8cc); stroke-width: 1.2; }
+.archmap-zone-label { fill: var(--archmap-zone-label, #687486); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-node-shape { fill: var(--archmap-node-fill, #ffffff); stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
@@ -350,8 +350,8 @@ export const DEFAULT_STYLE = `
 .archmap-edge-label text { fill: var(--archmap-edge-label, #3a4a63); font: 400 11px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-label-bg { fill: var(--archmap-bg, #ffffff); opacity: 0.85; }
 .archmap-faded { opacity: 0.18; }
-.archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(200,90,70,0.05)); stroke: var(--archmap-boundary-stroke, #c85a46); stroke-width: 1.5; stroke-dasharray: 2 3; }
-.archmap-boundary-label { fill: var(--archmap-boundary-label, #b3261e); font: 600 12px var(--archmap-font, system-ui, sans-serif); }
+.archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(247,240,220,0.48)); stroke: var(--archmap-boundary-stroke, #c0a044); stroke-width: 1.8; }
+.archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-emphasis .archmap-node-shape, .archmap-emphasis .archmap-node-shape-top { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
 .archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
 .archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis, #b3261e); }
