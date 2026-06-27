@@ -186,6 +186,28 @@ describe("computeLayout", () => {
     expect(touches.size).toBeGreaterThanOrEqual(3);
   });
 
+  it("routes reciprocal component edges on separate outside tracks", () => {
+    const m = parse(`graph LR
+      EndUser((End User)) --> Web[Web App]
+      Web --> FirebaseAuth[Firebase Auth]
+      FirebaseAuth --> Web
+    `);
+    const layout = computeLayout(m);
+    const web = layout.nodes.find((n) => n.id === "Web")!;
+    const auth = layout.nodes.find((n) => n.id === "FirebaseAuth")!;
+    const toAuth = layout.edges.find((e) => e.from === "Web" && e.to === "FirebaseAuth")!;
+    const toWeb = layout.edges.find((e) => e.from === "FirebaseAuth" && e.to === "Web")!;
+
+    expect(toAuth.points).not.toEqual(toWeb.points);
+    const webTouchY = toAuth.points[0].x >= web.x && toAuth.points[0].x <= web.x + web.w ? toAuth.points[0].y : toAuth.points[toAuth.points.length - 1].y;
+    const webReturnTouchY = toWeb.points[0].x >= web.x && toWeb.points[0].x <= web.x + web.w ? toWeb.points[0].y : toWeb.points[toWeb.points.length - 1].y;
+    const authTouchY = toAuth.points[0].x >= auth.x && toAuth.points[0].x <= auth.x + auth.w ? toAuth.points[0].y : toAuth.points[toAuth.points.length - 1].y;
+    const authReturnTouchY = toWeb.points[0].x >= auth.x && toWeb.points[0].x <= auth.x + auth.w ? toWeb.points[0].y : toWeb.points[toWeb.points.length - 1].y;
+
+    expect(Math.abs(webTouchY - webReturnTouchY)).toBeGreaterThan(1);
+    expect(Math.abs(authTouchY - authReturnTouchY)).toBeGreaterThan(1);
+  });
+
   it("clips edge endpoints to node borders (two points each)", () => {
     const m = parse(`graph LR
       A[a] --> B[b]

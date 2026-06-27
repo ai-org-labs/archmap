@@ -593,11 +593,18 @@ function routeEdges(
   }
   const plans: Plan[] = [];
   const degree = new Map<string, number>();
+  const pairCounts = new Map<string, number>();
+  const pairOrdinals = new Map<string, number>();
+  const unorderedPairKey = (from: string, to: string) => from < to ? `${from}\t${to}` : `${to}\t${from}`;
   for (const e of list) {
     degree.set(e.from, (degree.get(e.from) ?? 0) + 1);
     degree.set(e.to, (degree.get(e.to) ?? 0) + 1);
+    const key = unorderedPairKey(e.from, e.to);
+    pairOrdinals.set(e.id, pairCounts.get(key) ?? 0);
+    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
   }
   const isHub = (id: string) => (degree.get(id) ?? 0) >= 6;
+  const isMultiEdgePair = (e: { from: string; to: string }) => e.from !== e.to && (pairCounts.get(unorderedPairKey(e.from, e.to)) ?? 0) > 1;
 
   const faceToward = (from: ReturnType<typeof geom>, to: ReturnType<typeof geom>): Face => {
     const df = to.flowCenter - from.flowCenter;
@@ -624,6 +631,14 @@ function routeEdges(
     faceUse.set(`${node}|${best}`, (faceUse.get(`${node}|${best}`) ?? 0) + 1);
     return best;
   };
+  const pairedTrackFace = (preferred: Face, ordinal: number): Face => {
+    // Multiple edges between the same two boxes need distinct outside tracks.
+    // If the nodes mainly face each other along flow, alternate top/bottom;
+    // otherwise alternate left/right.
+    const flowAligned = preferred === "fL" || preferred === "fH";
+    if (flowAligned) return ordinal % 2 === 0 ? "cL" : "cH";
+    return ordinal % 2 === 0 ? "fL" : "fH";
+  };
 
   interface PortEntry { planIndex: number; isSource: boolean; sortKey: number }
   const faces = new Map<string, PortEntry[]>();
@@ -641,7 +656,8 @@ function routeEdges(
     const targetAbove = b.crossCenter < a.crossCenter;
     // same lane -> flow faces; adjacent lanes -> direct top/bottom drop;
     // 2+ lanes apart -> route the trunk through a column gap to clear nodes.
-    let mode: Mode = isHub(e.from) || isHub(e.to) ? "side" : la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
+    const multiEdgePair = isMultiEdgePair(e);
+    let mode: Mode = isHub(e.from) || isHub(e.to) || multiEdgePair ? "side" : la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
     if (mode === "direct") {
       // A straight drop is only safe if no sibling in the same lane cell sits
       // between the source and the target; otherwise fall back to the trunk.
@@ -658,8 +674,9 @@ function routeEdges(
     if (mode === "side") {
       const preferredSrc = faceToward(a, b);
       const preferredDst = faceToward(b, a);
-      srcFace = isHub(e.from) ? balancedHubFace(e.from, preferredSrc) : preferredSrc;
-      dstFace = isHub(e.to) ? balancedHubFace(e.to, preferredDst) : preferredDst;
+      const ordinal = pairOrdinals.get(e.id) ?? 0;
+      srcFace = isHub(e.from) ? balancedHubFace(e.from, preferredSrc) : multiEdgePair ? pairedTrackFace(preferredSrc, ordinal) : preferredSrc;
+      dstFace = isHub(e.to) ? balancedHubFace(e.to, preferredDst) : multiEdgePair ? pairedTrackFace(preferredDst, ordinal) : preferredDst;
       channelCross = 0;
     } else if (mode === "same") {
       srcFace = forward ? "fH" : "fL";
