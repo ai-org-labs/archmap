@@ -9,12 +9,12 @@
   "related_decision_record_id": null,
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "created_at": "2026-06-26T19:09:39.487Z",
-  "updated_at": "2026-06-27T20:55:00.000+09:00",
+  "updated_at": "2026-06-27T21:31:00.000+09:00",
   "assigned_at": null,
   "done_at": null,
   "retired_at": null,
   "last_triaged_at": null,
   "stale_candidate_at": null,
   "retire_candidate_at": null,
-  "triage_notes": "Cut from product principles §6, 03 3D view, and 04 engine acceptance. Completion: core fallback remains, real 3D bundle passes interaction/framing tests, and overlay-relevant model elements are visible or gracefully degraded in 3D. Use test/fixtures/pattern-samples as acceptance input for 3D/isometric framing and overlay parity because the set covers small, medium, large hybrid, and Android architectures. 2026-06-27 Codex update: playground/viewer controls now expose overview/layer and 2d/3d only; the playground template includes auth/dataflow/boundary/permission/validation metadata; 3D consumes overlay projection for emphasized edges, permission overlay edges, node badges, boundary volumes, icons, and corner-offset zone labels."
+  "triage_notes": "Cut from product principles §6, 03 3D view, and 04 engine acceptance. Completion: core fallback remains, real 3D bundle passes interaction/framing tests, and overlay-relevant model elements are visible or gracefully degraded in 3D. Use test/fixtures/pattern-samples as acceptance input for 3D/isometric framing and overlay parity because the set covers small, medium, large hybrid, and Android architectures. 2026-06-27 Codex update: playground/viewer controls now expose overview/layer and 2d/3d only; the playground template includes auth/dataflow/boundary/permission/validation metadata; 3D consumes overlay projection for emphasized edges, permission overlay edges, node badges, boundary volumes, icons, and corner-offset zone labels. 2026-06-27 Codex update: 2D routing now treats component-border coincidence as a hard route cost and regression; ports are redistributed across opposite faces, endpoint lanes are deconflicted, fallback safety routes prefer distributed ports, and final endpoint/bend cleanup preserves no-node-hit/no-border-hit invariants. Verified on comprehensive + pattern samples: borderHits=0 across all checked fixtures; remaining known routing debt is bend-to-other-endpoint lane coincidence in some dense samples (comprehensive 3, pattern 03 10, pattern 04 1, pattern 05 2 by local metric), so continue with a deeper global orthogonal router if the human wants this fully zeroed."
 }

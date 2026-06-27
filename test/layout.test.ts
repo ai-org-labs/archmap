@@ -87,6 +87,28 @@ function segmentSamples(a: { x: number; y: number }, b: { x: number; y: number }
   });
 }
 
+function segmentCoincidesWithNodeBorder(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  node: { x: number; y: number; w: number; h: number },
+): boolean {
+  const horizontal = Math.abs(a.y - b.y) < 0.5;
+  const vertical = Math.abs(a.x - b.x) < 0.5;
+  if (horizontal) {
+    const x0 = Math.min(a.x, b.x);
+    const x1 = Math.max(a.x, b.x);
+    const overlap = Math.min(x1, node.x + node.w) - Math.max(x0, node.x);
+    return overlap > 1 && (Math.abs(a.y - node.y) < 0.5 || Math.abs(a.y - (node.y + node.h)) < 0.5);
+  }
+  if (vertical) {
+    const y0 = Math.min(a.y, b.y);
+    const y1 = Math.max(a.y, b.y);
+    const overlap = Math.min(y1, node.y + node.h) - Math.max(y0, node.y);
+    return overlap > 1 && (Math.abs(a.x - node.x) < 0.5 || Math.abs(a.x - (node.x + node.w)) < 0.5);
+  }
+  return false;
+}
+
 describe("computeLayout", () => {
   it("positions every node and produces a non-empty canvas", () => {
     const m = parse(example);
@@ -342,6 +364,19 @@ describe("computeLayout", () => {
             if (node.id === edge.from || node.id === edge.to) continue;
             expect(pointInsideNode(node, sample)).toBe(false);
           }
+        }
+      }
+    }
+  });
+
+  it("keeps comprehensive sample edges from running along node borders", () => {
+    const m = parse(comprehensive);
+    const layout = computeLayout(m);
+    for (const edge of layout.edges) {
+      for (let i = 0; i < edge.points.length - 1; i++) {
+        for (const node of layout.nodes) {
+          if (node.id === edge.from || node.id === edge.to) continue;
+          expect(segmentCoincidesWithNodeBorder(edge.points[i], edge.points[i + 1], node)).toBe(false);
         }
       }
     }

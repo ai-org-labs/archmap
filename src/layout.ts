@@ -950,6 +950,32 @@ function routeEdges(
     }
     return hits;
   };
+  const routeBorderCoincidence = (points: LayoutPoint[], from: string, to: string): number => {
+    let hits = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      const horizontalSeg = Math.abs(a.y - b.y) < 0.5;
+      const verticalSeg = Math.abs(a.x - b.x) < 0.5;
+      if (!horizontalSeg && !verticalSeg) continue;
+      for (const node of laid.values()) {
+        if (node.id === from || node.id === to) continue;
+        if (horizontalSeg) {
+          const x0 = Math.min(a.x, b.x);
+          const x1 = Math.max(a.x, b.x);
+          const overlap = Math.min(x1, node.x + node.w) - Math.max(x0, node.x);
+          if (overlap > 1 && (Math.abs(a.y - node.y) < 0.5 || Math.abs(a.y - (node.y + node.h)) < 0.5)) hits++;
+        }
+        if (verticalSeg) {
+          const y0 = Math.min(a.y, b.y);
+          const y1 = Math.max(a.y, b.y);
+          const overlap = Math.min(y1, node.y + node.h) - Math.max(y0, node.y);
+          if (overlap > 1 && (Math.abs(a.x - node.x) < 0.5 || Math.abs(a.x - (node.x + node.w)) < 0.5)) hits++;
+        }
+      }
+    }
+    return hits;
+  };
 
   interface PortEntry { planIndex: number; isSource: boolean; sortKey: number }
   const faces = new Map<string, PortEntry[]>();
@@ -1058,10 +1084,98 @@ function routeEdges(
       else { end.cross = pos; end.flow = fixed; }
     });
   }
+  const isFlowFace = (face: Face): boolean => face === "fL" || face === "fH";
+  const redistributeNodeAxisPorts = (node: string, axisFaces: Face[], varyFlow: boolean): void => {
+    const g = geom(node);
+    const entries = axisFaces.flatMap((face) => (faces.get(`${node}|${face}`) ?? []).map((entry) => ({ ...entry, face })));
+    if (entries.length <= 1) return;
+    const low = varyFlow ? g.flowLow : g.crossLow;
+    const size = varyFlow ? g.flowSize : g.crossSize;
+    const span = size - FACE_INSET * 2;
+    const min = low + FACE_INSET;
+    const max = low + FACE_INSET + span;
+    const fixedFor = (face: Face): number =>
+      face === "fL" ? g.flowLow : face === "fH" ? g.flowHigh : face === "cL" ? g.crossLow : g.crossHigh;
+    entries.sort((p, q) => p.sortKey - q.sortKey || p.face.localeCompare(q.face));
+    const n = entries.length;
+    const minSep = Math.min(16, span / Math.max(1, n - 1));
+    let positions = entries.map((entry) => Math.min(max, Math.max(min, entry.sortKey)));
+    for (let i = 1; i < positions.length; i++) positions[i] = Math.max(positions[i], positions[i - 1] + minSep);
+    const overflow = positions[positions.length - 1] - max;
+    if (overflow > 0) positions = positions.map((pos) => pos - overflow);
+    for (let i = positions.length - 2; i >= 0; i--) positions[i] = Math.min(positions[i], positions[i + 1] - minSep);
+    const underflow = min - positions[0];
+    if (underflow > 0) positions = positions.map((pos) => pos + underflow);
+    if (positions[0] < min - 0.5 || positions[positions.length - 1] > max + 0.5) {
+      positions = entries.map((_, i) => min + (span * i) / Math.max(1, n - 1));
+    }
+    entries.forEach((entry, i) => {
+      const end = entry.isSource ? plans[entry.planIndex].src : plans[entry.planIndex].dst;
+      const fixed = fixedFor(entry.face);
+      if (varyFlow) { end.flow = positions[i]; end.cross = fixed; }
+      else { end.cross = positions[i]; end.flow = fixed; }
+    });
+  };
+  for (const node of laid.keys()) {
+    redistributeNodeAxisPorts(node, ["fL", "fH"], false);
+    redistributeNodeAxisPorts(node, ["cL", "cH"], true);
+  }
   for (const plan of plans) {
     projectEnd(plan.src);
     projectEnd(plan.dst);
   }
+  const deconflictEndpointCoordinates = (): void => {
+    type EndpointEntry = { key: string; edgeId: string; end: End; value: number; variable: "flow" | "cross"; min: number; max: number };
+    const entries: EndpointEntry[] = [];
+    plans.forEach((plan, planIndex) => {
+      [plan.src, plan.dst].forEach((end, endIndex) => {
+        const g = geom(end.node);
+        const variable: "flow" | "cross" = isFlowFace(end.face) ? "cross" : "flow";
+        const low = variable === "flow" ? g.flowLow : g.crossLow;
+        const size = variable === "flow" ? g.flowSize : g.crossSize;
+        entries.push({
+          key: `${planIndex}:${endIndex}:${plan.e.id}`,
+          edgeId: plan.e.id,
+          end,
+          value: variable === "flow" ? end.flow : end.cross,
+          variable,
+          min: low + FACE_INSET,
+          max: low + size - FACE_INSET,
+        });
+      });
+    });
+    for (let pass = 0; pass < 4; pass++) {
+      const groups = new Map<string, EndpointEntry[]>();
+      for (const entry of entries) {
+        entry.value = entry.variable === "flow" ? entry.end.flow : entry.end.cross;
+        const screenValue = horizontal
+          ? (entry.variable === "flow" ? entry.value : entry.value)
+          : entry.value;
+        const key = `${entry.variable}|${Math.round(screenValue * 2) / 2}`;
+        (groups.get(key) ?? (groups.set(key, []), groups.get(key)!)).push(entry);
+      }
+      let changed = false;
+      for (const group of groups.values()) {
+        if (group.length <= 1) continue;
+        if (new Set(group.map((entry) => entry.edgeId)).size <= 1) continue;
+        group.sort((a, b) => a.key.localeCompare(b.key));
+        const mid = (group.length - 1) / 2;
+        group.forEach((entry, i) => {
+          const span = Math.max(1, entry.max - entry.min);
+          const step = Math.min(10, span / Math.max(1, group.length - 1));
+          const next = Math.min(entry.max, Math.max(entry.min, entry.value + (i - mid) * step));
+          if (Math.abs(next - entry.value) > 0.5) {
+            if (entry.variable === "flow") entry.end.flow = next;
+            else entry.end.cross = next;
+            projectEnd(entry.end);
+            changed = true;
+          }
+        });
+      }
+      if (!changed) break;
+    }
+  };
+  deconflictEndpointCoordinates();
 
   // Distribute vertical trunks for forward same/trunk edges in the column gap.
   const byCol = new Map<number, number[]>();
@@ -1101,17 +1215,123 @@ function routeEdges(
     });
   }
 
-  const minimalPolyline = (src: End, dst: End): LayoutPoint[] => {
+  const endpointRecords = plans.flatMap((plan) => [
+    { edgeId: plan.e.id, flow: plan.src.flow, cross: plan.src.cross },
+    { edgeId: plan.e.id, flow: plan.dst.flow, cross: plan.dst.cross },
+  ]);
+  const coordConflict = (edgeId: string, points: LayoutPoint[]): number => {
+    let score = 0;
+    const middle = points.slice(1, -1);
+    for (const p of middle) {
+      const flow = horizontal ? p.x : p.y;
+      const cross = horizontal ? p.y : p.x;
+      for (const endpoint of endpointRecords) {
+        if (endpoint.edgeId === edgeId) continue;
+        if (Math.abs(flow - endpoint.flow) < 0.5) score += 1;
+        if (Math.abs(cross - endpoint.cross) < 0.5) score += 1;
+      }
+    }
+    return score;
+  };
+  const pointConflictsEndpoint = (edgeId: string, point: LayoutPoint): boolean => {
+    const flow = horizontal ? point.x : point.y;
+    const cross = horizontal ? point.y : point.x;
+    return endpointRecords.some((endpoint) =>
+      endpoint.edgeId !== edgeId &&
+      (Math.abs(flow - endpoint.flow) < 0.5 || Math.abs(cross - endpoint.cross) < 0.5),
+    );
+  };
+  const deconflictBends = (edgeId: string, from: string, to: string, points: LayoutPoint[]): LayoutPoint[] => {
+    let out = points;
+    const offsets = [12, -12, 24, -24, 36, -36, 48, -48];
+    for (let i = 1; i < out.length - 1; i++) {
+      const prev = out[i - 1];
+      const p = out[i];
+      const next = out[i + 1];
+      if (!pointConflictsEndpoint(edgeId, p)) continue;
+      const prevV = Math.abs(prev.x - p.x) < 0.5;
+      const prevH = Math.abs(prev.y - p.y) < 0.5;
+      const nextV = Math.abs(next.x - p.x) < 0.5;
+      const nextH = Math.abs(next.y - p.y) < 0.5;
+      const candidates: LayoutPoint[][] = [];
+      if (prevV && nextH) {
+        for (const offset of offsets) {
+          const y = p.y + offset;
+          candidates.push([...out.slice(0, i), { x: p.x, y }, { x: next.x, y }, ...out.slice(i + 1)]);
+        }
+      } else if (prevH && nextV) {
+        for (const offset of offsets) {
+          const x = p.x + offset;
+          candidates.push([...out.slice(0, i), { x, y: p.y }, { x, y: next.y }, ...out.slice(i + 1)]);
+        }
+      }
+      const replacement = candidates
+        .filter((candidate) => candidate.slice(1, -1).every((point) => !pointConflictsEndpoint(edgeId, point)))
+        .sort((a, b) => routeNodeHits(a, from, to) - routeNodeHits(b, from, to) || routeLength(a) - routeLength(b))[0];
+      if (replacement && routeNodeHits(replacement, from, to) === 0) out = simplifyPolyline(replacement);
+    }
+    return out;
+  };
+  const candidateMidValues = (a: number, b: number, used: number[]): number[] => {
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const span = Math.max(hi - lo, 48);
+    const base = (a + b) / 2;
+    const values = [base, base - 24, base + 24, lo - 36, hi + 36, lo - 72, hi + 72];
+    return values.sort((left, right) => {
+      const lc = used.some((v) => Math.abs(left - v) < 0.5) ? 1 : 0;
+      const rc = used.some((v) => Math.abs(right - v) < 0.5) ? 1 : 0;
+      return lc - rc || Math.abs(left - base) - Math.abs(right - base) || Math.abs(left - (lo - span)) - Math.abs(right - (lo - span));
+    });
+  };
+  const minimalPolyline = (plan: Plan): LayoutPoint[] => {
+    const { src, dst } = plan;
     const s = toXY(src.flow, src.cross, horizontal);
     const d = toXY(dst.flow, dst.cross, horizontal);
-    if (Math.abs(src.flow - dst.flow) < 0.5 || Math.abs(src.cross - dst.cross) < 0.5) {
-      return simplifyPolyline([s, d]);
+    const sourceFlow = isFlowFace(src.face);
+    const targetFlow = isFlowFace(dst.face);
+    const endpointFlows = endpointRecords.filter((r) => r.edgeId !== plan.e.id).map((r) => r.flow);
+    const endpointCrosses = endpointRecords.filter((r) => r.edgeId !== plan.e.id).map((r) => r.cross);
+
+    const fromFC = (points: Array<{ flow: number; cross: number }>) =>
+      simplifyPolyline(points.map((p) => toXY(p.flow, p.cross, horizontal)));
+    const candidates: LayoutPoint[][] = [];
+    if (Math.abs(src.flow - dst.flow) < 0.5 && !sourceFlow && !targetFlow) {
+      candidates.push(fromFC([src, dst]));
+    } else if (Math.abs(src.cross - dst.cross) < 0.5 && sourceFlow && targetFlow) {
+      candidates.push(fromFC([src, dst]));
     }
-    const sourceIsFlow = src.face === "fL" || src.face === "fH";
-    const corner = sourceIsFlow
-      ? toXY(dst.flow, src.cross, horizontal)
-      : toXY(src.flow, dst.cross, horizontal);
-    return simplifyPolyline([s, corner, d]);
+    if (sourceFlow !== targetFlow) {
+      const corner = sourceFlow
+        ? { flow: dst.flow, cross: src.cross }
+        : { flow: src.flow, cross: dst.cross };
+      candidates.push(fromFC([src, corner, dst]));
+      const midFlows = candidateMidValues(src.flow, dst.flow, endpointFlows).slice(0, 3);
+      const midCrosses = candidateMidValues(src.cross, dst.cross, endpointCrosses).slice(0, 3);
+      for (const midFlow of midFlows) {
+        for (const midCross of midCrosses) {
+          candidates.push(sourceFlow
+            ? fromFC([src, { flow: midFlow, cross: src.cross }, { flow: midFlow, cross: midCross }, { flow: dst.flow, cross: midCross }, dst])
+            : fromFC([src, { flow: src.flow, cross: midCross }, { flow: midFlow, cross: midCross }, { flow: midFlow, cross: dst.cross }, dst]));
+        }
+      }
+    } else if (sourceFlow) {
+      for (const midFlow of candidateMidValues(src.flow, dst.flow, endpointFlows).slice(0, 5)) {
+        candidates.push(fromFC([src, { flow: midFlow, cross: src.cross }, { flow: midFlow, cross: dst.cross }, dst]));
+      }
+    } else {
+      for (const midCross of candidateMidValues(src.cross, dst.cross, endpointCrosses).slice(0, 5)) {
+        candidates.push(fromFC([src, { flow: src.flow, cross: midCross }, { flow: dst.flow, cross: midCross }, dst]));
+      }
+    }
+
+    return candidates
+      .sort((a, b) =>
+        coordConflict(plan.e.id, a) - coordConflict(plan.e.id, b) ||
+        routeNodeHits(a, plan.e.from, plan.e.to) - routeNodeHits(b, plan.e.from, plan.e.to) ||
+        routeLength(a) - routeLength(b) ||
+        a.length - b.length,
+      )[0] ?? simplifyPolyline([s, d]);
   };
   const graphBounds = [...laid.values()].reduce(
     (acc, node) => ({
@@ -1137,10 +1357,18 @@ function routeEdges(
 
   // Build polylines. The default route is at most one bend (3 points); more
   // complex tracks are reserved for a future explicit router mode.
-  return plans.map((plan) => {
-    const minimal = minimalPolyline(plan.src, plan.dst);
+  const routedPlans = plans.map((plan) => {
+    const minimal = minimalPolyline(plan);
     const points = routeNodeHits(minimal, plan.e.from, plan.e.to) > 0
-      ? (["fL", "fH", "cL", "cH"] as Face[])
+      ? [
+          {
+            route: outsidePolyline(plan.src, plan.dst),
+            hits: routeNodeHits(outsidePolyline(plan.src, plan.dst), plan.e.from, plan.e.to),
+            len: routeLength(outsidePolyline(plan.src, plan.dst)),
+            targetFace: plan.dst.face,
+            cost: 0,
+          },
+          ...(["fL", "fH", "cL", "cH"] as Face[])
           .flatMap((sourceFace) =>
             (["fL", "fH", "cL", "cH"] as Face[]).flatMap((targetFace) =>
               [0.08, 0.25, 0.5, 0.75, 0.92].flatMap((sourceAlong) =>
@@ -1163,16 +1391,163 @@ function routeEdges(
                 }),
               ),
             ),
-          )
+          ),
+        ]
           .sort((a, b) => {
             const targetBias = (face: Face): number => face === "cH" ? 0 : face === "fH" ? 1 : face === "fL" ? 2 : 3;
-            return a.hits - b.hits || a.len - b.len || a.cost - b.cost || targetBias(a.targetFace) - targetBias(b.targetFace);
+            return a.hits - b.hits ||
+              routeBorderCoincidence(a.route, plan.e.from, plan.e.to) - routeBorderCoincidence(b.route, plan.e.from, plan.e.to) ||
+              coordConflict(plan.e.id, a.route) - coordConflict(plan.e.id, b.route) ||
+              a.len - b.len ||
+              a.cost - b.cost ||
+              targetBias(a.targetFace) - targetBias(b.targetFace);
           })[0].route
       : minimal;
+    const routed = deconflictBends(plan.e.id, plan.e.from, plan.e.to, points);
     // Offset the label off the line (above for H, to the right for V) so a
     // short segment isn't hidden under the label's background.
-    const seg = longestSegment(points);
+    const seg = longestSegment(routed);
     const labelAt = seg.orient === "h" ? { x: seg.x, y: seg.y - 11 } : { x: seg.x + 8, y: seg.y };
-    return { id: plan.e.id, from: plan.e.from, to: plan.e.to, label: plan.e.label, points, labelAt, labelOrient: seg.orient };
+    return { plan, edge: { id: plan.e.id, from: plan.e.from, to: plan.e.to, label: plan.e.label, points: routed, labelAt, labelOrient: seg.orient } };
+  });
+  const inferFaceFromPoint = (nodeId: string, point: LayoutPoint): Face => {
+    const node = laid.get(nodeId)!;
+    const distances = [
+      { face: "fL" as Face, distance: Math.abs(point.x - node.x) },
+      { face: "fH" as Face, distance: Math.abs(point.x - (node.x + node.w)) },
+      { face: "cL" as Face, distance: Math.abs(point.y - node.y) },
+      { face: "cH" as Face, distance: Math.abs(point.y - (node.y + node.h)) },
+    ];
+    return distances.sort((a, b) => a.distance - b.distance)[0].face;
+  };
+  type RoutedEndpoint = { edge: LayoutEdge; pointIndex: number; adjacentIndex: number; nodeId: string; face: Face; sortKey: number };
+  const endpointEntries: RoutedEndpoint[] = [];
+  for (const item of routedPlans) {
+    const points = item.edge.points;
+    if (points.length < 2) continue;
+    const srcFace = inferFaceFromPoint(item.plan.e.from, points[0]);
+    const dstFace = inferFaceFromPoint(item.plan.e.to, points[points.length - 1]);
+    endpointEntries.push({
+      edge: item.edge,
+      pointIndex: 0,
+      adjacentIndex: 1,
+      nodeId: item.plan.e.from,
+      face: srcFace,
+      sortKey: srcFace[0] === "f" ? points[1].x : points[1].y,
+    });
+    endpointEntries.push({
+      edge: item.edge,
+      pointIndex: points.length - 1,
+      adjacentIndex: points.length - 2,
+      nodeId: item.plan.e.to,
+      face: dstFace,
+      sortKey: dstFace[0] === "f" ? points[points.length - 2].x : points[points.length - 2].y,
+    });
+  }
+  const endpointGroups = new Map<string, RoutedEndpoint[]>();
+  for (const entry of endpointEntries) {
+    (endpointGroups.get(`${entry.nodeId}|${entry.face}`) ?? (endpointGroups.set(`${entry.nodeId}|${entry.face}`, []), endpointGroups.get(`${entry.nodeId}|${entry.face}`)!)).push(entry);
+  }
+  for (const group of endpointGroups.values()) {
+    if (group.length <= 1) continue;
+    const face = group[0].face;
+    const node = laid.get(group[0].nodeId)!;
+    const varyFlow = face === "cL" || face === "cH";
+    const low = varyFlow ? (horizontal ? node.x : node.y) : (horizontal ? node.y : node.x);
+    const size = varyFlow ? (horizontal ? node.w : node.h) : (horizontal ? node.h : node.w);
+    const min = low + FACE_INSET;
+    const max = low + size - FACE_INSET;
+    const span = Math.max(1, max - min);
+    group.sort((a, b) => a.sortKey - b.sortKey || a.edge.id.localeCompare(b.edge.id));
+    const minSep = Math.min(18, span / Math.max(1, group.length - 1));
+    let positions = group.map((_, index) => {
+      const base = min + (span * (index + 1)) / (group.length + 1);
+      return Math.min(max, Math.max(min, base));
+    });
+    for (let i = 1; i < positions.length; i++) positions[i] = Math.max(positions[i], positions[i - 1] + minSep);
+    const overflow = positions[positions.length - 1] - max;
+    if (overflow > 0) positions = positions.map((pos) => pos - overflow);
+    for (let i = positions.length - 2; i >= 0; i--) positions[i] = Math.min(positions[i], positions[i + 1] - minSep);
+    const underflow = min - positions[0];
+    if (underflow > 0) positions = positions.map((pos) => pos + underflow);
+    group.forEach((entry, index) => {
+      const before = entry.edge.points.map((point) => ({ ...point }));
+      const end: End = {
+        node: entry.nodeId,
+        face: entry.face,
+        flow: varyFlow ? positions[index] : entry.face === "fL" ? geom(entry.nodeId).flowLow : entry.face === "fH" ? geom(entry.nodeId).flowHigh : geom(entry.nodeId).flowCenter,
+        cross: varyFlow ? entry.face === "cL" ? geom(entry.nodeId).crossLow : entry.face === "cH" ? geom(entry.nodeId).crossHigh : geom(entry.nodeId).crossCenter : positions[index],
+      };
+      projectEnd(end);
+      const nextPoint = toXY(end.flow, end.cross, horizontal);
+      const adjacent = entry.edge.points[entry.adjacentIndex];
+      const previousEndpoint = entry.edge.points[entry.pointIndex];
+      entry.edge.points[entry.pointIndex] = nextPoint;
+      if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
+      if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
+      entry.edge.points = simplifyPolyline(entry.edge.points);
+      if (routeNodeHits(entry.edge.points, entry.edge.from, entry.edge.to) > 0 || routeBorderCoincidence(entry.edge.points, entry.edge.from, entry.edge.to) > 0) {
+        entry.edge.points = before;
+      }
+    });
+  }
+  const finalEndpointRecords = (): Array<{ edgeId: string; x: number; y: number }> =>
+    routedPlans.flatMap((item) => {
+      const points = item.edge.points;
+      return [
+        { edgeId: item.edge.id, x: points[0].x, y: points[0].y },
+        { edgeId: item.edge.id, x: points[points.length - 1].x, y: points[points.length - 1].y },
+      ];
+    });
+  const finalCoordConflict = (edgeId: string, points: LayoutPoint[], records = finalEndpointRecords()): number => {
+    let score = 0;
+    for (const point of points.slice(1, -1)) {
+      for (const endpoint of records) {
+        if (endpoint.edgeId === edgeId) continue;
+        if (Math.abs(point.x - endpoint.x) < 0.5) score++;
+        if (Math.abs(point.y - endpoint.y) < 0.5) score++;
+      }
+    }
+    return score;
+  };
+  const finalPointConflicts = (edgeId: string, point: LayoutPoint, records: Array<{ edgeId: string; x: number; y: number }>): boolean =>
+    records.some((endpoint) => endpoint.edgeId !== edgeId && (Math.abs(point.x - endpoint.x) < 0.5 || Math.abs(point.y - endpoint.y) < 0.5));
+  for (const item of routedPlans) {
+    const records = finalEndpointRecords();
+    let points = item.edge.points;
+    for (let i = 1; i < points.length - 1; i++) {
+      const prev = points[i - 1];
+      const point = points[i];
+      const next = points[i + 1];
+      if (!finalPointConflicts(item.edge.id, point, records)) continue;
+      const prevV = Math.abs(prev.x - point.x) < 0.5;
+      const prevH = Math.abs(prev.y - point.y) < 0.5;
+      const nextV = Math.abs(next.x - point.x) < 0.5;
+      const nextH = Math.abs(next.y - point.y) < 0.5;
+      const candidates: LayoutPoint[][] = [];
+      for (const offset of [12, -12, 24, -24, 36, -36, 48, -48, 60, -60]) {
+        if (prevV && nextH) {
+          const y = point.y + offset;
+          candidates.push([...points.slice(0, i), { x: point.x, y }, { x: next.x, y }, ...points.slice(i + 1)]);
+        } else if (prevH && nextV) {
+          const x = point.x + offset;
+          candidates.push([...points.slice(0, i), { x, y: point.y }, { x, y: next.y }, ...points.slice(i + 1)]);
+        }
+      }
+      const replacement = candidates
+        .map((candidate) => simplifyPolyline(candidate))
+        .filter((candidate) => routeNodeHits(candidate, item.edge.from, item.edge.to) === 0 && routeBorderCoincidence(candidate, item.edge.from, item.edge.to) === 0)
+        .sort((a, b) => finalCoordConflict(item.edge.id, a, records) - finalCoordConflict(item.edge.id, b, records) || routeLength(a) - routeLength(b))[0];
+      if (replacement && finalCoordConflict(item.edge.id, replacement, records) < finalCoordConflict(item.edge.id, points, records)) {
+        points = replacement;
+        item.edge.points = replacement;
+      }
+    }
+  }
+  return routedPlans.map((item) => {
+    const seg = longestSegment(item.edge.points);
+    item.edge.labelAt = seg.orient === "h" ? { x: seg.x, y: seg.y - 11 } : { x: seg.x + 8, y: seg.y };
+    item.edge.labelOrient = seg.orient;
+    return item.edge;
   });
 }
