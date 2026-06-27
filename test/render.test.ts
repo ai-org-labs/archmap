@@ -50,6 +50,26 @@ describe("render", () => {
     expect(svg).toContain(">JWT<");
   });
 
+  it("keeps overview structural until information layers are added", () => {
+    const m = parse(example);
+    const plain = render(m, { baseView: "overview" });
+    expect(plain.svg).toContain("archmap-view-overview");
+    expect(plain.svg).not.toContain("data-overlays=");
+    expect(plain.svg).not.toContain("archmap-overlay-auth");
+
+    plain.addOverlay("auth");
+    expect(plain.svg).toContain('data-overlays="auth"');
+    expect(plain.svg).toContain("archmap-overlay-auth");
+
+    plain.addOverlay("dataflow");
+    expect(plain.svg).toContain('data-overlays="auth dataflow"');
+    expect(plain.svg).toContain("archmap-overlay-dataflow");
+
+    plain.removeOverlay("auth");
+    expect(plain.svg).toContain('data-overlays="dataflow"');
+    expect(plain.svg).not.toContain("archmap-overlay-auth");
+  });
+
   it("supports layer as a semantic 2D view", () => {
     const m = parse(example);
     const { svg, view, layout } = render(m, { baseView: "layer" });

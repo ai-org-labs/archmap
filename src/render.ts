@@ -55,7 +55,7 @@ export interface RenderOptions {
   baseView?: string;
   /** How to display the selected semantic view. */
   renderMode?: "2d" | "isometric" | "3d" | string;
-  /** Stage 4 overlay names toggled on top of the selected base view. */
+  /** Additive information layers rendered on top of the selected base view. */
   overlays?: string[];
   /** Legacy flat view selector. Kept for compatibility with existing callers. */
   view?: string;
@@ -87,6 +87,8 @@ export interface RenderResult {
   setBaseView(view: string): void;
   setRenderMode(mode: string): void;
   setOverlays(overlays: string[]): void;
+  addOverlay(overlay: string): void;
+  removeOverlay(overlay: string): void;
   toggleOverlay(overlay: string): void;
   fit(): void;
   reset(): void;
@@ -356,6 +358,14 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       state.overlays = [...overlays];
       apply(snapshot());
     },
+    addOverlay(overlay: string) {
+      if (!state.overlays.includes(overlay)) state.overlays = [...state.overlays, overlay];
+      apply(snapshot());
+    },
+    removeOverlay(overlay: string) {
+      state.overlays = state.overlays.filter((entry) => entry !== overlay);
+      apply(snapshot());
+    },
     toggleOverlay(overlay: string) {
       state.overlays = state.overlays.includes(overlay)
         ? state.overlays.filter((entry) => entry !== overlay)
@@ -417,7 +427,7 @@ export interface ViewerAttributeOptions {
   fallbackToInline: boolean;
   /** Console diagnostics reporting; default on for the viewer (spec 02 §23). */
   consoleReport: boolean;
-  /** Show the controls toolbar (base-view selector, overlays, fit/reset). */
+  /** Show the controls toolbar (view selector, render mode, additive overlays, fit/reset). */
   controls: boolean;
 }
 
@@ -570,7 +580,7 @@ export function defineArchMapViewerElement(): void {
       else this.controlsBar?.remove(), (this.controlsBar = undefined);
     }
 
-    /** Controls toolbar: base-view selector, overlay checkboxes, fit/reset,
+    /** Controls toolbar: view selector, render mode, additive overlay checkboxes, fit/reset,
      * diagnostics indicator (spec 03 §7). */
     private renderControls(options: ViewerAttributeOptions): void {
       const result = this.result;
@@ -629,7 +639,7 @@ export function defineArchMapViewerElement(): void {
       }
       bar.appendChild(modeGroup);
 
-      const overlayGroup = group("Overlays:");
+      const overlayGroup = group("Add info:");
       for (const overlay of OVERLAY_NAMES) {
         const wrap = document.createElement("label");
         wrap.className = "archmap-control-overlay";
@@ -637,9 +647,13 @@ export function defineArchMapViewerElement(): void {
         cb.type = "checkbox";
         cb.checked = active.overlays.has(overlay);
         cb.addEventListener("change", () => {
-          result.toggleOverlay(overlay);
-          if (cb.checked) active.overlays.add(overlay);
-          else active.overlays.delete(overlay);
+          if (cb.checked) {
+            active.overlays.add(overlay);
+            result.addOverlay(overlay);
+          } else {
+            active.overlays.delete(overlay);
+            result.removeOverlay(overlay);
+          }
           updateDiagnostics();
         });
         wrap.append(cb, document.createTextNode(" " + overlay));
