@@ -1848,7 +1848,43 @@ function routeEdges(
     }
     group.forEach((entry, index) => moveFinalEndpoint(entry, side, positions[index]));
   }
+  const normalStubPoint = (point: LayoutPoint, side: BoxFace, distance = 14): LayoutPoint => {
+    if (side === "left") return { x: point.x - distance, y: point.y };
+    if (side === "right") return { x: point.x + distance, y: point.y };
+    if (side === "top") return { x: point.x, y: point.y - distance };
+    return { x: point.x, y: point.y + distance };
+  };
+  const endpointSegmentIsNormal = (side: BoxFace, endpoint: LayoutPoint, adjacent: LayoutPoint): boolean =>
+    side === "left" || side === "right"
+      ? Math.abs(endpoint.y - adjacent.y) < 0.5
+      : Math.abs(endpoint.x - adjacent.x) < 0.5;
+  const enforceEndpointStubs = (edge: LayoutEdge): LayoutPoint[] => {
+    let points = edge.points.map((point) => ({ ...point }));
+    if (points.length < 2) return points;
+    const sourceSide = finalEndpointSide(edge.from, points[0]);
+    if (!endpointSegmentIsNormal(sourceSide, points[0], points[1])) {
+      const stub = normalStubPoint(points[0], sourceSide);
+      const next = points[1];
+      const connector = sourceSide === "left" || sourceSide === "right"
+        ? { x: stub.x, y: next.y }
+        : { x: next.x, y: stub.y };
+      points = [points[0], stub, connector, ...points.slice(1)];
+    }
+    const targetIndex = points.length - 1;
+    const targetSide = finalEndpointSide(edge.to, points[targetIndex]);
+    if (!endpointSegmentIsNormal(targetSide, points[targetIndex], points[targetIndex - 1])) {
+      const endpoint = points[targetIndex];
+      const stub = normalStubPoint(endpoint, targetSide);
+      const prev = points[targetIndex - 1];
+      const connector = targetSide === "left" || targetSide === "right"
+        ? { x: stub.x, y: prev.y }
+        : { x: prev.x, y: stub.y };
+      points = [...points.slice(0, targetIndex), connector, stub, endpoint];
+    }
+    return simplifyPolyline(points);
+  };
   return routedPlans.map((item) => {
+    item.edge.points = enforceEndpointStubs(item.edge);
     const seg = longestSegment(item.edge.points);
     item.edge.labelAt = seg.orient === "h" ? { x: seg.x, y: seg.y - 11 } : { x: seg.x + 8, y: seg.y };
     item.edge.labelOrient = seg.orient;

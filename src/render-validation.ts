@@ -6,7 +6,7 @@ export interface RenderValidationOptions {
 }
 
 export interface RenderValidationFailure {
-  kind: "exact-endpoint-overlap" | "port-gap" | "segment-overlap" | "component-intersection" | "missing-node";
+  kind: "exact-endpoint-overlap" | "port-gap" | "segment-overlap" | "component-intersection" | "endpoint-incidence" | "missing-node";
   message: string;
   edgeIds: string[];
   nodeId?: string;
@@ -328,6 +328,45 @@ function validateComponentIntersections(edges: EdgePath[], nodes: Map<string, No
   return failures;
 }
 
+function isPerpendicularToSide(side: Endpoint["side"], endpoint: Point, adjacent: Point, tolerance: number): boolean {
+  if (side === "left" || side === "right") return Math.abs(endpoint.y - adjacent.y) <= tolerance;
+  return Math.abs(endpoint.x - adjacent.x) <= tolerance;
+}
+
+function validateEndpointIncidence(edges: EdgePath[], nodes: Map<string, NodeBox>, tolerance: number): RenderValidationFailure[] {
+  const failures: RenderValidationFailure[] = [];
+  for (const edge of edges) {
+    const source = nodes.get(edge.from);
+    const target = nodes.get(edge.to);
+    if (!source || !target || edge.points.length < 2) continue;
+    const start = edge.points[0];
+    const startAdjacent = edge.points[1];
+    const startSide = endpointSide(source, start);
+    if (!isPerpendicularToSide(startSide, start, startAdjacent, tolerance)) {
+      failures.push({
+        kind: "endpoint-incidence",
+        message: `Edge "${edge.id}" does not leave source "${edge.from}" perpendicular to its ${startSide} side.`,
+        edgeIds: [edge.id],
+        nodeId: edge.from,
+        side: startSide,
+      });
+    }
+    const end = edge.points[edge.points.length - 1];
+    const endAdjacent = edge.points[edge.points.length - 2];
+    const endSide = endpointSide(target, end);
+    if (!isPerpendicularToSide(endSide, end, endAdjacent, tolerance)) {
+      failures.push({
+        kind: "endpoint-incidence",
+        message: `Edge "${edge.id}" does not enter target "${edge.to}" perpendicular to its ${endSide} side.`,
+        edgeIds: [edge.id],
+        nodeId: edge.to,
+        side: endSide,
+      });
+    }
+  }
+  return failures;
+}
+
 export function validateRenderedSvgPorts(svg: string, options: RenderValidationOptions = {}): RenderValidationFailure[] {
   const minPortGap = options.minPortGap ?? DEFAULT_MIN_PORT_GAP;
   const overlapThreshold = options.overlapThreshold ?? DEFAULT_OVERLAP_THRESHOLD;
@@ -340,5 +379,6 @@ export function validateRenderedSvgPorts(svg: string, options: RenderValidationO
   failures.push(...validateEndpointPlacement(endpoints, minPortGap, tolerance));
   failures.push(...validateSegmentOverlap(edges, overlapThreshold, tolerance));
   failures.push(...validateComponentIntersections(edges, nodes, componentPadding));
+  failures.push(...validateEndpointIncidence(edges, nodes, tolerance));
   return failures;
 }
