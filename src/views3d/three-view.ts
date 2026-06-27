@@ -172,6 +172,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   el.innerHTML = "";
   const width = el.clientWidth || 800;
   const height = el.clientHeight || 520;
+  const isIsometric = ctx.options.renderMode === "isometric";
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -179,7 +180,6 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   el.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
 
   scene.background = new THREE.Color(0xffffff);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xd8e2ef, 1.15));
@@ -215,7 +215,19 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const center = new THREE.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
   const size = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 4);
   const dist = size * 0.85 + 5;
-  camera.position.set(center.x + dist * 0.72, center.y + dist * 0.56, center.z + dist * 0.72);
+  const aspect = width / height;
+  const frustum = size * 1.25 + 4;
+  const camera = isIsometric
+    ? new THREE.OrthographicCamera(
+      -frustum * aspect / 2,
+      frustum * aspect / 2,
+      frustum / 2,
+      -frustum / 2,
+      0.1,
+      2000,
+    )
+    : new THREE.PerspectiveCamera(50, aspect, 0.1, 2000);
+  camera.position.set(center.x + dist * 0.72, center.y + dist * (isIsometric ? 0.68 : 0.56), center.z + dist * 0.72);
   camera.lookAt(center);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -252,7 +264,15 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const onResize = () => {
     const w = el.clientWidth || width;
     const h = el.clientHeight || height;
-    camera.aspect = w / h;
+    const nextAspect = w / h;
+    if (camera instanceof THREE.OrthographicCamera) {
+      camera.left = -frustum * nextAspect / 2;
+      camera.right = frustum * nextAspect / 2;
+      camera.top = frustum / 2;
+      camera.bottom = -frustum / 2;
+    } else {
+      camera.aspect = nextAspect;
+    }
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
   };

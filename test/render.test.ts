@@ -58,13 +58,11 @@ describe("render", () => {
     expect(new Set(layout.nodes.map((n) => n.z)).size).toBeGreaterThan(1);
   });
 
-  it("renders isometric as a movable SVG render mode, not the 3D fallback", () => {
+  it("routes isometric render mode through the interactive 3D renderer slot", () => {
     const m = parse(example);
     const { svg, view } = render(m, { baseView: "overview", renderMode: "isometric", overlays: ["boundary"] });
-    expect(view).toBe("overview");
-    expect(svg).toContain("archmap-render-isometric");
-    expect(svg).toContain("archmap-overlay-boundary");
-    expect(svg).not.toContain("3D view is not installed");
+    expect(view).toBe("3d");
+    expect(svg).toContain("3D view is not installed");
   });
 
   it("combines boundary overlay boxes with overview base", () => {
