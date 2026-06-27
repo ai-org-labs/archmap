@@ -102,6 +102,8 @@ const ZONE_ORDER = [
 const NODE_H = 48;
 const NODE_MIN_W = 96;
 const NODE_MAX_W = 260;
+const HUB_NODE_MAX_W = 340;
+const HUB_NODE_MAX_H = 96;
 const CHAR_W = 8;
 const NODE_PAD_X = 28;
 const RANK_GAP = 110; // gap between bands along the flow axis
@@ -113,6 +115,14 @@ const ZONE_LABEL_PAD = 36;
 
 function nodeWidth(label: string): number {
   return Math.max(NODE_MIN_W, Math.min(NODE_MAX_W, label.length * CHAR_W + NODE_PAD_X * 2));
+}
+
+function nodeSize(label: string, degree = 0): { w: number; h: number } {
+  const extra = Math.max(0, degree - 4);
+  return {
+    w: Math.min(HUB_NODE_MAX_W, nodeWidth(label) + extra * 10),
+    h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 6),
+  };
 }
 
 function layerDepth(layer: string | undefined): number {
@@ -166,6 +176,37 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   const validEdges = model.edges.filter(
     (e) => nodeIds.includes(e.from) && nodeIds.includes(e.to),
   );
+  const degree = new Map(nodeIds.map((id) => [id, 0]));
+  for (const edge of validEdges) {
+    degree.set(edge.from, (degree.get(edge.from) ?? 0) + 1);
+    degree.set(edge.to, (degree.get(edge.to) ?? 0) + 1);
+  }
+  const nodeIdSet = new Set(nodeIds);
+  const nodeByPrincipal = new Map<string, string[]>();
+  for (const node of model.nodes) {
+    if (!node.principal) continue;
+    nodeByPrincipal.set(node.principal, [...(nodeByPrincipal.get(node.principal) ?? []), node.id]);
+  }
+  const identityAttachment = new Map(model.identities.map((identity) => {
+    const attached = Array.isArray(identity.attachedTo) ? identity.attachedTo : identity.attachedTo ? [identity.attachedTo] : [];
+    return [identity.id, attached.filter((id) => nodeIdSet.has(id))];
+  }));
+  for (const permission of model.permissions) {
+    const resource = typeof permission.resource === "string"
+      ? permission.resource
+      : permission.resource?.type === "node" ? permission.resource.id : undefined;
+    if (!resource || !nodeIdSet.has(resource)) continue;
+    const principalNodes = [
+      ...(nodeByPrincipal.get(permission.principal) ?? []),
+      ...(identityAttachment.get(permission.principal) ?? []),
+    ].filter((id, index, ids) => ids.indexOf(id) === index);
+    for (const principalNode of principalNodes) {
+      if (principalNode === resource) continue;
+      degree.set(principalNode, (degree.get(principalNode) ?? 0) + 1);
+      degree.set(resource, (degree.get(resource) ?? 0) + 1);
+    }
+  }
+  const sizeById = new Map(model.nodes.map((n) => [n.id, nodeSize(n.label, degree.get(n.id) ?? 0)]));
 
   // --- Rank (flow axis) -----------------------------------------------------
   const allLayered = model.nodes.length > 0 && model.nodes.every((n) => n.layer);
@@ -258,8 +299,8 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   for (const r of ranks) {
     let ext = 0;
     for (const n of byRank.get(r)!) {
-      const w = nodeWidth(n.label);
-      ext = Math.max(ext, horizontal ? w : NODE_H);
+      const size = sizeById.get(n.id)!;
+      ext = Math.max(ext, horizontal ? size.w : size.h);
     }
     bandExtent.set(r, ext);
   }
@@ -275,7 +316,10 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
 
   // Cross-axis extent each lane needs = max, over ranks, of the summed size of
   // that lane's nodes in a single rank.
-  const crossSizeOf = (n: { label: string }) => (horizontal ? NODE_H : nodeWidth(n.label));
+  const crossSizeOf = (n: { id: string }) => {
+    const size = sizeById.get(n.id)!;
+    return horizontal ? size.h : size.w;
+  };
   const laneExtent = new Map<string, number>();
   for (const r of ranks) {
     const sums = new Map<string, number>();
@@ -305,8 +349,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     // Per-lane running cursor within this rank (nodes are lane-sorted already).
     const laneCursor = new Map<string, number>();
     for (const n of byRank.get(r)!) {
-      const w = nodeWidth(n.label);
-      const h = NODE_H;
+      const { w, h } = sizeById.get(n.id)!;
       const lane = laneKey(n);
       const cs = crossSizeOf(n);
       const cur = laneCursor.get(lane) ?? laneStart.get(lane)!;

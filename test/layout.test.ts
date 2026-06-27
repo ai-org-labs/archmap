@@ -94,6 +94,58 @@ describe("computeLayout", () => {
     expect(node.y - zone.y).toBeGreaterThanOrEqual(32);
   });
 
+  it("expands high-degree components to give connection ports more room", () => {
+    const m = parse(`graph LR
+      Hub[Service] --> A[Service]
+      Hub --> B[Service]
+      Hub --> C[Service]
+      Hub --> D[Service]
+      Hub --> E[Service]
+      Hub --> F[Service]
+      Hub --> G[Service]
+      Hub --> H[Service]
+      ---
+      nodes:
+        Hub: { principal: hub-sa }
+        A: {}
+        B: {}
+        C: {}
+        D: {}
+        E: {}
+        F: {}
+        G: {}
+        H: {}
+    `);
+    const layout = computeLayout(m);
+    const hub = layout.nodes.find((n) => n.id === "Hub")!;
+    const leaf = layout.nodes.find((n) => n.id === "A")!;
+    expect(hub.w).toBeGreaterThan(leaf.w);
+    expect(hub.h).toBeGreaterThan(leaf.h);
+  });
+
+  it("counts permission overlay relationships when sizing hub components", () => {
+    const m = parse(`graph LR
+      Principal[Service] --> Hub[Service]
+      ---
+      nodes:
+        Principal: { principal: principal-sa }
+        Hub: {}
+      permissions:
+        p1: { principal: principal-sa, action: a, resource: Hub }
+        p2: { principal: principal-sa, action: b, resource: Hub }
+        p3: { principal: principal-sa, action: c, resource: Hub }
+        p4: { principal: principal-sa, action: d, resource: Hub }
+        p5: { principal: principal-sa, action: e, resource: Hub }
+        p6: { principal: principal-sa, action: f, resource: Hub }
+    `);
+    const layout = computeLayout(m);
+    const hub = layout.nodes.find((n) => n.id === "Hub")!;
+    const principal = layout.nodes.find((n) => n.id === "Principal")!;
+    expect(hub.w).toBeGreaterThan(96);
+    expect(hub.h).toBeGreaterThan(48);
+    expect(principal.h).toBeGreaterThan(48);
+  });
+
   it("clips edge endpoints to node borders (two points each)", () => {
     const m = parse(`graph LR
       A[a] --> B[b]

@@ -11,12 +11,12 @@
   "related_decision_record_id": null,
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "created_at": "2026-06-26T19:09:32.293Z",
-  "updated_at": "2026-06-27T03:57:00Z",
+  "updated_at": "2026-06-27T04:04:00Z",
   "assigned_at": "2026-06-27T03:54:00Z",
   "done_at": null,
   "retired_at": null,
-  "last_triaged_at": "2026-06-27T03:57:00Z",
+  "last_triaged_at": "2026-06-27T04:04:00Z",
   "stale_candidate_at": null,
   "retire_candidate_at": null,
-  "triage_notes": "IN PROGRESS. Cut from product principles rendering quality plus 03 zone view/nesting and overlay readability sections. 2026-06-27 Codex partial: fixed observed comprehensive-sample label overlap where zone labels (e.g. OnPrem/On-premises) collided with member nodes by reserving 36px top header padding for zone/boundary boxes and widening lane gap to keep adjacent boxes separated. Added layout regression test for zone label header clearance. Actual comprehensive sample OnPrem headerGap now 36px. Completion: nested modeled zones/boundaries render legibly; dense diagrams remain inspectable; no edge-over-node/shared-endpoint regressions in tests/examples. Remaining: nested zone hierarchy display, boundary nesting quality, selected highlight, diagnostics-to-diagram focus, overlay conflict collapse/inspector handoff."
+  "triage_notes": "IN PROGRESS. Cut from product principles rendering quality plus 03 zone view/nesting and overlay readability sections. 2026-06-27 Codex partial: fixed observed comprehensive-sample label overlap where zone labels (e.g. OnPrem/On-premises) collided with member nodes by reserving 36px top header padding for zone/boundary boxes and widening lane gap to keep adjacent boxes separated. Added layout regression test for zone label header clearance. Actual comprehensive sample OnPrem headerGap now 36px. 2026-06-27 Codex partial: added connection-density-aware component sizing in render layout. Node size now grows from graph edge degree plus permission overlay relationships so high-degree hubs get more internal padding and more port distribution room while low-degree nodes stay compact. Actual comprehensive sample CloudRun is now rendered as the largest hub size while GKECluster/Worker remain compact. Completion: nested modeled zones/boundaries render legibly; dense diagrams remain inspectable; no edge-over-node/shared-endpoint regressions in tests/examples. Remaining: nested zone hierarchy display, boundary nesting quality, selected highlight, diagnostics-to-diagram focus, overlay conflict collapse/inspector handoff."
 }
