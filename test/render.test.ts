@@ -40,6 +40,19 @@ function overlaps(a: { x0: number; x1: number; y0: number; y1: number }, b: { x0
   return Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) && Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0);
 }
 
+function nodeBoxes(svg: string): Array<{ id: string; x0: number; x1: number; y0: number; y1: number }> {
+  return [...svg.matchAll(/<g class="archmap-node [^"]+" data-id="([^"]+)">([\s\S]*?)<\/g>/g)].flatMap((match) => {
+    const body = match[2];
+    const rect = body.match(/<rect class="archmap-node-shape" x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"/);
+    if (!rect) return [];
+    const x = Number(rect[1]);
+    const y = Number(rect[2]);
+    const w = Number(rect[3]);
+    const h = Number(rect[4]);
+    return [{ id: match[1], x0: x, x1: x + w, y0: y, y1: y + h }];
+  });
+}
+
 describe("render", () => {
   it("registers the overview view by default", () => {
     expect(listViews()).toContain("overview");
@@ -81,6 +94,18 @@ describe("render", () => {
         for (let j = i + 1; j < labels.length; j++) {
           expect(overlaps(labels[i], labels[j])).toBe(false);
         }
+      }
+    }
+  });
+
+  it("keeps zone labels from overlapping nodes", () => {
+    const m = parse(nestedZones);
+    const svg = render(m, { baseView: "overview", overlays: ["boundary"] }).svg!;
+    const labels = [...textBoxes(svg, "archmap-zone-label"), ...textBoxes(svg, "archmap-boundary-label")];
+    const nodes = nodeBoxes(svg);
+    for (const label of labels) {
+      for (const node of nodes) {
+        expect(overlaps(label, node)).toBe(false);
       }
     }
   });

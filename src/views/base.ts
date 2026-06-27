@@ -216,8 +216,67 @@ function textBox(text: string, x: number, y: number): Box {
   return { id: "", x: x - 2, y: y - 12, w: text.length * 6.8 + 8, h: 17 };
 }
 
-function overlaps(a: Box, b: Box): boolean {
-  return Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
+function overlapArea(a: Box, b: Box): number {
+  const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return ox > 0 && oy > 0 ? ox * oy : 0;
+}
+
+function segmentIntersectsBox(a: { x: number; y: number }, b: { x: number; y: number }, box: Box): boolean {
+  const x0 = box.x;
+  const y0 = box.y;
+  const x1 = box.x + box.w;
+  const y1 = box.y + box.h;
+  if (Math.max(a.x, b.x) < x0 || Math.min(a.x, b.x) > x1 || Math.max(a.y, b.y) < y0 || Math.min(a.y, b.y) > y1) return false;
+  if ((a.x >= x0 && a.x <= x1 && a.y >= y0 && a.y <= y1) || (b.x >= x0 && b.x <= x1 && b.y >= y0 && b.y <= y1)) return true;
+  if (Math.abs(a.x - b.x) < 0.5) return a.x >= x0 && a.x <= x1 && Math.max(a.y, b.y) >= y0 && Math.min(a.y, b.y) <= y1;
+  if (Math.abs(a.y - b.y) < 0.5) return a.y >= y0 && a.y <= y1 && Math.max(a.x, b.x) >= x0 && Math.min(a.x, b.x) <= x1;
+  return false;
+}
+
+function edgeSegments(layout: LayoutResult): Array<[{ x: number; y: number }, { x: number; y: number }]> {
+  return layout.edges.flatMap((edge) =>
+    edge.points.slice(0, -1).map((point, i): [{ x: number; y: number }, { x: number; y: number }] => [point, edge.points[i + 1]]),
+  );
+}
+
+function placeBoxLabel(
+  label: string,
+  box: Box,
+  reserved: Box[],
+  blockers: Box[],
+  segments: Array<[{ x: number; y: number }, { x: number; y: number }]>,
+): { x: number; y: number; box: Box } {
+  const labelBox = (x: number, y: number): Box => textBox(label, x, y);
+  const width = labelBox(0, 0).w;
+  const left = box.x + 10;
+  const center = box.x + Math.max(10, (box.w - width) / 2);
+  const right = box.x + Math.max(10, box.w - width - 8);
+  const xMin = box.x + 8;
+  const xMax = Math.max(xMin, box.x + box.w - width - 4);
+  const xs = [...new Set([
+    left,
+    center,
+    right,
+    box.x + box.w * 0.25,
+    box.x + box.w * 0.75 - width,
+  ].map((x) => Math.max(xMin, Math.min(xMax, x))))];
+  const yRows: number[] = [];
+  for (let y = box.y + 18; y <= box.y + box.h - 8; y += 16) yRows.push(y);
+  if (yRows.length === 0) yRows.push(box.y + 18);
+  const candidates = yRows.flatMap((y) => xs.map((x) => ({ x, y })));
+  let best = { x: left, y: box.y + 18, score: Number.POSITIVE_INFINITY, box: labelBox(left, box.y + 18) };
+  for (const candidate of candidates) {
+    const tb = labelBox(candidate.x, candidate.y);
+    const labelOverlap = reserved.reduce((sum, other) => sum + overlapArea(tb, other), 0);
+    const blockerOverlap = blockers.reduce((sum, other) => sum + overlapArea(tb, other), 0);
+    const lineHits = segments.filter(([a, b]) => segmentIntersectsBox(a, b, tb)).length;
+    const distance = Math.abs(candidate.x - left) * 0.15 + Math.abs(candidate.y - (box.y + 18));
+    const score = labelOverlap * 2400 + blockerOverlap * 450 + lineHits * 900 + distance;
+    if (score < best.score) best = { ...candidate, score, box: tb };
+    if (score === distance) break;
+  }
+  return best;
 }
 
 function planOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string, LayoutNode>): OverlayPlan {
@@ -305,6 +364,11 @@ export function renderDiagram(spec: DiagramSpec): string {
   const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, overlayEdges, nodeIcons } = spec;
   const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
   const reservedBoxLabels: Box[] = [];
+  const boxLabelBlockers: Box[] = [
+    ...layout.nodes.map((n) => ({ id: n.id, x: n.x - 4, y: n.y - 4, w: n.w + 8, h: n.h + 8 })),
+    ...layout.edges.filter((e) => e.label).map((e) => textBox(e.label!, e.labelAt.x, e.labelAt.y)),
+  ];
+  const boxLabelSegments = edgeSegments(layout);
 
   const boxesSvg = boxGroups
     .map((group) => {
@@ -313,16 +377,13 @@ export function renderDiagram(spec: DiagramSpec): string {
       return group.boxes
         .map((b) => {
           const label = b.label ?? b.id;
-          const x = b.x + 10;
-          let y = b.y + 18;
-          const maxY = b.y + Math.min(Math.max(20, b.h - 8), 68);
-          while (y <= maxY && reservedBoxLabels.some((other) => overlaps(textBox(label, x, y), other))) y += 16;
-          reservedBoxLabels.push(textBox(label, x, y));
+          const placedLabel = placeBoxLabel(label, b, reservedBoxLabels, boxLabelBlockers, boxLabelSegments);
+          reservedBoxLabels.push(placedLabel.box);
           const depth = Math.max(0, Math.min(9, Math.floor(b.depth ?? 0)));
           return (
             `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}" data-id="${escapeXml(b.id)}" data-depth="${depth}">` +
             `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14" ry="14" />` +
-            `<text class="${boxLabelClass}" x="${x}" y="${y}">${escapeXml(label)}</text>` +
+            `<text class="${boxLabelClass}" x="${placedLabel.x}" y="${placedLabel.y}">${escapeXml(label)}</text>` +
             `</g>`
           );
         })
