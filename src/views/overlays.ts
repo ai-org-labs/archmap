@@ -137,7 +137,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
       if (edge.auth?.issuer && nodeIds.has(edge.auth.issuer)) nodes.add(edge.auth.issuer);
       if (edge.auth?.validatedBy && nodeIds.has(edge.auth.validatedBy)) nodes.add(edge.auth.validatedBy);
       if (edge.auth?.recipient && nodeIds.has(edge.auth.recipient)) nodes.add(edge.auth.recipient);
-      if (edge.auth?.token) setBadge(badges, edge.to, edge.auth.token);
+      if (edge.auth?.token) setBadge(badges, edge.to, `auth:${edge.auth.token}`);
     }
   }
 

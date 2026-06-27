@@ -46,6 +46,7 @@ interface LabelOpts {
   bg?: string;
   scaleY?: number;
   bold?: boolean;
+  icon?: "auth";
 }
 
 function makeTextSprite(text: string, opts: LabelOpts = {}): THREE.Sprite {
@@ -53,20 +54,28 @@ function makeTextSprite(text: string, opts: LabelOpts = {}): THREE.Sprite {
   const bg = opts.bg ?? "rgba(255,255,255,0.92)";
   const scaleY = opts.scaleY ?? 0.5;
   const pad = 8;
+  const iconWidth = opts.icon ? 24 : 0;
   const font = `${opts.bold ? "600 " : ""}28px system-ui, sans-serif`;
   const measure = document.createElement("canvas").getContext("2d")!;
   measure.font = font;
   const tw = Math.ceil(measure.measureText(text).width);
   const canvas = document.createElement("canvas");
-  canvas.width = tw + pad * 2;
+  canvas.width = tw + pad * 2 + iconWidth;
   canvas.height = 40;
   const ctx = canvas.getContext("2d")!;
   ctx.font = font;
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (opts.icon === "auth") {
+    ctx.fillStyle = "#b3261e";
+    ctx.beginPath();
+    ctx.arc(pad + 8, 16, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(pad + 6, 20, 15, 9);
+  }
   ctx.fillStyle = fg;
   ctx.textBaseline = "middle";
-  ctx.fillText(text, pad, canvas.height / 2);
+  ctx.fillText(text, pad + iconWidth, canvas.height / 2);
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
@@ -144,7 +153,14 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
 
     const badge = badges.get(n.id);
     if (badge) {
-      const badgeSprite = makeTextSprite(badge, { fg: "#7a4f9a", bg: "rgba(255,255,255,0.9)", scaleY: 0.42, bold: true });
+      const authBadge = badge.startsWith("auth:");
+      const badgeSprite = makeTextSprite(authBadge ? badge.slice("auth:".length) : badge, {
+        fg: authBadge ? "#7f1d1d" : "#7a4f9a",
+        bg: authBadge ? "rgba(255,247,237,0.96)" : "rgba(255,255,255,0.9)",
+        scaleY: authBadge ? 0.5 : 0.42,
+        bold: true,
+        icon: authBadge ? "auth" : undefined,
+      });
       badgeSprite.position.set(n.x + n.w / 2 + 0.35, n.y + n.h / 2 + 0.38, n.z);
       disposeSprite(badgeSprite, disposables);
       root.add(badgeSprite);

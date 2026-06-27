@@ -190,6 +190,8 @@ describe("render", () => {
     expect(svg).toContain("archmap-overlay-dataflow");
     expect(svg).toContain('class="archmap-edge archmap-emphasis" data-id="web_api"');
     expect(svg).toContain(">JWT<");
+    expect(svg).toContain("archmap-auth-badge");
+    expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");
   });
 
   it("keeps overview structural until information layers are added", () => {
