@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFitTransform, isInteractiveTarget } from "../src/views/interaction.js";
+import { attachPanZoom, computeFitTransform, isInteractiveTarget } from "../src/views/interaction.js";
 
 describe("computeFitTransform (TASK-006)", () => {
   it("scales content to fit the container with padding and centers it", () => {
@@ -22,5 +22,27 @@ describe("computeFitTransform (TASK-006)", () => {
     expect(isInteractiveTarget({ querySelector() {}, addEventListener() {} })).toBe(true);
     expect(isInteractiveTarget({ innerHTML: "" })).toBe(false);
     expect(isInteractiveTarget(null)).toBe(false);
+  });
+
+  it("keeps an existing transform when reattached with an initial value", () => {
+    const svg = {
+      style: {},
+      viewBox: { baseVal: { width: 1000, height: 500 } },
+      clientWidth: 1000,
+      clientHeight: 500,
+    } as unknown as SVGSVGElement;
+    const container = {
+      style: {},
+      querySelector: () => svg,
+      addEventListener() {},
+      removeEventListener() {},
+      getBoundingClientRect: () => ({ width: 600, height: 400 }),
+    } as unknown as HTMLElement;
+
+    const panZoom = attachPanZoom(container, { scale: 1.75, x: -120, y: 42 });
+
+    expect(panZoom.get()).toEqual({ scale: 1.75, x: -120, y: 42 });
+    expect(svg.style.transform).toBe("translate(-120.00px, 42.00px) scale(1.75)");
+    panZoom.dispose();
   });
 });

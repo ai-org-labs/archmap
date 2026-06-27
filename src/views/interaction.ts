@@ -54,7 +54,7 @@ export function isInteractiveTarget(target: unknown): target is HTMLElement {
   );
 }
 
-export function attachPanZoom(container: HTMLElement): PanZoomHandle {
+export function attachPanZoom(container: HTMLElement, initial?: PanZoomTransform): PanZoomHandle {
   const svg = container.querySelector("svg") as SVGSVGElement | null;
   const noop: PanZoomHandle = { fit() {}, reset() {}, get: () => ({ scale: 1, x: 0, y: 0 }), dispose() {} };
   if (!svg) return noop;
@@ -63,7 +63,7 @@ export function attachPanZoom(container: HTMLElement): PanZoomHandle {
   container.style.overflow = container.style.overflow || "hidden";
   container.style.touchAction = "none";
 
-  let t: PanZoomTransform = { scale: 1, x: 0, y: 0 };
+  let t: PanZoomTransform = initial ? { ...initial } : { scale: 1, x: 0, y: 0 };
   const apply = () => {
     svg.style.transform = `translate(${t.x.toFixed(2)}px, ${t.y.toFixed(2)}px) scale(${t.scale})`;
   };
@@ -125,7 +125,8 @@ export function attachPanZoom(container: HTMLElement): PanZoomHandle {
   container.addEventListener("pointerup", onPointerUp);
   container.addEventListener("pointerleave", onPointerUp);
 
-  fit();
+  if (initial) apply();
+  else fit();
 
   return {
     fit,

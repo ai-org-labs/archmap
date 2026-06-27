@@ -221,26 +221,45 @@ boundaries:
       const input = document.createElement("input");
       input.type = "checkbox";
       input.value = overlay;
-      input.addEventListener("change", draw);
+      input.addEventListener("change", () => updateOverlay(input));
       label.append(input, document.createTextNode(overlay));
       $("overlays").appendChild(label);
     }
-    let handle = null;
+    let result = null;
     const selectedOverlays = () => [...$("overlays").querySelectorAll("input:checked")].map((input) => input.value);
-    function draw() {
-      if (handle) { handle.dispose(); handle = null; } // tear down a live 3D scene
-      const model = parse($("src").value);
-      // Passing target lets render() inject SVG (2D) or mount WebGL (3D).
-      const res = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), target: $("diagram") });
-      handle = res.handle ?? null;
+    const updateLog = (model) => {
       const log = [
         ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),
         ...model.warnings.map((d) => `<div class="warn">▲ ${d.code}: ${d.message}</div>`),
       ];
       $("log").innerHTML = log.join("") || '<div style="color:#1a7f37">✓ no diagnostics</div>';
+    };
+    function draw() {
+      if (result) { result.destroy(); result = null; }
+      const model = parse($("src").value);
+      // Passing target lets render() inject SVG (2D) or mount WebGL (3D).
+      result = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), target: $("diagram") });
+      updateLog(model);
+    }
+    function updateOverlay(input) {
+      if (!result) { draw(); return; }
+      if (input.checked) result.addOverlay(input.value);
+      else result.removeOverlay(input.value);
+      updateLog(result.model);
+    }
+    function updateBaseView() {
+      if (!result) { draw(); return; }
+      result.setBaseView(selectedRadio("base-view"));
+      updateLog(result.model);
+    }
+    function updateRenderMode() {
+      if (!result) { draw(); return; }
+      result.setRenderMode(selectedRadio("render-mode"));
+      updateLog(result.model);
     }
     $("run").addEventListener("click", draw);
-    document.querySelectorAll('input[name="base-view"],input[name="render-mode"]').forEach((input) => input.addEventListener("change", draw));
+    document.querySelectorAll('input[name="base-view"]').forEach((input) => input.addEventListener("change", updateBaseView));
+    document.querySelectorAll('input[name="render-mode"]').forEach((input) => input.addEventListener("change", updateRenderMode));
     $("tags-max").addEventListener("click", () => {
       $("tag-panel").classList.remove("is-minimized");
       $("tag-panel").classList.add("is-expanded");

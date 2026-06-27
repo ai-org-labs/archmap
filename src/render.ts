@@ -379,6 +379,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     overlays: [...(options.overlays ?? metadataOverlays(model))],
   };
   let panZoom: PanZoomHandle | undefined;
+  let preservePanZoomOnNextRender = false;
   let detachInspector: (() => void) | undefined;
   let detachDiagnostics: (() => void) | undefined;
 
@@ -404,15 +405,17 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       renderInspector(model, options.selection ?? null, options.inspectorTarget);
       if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
       if (options.target && "innerHTML" in options.target) {
+        const preservedPanZoom = preservePanZoomOnNextRender ? panZoom?.get() : undefined;
         options.target.innerHTML = svg;
         panZoom?.dispose();
         panZoom = undefined;
+        preservePanZoomOnNextRender = false;
         detachInspector?.();
         detachInspector = undefined;
         detachDiagnostics?.();
         detachDiagnostics = undefined;
         if (options.interactive !== false && isInteractiveTarget(options.target)) {
-          panZoom = attachPanZoom(options.target);
+          panZoom = attachPanZoom(options.target, preservedPanZoom);
         }
         if (options.inspectorTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
           detachInspector = attachInspectorSelection(options.target, model, options.inspectorTarget);
@@ -424,6 +427,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       return { view: state.view, layout, model, svg, handle: undefined };
     }
     const handle = options.target ? out.mount(options.target) : undefined;
+    preservePanZoomOnNextRender = false;
     syncDiagnostics(model);
     renderDiagnostics(model, options.diagnosticsTarget);
     renderInspector(model, options.selection ?? null, options.inspectorTarget);
@@ -453,20 +457,24 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     },
     setOverlays(overlays: string[]) {
       state.overlays = [...overlays];
+      preservePanZoomOnNextRender = true;
       apply(snapshot());
     },
     addOverlay(overlay: string) {
       if (!state.overlays.includes(overlay)) state.overlays = [...state.overlays, overlay];
+      preservePanZoomOnNextRender = true;
       apply(snapshot());
     },
     removeOverlay(overlay: string) {
       state.overlays = state.overlays.filter((entry) => entry !== overlay);
+      preservePanZoomOnNextRender = true;
       apply(snapshot());
     },
     toggleOverlay(overlay: string) {
       state.overlays = state.overlays.includes(overlay)
         ? state.overlays.filter((entry) => entry !== overlay)
         : [...state.overlays, overlay];
+      preservePanZoomOnNextRender = true;
       apply(snapshot());
     },
     fit() {
