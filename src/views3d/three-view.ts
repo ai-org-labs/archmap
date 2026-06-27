@@ -20,15 +20,15 @@ import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "arc
 import { buildScene3D } from "./scene.js";
 import type { Scene3D } from "./scene.js";
 
-/** Per-layer color ramp (client → external), §10 order. */
+/** Per-layer color ramp (client → external), tuned to the soft station-map palette used by isometric SVG. */
 const LAYER_COLORS = [
-  0x4f86c6, 0x49a0a0, 0x5bb36b, 0xc6913f, 0xb06ec6,
-  0xc65a72, 0x6b7bbf, 0x8a8f9c, 0x9c9c5b,
+  0xdff1fb, 0xf8d4b8, 0xf8c982, 0xffefb0, 0xd8edf3,
+  0xe8ddfa, 0xdbe6f6, 0xe6e9ee, 0xf3e4c8,
 ];
 
 /** Per-zone color ramp, so AWS / GCP / client volumes read distinctly. */
 const ZONE_COLORS = [
-  0x4285f4, 0xff9900, 0x3b8c4d, 0x7c4dff, 0x00897b, 0xc2185b,
+  0x7da7d9, 0xf4a261, 0x8fc7a3, 0xb79ce8, 0x78c2bc, 0xdd88a6,
 ];
 
 function layerColor(layer: number): number {
@@ -99,7 +99,12 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
   // Nodes as boxes + labels.
   for (const n of scene3d.nodes) {
     const geo = track(new THREE.BoxGeometry(n.w, n.h, n.d));
-    const mat = track(new THREE.MeshStandardMaterial({ color: layerColor(n.layer), roughness: 0.55, metalness: 0.05 }));
+    const mat = track(new THREE.MeshStandardMaterial({
+      color: layerColor(n.layer),
+      roughness: 0.82,
+      metalness: 0,
+      flatShading: true,
+    }));
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(n.x, n.y, n.z);
     root.add(mesh);
@@ -122,7 +127,7 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
   }
 
   // Edges as lines.
-  const edgeMat = track(new THREE.LineBasicMaterial({ color: 0x6678a0, transparent: true, opacity: 0.7 }));
+  const edgeMat = track(new THREE.LineBasicMaterial({ color: 0x52617a, transparent: true, opacity: 0.82 }));
   for (const e of scene3d.edges) {
     const geo = track(
       new THREE.BufferGeometry().setFromPoints([
@@ -139,7 +144,7 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
     const color = ZONE_COLORS[i % ZONE_COLORS.length];
     const geo = track(new THREE.BoxGeometry(z.w, z.h, z.d));
     const mat = track(
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false, side: THREE.DoubleSide }),
     );
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(z.x, z.y, z.z);
@@ -147,7 +152,7 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
     root.add(mesh);
 
     const eg = track(new THREE.EdgesGeometry(geo));
-    const line = new THREE.LineSegments(eg, track(new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4 })));
+    const line = new THREE.LineSegments(eg, track(new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 })));
     line.position.copy(mesh.position);
     root.add(line);
 
@@ -176,9 +181,11 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-  dir.position.set(5, 12, 8);
+  scene.background = new THREE.Color(0xffffff);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xd8e2ef, 1.15));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  dir.position.set(6, 14, 9);
   scene.add(dir);
 
   const scene3d = buildScene3D(ctx.layout);
@@ -192,8 +199,15 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     scene3d.bounds.max.z - scene3d.bounds.min.z,
     4,
   );
-  const grid = new THREE.GridHelper(Math.ceil(span * 1.4), 20, 0xc5cde0, 0xe2e7f0);
-  grid.position.y = -0.7;
+  const floorGeo = new THREE.PlaneGeometry(span * 1.45, span * 1.45);
+  const floorMat = new THREE.MeshBasicMaterial({ color: 0xf7f9fc, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.72;
+  scene.add(floor);
+
+  const grid = new THREE.GridHelper(Math.ceil(span * 1.4), 20, 0xc9d3e3, 0xe5eaf2);
+  grid.position.y = -0.69;
   scene.add(grid);
 
   // Frame the camera on the scene center.
@@ -201,11 +215,13 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const center = new THREE.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
   const size = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 4);
   const dist = size * 0.85 + 5;
-  camera.position.set(center.x + dist * 0.55, center.y + dist * 0.5, center.z + dist * 0.85);
+  camera.position.set(center.x + dist * 0.72, center.y + dist * 0.56, center.z + dist * 0.72);
+  camera.lookAt(center);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.copy(center);
   controls.enableDamping = true;
+  controls.screenSpacePanning = true;
   controls.update();
 
   // Orientation gizmo in the corner. Clicking an axis snaps the camera to that
@@ -251,6 +267,8 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
       viewHelper.dispose();
       controls.dispose();
       for (const d of disposables) d.dispose();
+      floorGeo.dispose();
+      floorMat.dispose();
       grid.geometry.dispose();
       (grid.material as THREE.Material).dispose();
       renderer.dispose();
