@@ -345,7 +345,7 @@ export const DEFAULT_STYLE = `
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
-.archmap-edge-startpoint { fill: var(--archmap-edge-stroke, #5b6b86); stroke: var(--archmap-bg, #ffffff); stroke-width: 1; }
+.archmap-edge-startpoint { fill: var(--archmap-edge-stroke, #5b6b86); stroke: none; }
 .archmap-arrowhead { fill: var(--archmap-edge-stroke, #5b6b86); }
 .archmap-edge-label text { fill: var(--archmap-edge-label, #3a4a63); font: 400 11px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-label-bg { fill: var(--archmap-bg, #ffffff); opacity: 0.85; }

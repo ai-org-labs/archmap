@@ -8,6 +8,10 @@ const example = readFileSync(
   fileURLToPath(new URL("../examples/multi-cloud.archmap", import.meta.url)),
   "utf8",
 );
+const comprehensive = readFileSync(
+  fileURLToPath(new URL("fixtures/comprehensive.archmap", import.meta.url)),
+  "utf8",
+);
 
 function labelBox(label: string, at: { x: number; y: number }, orient: "h" | "v" = "h") {
   const w = label.length * 6.5 + 8;
@@ -53,6 +57,34 @@ function isOnShapeBoundary(
     return onSide || Math.abs(topCap - 1) < 0.04 || Math.abs(bottomCap - 1) < 0.04;
   }
   return false;
+}
+
+function pointInsideNode(node: { shape: string; x: number; y: number; w: number; h: number }, point: { x: number; y: number }, pad = 0.75): boolean {
+  const cx = node.x + node.w / 2;
+  const cy = node.y + node.h / 2;
+  const rx = node.w / 2;
+  const ry = node.h / 2;
+  if (node.shape === "circle") return ((point.x - cx) / rx) ** 2 + ((point.y - cy) / ry) ** 2 < 1 - pad / Math.max(rx, ry);
+  if (node.shape === "diamond") return Math.abs(point.x - cx) / rx + Math.abs(point.y - cy) / ry < 1 - pad / Math.max(rx, ry);
+  if (node.shape === "database") {
+    const capRy = Math.min(10, node.h / 6);
+    const topCy = node.y + capRy;
+    const bottomCy = node.y + node.h - capRy;
+    const inBody = point.x > node.x + pad && point.x < node.x + node.w - pad && point.y >= topCy && point.y <= bottomCy;
+    const inTop = ((point.x - cx) / rx) ** 2 + ((point.y - topCy) / capRy) ** 2 < 1 - pad / Math.max(rx, capRy);
+    const inBottom = ((point.x - cx) / rx) ** 2 + ((point.y - bottomCy) / capRy) ** 2 < 1 - pad / Math.max(rx, capRy);
+    return inBody || inTop || inBottom;
+  }
+  return point.x > node.x + pad && point.x < node.x + node.w - pad && point.y > node.y + pad && point.y < node.y + node.h - pad;
+}
+
+function segmentSamples(a: { x: number; y: number }, b: { x: number; y: number }): Array<{ x: number; y: number }> {
+  const len = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+  const steps = Math.max(2, Math.ceil(len / 6));
+  return Array.from({ length: steps - 1 }, (_, i) => {
+    const t = (i + 1) / steps;
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  });
 }
 
 describe("computeLayout", () => {
@@ -187,8 +219,17 @@ describe("computeLayout", () => {
     expect(gap).toBeGreaterThanOrEqual(72);
   });
 
-  it("keeps ordinary routed edges to at most one bend", () => {
-    const m = parse(example);
+  it("keeps unobstructed ordinary routes to at most one bend", () => {
+    const m = parse(`graph LR
+      A[A] --> B[B]
+      C[C] --> D[D]
+      ---
+      nodes:
+        A: { zone: client }
+        B: { zone: gcp }
+        C: { zone: client }
+        D: { zone: aws }
+    `);
     const layout = computeLayout(m);
     for (const edge of layout.edges) {
       expect(edge.points.length).toBeLessThanOrEqual(3);
@@ -207,6 +248,21 @@ describe("computeLayout", () => {
       const edge = layout.edges.find((e) => e.to === id)!;
       const end = edge.points[edge.points.length - 1];
       expect(isOnShapeBoundary(node.shape, node, end)).toBe(true);
+    }
+  });
+
+  it("keeps comprehensive sample edges out of node shapes", () => {
+    const m = parse(comprehensive);
+    const layout = computeLayout(m);
+    for (const edge of layout.edges) {
+      for (let i = 0; i < edge.points.length - 1; i++) {
+        for (const sample of segmentSamples(edge.points[i], edge.points[i + 1])) {
+          for (const node of layout.nodes) {
+            if (node.id === edge.from || node.id === edge.to) continue;
+            expect(pointInsideNode(node, sample)).toBe(false);
+          }
+        }
+      }
     }
   });
 

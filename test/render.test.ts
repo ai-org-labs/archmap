@@ -18,6 +18,23 @@ const example = readFileSync(
   fileURLToPath(new URL("../examples/multi-cloud.archmap", import.meta.url)),
   "utf8",
 );
+const comprehensive = readFileSync(
+  fileURLToPath(new URL("fixtures/comprehensive.archmap", import.meta.url)),
+  "utf8",
+);
+
+function textBoxes(svg: string, className: string): Array<{ x0: number; x1: number; y0: number; y1: number }> {
+  return [...svg.matchAll(new RegExp(`<text class="${className}" x="([0-9.]+)" y="([0-9.]+)">([^<]+)</text>`, "g"))].map((m) => {
+    const x = Number(m[1]);
+    const y = Number(m[2]);
+    const text = m[3];
+    return { x0: x - 2, x1: x + text.length * 6.8 + 6, y0: y - 12, y1: y + 4 };
+  });
+}
+
+function overlaps(a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }): boolean {
+  return Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) && Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0);
+}
 
 describe("render", () => {
   it("registers the overview view by default", () => {
@@ -46,8 +63,22 @@ describe("render", () => {
     const { svg } = render(m, { view: "overview" });
     expect(svg).toContain('class="archmap-edge-startpoint"');
     expect(svg).toContain(".archmap-edge-startpoint { fill: var(--archmap-edge-stroke");
+    expect(svg).toContain(".archmap-edge-startpoint { fill: var(--archmap-edge-stroke, #5b6b86); stroke: none; }");
     expect(svg).toContain(".archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis");
     expect(svg).toContain(".archmap-overlay-edge .archmap-edge-startpoint { fill: var(--archmap-permission");
+  });
+
+  it("keeps comprehensive sample zone and boundary labels from overlapping", () => {
+    const m = parse(comprehensive);
+    for (const baseView of ["overview", "layer"] as const) {
+      const svg = render(m, { baseView, overlays: ["boundary"] }).svg!;
+      const labels = [...textBoxes(svg, "archmap-zone-label"), ...textBoxes(svg, "archmap-boundary-label")];
+      for (let i = 0; i < labels.length; i++) {
+        for (let j = i + 1; j < labels.length; j++) {
+          expect(overlaps(labels[i], labels[j])).toBe(false);
+        }
+      }
+    }
   });
 
   it("supports the baseView plus overlays API", () => {

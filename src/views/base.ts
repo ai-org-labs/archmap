@@ -171,8 +171,14 @@ function portPoint(node: LayoutNode, face: Face, slot: number, count: number): {
   return boundaryPoint(node, face, { x: node.x + inset + span * along, y: node.y + node.h });
 }
 
-function orthogonalPoints(a: { x: number; y: number }, b: { x: number; y: number }, sourceFace: Face): Array<{ x: number; y: number }> {
-  if (sourceFace === "left" || sourceFace === "right") {
+function orthogonalPoints(a: { x: number; y: number }, b: { x: number; y: number }, sourceFace: Face, targetFace: Face): Array<{ x: number; y: number }> {
+  const sourceHorizontal = sourceFace === "left" || sourceFace === "right";
+  const targetHorizontal = targetFace === "left" || targetFace === "right";
+  if (Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5) return [a, b];
+  if (sourceHorizontal !== targetHorizontal) {
+    return sourceHorizontal ? [a, { x: b.x, y: a.y }, b] : [a, { x: a.x, y: b.y }, b];
+  }
+  if (sourceHorizontal) {
     const midX = (a.x + b.x) / 2;
     return [a, { x: midX, y: a.y }, { x: midX, y: b.y }, b];
   }
@@ -203,6 +209,14 @@ function permissionSummarySvg(node: LayoutNode, labels: string[]): string {
     `<text x="${(x + w / 2).toFixed(1)}" y="${(y + h / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(text)}</text>` +
     `</g>`
   );
+}
+
+function textBox(text: string, x: number, y: number): Box {
+  return { id: "", x: x - 2, y: y - 12, w: text.length * 6.8 + 8, h: 17 };
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
 }
 
 function planOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string, LayoutNode>): OverlayPlan {
@@ -256,7 +270,7 @@ function planOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string
 
   const drawables = resolved
     .map((entry, index) => entry
-      ? { id: entry.edge.id, index, entry, points: orthogonalPoints(entry.source, entry.target, entry.source.face) }
+      ? { id: entry.edge.id, index, entry, points: orthogonalPoints(entry.source, entry.target, entry.source.face, entry.target.face) }
       : undefined)
     .filter((item): item is OverlayDrawable => !!item);
 
@@ -289,19 +303,27 @@ function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, d
 export function renderDiagram(spec: DiagramSpec): string {
   const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, overlayEdges, nodeIcons } = spec;
   const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
+  const reservedBoxLabels: Box[] = [];
 
   const boxesSvg = boxGroups
     .map((group) => {
       const boxLabelClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-label" : "archmap-zone-label";
       const boxBoxClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-box" : "archmap-zone-box";
       return group.boxes
-        .map(
-          (b) =>
+        .map((b) => {
+          const label = b.label ?? b.id;
+          const x = b.x + 10;
+          let y = b.y + 18;
+          const maxY = b.y + Math.min(Math.max(20, b.h - 8), 68);
+          while (y <= maxY && reservedBoxLabels.some((other) => overlaps(textBox(label, x, y), other))) y += 16;
+          reservedBoxLabels.push(textBox(label, x, y));
+          return (
             `<g class="${group.boxClass}" data-id="${escapeXml(b.id)}">` +
             `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10" ry="10" />` +
-            `<text class="${boxLabelClass}" x="${b.x + 10}" y="${b.y + 18}">${escapeXml(b.label ?? b.id)}</text>` +
-            `</g>`,
-        )
+            `<text class="${boxLabelClass}" x="${x}" y="${y}">${escapeXml(label)}</text>` +
+            `</g>`
+          );
+        })
         .join("");
     })
     .join("");

@@ -787,6 +787,71 @@ function routeEdges(
     if (Math.abs(df) < 0.5) return [crossFace];
     return Math.abs(df) >= Math.abs(dc) ? [flowFace, crossFace] : [crossFace, flowFace];
   };
+  const faceMidpoint = (nodeId: string, face: Face): End => {
+    const g = geom(nodeId);
+    const end = {
+      node: nodeId,
+      face,
+      flow: face === "fL" ? g.flowLow : face === "fH" ? g.flowHigh : g.flowCenter,
+      cross: face === "cL" ? g.crossLow : face === "cH" ? g.crossHigh : g.crossCenter,
+    };
+    projectEnd(end);
+    return end;
+  };
+  const facePoint = (nodeId: string, face: Face, along: number): End => {
+    const g = geom(nodeId);
+    const end = {
+      node: nodeId,
+      face,
+      flow: face === "fL" ? g.flowLow : face === "fH" ? g.flowHigh : g.flowLow + g.flowSize * along,
+      cross: face === "cL" ? g.crossLow : face === "cH" ? g.crossHigh : g.crossLow + g.crossSize * along,
+    };
+    projectEnd(end);
+    return end;
+  };
+  const roughPoints = (src: End, dst: End): LayoutPoint[] => {
+    const a = toXY(src.flow, src.cross, horizontal);
+    const b = toXY(dst.flow, dst.cross, horizontal);
+    if (Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5) return [a, b];
+    const sourceIsFlow = src.face === "fL" || src.face === "fH";
+    return sourceIsFlow ? [a, { x: b.x, y: a.y }, b] : [a, { x: a.x, y: b.y }, b];
+  };
+  const pointInsideShape = (node: LayoutNode, point: LayoutPoint, pad = 0.75): boolean => {
+    const cx = node.x + node.w / 2;
+    const cy = node.y + node.h / 2;
+    const rx = node.w / 2;
+    const ry = node.h / 2;
+    if (node.shape === "circle") return ((point.x - cx) / rx) ** 2 + ((point.y - cy) / ry) ** 2 < 1 - pad / Math.max(rx, ry);
+    if (node.shape === "diamond") return Math.abs(point.x - cx) / rx + Math.abs(point.y - cy) / ry < 1 - pad / Math.max(rx, ry);
+    if (node.shape === "database") {
+      const capRy = Math.min(10, node.h / 6);
+      const topCy = node.y + capRy;
+      const bottomCy = node.y + node.h - capRy;
+      const inBody = point.x > node.x + pad && point.x < node.x + node.w - pad && point.y >= topCy && point.y <= bottomCy;
+      const inTop = ((point.x - cx) / rx) ** 2 + ((point.y - topCy) / capRy) ** 2 < 1 - pad / Math.max(rx, capRy);
+      const inBottom = ((point.x - cx) / rx) ** 2 + ((point.y - bottomCy) / capRy) ** 2 < 1 - pad / Math.max(rx, capRy);
+      return inBody || inTop || inBottom;
+    }
+    return point.x > node.x + pad && point.x < node.x + node.w - pad && point.y > node.y + pad && point.y < node.y + node.h - pad;
+  };
+  const routeNodeHits = (points: LayoutPoint[], from: string, to: string): number => {
+    let hits = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      const len = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+      const steps = Math.max(2, Math.ceil(len / 6));
+      for (let step = 1; step < steps; step++) {
+        const t = step / steps;
+        const sample = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+        for (const node of laid.values()) {
+          if (node.id === from || node.id === to) continue;
+          if (pointInsideShape(node, sample)) hits++;
+        }
+      }
+    }
+    return hits;
+  };
 
   interface PortEntry { planIndex: number; isSource: boolean; sortKey: number }
   const faces = new Map<string, PortEntry[]>();
@@ -821,12 +886,20 @@ function routeEdges(
     let dstFace: Face;
     let channelCross: number;
     {
-      const allowedSrcFaces = oneBendSourceFaces(a, b);
+      const allowedSrcFaces = [...oneBendSourceFaces(a, b), "fL", "fH", "cL", "cH"].filter((face, index, list): face is Face => list.indexOf(face) === index);
       const ordinal = pairOrdinals.get(e.id) ?? 0;
-      const paired = multiEdgePair ? pairedTrackFace(allowedSrcFaces[0], ordinal) : allowedSrcFaces[0];
+      const preferred = multiEdgePair ? pairedTrackFace(allowedSrcFaces[0], ordinal) : allowedSrcFaces[0];
+      const rankedFaces = allowedSrcFaces
+        .map((face) => {
+          const dst = complementaryTargetFace(face, a, b);
+          const hits = routeNodeHits(roughPoints(faceMidpoint(e.from, face), faceMidpoint(e.to, dst)), e.from, e.to);
+          return { face, hits, cost: faceCost(face, preferred) };
+        })
+        .sort((left, right) => left.hits - right.hits || left.cost - right.cost);
+      const preferredNoHit = rankedFaces[0]?.face ?? allowedSrcFaces[0];
       srcFace = isHub(e.from)
-        ? balancedHubFace(e.from, allowedSrcFaces[0], allowedSrcFaces)
-        : allowedSrcFaces.includes(paired) ? paired : allowedSrcFaces[0];
+        ? balancedHubFace(e.from, preferredNoHit, rankedFaces.filter((item) => item.hits === rankedFaces[0].hits).map((item) => item.face))
+        : preferredNoHit;
       dstFace = complementaryTargetFace(srcFace, a, b);
       channelCross = srcFace === "fL" || srcFace === "fH"
         ? (targetAbove ? b.crossHigh + CHANNEL_INSET : b.crossLow - CHANNEL_INSET)
@@ -921,11 +994,62 @@ function routeEdges(
       : toXY(src.flow, dst.cross, horizontal);
     return simplifyPolyline([s, corner, d]);
   };
+  const graphBounds = [...laid.values()].reduce(
+    (acc, node) => ({
+      x0: Math.min(acc.x0, node.x),
+      x1: Math.max(acc.x1, node.x + node.w),
+      y0: Math.min(acc.y0, node.y),
+      y1: Math.max(acc.y1, node.y + node.h),
+    }),
+    { x0: Number.POSITIVE_INFINITY, x1: Number.NEGATIVE_INFINITY, y0: Number.POSITIVE_INFINITY, y1: Number.NEGATIVE_INFINITY },
+  );
+  const outsidePolyline = (src: End, dst: End): LayoutPoint[] => {
+    const s = toXY(src.flow, src.cross, horizontal);
+    const d = toXY(dst.flow, dst.cross, horizontal);
+    const sourceIsFlow = src.face === "fL" || src.face === "fH";
+    const targetIsFlow = dst.face === "fL" || dst.face === "fH";
+    const outsideX = src.face === "fL" || dst.face === "fL" ? graphBounds.x0 - 48 : graphBounds.x1 + 48;
+    const outsideY = src.face === "cL" || dst.face === "cL" ? graphBounds.y0 - 48 : graphBounds.y1 + 48;
+    if (sourceIsFlow && targetIsFlow) return simplifyPolyline([s, { x: outsideX, y: s.y }, { x: outsideX, y: d.y }, d]);
+    if (sourceIsFlow && !targetIsFlow) return simplifyPolyline([s, { x: outsideX, y: s.y }, { x: outsideX, y: outsideY }, { x: d.x, y: outsideY }, d]);
+    if (!sourceIsFlow && targetIsFlow) return simplifyPolyline([s, { x: s.x, y: outsideY }, { x: outsideX, y: outsideY }, { x: outsideX, y: d.y }, d]);
+    return simplifyPolyline([s, { x: s.x, y: outsideY }, { x: d.x, y: outsideY }, d]);
+  };
 
   // Build polylines. The default route is at most one bend (3 points); more
   // complex tracks are reserved for a future explicit router mode.
   return plans.map((plan) => {
-    const points = minimalPolyline(plan.src, plan.dst);
+    const minimal = minimalPolyline(plan.src, plan.dst);
+    const points = routeNodeHits(minimal, plan.e.from, plan.e.to) > 0
+      ? (["fL", "fH", "cL", "cH"] as Face[])
+          .flatMap((sourceFace) =>
+            (["fL", "fH", "cL", "cH"] as Face[]).flatMap((targetFace) =>
+              [0.08, 0.25, 0.5, 0.75, 0.92].flatMap((sourceAlong) =>
+                [0.08, 0.25, 0.5, 0.75, 0.92].map((targetAlong) => {
+                  const src = facePoint(plan.e.from, sourceFace, sourceAlong);
+                  const dst = facePoint(plan.e.to, targetFace, targetAlong);
+                  const route = outsidePolyline(src, dst);
+                  const preferredTarget = complementaryTargetFace(sourceFace, geom(plan.e.from), geom(plan.e.to));
+                  return {
+                    route,
+                    hits: routeNodeHits(route, plan.e.from, plan.e.to),
+                    len: route.length,
+                    targetFace,
+                    cost:
+                      faceCost(sourceFace, plan.src.face) +
+                      faceCost(targetFace, preferredTarget) +
+                      Math.abs(sourceAlong - 0.5) +
+                      Math.abs(targetAlong - 0.5),
+                  };
+                }),
+              ),
+            ),
+          )
+          .sort((a, b) => {
+            const targetBias = (face: Face): number => face === "cH" ? 0 : face === "fH" ? 1 : face === "fL" ? 2 : 3;
+            return a.hits - b.hits || targetBias(a.targetFace) - targetBias(b.targetFace) || a.cost - b.cost || a.len - b.len;
+          })[0].route
+      : minimal;
     // Offset the label off the line (above for H, to the right for V) so a
     // short segment isn't hidden under the label's background.
     const seg = longestSegment(points);
