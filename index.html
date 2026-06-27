@@ -200,7 +200,7 @@ boundaries:
     installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
     installThreeView(); // opt-in 3D view; core does not bundle three.js
     const $ = (id) => document.getElementById(id);
-    const overlayNames = ["auth", "dataflow", "boundary", "permission", "validation"];
+    const overlayNames = ["zone", "auth", "dataflow", "boundary", "permission", "validation"];
     $("src").value = $("seed").textContent.trim();
     for (const overlay of overlayNames) {
       const label = document.createElement("label");

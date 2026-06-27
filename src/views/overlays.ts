@@ -2,7 +2,7 @@ import type { LayoutResult } from "../layout.js";
 import type { ArchMapModel, BoundaryCrossing, Permission } from "../types.js";
 import type { Box } from "./base.js";
 
-export const OVERLAY_NAMES = new Set(["auth", "dataflow", "boundary", "permission", "validation"]);
+export const OVERLAY_NAMES = new Set(["zone", "auth", "dataflow", "boundary", "permission", "validation"]);
 
 export interface OverlayProjection {
   emphasizeNodes?: Set<string>;
@@ -75,6 +75,10 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
     nodeByPrincipal.set(node.principal, [...(nodeByPrincipal.get(node.principal) ?? []), node.id]);
   }
   const identityAttachment = new Map(model.identities.map((identity) => [identity.id, attachedNodeIds(identity.attachedTo)]));
+
+  if (active.includes("zone")) {
+    boxGroups.push({ boxes: layout.zones, boxClass: "archmap-zone" });
+  }
 
   if (active.includes("boundary")) {
     boxGroups.push({ boxes: layout.boundaries, boxClass: "archmap-boundary" });

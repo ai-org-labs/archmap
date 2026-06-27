@@ -81,5 +81,5 @@ edges:
   MidEast->Cart: { label: cart RPC, flow: request, boundaryCrossing: [cart_service] }
 view:
   default:
-    base: zone
-    overlays: [boundary]
+    base: overview
+    overlays: [zone, boundary]

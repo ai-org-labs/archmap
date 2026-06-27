@@ -162,7 +162,9 @@ data:
 layout: { mode: auto, direction: LR, nodes: { … } }   # parsed but renderer
                                                        # ignores manual positions
 view:
-  default: overview     # honored by render()
+  default:
+    base: overview      # overview or layer
+    overlays: [zone]    # additive information layers
   enabled: [...]        # parsed, NOT yet applied
   filters: { zones: [...], layers: [...] }  # parsed, NOT yet applied
 ```
@@ -247,8 +249,9 @@ block rendering.
 
 | View | Shows |
 | --- | --- |
-| `overview` | all nodes/edges + zone boxes |
-| `zone` | nodes banded by zone (recommended order), cross-zone edges emphasized |
+| `overview` | structural nodes/edges only until Add info overlays are enabled |
+| `layer` | fixed layer bands; graph `subgraph` groups are shown as grouping boxes |
+| `zone` overlay | zone boxes and zone labels as additive information |
 | `auth` | identity/auth/user nodes + token-carrying & auth-flow edges; rest faded |
 | `dataflow` | storage nodes + data-carrying edges; classification badges; rest faded |
 | `boundary` | boundary boxes + boundary/zone-crossing edges; rest faded |

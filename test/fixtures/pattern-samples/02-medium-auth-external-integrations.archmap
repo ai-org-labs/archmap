@@ -183,8 +183,8 @@ boundaries:
   external_email_boundary: { label: Email Provider Boundary, kind: trust_boundary, contains: [zone: app_runtime, node: EmailService] }
 view:
   default:
-    base: zone
-    overlays: [auth, dataflow, boundary, permission, validation]
+    base: overview
+    overlays: [zone, auth, dataflow, boundary, permission, validation]
 layout:
   mode: auto
   direction: LR

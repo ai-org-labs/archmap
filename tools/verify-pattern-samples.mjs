@@ -12,8 +12,8 @@ const samples = [
   "06-android-framework-driver-bt-devices.archmap",
 ];
 
-const baseViews = ["overview", "zone", "layer"];
-const overlays = ["auth", "dataflow", "boundary", "permission", "validation"];
+const baseViews = ["overview", "layer"];
+const overlays = ["zone", "auth", "dataflow", "boundary", "permission", "validation"];
 const allowedDiagnosticCodes = new Set(["zone_crossing_marked_false", "view_3d_unavailable"]);
 
 const fixtureUrl = new URL("../test/fixtures/pattern-samples/", import.meta.url);

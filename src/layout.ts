@@ -1755,12 +1755,34 @@ function routeEdges(
     }
     return hits;
   };
-  const componentSafeRoute = (edge: LayoutEdge): LayoutPoint[] | undefined => {
+  const endpointUseKey = (nodeId: string, point: LayoutPoint): string => {
+    const side = finalEndpointSide(nodeId, point);
+    const axis = side === "left" || side === "right" ? point.y : point.x;
+    return `${nodeId}|${side}|${Math.round(axis * 10) / 10}`;
+  };
+  const componentSafeRoute = (edge: LayoutEdge, endpointUse?: Map<string, number>): LayoutPoint[] | undefined => {
     if (routeComponentHits(edge.points, edge.from, edge.to) === 0) return edge.points;
     const faces: Face[] = ["fL", "fH", "cL", "cH"];
     const alongs = [0.15, 0.32, 0.5, 0.68, 0.85];
-    const sourcePorts = faces.flatMap((face) => alongs.map((along) => toXY(facePoint(edge.from, face, along).flow, facePoint(edge.from, face, along).cross, horizontal)));
-    const targetPorts = faces.flatMap((face) => alongs.map((along) => toXY(facePoint(edge.to, face, along).flow, facePoint(edge.to, face, along).cross, horizontal)));
+    const uniquePoints = (points: LayoutPoint[]): LayoutPoint[] => {
+      const seen = new Set<string>();
+      return points.filter((point) => {
+        const key = `${Math.round(point.x * 10) / 10},${Math.round(point.y * 10) / 10}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    const originalStart = edge.points[0];
+    const originalEnd = edge.points[edge.points.length - 1];
+    const sourcePorts = uniquePoints([
+      originalStart,
+      ...faces.flatMap((face) => alongs.map((along) => toXY(facePoint(edge.from, face, along).flow, facePoint(edge.from, face, along).cross, horizontal))),
+    ]);
+    const targetPorts = uniquePoints([
+      originalEnd,
+      ...faces.flatMap((face) => alongs.map((along) => toXY(facePoint(edge.to, face, along).flow, facePoint(edge.to, face, along).cross, horizontal))),
+    ]);
     const obstacles = [...laid.values()].filter((node) => node.id !== edge.from && node.id !== edge.to).map(inflatedNodeBox);
     const validSegment = (a: LayoutPoint, b: LayoutPoint): boolean =>
       (Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5) && obstacles.every((box) => !segmentHitsBox(a, b, box));
@@ -1774,7 +1796,18 @@ function routeEdges(
     const direct = directCandidates
       .filter((route) => route.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)))
       .filter((route) => route.slice(0, -1).every((point, i) => validSegment(point, route[i + 1])))
-      .sort((a, b) => routeLength(a) - routeLength(b) || a.length - b.length)[0];
+      .sort((a, b) => {
+        const endpointMove = (route: LayoutPoint[]) =>
+          Math.abs(route[0].x - originalStart.x) + Math.abs(route[0].y - originalStart.y) +
+          Math.abs(route[route.length - 1].x - originalEnd.x) + Math.abs(route[route.length - 1].y - originalEnd.y);
+        const endpointUseCost = (route: LayoutPoint[]) => {
+          if (!endpointUse) return 0;
+          const startKey = endpointUseKey(edge.from, route[0]);
+          const endKey = endpointUseKey(edge.to, route[route.length - 1]);
+          return ((endpointUse.get(startKey) ?? 0) + (endpointUse.get(endKey) ?? 0)) * 10000;
+        };
+        return endpointUseCost(a) - endpointUseCost(b) || routeLength(a) - routeLength(b) || endpointMove(a) - endpointMove(b) || a.length - b.length;
+      })[0];
     if (direct) return direct;
 
     const xs = new Set<number>();
@@ -1864,56 +1897,59 @@ function routeEdges(
     if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
     entry.edge.points = simplifyPolyline(entry.edge.points);
   };
-  const finalEndpointEntries: RoutedEndpoint[] = [];
-  for (const item of routedPlans) {
-    const points = item.edge.points;
-    if (points.length < 2) continue;
-    finalEndpointEntries.push({
-      edge: item.edge,
-      pointIndex: 0,
-      adjacentIndex: 1,
-      nodeId: item.plan.e.from,
-      face: inferFaceFromPoint(item.plan.e.from, points[0], points[1]),
-      sortKey: 0,
-    });
-    finalEndpointEntries.push({
-      edge: item.edge,
-      pointIndex: points.length - 1,
-      adjacentIndex: points.length - 2,
-      nodeId: item.plan.e.to,
-      face: inferFaceFromPoint(item.plan.e.to, points[points.length - 1], points[points.length - 2]),
-      sortKey: 0,
-    });
-  }
-  const finalSideGroups = new Map<string, RoutedEndpoint[]>();
-  for (const entry of finalEndpointEntries) {
-    const point = entry.edge.points[entry.pointIndex];
-    const side = finalEndpointSide(entry.nodeId, point);
-    const axis = side === "left" || side === "right" ? point.y : point.x;
-    entry.sortKey = axis;
-    (finalSideGroups.get(`${entry.nodeId}|${side}`) ?? (finalSideGroups.set(`${entry.nodeId}|${side}`, []), finalSideGroups.get(`${entry.nodeId}|${side}`)!)).push(entry);
-  }
-  for (const [key, group] of finalSideGroups) {
-    if (group.length <= 1) continue;
-    const [nodeId, sideValue] = key.split("|") as [string, BoxFace];
-    const node = laid.get(nodeId)!;
-    const side = sideValue;
-    const low = side === "left" || side === "right" ? node.y : node.x;
-    const size = side === "left" || side === "right" ? node.h : node.w;
-    const min = low + FACE_INSET;
-    const max = low + size - FACE_INSET;
-    const span = Math.max(1, max - min);
-    group.sort((a, b) => a.sortKey - b.sortKey || a.edge.id.localeCompare(b.edge.id));
-    const positions = group.map((entry) => Math.min(max, Math.max(min, entry.sortKey)));
-    for (let i = 1; i < positions.length; i++) {
-      if (positions[i] - positions[i - 1] >= 6) continue;
-      const start = min + (span * i) / (group.length + 1);
-      const end = min + (span * (i + 1)) / (group.length + 1);
-      positions[i - 1] = Math.min(max, Math.max(min, start));
-      positions[i] = Math.min(max, Math.max(min, end));
+  const spaceFinalEndpoints = (): void => {
+    const finalEndpointEntries: RoutedEndpoint[] = [];
+    for (const item of routedPlans) {
+      const points = item.edge.points;
+      if (points.length < 2) continue;
+      finalEndpointEntries.push({
+        edge: item.edge,
+        pointIndex: 0,
+        adjacentIndex: 1,
+        nodeId: item.plan.e.from,
+        face: inferFaceFromPoint(item.plan.e.from, points[0], points[1]),
+        sortKey: 0,
+      });
+      finalEndpointEntries.push({
+        edge: item.edge,
+        pointIndex: points.length - 1,
+        adjacentIndex: points.length - 2,
+        nodeId: item.plan.e.to,
+        face: inferFaceFromPoint(item.plan.e.to, points[points.length - 1], points[points.length - 2]),
+        sortKey: 0,
+      });
     }
-    group.forEach((entry, index) => moveFinalEndpoint(entry, side, positions[index]));
-  }
+    const finalSideGroups = new Map<string, RoutedEndpoint[]>();
+    for (const entry of finalEndpointEntries) {
+      const point = entry.edge.points[entry.pointIndex];
+      const side = finalEndpointSide(entry.nodeId, point);
+      const axis = side === "left" || side === "right" ? point.y : point.x;
+      entry.sortKey = axis;
+      (finalSideGroups.get(`${entry.nodeId}|${side}`) ?? (finalSideGroups.set(`${entry.nodeId}|${side}`, []), finalSideGroups.get(`${entry.nodeId}|${side}`)!)).push(entry);
+    }
+    for (const [key, group] of finalSideGroups) {
+      if (group.length <= 1) continue;
+      const [nodeId, sideValue] = key.split("|") as [string, BoxFace];
+      const node = laid.get(nodeId)!;
+      const side = sideValue;
+      const low = side === "left" || side === "right" ? node.y : node.x;
+      const size = side === "left" || side === "right" ? node.h : node.w;
+      const min = low + FACE_INSET;
+      const max = low + size - FACE_INSET;
+      const span = Math.max(1, max - min);
+      group.sort((a, b) => a.sortKey - b.sortKey || a.edge.id.localeCompare(b.edge.id));
+      const positions = group.map((entry) => Math.min(max, Math.max(min, entry.sortKey)));
+      for (let i = 1; i < positions.length; i++) {
+        if (positions[i] - positions[i - 1] >= 6) continue;
+        const start = min + (span * i) / (group.length + 1);
+        const end = min + (span * (i + 1)) / (group.length + 1);
+        positions[i - 1] = Math.min(max, Math.max(min, start));
+        positions[i] = Math.min(max, Math.max(min, end));
+      }
+      group.forEach((entry, index) => moveFinalEndpoint(entry, side, positions[index]));
+    }
+  };
+  spaceFinalEndpoints();
   const normalStubPoint = (point: LayoutPoint, side: BoxFace, distance = 14): LayoutPoint => {
     if (side === "left") return { x: point.x - distance, y: point.y };
     if (side === "right") return { x: point.x + distance, y: point.y };
@@ -1949,6 +1985,28 @@ function routeEdges(
     }
     return simplifyPolyline(points);
   };
+  const enforceAndRepairFinalRoutes = (): void => {
+    const endpointUse = new Map<string, number>();
+    for (const item of routedPlans) {
+      item.edge.points = enforceEndpointStubs(item.edge);
+      const finalRepaired = componentSafeRoute(item.edge, endpointUse);
+      if (finalRepaired && routeComponentHits(finalRepaired, item.edge.from, item.edge.to) === 0) {
+        item.edge.points = enforceEndpointStubs({ ...item.edge, points: finalRepaired });
+      }
+      const points = item.edge.points;
+      if (points.length >= 2) {
+        const startKey = endpointUseKey(item.edge.from, points[0]);
+        const endKey = endpointUseKey(item.edge.to, points[points.length - 1]);
+        endpointUse.set(startKey, (endpointUse.get(startKey) ?? 0) + 1);
+        endpointUse.set(endKey, (endpointUse.get(endKey) ?? 0) + 1);
+      }
+    }
+  };
+  for (let i = 0; i < 3; i++) {
+    enforceAndRepairFinalRoutes();
+    spaceFinalEndpoints();
+  }
+  enforceAndRepairFinalRoutes();
   return routedPlans.map((item) => {
     item.edge.points = enforceEndpointStubs(item.edge);
     const seg = longestSegment(item.edge.points);

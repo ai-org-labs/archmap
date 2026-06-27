@@ -150,7 +150,7 @@ boundaries:
     installThreeView(); // 3D view (three.js from CDN)
 
     const $ = (id) => document.getElementById(id);
-    const overlayNames = ["auth", "dataflow", "boundary", "permission", "validation"];
+    const overlayNames = ["zone", "auth", "dataflow", "boundary", "permission", "validation"];
     $("src").value = $("seed").textContent.trim();
     for (const overlay of overlayNames) {
       const label = document.createElement("label");

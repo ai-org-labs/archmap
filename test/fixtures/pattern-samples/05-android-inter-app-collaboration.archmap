@@ -144,8 +144,8 @@ boundaries:
   external_app_boundary: { label: External App Link Boundary, kind: trust_boundary, contains: [zone: external_app, zone: android_os] }
 view:
   default:
-    base: zone
-    overlays: [permission, boundary, dataflow, validation]
+    base: overview
+    overlays: [zone, permission, boundary, dataflow, validation]
 layout:
   mode: auto
   direction: LR

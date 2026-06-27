@@ -354,6 +354,8 @@ export const DEFAULT_STYLE = `
 .archmap-layer-depth-3 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-3, rgba(239,233,248,0.66)); }
 .archmap-layer-depth-4 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-4, rgba(248,235,235,0.62)); }
 .archmap-layer-label { fill: var(--archmap-layer-label, #5f6d7b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
+.archmap-subgraph-box { fill: var(--archmap-subgraph-fill, rgba(255,255,255,0.28)); stroke: var(--archmap-subgraph-stroke, #8d98a8); stroke-width: 1.2; stroke-dasharray: 7 5; }
+.archmap-subgraph-label { fill: var(--archmap-subgraph-label, #4f5e70); font: 700 12px var(--archmap-font, system-ui, sans-serif); }
 .archmap-node-shape { fill: var(--archmap-node-fill, #ffffff); stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
@@ -366,7 +368,7 @@ export const DEFAULT_STYLE = `
 .archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(247,240,220,0.48)); stroke: var(--archmap-boundary-stroke, #c0a044); stroke-width: 1.8; }
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-selected .archmap-node-shape, .archmap-selected .archmap-node-shape-top { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
-.archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box, .archmap-selected .archmap-layer-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
+.archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box, .archmap-selected .archmap-layer-box, .archmap-selected .archmap-subgraph-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-path { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-startpoint { fill: var(--archmap-selected, #2563eb); }
 .archmap-emphasis .archmap-node-shape, .archmap-emphasis .archmap-node-shape-top { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
