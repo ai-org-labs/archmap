@@ -146,6 +146,46 @@ describe("computeLayout", () => {
     expect(principal.h).toBeGreaterThan(48);
   });
 
+  it("routes high-degree component edges across multiple sides", () => {
+    const m = parse(`graph LR
+      North[North] --> Hub[Hub]
+      South[South] --> Hub
+      West[West] --> Hub
+      Hub --> East[East]
+      Hub --> Store[(Store)]
+      Hub --> Ops[Ops]
+      Hub --> Audit[Audit]
+      ---
+      nodes:
+        North: { zone: client }
+        South: { zone: operations }
+        West: { zone: gcp }
+        Hub: { zone: gcp, principal: hub-sa }
+        East: { zone: aws }
+        Store: { zone: gcp }
+        Ops: { zone: operations }
+        Audit: { zone: saas }
+      zones:
+        client: { contains: [North] }
+        gcp: { contains: [West, Hub, Store] }
+        aws: { contains: [East] }
+        operations: { contains: [South, Ops] }
+        saas: { contains: [Audit] }
+    `);
+    const layout = computeLayout(m, { rankBy: "zone" });
+    const hub = layout.nodes.find((n) => n.id === "Hub")!;
+    const touches = new Set<string>();
+    for (const edge of layout.edges.filter((e) => e.from === "Hub" || e.to === "Hub")) {
+      for (const point of [edge.points[0], edge.points[edge.points.length - 1]]) {
+        if (Math.abs(point.x - hub.x) < 0.5) touches.add("left");
+        if (Math.abs(point.x - (hub.x + hub.w)) < 0.5) touches.add("right");
+        if (Math.abs(point.y - hub.y) < 0.5) touches.add("top");
+        if (Math.abs(point.y - (hub.y + hub.h)) < 0.5) touches.add("bottom");
+      }
+    }
+    expect(touches.size).toBeGreaterThanOrEqual(3);
+  });
+
   it("clips edge endpoints to node borders (two points each)", () => {
     const m = parse(`graph LR
       A[a] --> B[b]

@@ -579,7 +579,7 @@ function routeEdges(
     (cell.get(key) ?? (cell.set(key, []), cell.get(key)!)).push({ id, cross: geom(id).crossCenter });
   }
 
-  type Mode = "same" | "direct" | "trunk";
+  type Mode = "same" | "direct" | "trunk" | "side";
   interface End { node: string; face: Face; flow: number; cross: number }
   interface Plan {
     e: { id: string; from: string; to: string; label?: string };
@@ -592,6 +592,38 @@ function routeEdges(
     channelCross: number; // cross coord of the lane-gap horizontal (direct/trunk)
   }
   const plans: Plan[] = [];
+  const degree = new Map<string, number>();
+  for (const e of list) {
+    degree.set(e.from, (degree.get(e.from) ?? 0) + 1);
+    degree.set(e.to, (degree.get(e.to) ?? 0) + 1);
+  }
+  const isHub = (id: string) => (degree.get(id) ?? 0) >= 6;
+
+  const faceToward = (from: ReturnType<typeof geom>, to: ReturnType<typeof geom>): Face => {
+    const df = to.flowCenter - from.flowCenter;
+    const dc = to.crossCenter - from.crossCenter;
+    if (Math.abs(df) >= Math.abs(dc)) return df >= 0 ? "fH" : "fL";
+    return dc >= 0 ? "cH" : "cL";
+  };
+  const faceUse = new Map<string, number>();
+  const faceCost = (candidate: Face, preferred: Face): number => {
+    if (candidate === preferred) return 0;
+    if (
+      (candidate === "fL" && preferred === "fH") ||
+      (candidate === "fH" && preferred === "fL") ||
+      (candidate === "cL" && preferred === "cH") ||
+      (candidate === "cH" && preferred === "cL")
+    ) return 2;
+    return 1;
+  };
+  const balancedHubFace = (node: string, preferred: Face): Face => {
+    const faces: Face[] = ["fL", "fH", "cL", "cH"];
+    const best = faces
+      .map((face) => ({ face, score: (faceUse.get(`${node}|${face}`) ?? 0) * 4 + faceCost(face, preferred) }))
+      .sort((a, b) => a.score - b.score || faceCost(a.face, preferred) - faceCost(b.face, preferred))[0].face;
+    faceUse.set(`${node}|${best}`, (faceUse.get(`${node}|${best}`) ?? 0) + 1);
+    return best;
+  };
 
   interface PortEntry { planIndex: number; isSource: boolean; sortKey: number }
   const faces = new Map<string, PortEntry[]>();
@@ -609,7 +641,7 @@ function routeEdges(
     const targetAbove = b.crossCenter < a.crossCenter;
     // same lane -> flow faces; adjacent lanes -> direct top/bottom drop;
     // 2+ lanes apart -> route the trunk through a column gap to clear nodes.
-    let mode: Mode = la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
+    let mode: Mode = isHub(e.from) || isHub(e.to) ? "side" : la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
     if (mode === "direct") {
       // A straight drop is only safe if no sibling in the same lane cell sits
       // between the source and the target; otherwise fall back to the trunk.
@@ -623,7 +655,13 @@ function routeEdges(
     let srcFace: Face;
     let dstFace: Face;
     let channelCross: number;
-    if (mode === "same") {
+    if (mode === "side") {
+      const preferredSrc = faceToward(a, b);
+      const preferredDst = faceToward(b, a);
+      srcFace = isHub(e.from) ? balancedHubFace(e.from, preferredSrc) : preferredSrc;
+      dstFace = isHub(e.to) ? balancedHubFace(e.to, preferredDst) : preferredDst;
+      channelCross = 0;
+    } else if (mode === "same") {
       srcFace = forward ? "fH" : "fL";
       dstFace = forward ? "fL" : "fH";
       channelCross = 0;
@@ -673,7 +711,7 @@ function routeEdges(
   // Distribute vertical trunks for forward same/trunk edges in the column gap.
   const byCol = new Map<number, number[]>();
   plans.forEach((plan, i) => {
-    if (plan.mode === "direct" || !plan.forward) return;
+    if (plan.mode === "direct" || plan.mode === "side" || !plan.forward) return;
     const si = colIndex.get(rankOf.get(plan.e.from)!)!;
     if (si + 1 >= ranks.length) return;
     (byCol.get(si) ?? (byCol.set(si, []), byCol.get(si)!)).push(i);
@@ -693,7 +731,7 @@ function routeEdges(
   // sources don't drop on the same vertical.
   const byTarget = new Map<string, number[]>();
   plans.forEach((plan, i) => {
-    if (plan.mode === "same") return;
+    if (plan.mode === "same" || plan.mode === "side") return;
     const key = `${plan.e.to}|${plan.targetAbove ? "A" : "B"}`;
     (byTarget.get(key) ?? (byTarget.set(key, []), byTarget.get(key)!)).push(i);
   });
@@ -713,7 +751,28 @@ function routeEdges(
     const s = toXY(plan.src.flow, plan.src.cross, horizontal);
     const d = toXY(plan.dst.flow, plan.dst.cross, horizontal);
     let points: LayoutPoint[];
-    if (plan.mode === "same") {
+    if (plan.mode === "side") {
+      const stub = 28;
+      const offset = (end: End): { flow: number; cross: number } => {
+        if (end.face === "fL") return { flow: end.flow - stub, cross: end.cross };
+        if (end.face === "fH") return { flow: end.flow + stub, cross: end.cross };
+        if (end.face === "cL") return { flow: end.flow, cross: end.cross - stub };
+        return { flow: end.flow, cross: end.cross + stub };
+      };
+      const so = offset(plan.src);
+      const de = offset(plan.dst);
+      const mid =
+        Math.abs(so.flow - de.flow) >= Math.abs(so.cross - de.cross)
+          ? [{ flow: (so.flow + de.flow) / 2, cross: so.cross }, { flow: (so.flow + de.flow) / 2, cross: de.cross }]
+          : [{ flow: so.flow, cross: (so.cross + de.cross) / 2 }, { flow: de.flow, cross: (so.cross + de.cross) / 2 }];
+      points = simplifyPolyline([
+        s,
+        toXY(so.flow, so.cross, horizontal),
+        ...mid.map((p) => toXY(p.flow, p.cross, horizontal)),
+        toXY(de.flow, de.cross, horizontal),
+        d,
+      ]);
+    } else if (plan.mode === "same") {
       // H-V-H: source flow face -> trunk -> target flow face.
       points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.dst.cross, horizontal), d]);
     } else if (plan.mode === "direct") {
