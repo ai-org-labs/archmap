@@ -204,6 +204,39 @@ describe("computeLayout", () => {
     }
   });
 
+  it("keeps hub routes orthogonal while ports are not overcrowded", () => {
+    const m = parse(`graph LR
+      A[A] --> Hub[Hub]
+      Hub --> B[B]
+      C[C] --> Hub
+      Hub --> D[D]
+      Hub --> E[E]
+      Hub --> F[F]
+      ---
+      nodes:
+        A: { zone: client }
+        B: { zone: aws }
+        C: { zone: gcp }
+        D: { zone: operations }
+        E: { zone: saas }
+        F: { zone: onprem }
+        Hub: { zone: gcp }
+      zones:
+        client: { contains: [A] }
+        aws: { contains: [B] }
+        gcp: { contains: [C, Hub] }
+        operations: { contains: [D] }
+        saas: { contains: [E] }
+        onprem: { contains: [F] }
+    `);
+    const layout = computeLayout(m, { rankBy: "zone" });
+    for (const edge of layout.edges.filter((e) => e.from === "Hub" || e.to === "Hub")) {
+      for (let i = 0; i < edge.points.length - 1; i++) {
+        expect(isAxisAligned(edge.points[i], edge.points[i + 1])).toBe(true);
+      }
+    }
+  });
+
   it("keeps edge labels off node boxes and other edge labels", () => {
     const m = parse(example);
     const layout = computeLayout(m);

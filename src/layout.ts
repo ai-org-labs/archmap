@@ -644,6 +644,7 @@ function routeEdges(
   interface Plan {
     e: { id: string; from: string; to: string; label?: string };
     mode: Mode;
+    allowDiagonal: boolean;
     forward: boolean;
     targetAbove: boolean;
     src: End;
@@ -717,7 +718,8 @@ function routeEdges(
     // same lane -> flow faces; adjacent lanes -> direct top/bottom drop;
     // 2+ lanes apart -> route the trunk through a column gap to clear nodes.
     const multiEdgePair = isMultiEdgePair(e);
-    let mode: Mode = isHub(e.from) || isHub(e.to) || multiEdgePair ? "side" : la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
+    const hubEdge = isHub(e.from) || isHub(e.to);
+    let mode: Mode = hubEdge || multiEdgePair ? "side" : la === lb ? "same" : Math.abs(la - lb) === 1 ? "direct" : "trunk";
     if (mode === "direct") {
       // A straight drop is only safe if no sibling in the same lane cell sits
       // between the source and the target; otherwise fall back to the trunk.
@@ -753,7 +755,8 @@ function routeEdges(
     }
 
     const plan: Plan = {
-      e, mode, forward, targetAbove,
+      e, mode, allowDiagonal: multiEdgePair,
+      forward, targetAbove,
       src: { node: e.from, face: srcFace, flow: 0, cross: 0 },
       dst: { node: e.to, face: dstFace, flow: 0, cross: 0 },
       trunk: (forward ? a.flowHigh + b.flowLow : a.flowLow + b.flowHigh) / 2,
@@ -783,6 +786,9 @@ function routeEdges(
       if (varyFlow) { end.flow = pos; end.cross = fixed; }
       else { end.cross = pos; end.flow = fixed; }
     });
+    if (entries.length >= 4) {
+      for (const entry of entries) plans[entry.planIndex].allowDiagonal = true;
+    }
   }
 
   // Distribute vertical trunks for forward same/trunk edges in the column gap.
@@ -829,9 +835,6 @@ function routeEdges(
     const d = toXY(plan.dst.flow, plan.dst.cross, horizontal);
     let points: LayoutPoint[];
     if (plan.mode === "side") {
-      // Dense hub and reciprocal routes can use a diagonal middle segment, but
-      // must leave/enter component borders orthogonally so connectors do not
-      // appear to stab into boxes at an angle.
       const stub = 24;
       const offset = (end: End): { flow: number; cross: number } => {
         if (end.face === "fL") return { flow: end.flow - stub, cross: end.cross };
@@ -841,7 +844,23 @@ function routeEdges(
       };
       const so = offset(plan.src);
       const de = offset(plan.dst);
-      points = simplifyPolyline([s, toXY(so.flow, so.cross, horizontal), toXY(de.flow, de.cross, horizontal), d]);
+      if (plan.allowDiagonal) {
+        // Last resort for dense/reciprocal routes: keep component stubs
+        // orthogonal, but allow the middle segment to be diagonal.
+        points = simplifyPolyline([s, toXY(so.flow, so.cross, horizontal), toXY(de.flow, de.cross, horizontal), d]);
+      } else {
+        const mid =
+          Math.abs(so.flow - de.flow) >= Math.abs(so.cross - de.cross)
+            ? [{ flow: (so.flow + de.flow) / 2, cross: so.cross }, { flow: (so.flow + de.flow) / 2, cross: de.cross }]
+            : [{ flow: so.flow, cross: (so.cross + de.cross) / 2 }, { flow: de.flow, cross: (so.cross + de.cross) / 2 }];
+        points = simplifyPolyline([
+          s,
+          toXY(so.flow, so.cross, horizontal),
+          ...mid.map((p) => toXY(p.flow, p.cross, horizontal)),
+          toXY(de.flow, de.cross, horizontal),
+          d,
+        ]);
+      }
     } else if (plan.mode === "same") {
       // H-V-H: source flow face -> trunk -> target flow face.
       points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.dst.cross, horizontal), d]);
