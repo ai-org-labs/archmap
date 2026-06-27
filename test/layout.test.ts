@@ -79,6 +79,21 @@ describe("computeLayout", () => {
     }
   });
 
+  it("reserves header space so zone labels do not overlap member nodes", () => {
+    const m = parse(`graph LR
+      A[Only Node]
+      ---
+      nodes:
+        A: { zone: onprem }
+      zones:
+        onprem: { label: OnPremises, contains: [A] }
+    `);
+    const layout = computeLayout(m);
+    const zone = layout.zones.find((z) => z.id === "onprem")!;
+    const node = layout.nodes.find((n) => n.id === "A")!;
+    expect(node.y - zone.y).toBeGreaterThanOrEqual(32);
+  });
+
   it("clips edge endpoints to node borders (two points each)", () => {
     const m = parse(`graph LR
       A[a] --> B[b]

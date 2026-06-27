@@ -5,16 +5,18 @@
   "status": "open",
   "origin": "human",
   "orchestrator_session_id": null,
-  "assigned_session_ids": [],
+  "assigned_session_ids": [
+    "codex-rendering-quality-label-clearance"
+  ],
   "related_decision_record_id": null,
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "created_at": "2026-06-26T19:09:32.293Z",
-  "updated_at": "2026-06-26T19:09:32.293Z",
-  "assigned_at": null,
+  "updated_at": "2026-06-27T03:57:00Z",
+  "assigned_at": "2026-06-27T03:54:00Z",
   "done_at": null,
   "retired_at": null,
-  "last_triaged_at": null,
+  "last_triaged_at": "2026-06-27T03:57:00Z",
   "stale_candidate_at": null,
   "retire_candidate_at": null,
-  "triage_notes": "Cut from product principles rendering quality plus 03 zone view/nesting and overlay readability sections. Completion: nested modeled zones/boundaries render legibly; dense diagrams remain inspectable; no edge-over-node/shared-endpoint regressions in tests/examples."
+  "triage_notes": "IN PROGRESS. Cut from product principles rendering quality plus 03 zone view/nesting and overlay readability sections. 2026-06-27 Codex partial: fixed observed comprehensive-sample label overlap where zone labels (e.g. OnPrem/On-premises) collided with member nodes by reserving 36px top header padding for zone/boundary boxes and widening lane gap to keep adjacent boxes separated. Added layout regression test for zone label header clearance. Actual comprehensive sample OnPrem headerGap now 36px. Completion: nested modeled zones/boundaries render legibly; dense diagrams remain inspectable; no edge-over-node/shared-endpoint regressions in tests/examples. Remaining: nested zone hierarchy display, boundary nesting quality, selected highlight, diagnostics-to-diagram focus, overlay conflict collapse/inspector handoff."
 }

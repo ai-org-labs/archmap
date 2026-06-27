@@ -106,9 +106,10 @@ const CHAR_W = 8;
 const NODE_PAD_X = 28;
 const RANK_GAP = 110; // gap between bands along the flow axis
 const NODE_GAP = 28; // gap between nodes within a band
-const LANE_GAP = 64; // gap between zone lanes on the cross axis (clears zone boxes)
+const LANE_GAP = 78; // gap between zone lanes on the cross axis (clears zone boxes)
 const MARGIN = 40;
 const ZONE_PAD = 22;
+const ZONE_LABEL_PAD = 36;
 
 function nodeWidth(label: string): number {
   return Math.max(NODE_MIN_W, Math.min(NODE_MAX_W, label.length * CHAR_W + NODE_PAD_X * 2));
@@ -335,7 +336,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     const members = (z.contains ?? []).map((id) => laid.get(id)).filter((n): n is LayoutNode => !!n);
     if (members.length === 0) continue;
     const minX = Math.min(...members.map((m) => m.x)) - ZONE_PAD;
-    const minY = Math.min(...members.map((m) => m.y)) - ZONE_PAD;
+    const minY = Math.min(...members.map((m) => m.y)) - ZONE_LABEL_PAD;
     const maxX = Math.max(...members.map((m) => m.x + m.w)) + ZONE_PAD;
     const maxY = Math.max(...members.map((m) => m.y + m.h)) + ZONE_PAD;
     zones.push({
@@ -369,7 +370,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     const members = memberIds.map((id) => laid.get(id)).filter((n): n is LayoutNode => !!n);
     if (members.length === 0) continue;
     const minX = Math.min(...members.map((m) => m.x)) - ZONE_PAD;
-    const minY = Math.min(...members.map((m) => m.y)) - ZONE_PAD;
+    const minY = Math.min(...members.map((m) => m.y)) - ZONE_LABEL_PAD;
     const maxX = Math.max(...members.map((m) => m.x + m.w)) + ZONE_PAD;
     const maxY = Math.max(...members.map((m) => m.y + m.h)) + ZONE_PAD;
     boundaries.push({
