@@ -102,8 +102,8 @@ const ZONE_ORDER = [
 const NODE_H = 48;
 const NODE_MIN_W = 96;
 const NODE_MAX_W = 260;
-const HUB_NODE_MAX_W = 340;
-const HUB_NODE_MAX_H = 96;
+const HUB_NODE_MAX_W = 420;
+const HUB_NODE_MAX_H = 128;
 const CHAR_W = 8;
 const NODE_PAD_X = 28;
 const RANK_GAP = 110; // gap between bands along the flow axis
@@ -120,8 +120,8 @@ function nodeWidth(label: string): number {
 function nodeSize(label: string, degree = 0): { w: number; h: number } {
   const extra = Math.max(0, degree - 4);
   return {
-    w: Math.min(HUB_NODE_MAX_W, nodeWidth(label) + extra * 10),
-    h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 6),
+    w: Math.min(HUB_NODE_MAX_W, nodeWidth(label) + extra * 18),
+    h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 10),
   };
 }
 
@@ -431,7 +431,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   // --- Edges: orthogonal routing with port + channel distribution -----------
   const nodeLane = new Map(model.nodes.map((n) => [n.id, laneIndex.get(laneKey(n))!]));
   const edges = routeEdges(validEdges, laid, rank, ranks, bandStart, bandExtent, horizontal, nodeLane);
-  resolveLabelCollisions(edges);
+  resolveLabelCollisions(edges, [...laid.values()]);
 
   const depth = Math.max(1, new Set([...laid.values()].map((n) => n.z)).size);
 
@@ -457,38 +457,98 @@ const LABEL_CHAR_W = 6.5;
 const LABEL_PAD = 8;
 const LABEL_H = 18;
 
+interface LabelBox { x0: number; x1: number; y0: number; y1: number }
+
+function labelBox(label: string, at: LayoutPoint, orient: "h" | "v" = "h"): LabelBox {
+  const w = label.length * LABEL_CHAR_W + LABEL_PAD;
+  const x0 = orient === "v" ? at.x - 2 : at.x - w / 2;
+  return { x0, x1: x0 + w, y0: at.y - LABEL_H / 2, y1: at.y + LABEL_H / 2 };
+}
+
+function inflateBox(box: LabelBox, pad: number): LabelBox {
+  return { x0: box.x0 - pad, x1: box.x1 + pad, y0: box.y0 - pad, y1: box.y1 + pad };
+}
+
+function overlapArea(a: LabelBox, b: LabelBox): number {
+  const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+  const oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+  return ox > 0 && oy > 0 ? ox * oy : 0;
+}
+
+function pointInBox(p: LayoutPoint, b: LabelBox): boolean {
+  return p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1;
+}
+
+function ccw(a: LayoutPoint, b: LayoutPoint, c: LayoutPoint): number {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+function segmentsIntersect(a: LayoutPoint, b: LayoutPoint, c: LayoutPoint, d: LayoutPoint): boolean {
+  const ab1 = ccw(a, b, c);
+  const ab2 = ccw(a, b, d);
+  const cd1 = ccw(c, d, a);
+  const cd2 = ccw(c, d, b);
+  return ab1 * ab2 <= 0 && cd1 * cd2 <= 0;
+}
+
+function segmentIntersectsBox(a: LayoutPoint, b: LayoutPoint, box: LabelBox): boolean {
+  if (pointInBox(a, box) || pointInBox(b, box)) return true;
+  if (Math.max(a.x, b.x) < box.x0 || Math.min(a.x, b.x) > box.x1 || Math.max(a.y, b.y) < box.y0 || Math.min(a.y, b.y) > box.y1) return false;
+  const tl = { x: box.x0, y: box.y0 };
+  const tr = { x: box.x1, y: box.y0 };
+  const br = { x: box.x1, y: box.y1 };
+  const bl = { x: box.x0, y: box.y1 };
+  return segmentsIntersect(a, b, tl, tr) || segmentsIntersect(a, b, tr, br) || segmentsIntersect(a, b, br, bl) || segmentsIntersect(a, b, bl, tl);
+}
+
 /**
- * Nudge overlapping edge labels apart vertically so they stay readable. Labels
- * keep their x (near their line); only the y is shifted, by the minimum needed.
+ * Place edge labels by trying several positions near the edge and picking the
+ * first low-conflict spot. Labels avoid node boxes, earlier labels, and all
+ * edge segments; if a diagram is too dense, this degrades to the least bad
+ * position instead of piling labels on top of each other.
  */
-function resolveLabelCollisions(edges: LayoutEdge[]): void {
-  interface Box { at: LayoutPoint; x0: number; x1: number; y0: number; y1: number }
-  const boxes: Box[] = [];
-  for (const e of edges) {
-    if (!e.label) continue;
-    const w = e.label.length * LABEL_CHAR_W + LABEL_PAD;
-    const x0 = e.labelOrient === "v" ? e.labelAt.x - 2 : e.labelAt.x - w / 2;
-    boxes.push({ at: e.labelAt, x0, x1: x0 + w, y0: e.labelAt.y - LABEL_H / 2, y1: e.labelAt.y + LABEL_H / 2 });
-  }
-  const GAP = 3;
-  for (let iter = 0; iter < 30; iter++) {
-    let moved = false;
-    for (let i = 0; i < boxes.length; i++) {
-      for (let j = i + 1; j < boxes.length; j++) {
-        const a = boxes[i];
-        const b = boxes[j];
-        const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
-        const oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
-        if (ox <= 0 || oy <= 0) continue;
-        const push = (oy + GAP) / 2;
-        // Move the upper box further up, the lower box further down.
-        const aUp = a.y0 + a.y1 <= b.y0 + b.y1 ? -1 : 1;
-        a.y0 += aUp * push; a.y1 += aUp * push; a.at.y += aUp * push;
-        b.y0 -= aUp * push; b.y1 -= aUp * push; b.at.y -= aUp * push;
-        moved = true;
-      }
+function resolveLabelCollisions(edges: LayoutEdge[], nodes: LayoutNode[]): void {
+  const reserved: LabelBox[] = nodes.map((n) => inflateBox({ x0: n.x, x1: n.x + n.w, y0: n.y, y1: n.y + n.h }, 8));
+  const segments = edges.flatMap((e) => e.points.slice(0, -1).map((p, i) => [p, e.points[i + 1]] as const));
+  const ordered = [...edges].filter((e) => e.label).sort((a, b) => (b.label!.length - a.label!.length));
+  for (const edge of ordered) {
+    const label = edge.label!;
+    const seg = longestSegment(edge.points);
+    const baseOrient = seg.orient;
+    const nearby = baseOrient === "h"
+      ? [{ x: 0, y: -14 }, { x: 0, y: 18 }, { x: 0, y: -34 }, { x: 0, y: 38 }]
+      : [{ x: 14, y: 0 }, { x: -52, y: 0 }, { x: 34, y: 0 }, { x: -72, y: 0 }];
+    const candidates: Array<{ x: number; y: number; orient: "h" | "v" }> = nearby.map((o) => ({ ...o, orient: baseOrient }));
+    for (const radius of [48, 78, 112, 150, 196, 250]) {
+      candidates.push(
+        { x: 0, y: -radius, orient: "h" },
+        { x: 0, y: radius, orient: "h" },
+        { x: -radius, y: 0, orient: "h" },
+        { x: radius, y: 0, orient: "h" },
+        { x: -radius, y: -radius / 2, orient: "h" },
+        { x: radius, y: -radius / 2, orient: "h" },
+        { x: -radius, y: radius / 2, orient: "h" },
+        { x: radius, y: radius / 2, orient: "h" },
+        { x: radius / 2, y: 0, orient: "v" },
+        { x: -radius, y: 0, orient: "v" },
+        { x: radius / 2, y: -radius / 2, orient: "v" },
+        { x: radius / 2, y: radius / 2, orient: "v" },
+      );
     }
-    if (!moved) break;
+    let best = { at: edge.labelAt, orient: baseOrient, score: Number.POSITIVE_INFINITY };
+    for (const offset of candidates) {
+      const at = { x: seg.x + offset.x, y: seg.y + offset.y };
+      const box = inflateBox(labelBox(label, at, offset.orient), 3);
+      const overlap = reserved.reduce((sum, other) => sum + overlapArea(box, other), 0);
+      const lineHits = segments.reduce((sum, [a, b]) => sum + (segmentIntersectsBox(a, b, box) ? 1 : 0), 0);
+      const distance = Math.abs(offset.x) + Math.abs(offset.y);
+      const score = overlap * 20 + lineHits * 900 + distance;
+      if (score < best.score) best = { at, orient: offset.orient, score };
+      if (score === distance) break;
+    }
+    edge.labelAt = best.at;
+    edge.labelOrient = best.orient;
+    reserved.push(inflateBox(labelBox(label, edge.labelAt, edge.labelOrient), 6));
   }
 }
 
@@ -769,26 +829,9 @@ function routeEdges(
     const d = toXY(plan.dst.flow, plan.dst.cross, horizontal);
     let points: LayoutPoint[];
     if (plan.mode === "side") {
-      const stub = 28;
-      const offset = (end: End): { flow: number; cross: number } => {
-        if (end.face === "fL") return { flow: end.flow - stub, cross: end.cross };
-        if (end.face === "fH") return { flow: end.flow + stub, cross: end.cross };
-        if (end.face === "cL") return { flow: end.flow, cross: end.cross - stub };
-        return { flow: end.flow, cross: end.cross + stub };
-      };
-      const so = offset(plan.src);
-      const de = offset(plan.dst);
-      const mid =
-        Math.abs(so.flow - de.flow) >= Math.abs(so.cross - de.cross)
-          ? [{ flow: (so.flow + de.flow) / 2, cross: so.cross }, { flow: (so.flow + de.flow) / 2, cross: de.cross }]
-          : [{ flow: so.flow, cross: (so.cross + de.cross) / 2 }, { flow: de.flow, cross: (so.cross + de.cross) / 2 }];
-      points = simplifyPolyline([
-        s,
-        toXY(so.flow, so.cross, horizontal),
-        ...mid.map((p) => toXY(p.flow, p.cross, horizontal)),
-        toXY(de.flow, de.cross, horizontal),
-        d,
-      ]);
+      // Dense hub and reciprocal routes prefer a direct diagonal between
+      // distributed ports. That avoids building bundles of parallel red lines.
+      points = simplifyPolyline([s, d]);
     } else if (plan.mode === "same") {
       // H-V-H: source flow face -> trunk -> target flow face.
       points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.dst.cross, horizontal), d]);

@@ -9,6 +9,16 @@ const example = readFileSync(
   "utf8",
 );
 
+function labelBox(label: string, at: { x: number; y: number }, orient: "h" | "v" = "h") {
+  const w = label.length * 6.5 + 8;
+  const x0 = orient === "v" ? at.x - 2 : at.x - w / 2;
+  return { x0, x1: x0 + w, y0: at.y - 9, y1: at.y + 9 };
+}
+
+function overlaps(a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }): boolean {
+  return Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) && Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0);
+}
+
 describe("computeLayout", () => {
   it("positions every node and produces a non-empty canvas", () => {
     const m = parse(example);
@@ -184,6 +194,24 @@ describe("computeLayout", () => {
       }
     }
     expect(touches.size).toBeGreaterThanOrEqual(3);
+    expect(layout.edges.filter((e) => e.from === "Hub" || e.to === "Hub").every((e) => e.points.length === 2)).toBe(true);
+  });
+
+  it("keeps edge labels off node boxes and other edge labels", () => {
+    const m = parse(example);
+    const layout = computeLayout(m);
+    const nodeBoxes = layout.nodes.map((n) => ({ x0: n.x - 2, x1: n.x + n.w + 2, y0: n.y - 2, y1: n.y + n.h + 2 }));
+    const labels = layout.edges
+      .filter((e) => e.label)
+      .map((e) => labelBox(e.label!, e.labelAt, e.labelOrient));
+    for (const label of labels) {
+      expect(nodeBoxes.some((node) => overlaps(label, node))).toBe(false);
+    }
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        expect(overlaps(labels[i], labels[j])).toBe(false);
+      }
+    }
   });
 
   it("routes reciprocal component edges on separate outside tracks", () => {
