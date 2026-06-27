@@ -434,11 +434,43 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   resolveLabelCollisions(edges, [...laid.values()]);
 
   const depth = Math.max(1, new Set([...laid.values()].map((n) => n.z)).size);
+  const allPoints = [
+    ...[...laid.values()].flatMap((n) => [{ x: n.x, y: n.y }, { x: n.x + n.w, y: n.y + n.h }]),
+    ...zones.flatMap((z) => [{ x: z.x, y: z.y }, { x: z.x + z.w, y: z.y + z.h }]),
+    ...boundaries.flatMap((b) => [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y + b.h }]),
+    ...edges.flatMap((e) => [...e.points, e.labelAt]),
+  ];
+  const minX = Math.min(...allPoints.map((p) => p.x));
+  const minY = Math.min(...allPoints.map((p) => p.y));
+  const maxX = Math.max(width, ...allPoints.map((p) => p.x));
+  const maxY = Math.max(height, ...allPoints.map((p) => p.y));
+  const shiftX = minX < MARGIN ? MARGIN - minX : 0;
+  const shiftY = minY < MARGIN ? MARGIN - minY : 0;
+  if (shiftX || shiftY) {
+    for (const n of laid.values()) {
+      n.x += shiftX;
+      n.y += shiftY;
+    }
+    for (const z of zones) {
+      z.x += shiftX;
+      z.y += shiftY;
+    }
+    for (const b of boundaries) {
+      b.x += shiftX;
+      b.y += shiftY;
+    }
+    for (const e of edges) {
+      e.points = e.points.map((p) => ({ x: p.x + shiftX, y: p.y + shiftY }));
+      e.labelAt = { x: e.labelAt.x + shiftX, y: e.labelAt.y + shiftY };
+    }
+  }
+  const canvasWidth = Math.max(width + shiftX, maxX + shiftX + MARGIN);
+  const canvasHeight = Math.max(height + shiftY, maxY + shiftY + MARGIN);
 
   return {
     direction,
-    width: Math.max(width, MARGIN * 2),
-    height: Math.max(height, MARGIN * 2),
+    width: Math.max(canvasWidth, MARGIN * 2),
+    height: Math.max(canvasHeight, MARGIN * 2),
     depth,
     nodes: [...laid.values()],
     zones,

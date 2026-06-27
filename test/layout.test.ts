@@ -266,6 +266,19 @@ describe("computeLayout", () => {
     }
   });
 
+  it("expands the comprehensive sample canvas to contain routed edge geometry", () => {
+    const m = parse(comprehensive);
+    const layout = computeLayout(m);
+    for (const edge of layout.edges) {
+      for (const point of [...edge.points, edge.labelAt]) {
+        expect(point.x).toBeGreaterThanOrEqual(0);
+        expect(point.y).toBeGreaterThanOrEqual(0);
+        expect(point.x).toBeLessThanOrEqual(layout.width);
+        expect(point.y).toBeLessThanOrEqual(layout.height);
+      }
+    }
+  });
+
   it("counts permission overlay relationships when sizing hub components", () => {
     const m = parse(`graph LR
       Principal[Service] --> Hub[Service]
