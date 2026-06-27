@@ -82,6 +82,8 @@ export function edgeStartpointSvg(point: { x: number; y: number }): string {
 
 interface Seg {
   edgeId: string;
+  index: number;
+  count: number;
   x0: number;
   y0: number;
   x1: number;
@@ -98,7 +100,7 @@ function segmentsOf(edgeId: string, points: { x: number; y: number }[]): Seg[] {
     const dy = Math.abs(y1 - y0);
     if (dx < 0.5 && dy < 0.5) continue; // zero-length
     const orient = dy < 0.5 ? "h" : dx < 0.5 ? "v" : "diag";
-    segs.push({ edgeId, x0, y0, x1, y1, orient });
+    segs.push({ edgeId, index: i, count: points.length - 1, x0, y0, x1, y1, orient });
   }
   return segs;
 }
@@ -119,6 +121,20 @@ function simplifyPoints(points: Array<{ x: number; y: number }>): Array<{ x: num
       }
     }
     out.push(p);
+  }
+  return out;
+}
+
+function orthogonalizePoints(points: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (points.length <= 1) return points;
+  const out: Array<{ x: number; y: number }> = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const prev = out[out.length - 1];
+    const next = points[i];
+    if (Math.abs(prev.x - next.x) >= 0.5 && Math.abs(prev.y - next.y) >= 0.5) {
+      out.push({ x: prev.x, y: next.y });
+    }
+    out.push(next);
   }
   return out;
 }
@@ -165,6 +181,19 @@ function parallelOffsets(allSegs: Seg[], spacing = 6): WeakMap<Seg, number> {
   return result;
 }
 
+function segDistance(seg: Seg): number {
+  return Math.abs(seg.x1 - seg.x0) + Math.abs(seg.y1 - seg.y0);
+}
+
+function pointAlong(seg: Seg, fromStart: boolean, distance: number): { x: number; y: number } {
+  const len = Math.max(segDistance(seg), 1);
+  const t = Math.min(Math.max(distance / len, 0), 1);
+  if (fromStart) {
+    return { x: seg.x0 + (seg.x1 - seg.x0) * t, y: seg.y0 + (seg.y1 - seg.y0) * t };
+  }
+  return { x: seg.x1 + (seg.x0 - seg.x1) * t, y: seg.y1 + (seg.y0 - seg.y1) * t };
+}
+
 function offsetSegmentPoint(seg: Seg, point: { x: number; y: number }, offset: number): { x: number; y: number } {
   if (seg.orient === "h") return { x: point.x, y: point.y + offset };
   if (seg.orient === "v") return { x: point.x + offset, y: point.y };
@@ -181,9 +210,11 @@ function offsetCorner(prev: Seg, next: Seg, prevOffset: number, nextOffset: numb
 
 function offsetPolyline(points: Array<{ x: number; y: number }>, segs: Seg[], offsets: WeakMap<Seg, number>): Array<{ x: number; y: number }> {
   if (segs.length === 0) return points;
+  const protectedStub = 14;
   const out: Array<{ x: number; y: number }> = [points[0]];
   const first = segs[0];
-  out.push(offsetSegmentPoint(first, { x: first.x0, y: first.y0 }, offsets.get(first) ?? 0));
+  const firstOffset = offsets.get(first) ?? 0;
+  out.push(firstOffset === 0 ? { x: first.x0, y: first.y0 } : pointAlong(first, true, protectedStub));
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i];
     const offset = offsets.get(seg) ?? 0;
@@ -191,11 +222,12 @@ function offsetPolyline(points: Array<{ x: number; y: number }>, segs: Seg[], of
       const next = segs[i + 1];
       out.push(offsetCorner(seg, next, offset, offsets.get(next) ?? 0));
     } else {
-      out.push(offsetSegmentPoint(seg, { x: seg.x1, y: seg.y1 }, offset));
+      out.push(offset === 0 ? { x: seg.x1, y: seg.y1 } : offsetSegmentPoint(seg, pointAlong(seg, false, protectedStub), offset));
+      if (offset !== 0) out.push(pointAlong(seg, false, protectedStub));
     }
   }
   out.push(points[points.length - 1]);
-  return simplifyPoints(out);
+  return simplifyPoints(orthogonalizePoints(out));
 }
 
 /**

@@ -194,4 +194,14 @@ describe("crossing jumps (buildEdgePaths)", () => {
       }
     }
   });
+
+  it("does not offset the first component-exit segment", () => {
+    const edges = [
+      { id: "a", points: [{ x: 0, y: 50 }, { x: 40, y: 50 }, { x: 40, y: 120 }] },
+      { id: "b", points: [{ x: 0, y: 50 }, { x: 40, y: 50 }, { x: 40, y: 0 }] },
+    ];
+    const paths = buildEdgePaths(edges, 7);
+    expect(paths.get("a")).toContain("M 0.0 50.0 L 14.0 50.0");
+    expect(paths.get("b")).toContain("M 0.0 50.0 L 14.0 50.0");
+  });
 });
