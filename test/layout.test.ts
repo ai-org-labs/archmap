@@ -19,6 +19,10 @@ function overlaps(a: { x0: number; x1: number; y0: number; y1: number }, b: { x0
   return Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) && Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0);
 }
 
+function isAxisAligned(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
+  return Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5;
+}
+
 describe("computeLayout", () => {
   it("positions every node and produces a non-empty canvas", () => {
     const m = parse(example);
@@ -194,7 +198,10 @@ describe("computeLayout", () => {
       }
     }
     expect(touches.size).toBeGreaterThanOrEqual(3);
-    expect(layout.edges.filter((e) => e.from === "Hub" || e.to === "Hub").every((e) => e.points.length === 2)).toBe(true);
+    for (const edge of layout.edges.filter((e) => e.from === "Hub" || e.to === "Hub")) {
+      expect(isAxisAligned(edge.points[0], edge.points[1])).toBe(true);
+      expect(isAxisAligned(edge.points[edge.points.length - 2], edge.points[edge.points.length - 1])).toBe(true);
+    }
   });
 
   it("keeps edge labels off node boxes and other edge labels", () => {

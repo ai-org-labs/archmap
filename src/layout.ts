@@ -829,9 +829,19 @@ function routeEdges(
     const d = toXY(plan.dst.flow, plan.dst.cross, horizontal);
     let points: LayoutPoint[];
     if (plan.mode === "side") {
-      // Dense hub and reciprocal routes prefer a direct diagonal between
-      // distributed ports. That avoids building bundles of parallel red lines.
-      points = simplifyPolyline([s, d]);
+      // Dense hub and reciprocal routes can use a diagonal middle segment, but
+      // must leave/enter component borders orthogonally so connectors do not
+      // appear to stab into boxes at an angle.
+      const stub = 24;
+      const offset = (end: End): { flow: number; cross: number } => {
+        if (end.face === "fL") return { flow: end.flow - stub, cross: end.cross };
+        if (end.face === "fH") return { flow: end.flow + stub, cross: end.cross };
+        if (end.face === "cL") return { flow: end.flow, cross: end.cross - stub };
+        return { flow: end.flow, cross: end.cross + stub };
+      };
+      const so = offset(plan.src);
+      const de = offset(plan.dst);
+      points = simplifyPolyline([s, toXY(so.flow, so.cross, horizontal), toXY(de.flow, de.cross, horizontal), d]);
     } else if (plan.mode === "same") {
       // H-V-H: source flow face -> trunk -> target flow face.
       points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.dst.cross, horizontal), d]);
