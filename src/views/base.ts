@@ -103,14 +103,72 @@ function chooseFaces(from: LayoutNode, to: LayoutNode): { source: Face; target: 
   return dy >= 0 ? { source: "bottom", target: "top" } : { source: "top", target: "bottom" };
 }
 
+function boundaryPoint(node: LayoutNode, face: Face, point: { x: number; y: number }): { x: number; y: number } {
+  const cx = node.x + node.w / 2;
+  const cy = node.y + node.h / 2;
+  const rx = node.w / 2;
+  const ry = node.h / 2;
+  const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+  const safeSqrt = (value: number): number => Math.sqrt(Math.max(0, value));
+
+  if (node.shape === "circle") {
+    if (face === "left" || face === "right") {
+      const y = clamp(point.y, node.y, node.y + node.h);
+      const dx = rx * safeSqrt(1 - ((y - cy) / ry) ** 2);
+      return { x: cx + (face === "right" ? dx : -dx), y };
+    }
+    const x = clamp(point.x, node.x, node.x + node.w);
+    const dy = ry * safeSqrt(1 - ((x - cx) / rx) ** 2);
+    return { x, y: cy + (face === "bottom" ? dy : -dy) };
+  }
+
+  if (node.shape === "diamond") {
+    if (face === "left" || face === "right") {
+      const y = clamp(point.y, node.y, node.y + node.h);
+      const dx = rx * Math.max(0, 1 - Math.abs(y - cy) / ry);
+      return { x: cx + (face === "right" ? dx : -dx), y };
+    }
+    const x = clamp(point.x, node.x, node.x + node.w);
+    const dy = ry * Math.max(0, 1 - Math.abs(x - cx) / rx);
+    return { x, y: cy + (face === "bottom" ? dy : -dy) };
+  }
+
+  if (node.shape === "database") {
+    const capRy = Math.min(10, node.h / 6);
+    const topCy = node.y + capRy;
+    const bottomCy = node.y + node.h - capRy;
+    if (face === "left" || face === "right") {
+      const y = clamp(point.y, node.y, node.y + node.h);
+      let x = face === "right" ? node.x + node.w : node.x;
+      if (y < topCy) {
+        const dx = rx * safeSqrt(1 - ((y - topCy) / capRy) ** 2);
+        x = cx + (face === "right" ? dx : -dx);
+      } else if (y > bottomCy) {
+        const dx = rx * safeSqrt(1 - ((y - bottomCy) / capRy) ** 2);
+        x = cx + (face === "right" ? dx : -dx);
+      }
+      return { x, y };
+    }
+    const x = clamp(point.x, node.x, node.x + node.w);
+    const capCy = face === "bottom" ? bottomCy : topCy;
+    const dy = capRy * safeSqrt(1 - ((x - cx) / rx) ** 2);
+    return { x, y: capCy + (face === "bottom" ? dy : -dy) };
+  }
+
+  if (face === "left") return { x: node.x, y: clamp(point.y, node.y, node.y + node.h) };
+  if (face === "right") return { x: node.x + node.w, y: clamp(point.y, node.y, node.y + node.h) };
+  if (face === "top") return { x: clamp(point.x, node.x, node.x + node.w), y: node.y };
+  return { x: clamp(point.x, node.x, node.x + node.w), y: node.y + node.h };
+}
+
 function portPoint(node: LayoutNode, face: Face, slot: number, count: number): { x: number; y: number } {
   const inset = Math.min(10, Math.max(4, Math.min(node.w, node.h) * 0.12));
   const span = face === "left" || face === "right" ? Math.max(1, node.h - inset * 2) : Math.max(1, node.w - inset * 2);
   const along = count <= 1 ? 0.5 : slot / (count - 1);
-  if (face === "left") return { x: node.x, y: node.y + inset + span * along };
-  if (face === "right") return { x: node.x + node.w, y: node.y + inset + span * along };
-  if (face === "top") return { x: node.x + inset + span * along, y: node.y };
-  return { x: node.x + inset + span * along, y: node.y + node.h };
+  if (face === "left") return boundaryPoint(node, face, { x: node.x, y: node.y + inset + span * along });
+  if (face === "right") return boundaryPoint(node, face, { x: node.x + node.w, y: node.y + inset + span * along });
+  if (face === "top") return boundaryPoint(node, face, { x: node.x + inset + span * along, y: node.y });
+  return boundaryPoint(node, face, { x: node.x + inset + span * along, y: node.y + node.h });
 }
 
 function orthogonalPoints(a: { x: number; y: number }, b: { x: number; y: number }, sourceFace: Face): Array<{ x: number; y: number }> {

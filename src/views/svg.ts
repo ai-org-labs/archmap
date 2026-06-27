@@ -345,7 +345,7 @@ export const DEFAULT_STYLE = `
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
-.archmap-edge-startpoint { fill: var(--archmap-edge-startpoint, #111827); stroke: var(--archmap-bg, #ffffff); stroke-width: 1; }
+.archmap-edge-startpoint { fill: var(--archmap-edge-stroke, #5b6b86); stroke: var(--archmap-bg, #ffffff); stroke-width: 1; }
 .archmap-arrowhead { fill: var(--archmap-edge-stroke, #5b6b86); }
 .archmap-edge-label text { fill: var(--archmap-edge-label, #3a4a63); font: 400 11px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-label-bg { fill: var(--archmap-bg, #ffffff); opacity: 0.85; }
@@ -354,9 +354,11 @@ export const DEFAULT_STYLE = `
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #b3261e); font: 600 12px var(--archmap-font, system-ui, sans-serif); }
 .archmap-emphasis .archmap-node-shape, .archmap-emphasis .archmap-node-shape-top { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
 .archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
+.archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis, #b3261e); }
 .archmap-arrowhead-emph { fill: var(--archmap-emphasis, #b3261e); }
 .archmap-badge { fill: var(--archmap-badge, #7a4f9a); font: 600 10px var(--archmap-font, system-ui, sans-serif); }
 .archmap-overlay-edge .archmap-edge-path { stroke: var(--archmap-permission, #7a4f9a); stroke-width: 2; stroke-dasharray: 6 4; }
+.archmap-overlay-edge .archmap-edge-startpoint { fill: var(--archmap-permission, #7a4f9a); }
 .archmap-overlay-edge .archmap-edge-label text { fill: var(--archmap-permission, #7a4f9a); font-weight: 600; }
 .archmap-overlay-summary rect { fill: var(--archmap-bg, #ffffff); stroke: var(--archmap-permission, #7a4f9a); stroke-width: 1; opacity: 0.94; }
 .archmap-overlay-summary text { fill: var(--archmap-permission, #7a4f9a); font: 600 10px var(--archmap-font, system-ui, sans-serif); }

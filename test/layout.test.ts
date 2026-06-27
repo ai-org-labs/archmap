@@ -23,6 +23,38 @@ function isAxisAligned(a: { x: number; y: number }, b: { x: number; y: number })
   return Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5;
 }
 
+function isOnShapeBoundary(
+  shape: string,
+  node: { x: number; y: number; w: number; h: number },
+  point: { x: number; y: number },
+): boolean {
+  const cx = node.x + node.w / 2;
+  const cy = node.y + node.h / 2;
+  const rx = node.w / 2;
+  const ry = node.h / 2;
+  if (shape === "circle") {
+    const v = ((point.x - cx) / rx) ** 2 + ((point.y - cy) / ry) ** 2;
+    return Math.abs(v - 1) < 0.03;
+  }
+  if (shape === "diamond") {
+    const v = Math.abs(point.x - cx) / rx + Math.abs(point.y - cy) / ry;
+    return Math.abs(v - 1) < 0.03;
+  }
+  if (shape === "database") {
+    const capRy = Math.min(10, node.h / 6);
+    const topCy = node.y + capRy;
+    const bottomCy = node.y + node.h - capRy;
+    const onSide =
+      (Math.abs(point.x - node.x) < 0.5 || Math.abs(point.x - (node.x + node.w)) < 0.5) &&
+      point.y >= topCy - 0.5 &&
+      point.y <= bottomCy + 0.5;
+    const topCap = ((point.x - cx) / rx) ** 2 + ((point.y - topCy) / capRy) ** 2;
+    const bottomCap = ((point.x - cx) / rx) ** 2 + ((point.y - bottomCy) / capRy) ** 2;
+    return onSide || Math.abs(topCap - 1) < 0.04 || Math.abs(bottomCap - 1) < 0.04;
+  }
+  return false;
+}
+
 describe("computeLayout", () => {
   it("positions every node and produces a non-empty canvas", () => {
     const m = parse(example);
@@ -160,6 +192,21 @@ describe("computeLayout", () => {
     const layout = computeLayout(m);
     for (const edge of layout.edges) {
       expect(edge.points.length).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("places endpoints on non-rectangular node boundaries", () => {
+    const m = parse(`graph LR
+      App[App] --> Circle((Circle))
+      App --> Diamond{Decision}
+      App --> DB[(Database)]
+    `);
+    const layout = computeLayout(m);
+    for (const id of ["Circle", "Diamond", "DB"]) {
+      const node = layout.nodes.find((n) => n.id === id)!;
+      const edge = layout.edges.find((e) => e.to === id)!;
+      const end = edge.points[edge.points.length - 1];
+      expect(isOnShapeBoundary(node.shape, node, end)).toBe(true);
     }
   });
 

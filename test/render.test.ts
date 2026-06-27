@@ -45,6 +45,9 @@ describe("render", () => {
     `);
     const { svg } = render(m, { view: "overview" });
     expect(svg).toContain('class="archmap-edge-startpoint"');
+    expect(svg).toContain(".archmap-edge-startpoint { fill: var(--archmap-edge-stroke");
+    expect(svg).toContain(".archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis");
+    expect(svg).toContain(".archmap-overlay-edge .archmap-edge-startpoint { fill: var(--archmap-permission");
   });
 
   it("supports the baseView plus overlays API", () => {

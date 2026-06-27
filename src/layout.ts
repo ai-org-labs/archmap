@@ -571,6 +571,7 @@ function longestSegment(points: LayoutPoint[]): { x: number; y: number; orient: 
 }
 
 type Face = "fL" | "fH" | "cL" | "cH"; // flow-low/high (left/right), cross-low/high (top/bottom)
+type BoxFace = "left" | "right" | "top" | "bottom";
 
 /** Drop duplicate and collinear points from an orthogonal polyline. */
 function simplifyPolyline(pts: LayoutPoint[]): LayoutPoint[] {
@@ -594,18 +595,71 @@ function simplifyPolyline(pts: LayoutPoint[]): LayoutPoint[] {
   return out;
 }
 
+function boundaryPoint(node: LayoutNode, face: BoxFace, point: LayoutPoint): LayoutPoint {
+  const cx = node.x + node.w / 2;
+  const cy = node.y + node.h / 2;
+  const rx = node.w / 2;
+  const ry = node.h / 2;
+  const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+  const safeSqrt = (value: number): number => Math.sqrt(Math.max(0, value));
+
+  if (node.shape === "circle") {
+    if (face === "left" || face === "right") {
+      const y = clamp(point.y, node.y, node.y + node.h);
+      const dx = rx * safeSqrt(1 - ((y - cy) / ry) ** 2);
+      return { x: cx + (face === "right" ? dx : -dx), y };
+    }
+    const x = clamp(point.x, node.x, node.x + node.w);
+    const dy = ry * safeSqrt(1 - ((x - cx) / rx) ** 2);
+    return { x, y: cy + (face === "bottom" ? dy : -dy) };
+  }
+
+  if (node.shape === "diamond") {
+    if (face === "left" || face === "right") {
+      const y = clamp(point.y, node.y, node.y + node.h);
+      const dx = rx * Math.max(0, 1 - Math.abs(y - cy) / ry);
+      return { x: cx + (face === "right" ? dx : -dx), y };
+    }
+    const x = clamp(point.x, node.x, node.x + node.w);
+    const dy = ry * Math.max(0, 1 - Math.abs(x - cx) / rx);
+    return { x, y: cy + (face === "bottom" ? dy : -dy) };
+  }
+
+  if (node.shape === "database") {
+    const capRy = Math.min(10, node.h / 6);
+    const topCy = node.y + capRy;
+    const bottomCy = node.y + node.h - capRy;
+    if (face === "left" || face === "right") {
+      const y = clamp(point.y, node.y, node.y + node.h);
+      let x = face === "right" ? node.x + node.w : node.x;
+      if (y < topCy) {
+        const dx = rx * safeSqrt(1 - ((y - topCy) / capRy) ** 2);
+        x = cx + (face === "right" ? dx : -dx);
+      } else if (y > bottomCy) {
+        const dx = rx * safeSqrt(1 - ((y - bottomCy) / capRy) ** 2);
+        x = cx + (face === "right" ? dx : -dx);
+      }
+      return { x, y };
+    }
+    const x = clamp(point.x, node.x, node.x + node.w);
+    const capCy = face === "bottom" ? bottomCy : topCy;
+    const dy = capRy * safeSqrt(1 - ((x - cx) / rx) ** 2);
+    return { x, y: capCy + (face === "bottom" ? dy : -dy) };
+  }
+
+  if (face === "left") return { x: node.x, y: clamp(point.y, node.y, node.y + node.h) };
+  if (face === "right") return { x: node.x + node.w, y: clamp(point.y, node.y, node.y + node.h) };
+  if (face === "top") return { x: clamp(point.x, node.x, node.x + node.w), y: node.y };
+  return { x: clamp(point.x, node.x, node.x + node.w), y: node.y + node.h };
+}
+
 /**
  * Orthogonal edge routing on a swimlane grid. Verticals run in column gaps and
  * horizontals run inside lanes or in lane gaps, so lines never cross node boxes.
  *
- * - Every edge leaves its source's flow face (left/right) into the column gap
- *   after the source, where a distinct vertical "trunk" carries it across lanes.
- * - Same-lane edges then enter the target's flow face (H-V-H).
- * - Cross-lane edges run a horizontal in the lane gap next to the target, then
- *   a short vertical into the target's top/bottom face (H-V-H-V) — keeping the
- *   target's in-lane flow clear.
- * - Trunks (per source column) and lane-gap channels (per target) are spread so
- *   parallel runs and same-target edges don't coincide; labels sit off the line.
+ * The default path is straight or one-bend orthogonal. Ports are distributed on
+ * component faces, then projected from the bounding box to the actual rendered
+ * shape boundary (ellipse, diamond, database cylinder, or rectangle).
  */
 function routeEdges(
   list: { id: string; from: string; to: string; label?: string }[],
@@ -629,6 +683,24 @@ function routeEdges(
     const crossLow = horizontal ? n.y : n.x;
     const crossSize = horizontal ? n.h : n.w;
     return { flowLow, flowHigh: flowLow + flowSize, flowSize, flowCenter: flowLow + flowSize / 2, crossLow, crossHigh: crossLow + crossSize, crossSize, crossCenter: crossLow + crossSize / 2 };
+  };
+  const boxFace = (face: Face): BoxFace => {
+    if (horizontal) {
+      if (face === "fL") return "left";
+      if (face === "fH") return "right";
+      if (face === "cL") return "top";
+      return "bottom";
+    }
+    if (face === "fL") return "top";
+    if (face === "fH") return "bottom";
+    if (face === "cL") return "left";
+    return "right";
+  };
+  const projectEnd = (end: End): void => {
+    const node = laid.get(end.node)!;
+    const p = boundaryPoint(node, boxFace(end.face), toXY(end.flow, end.cross, horizontal));
+    end.flow = horizontal ? p.x : p.y;
+    end.cross = horizontal ? p.y : p.x;
   };
 
   // Group node ids by (rank, lane) so we can tell whether a node is the extreme
@@ -793,6 +865,10 @@ function routeEdges(
       if (varyFlow) { end.flow = pos; end.cross = fixed; }
       else { end.cross = pos; end.flow = fixed; }
     });
+  }
+  for (const plan of plans) {
+    projectEnd(plan.src);
+    projectEnd(plan.dst);
   }
 
   // Distribute vertical trunks for forward same/trunk edges in the column gap.
