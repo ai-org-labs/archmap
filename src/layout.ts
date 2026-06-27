@@ -908,6 +908,12 @@ function routeEdges(
     const sourceIsFlow = src.face === "fL" || src.face === "fH";
     return sourceIsFlow ? [a, { x: b.x, y: a.y }, b] : [a, { x: a.x, y: b.y }, b];
   };
+  const routeLength = (points: LayoutPoint[]): number =>
+    points.reduce((sum, p, i) => {
+      if (i === 0) return 0;
+      const prev = points[i - 1];
+      return sum + Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y);
+    }, 0);
   const pointInsideShape = (node: LayoutNode, point: LayoutPoint, pad = 0.75): boolean => {
     const cx = node.x + node.w / 2;
     const cy = node.y + node.h / 2;
@@ -984,10 +990,11 @@ function routeEdges(
       const rankedFaces = allowedSrcFaces
         .map((face) => {
           const dst = complementaryTargetFace(face, a, b);
-          const hits = routeNodeHits(roughPoints(faceMidpoint(e.from, face), faceMidpoint(e.to, dst)), e.from, e.to);
-          return { face, hits, cost: faceCost(face, preferred) };
+          const route = roughPoints(faceMidpoint(e.from, face), faceMidpoint(e.to, dst));
+          const hits = routeNodeHits(route, e.from, e.to);
+          return { face, hits, length: routeLength(route), cost: faceCost(face, preferred) };
         })
-        .sort((left, right) => left.hits - right.hits || left.cost - right.cost);
+        .sort((left, right) => left.hits - right.hits || left.length - right.length || left.cost - right.cost);
       const preferredNoHit = rankedFaces[0]?.face ?? allowedSrcFaces[0];
       srcFace = isHub(e.from)
         ? balancedHubFace(e.from, preferredNoHit, rankedFaces.filter((item) => item.hits === rankedFaces[0].hits).map((item) => item.face))
@@ -1024,8 +1031,28 @@ function routeEdges(
     entries.sort((p, q) => p.sortKey - q.sortKey);
     const span = size - FACE_INSET * 2;
     const n = entries.length;
+    const min = low + FACE_INSET;
+    const max = low + FACE_INSET + span;
+    const clampPos = (value: number): number => Math.min(max, Math.max(min, value));
+    let positions = entries.map((entry) => clampPos(entry.sortKey));
+    if (n > 1) {
+      const minSep = Math.min(18, span / Math.max(1, n - 1));
+      for (let i = 1; i < positions.length; i++) {
+        positions[i] = Math.max(positions[i], positions[i - 1] + minSep);
+      }
+      const overflow = positions[positions.length - 1] - max;
+      if (overflow > 0) positions = positions.map((pos) => pos - overflow);
+      for (let i = positions.length - 2; i >= 0; i--) {
+        positions[i] = Math.min(positions[i], positions[i + 1] - minSep);
+      }
+      const underflow = min - positions[0];
+      if (underflow > 0) positions = positions.map((pos) => pos + underflow);
+      if (positions[0] < min - 0.5 || positions[positions.length - 1] > max + 0.5) {
+        positions = entries.map((_, i) => min + (span * i) / (n - 1));
+      }
+    }
     entries.forEach((entry, i) => {
-      const pos = low + FACE_INSET + (n === 1 ? span / 2 : (span * i) / (n - 1));
+      const pos = n === 1 ? clampPos(entry.sortKey) : positions[i];
       const end = entry.isSource ? plans[entry.planIndex].src : plans[entry.planIndex].dst;
       if (varyFlow) { end.flow = pos; end.cross = fixed; }
       else { end.cross = pos; end.flow = fixed; }
@@ -1125,7 +1152,7 @@ function routeEdges(
                   return {
                     route,
                     hits: routeNodeHits(route, plan.e.from, plan.e.to),
-                    len: route.length,
+                    len: routeLength(route),
                     targetFace,
                     cost:
                       faceCost(sourceFace, plan.src.face) +
@@ -1139,7 +1166,7 @@ function routeEdges(
           )
           .sort((a, b) => {
             const targetBias = (face: Face): number => face === "cH" ? 0 : face === "fH" ? 1 : face === "fL" ? 2 : 3;
-            return a.hits - b.hits || targetBias(a.targetFace) - targetBias(b.targetFace) || a.cost - b.cost || a.len - b.len;
+            return a.hits - b.hits || a.len - b.len || a.cost - b.cost || targetBias(a.targetFace) - targetBias(b.targetFace);
           })[0].route
       : minimal;
     // Offset the label off the line (above for H, to the right for V) so a

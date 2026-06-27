@@ -291,6 +291,32 @@ describe("computeLayout", () => {
     }
   });
 
+  it("chooses nearby side ports for shorter unobstructed routes", () => {
+    const m = parse(`graph LR
+      Source[Source] --> Target[Target]
+      ---
+      nodes:
+        Source: { zone: gcp }
+        Target: { zone: client }
+      zones:
+        client: { contains: [Target] }
+        gcp: { contains: [Source] }
+    `);
+    const layout = computeLayout(m);
+    const source = layout.nodes.find((n) => n.id === "Source")!;
+    const target = layout.nodes.find((n) => n.id === "Target")!;
+    const edge = layout.edges[0];
+    const start = edge.points[0];
+    const end = edge.points[edge.points.length - 1];
+    const centerStartY = source.y + source.h / 2;
+    const targetCenterY = target.y + target.h / 2;
+
+    expect(start.x).toBeCloseTo(source.x + source.w, 1);
+    expect(Math.abs(start.y - targetCenterY)).toBeLessThan(Math.abs(centerStartY - targetCenterY));
+    expect(end.y).toBeCloseTo(target.y + target.h, 1);
+    expect(edge.points.length).toBeLessThanOrEqual(3);
+  });
+
   it("places endpoints on non-rectangular node boundaries", () => {
     const m = parse(`graph LR
       App[App] --> Circle((Circle))
