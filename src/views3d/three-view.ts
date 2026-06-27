@@ -14,7 +14,6 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
 import { registerView, resolveNodeIcons } from "archmap";
 import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "archmap";
 import { buildScene3D } from "./scene.js";
@@ -332,28 +331,62 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   controls.screenSpacePanning = true;
   controls.update();
 
-  // Orientation gizmo in the corner. Clicking an axis snaps the camera to that
-  // view (top / front / side); it animates around the scene center.
-  const viewHelper = new ViewHelper(camera, renderer.domElement);
-  viewHelper.center.copy(center);
-  renderer.autoClear = false;
-  const clock = new THREE.Clock();
-
-  // A click on the gizmo triggers a camera animation; otherwise OrbitControls.
-  const onPointerUp = (event: PointerEvent) => {
-    viewHelper.handleClick(event);
+  const snapCamera = (view: "top" | "front" | "right") => {
+    const offset = view === "top"
+      ? new THREE.Vector3(0, dist, 0.001)
+      : view === "front"
+        ? new THREE.Vector3(0, 0, dist)
+        : new THREE.Vector3(dist, 0, 0);
+    camera.position.copy(center).add(offset);
+    camera.up.set(0, 1, 0);
+    if (view === "top") camera.up.set(0, 0, -1);
+    camera.lookAt(center);
+    controls.target.copy(center);
+    controls.update();
   };
-  renderer.domElement.addEventListener("pointerup", onPointerUp);
+
+  const cube = document.createElement("div");
+  cube.className = "archmap-view-cube";
+  cube.style.cssText =
+    "position:absolute;right:18px;bottom:18px;z-index:4;width:96px;height:96px;perspective:260px;" +
+    "pointer-events:none;";
+  const cubeBody = document.createElement("div");
+  cubeBody.style.cssText =
+    "position:absolute;left:22px;top:18px;width:56px;height:56px;transform-style:preserve-3d;" +
+    "transform:rotateX(-26deg) rotateY(36deg);pointer-events:auto;";
+  const faceCss =
+    "position:absolute;left:0;top:0;width:56px;height:56px;border:1px solid rgba(85,108,148,0.55);" +
+    "background:rgba(248,250,252,0.94);color:#334155;box-shadow:0 6px 18px rgba(28,39,51,0.14);" +
+    "font:700 12px system-ui,sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer;";
+  const face = (label: string, view: "top" | "front" | "right", transform: string) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    btn.title = `${label} view`;
+    btn.style.cssText = `${faceCss}transform:${transform};`;
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      snapCamera(view);
+    });
+    return btn;
+  };
+  cubeBody.append(
+    face("正面", "front", "translateZ(28px)"),
+    face("上面", "top", "rotateX(90deg) translateZ(28px)"),
+    face("右側", "right", "rotateY(90deg) translateZ(28px)"),
+  );
+  cube.appendChild(cubeBody);
+  el.appendChild(cube);
+
+  renderer.autoClear = false;
 
   let raf = 0;
   const tick = () => {
     raf = requestAnimationFrame(tick);
-    const delta = clock.getDelta();
-    if (viewHelper.animating) viewHelper.update(delta);
     controls.update();
     renderer.clear();
     renderer.render(scene, camera);
-    viewHelper.render(renderer);
   };
   tick();
 
@@ -379,8 +412,6 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     dispose() {
       cancelAnimationFrame(raf);
       observer.disconnect();
-      renderer.domElement.removeEventListener("pointerup", onPointerUp);
-      viewHelper.dispose();
       controls.dispose();
       for (const d of disposables) d.dispose();
       floorGeo.dispose();
@@ -389,6 +420,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
       (grid.material as THREE.Material).dispose();
       renderer.dispose();
       renderer.domElement.remove();
+      cube.remove();
     },
   };
 }

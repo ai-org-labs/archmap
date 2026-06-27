@@ -710,6 +710,11 @@ export function defineArchMapViewerElement(): void {
       const actionCss =
         "min-width:28px;min-height:26px;padding:3px 8px;border-radius:999px;background:#eef2f7;" +
         "color:#334155;border:1px solid #cbd5e1;cursor:pointer;";
+      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize") => {
+        button.innerHTML = icon === "expand"
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;display:block"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;display:block"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg>';
+      };
       const paintTag = (wrap: HTMLElement, checked: boolean) => {
         wrap.style.cssText = tagCss + (checked ? "background:#e6edf7;border-color:#7892bd;color:#213a63;" : "");
       };
@@ -731,14 +736,16 @@ export function defineArchMapViewerElement(): void {
 
       const expand = document.createElement("button");
       expand.type = "button";
-      expand.textContent = "+";
       expand.title = "Expand tags";
+      expand.ariaLabel = "Expand tags";
       expand.style.cssText = actionCss;
+      setActionIcon(expand, "expand");
       const minimize = document.createElement("button");
       minimize.type = "button";
-      minimize.textContent = "-";
       minimize.title = "Minimize tags";
+      minimize.ariaLabel = "Minimize tags";
       minimize.style.cssText = actionCss;
+      setActionIcon(minimize, "minimize");
       minimize.addEventListener("click", () => {
         for (const el of panelElements) el.style.display = "none";
         minimize.style.display = "none";

@@ -40,6 +40,7 @@
     .tag input { margin: 0; accent-color: #34507a; }
     .tag:has(input:checked) { background: #e6edf7; border-color: #7892bd; color: #213a63; }
     .tag-action { min-width: 28px; min-height: 26px; padding: 3px 8px; border-radius: 999px; background: #eef2f7; color: #334155; border: 1px solid #cbd5e1; }
+    .tag-action svg { width: 15px; height: 15px; display: block; stroke: currentColor; }
     .diag-log { max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; font: 11px ui-monospace, monospace; }
     .err { color: #b3261e; }
     .warn { color: #a06a00; }
@@ -58,8 +59,8 @@
     <div class="diagram">
       <div class="diagram-tags" id="diagram-tags">
         <div class="tag-panel" id="tag-panel">
-          <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags">+</button>
-          <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags">-</button>
+          <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags" aria-label="Expand tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
+          <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags" aria-label="Minimize tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg></button>
           <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen">Full</button>
           <fieldset class="tag-group" id="base-view">
             <span class="tag-label">Views</span>
