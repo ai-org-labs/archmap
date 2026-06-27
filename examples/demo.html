@@ -22,7 +22,13 @@
     textarea { flex: 1; border: 0; padding: 12px; font: 12px/1.5 ui-monospace, monospace; resize: none; outline: none; }
     .controls { padding: 8px 12px; border-top: 1px solid #d4dae6; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
     button { padding: 6px 14px; border: 0; border-radius: 6px; background: #34507a; color: #fff; cursor: pointer; }
-    .diagram { position: relative; overflow: auto; padding: 16px; }
+    .diagram { position: relative; overflow: auto; padding: 16px; height: calc(100vh - 49px); box-sizing: border-box; }
+    .diagram.is-fullscreen { position: fixed; inset: 0; z-index: 20; height: 100vh; background: #eef1f6; }
+    .diagram.is-fullscreen .diagram-tags { width: min(980px, calc(100% - 24px)); }
+    #diagram { min-height: calc(100vh - 96px); }
+    .diagram.is-fullscreen #diagram { min-height: calc(100vh - 32px); }
+    #diagram canvas { display: block; width: 100%; min-height: calc(100vh - 96px); }
+    .diagram.is-fullscreen #diagram canvas { min-height: calc(100vh - 32px); }
     .diagram svg { background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: 100%; height: auto; }
     .diagram-tags { position: sticky; top: 12px; left: 12px; z-index: 5; width: min(740px, calc(100% - 24px)); margin-bottom: -42px; display: flex; align-items: flex-start; gap: 8px; pointer-events: none; }
     .tag-panel { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid rgba(148,163,184,0.45); border-radius: 8px; background: rgba(255,255,255,0.92); box-shadow: 0 10px 28px rgba(28,39,51,0.12); backdrop-filter: blur(8px); }
@@ -54,6 +60,7 @@
         <div class="tag-panel" id="tag-panel">
           <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags">+</button>
           <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags">-</button>
+          <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen">Full</button>
           <fieldset class="tag-group" id="base-view">
             <span class="tag-label">Views</span>
             <label class="tag"><input type="radio" name="base-view" value="overview" checked>Overview</label>
@@ -218,6 +225,11 @@ boundaries:
     $("tags-min").addEventListener("click", () => {
       $("tag-panel").classList.remove("is-expanded");
       $("tag-panel").classList.add("is-minimized");
+    });
+    $("fullscreen-toggle").addEventListener("click", () => {
+      $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
+      $("fullscreen-toggle").textContent = $("diagram-tags").parentElement.classList.contains("is-fullscreen") ? "Exit" : "Full";
+      requestAnimationFrame(() => result?.fit());
     });
     draw();
   </script>

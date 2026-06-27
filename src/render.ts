@@ -838,10 +838,25 @@ export function defineArchMapViewerElement(): void {
       reset.textContent = "Reset";
       reset.style.cssText = actionCss;
       reset.addEventListener("click", () => result.reset());
+      const fullscreen = document.createElement("button");
+      fullscreen.type = "button";
+      fullscreen.textContent = "Full";
+      fullscreen.title = "Fullscreen";
+      fullscreen.style.cssText = actionCss;
+      fullscreen.addEventListener("click", () => {
+        if (document.fullscreenElement === this) {
+          void document.exitFullscreen?.();
+          fullscreen.textContent = "Full";
+        } else if (this.requestFullscreen) {
+          void this.requestFullscreen();
+          fullscreen.textContent = "Exit";
+        }
+        requestAnimationFrame(() => result.fit());
+      });
       const actionGroup = document.createElement("span");
       actionGroup.className = "archmap-controls-group";
       actionGroup.style.cssText = "display:inline-flex;align-items:center;gap:5px;";
-      actionGroup.append(fit, reset);
+      actionGroup.append(fit, reset, fullscreen);
       panelElements.push(actionGroup);
       bar.append(actionGroup);
 
