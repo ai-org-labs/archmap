@@ -30,6 +30,7 @@ export interface Scene3DEdge {
   id: string;
   from: string;
   to: string;
+  label?: string;
   a: { x: number; y: number; z: number };
   b: { x: number; y: number; z: number };
 }
@@ -45,6 +46,10 @@ export interface Scene3DZone {
   w: number;
   h: number;
   d: number;
+  /** Label anchor, offset toward a corner to reduce top/front view collisions. */
+  labelX: number;
+  labelY: number;
+  labelZ: number;
 }
 
 export interface Scene3D {
@@ -86,16 +91,18 @@ export function buildScene3D(layout: LayoutResult, options: Scene3DOptions = {})
 
   const edges: Scene3DEdge[] = layout.edges
     .filter((e) => center.has(e.from) && center.has(e.to))
-    .map((e) => ({ id: e.id, from: e.from, to: e.to, a: center.get(e.from)!, b: center.get(e.to)! }));
+    .map((e) => ({ id: e.id, from: e.from, to: e.to, label: e.label, a: center.get(e.from)!, b: center.get(e.to)! }));
 
   // Zones become translucent volumes that span their members' layer heights.
   const ZONE_PAD_Y = 0.6;
-  const zones: Scene3DZone[] = layout.zones.map((zn) => {
+  const zones: Scene3DZone[] = layout.zones.map((zn, index) => {
     const ys = zn.nodeIds.map((id) => center.get(id)?.y).filter((v): v is number => v !== undefined);
     const yMin = ys.length ? Math.min(...ys) : 0;
     const yMax = ys.length ? Math.max(...ys) : 0;
     const top = yMax + thickness / 2 + ZONE_PAD_Y;
     const bot = yMin - thickness / 2 - ZONE_PAD_Y;
+    const depth = zn.depth ?? 0;
+    const lane = index % 4;
     return {
       id: zn.id,
       label: zn.label,
@@ -105,6 +112,9 @@ export function buildScene3D(layout: LayoutResult, options: Scene3DOptions = {})
       w: zn.w * scale,
       h: top - bot,
       d: zn.h * scale,
+      labelX: X(zn.x + 18 + depth * 18),
+      labelY: top + 0.55 + depth * 0.35 + lane * 0.06,
+      labelZ: Z(zn.y + 18 + depth * 18 + lane * 10),
     };
   });
 

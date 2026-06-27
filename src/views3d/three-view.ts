@@ -19,6 +19,8 @@ import { registerView, resolveNodeIcons } from "archmap";
 import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "archmap";
 import { buildScene3D } from "./scene.js";
 import type { Scene3D } from "./scene.js";
+import { buildOverlayProjection } from "../views/overlays.js";
+import type { Box } from "../views/base.js";
 
 /** Per-layer color ramp (client → external), tuned to the soft station-map palette used by isometric SVG. */
 const LAYER_COLORS = [
@@ -30,6 +32,11 @@ const LAYER_COLORS = [
 const ZONE_COLORS = [
   0x7da7d9, 0xf4a261, 0x8fc7a3, 0xb79ce8, 0x78c2bc, 0xdd88a6,
 ];
+
+const SCENE_SCALE = 0.02;
+const OVERLAY_EDGE_COLOR = 0x7a4f9a;
+const EMPHASIS_EDGE_COLOR = 0xb3261e;
+const BOUNDARY_COLOR = 0xc0a044;
 
 function layerColor(layer: number): number {
   return LAYER_COLORS[layer % LAYER_COLORS.length];
@@ -85,7 +92,12 @@ function makeIconSprite(icon: RenderableIcon): { sprite: THREE.Sprite; texture: 
   return { sprite, texture };
 }
 
-function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): {
+function disposeSprite(sprite: THREE.Sprite, disposables: { dispose(): void }[]): void {
+  if (sprite.material.map) disposables.push(sprite.material.map);
+  disposables.push(sprite.material);
+}
+
+function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, RenderableIcon>): {
   root: THREE.Group;
   disposables: { dispose(): void }[];
 } {
@@ -95,12 +107,19 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
     disposables.push(x);
     return x;
   };
+  const projection = buildOverlayProjection(ctx.model, ctx.layout, ctx.options.overlays ?? []);
+  const emphasizeNodes = projection.emphasizeNodes ?? new Set<string>();
+  const emphasizeEdges = projection.emphasizeEdges ?? new Set<string>();
+  const badges = projection.nodeBadges ?? new Map<string, string>();
+  const nodeById = new Map(scene3d.nodes.map((n) => [n.id, n]));
 
   // Nodes as boxes + labels.
   for (const n of scene3d.nodes) {
     const geo = track(new THREE.BoxGeometry(n.w, n.h, n.d));
     const mat = track(new THREE.MeshStandardMaterial({
       color: layerColor(n.layer),
+      emissive: emphasizeNodes.has(n.id) ? 0x5c2d14 : 0x000000,
+      emissiveIntensity: emphasizeNodes.has(n.id) ? 0.18 : 0,
       roughness: 0.82,
       metalness: 0,
       flatShading: true,
@@ -114,21 +133,33 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
     const labelY = icon ? n.y + n.h / 2 + 0.95 : n.y + n.h / 2 + 0.45;
     if (icon) {
       const { sprite, texture } = makeIconSprite(icon);
-      sprite.position.set(n.x, n.y + n.h / 2 + 0.4, n.z);
+      sprite.position.set(n.x - n.w / 2 + 0.38, n.y + n.h / 2 + 0.42, n.z - n.d / 2 + 0.38);
       disposables.push(texture, sprite.material);
       root.add(sprite);
     }
 
     const label = makeTextSprite(n.label);
     label.position.set(n.x, labelY, n.z);
-    if (label.material.map) disposables.push(label.material.map);
-    disposables.push(label.material);
+    disposeSprite(label, disposables);
     root.add(label);
+
+    const badge = badges.get(n.id);
+    if (badge) {
+      const badgeSprite = makeTextSprite(badge, { fg: "#7a4f9a", bg: "rgba(255,255,255,0.9)", scaleY: 0.42, bold: true });
+      badgeSprite.position.set(n.x + n.w / 2 + 0.35, n.y + n.h / 2 + 0.38, n.z);
+      disposeSprite(badgeSprite, disposables);
+      root.add(badgeSprite);
+    }
   }
 
   // Edges as lines.
-  const edgeMat = track(new THREE.LineBasicMaterial({ color: 0x52617a, transparent: true, opacity: 0.82 }));
   for (const e of scene3d.edges) {
+    const isEmphasized = emphasizeEdges.has(e.id);
+    const edgeMat = track(new THREE.LineBasicMaterial({
+      color: isEmphasized ? EMPHASIS_EDGE_COLOR : 0x52617a,
+      transparent: true,
+      opacity: isEmphasized ? 0.95 : 0.58,
+    }));
     const geo = track(
       new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(e.a.x, e.a.y, e.a.z),
@@ -136,6 +167,33 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
       ]),
     );
     root.add(new THREE.Line(geo, edgeMat));
+    if (isEmphasized && e.label) {
+      const label = makeTextSprite(e.label, { fg: "#3a4a63", bg: "rgba(255,255,255,0.84)", scaleY: 0.36 });
+      label.position.set((e.a.x + e.b.x) / 2, Math.max(e.a.y, e.b.y) + 0.42, (e.a.z + e.b.z) / 2);
+      disposeSprite(label, disposables);
+      root.add(label);
+    }
+  }
+
+  // Synthesized overlay edges, currently used by permission relationships.
+  for (const e of projection.overlayEdges ?? []) {
+    const a = nodeById.get(e.from);
+    const b = nodeById.get(e.to);
+    if (!a || !b) continue;
+    const mat = track(new THREE.LineDashedMaterial({ color: OVERLAY_EDGE_COLOR, dashSize: 0.18, gapSize: 0.12, transparent: true, opacity: 0.9 }));
+    const geo = track(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(a.x, a.y + a.h / 2 + 0.18, a.z),
+      new THREE.Vector3(b.x, b.y + b.h / 2 + 0.18, b.z),
+    ]));
+    const line = new THREE.Line(geo, mat);
+    line.computeLineDistances();
+    root.add(line);
+    if (e.label) {
+      const label = makeTextSprite(e.label, { fg: "#7a4f9a", bg: "rgba(255,255,255,0.88)", scaleY: 0.34, bold: true });
+      label.position.set((a.x + b.x) / 2, Math.max(a.y, b.y) + 0.75, (a.z + b.z) / 2);
+      disposeSprite(label, disposables);
+      root.add(label);
+    }
   }
 
   // Zones as translucent volumes enclosing their members, with wireframe edges
@@ -158,11 +216,48 @@ function buildSceneGraph(scene3d: Scene3D, icons: Map<string, RenderableIcon>): 
 
     const hex = "#" + color.toString(16).padStart(6, "0");
     const label = makeTextSprite(z.label ?? z.id, { fg: hex, bg: "rgba(255,255,255,0.82)", scaleY: 0.62, bold: true });
-    label.position.set(z.x, z.y + z.h / 2 + 0.55, z.z);
-    if (label.material.map) disposables.push(label.material.map);
-    disposables.push(label.material);
+    label.position.set(z.labelX, z.labelY, z.labelZ);
+    disposeSprite(label, disposables);
     root.add(label);
   });
+
+  const toWorldBox = (box: Box, yMin: number, yMax: number) => {
+    const cx = ctx.layout.width / 2;
+    const cy = ctx.layout.height / 2;
+    const X = (px: number) => (px - cx) * SCENE_SCALE;
+    const Z = (py: number) => (py - cy) * SCENE_SCALE;
+    return {
+      x: X(box.x + box.w / 2),
+      y: (yMin + yMax) / 2,
+      z: Z(box.y + box.h / 2),
+      w: box.w * SCENE_SCALE,
+      h: Math.max(0.5, yMax - yMin),
+      d: box.h * SCENE_SCALE,
+      labelX: X(box.x + 16),
+      labelZ: Z(box.y + 16),
+    };
+  };
+  const yMin = scene3d.bounds.min.y - 0.55;
+  const yMax = scene3d.bounds.max.y + 1.3;
+  for (const group of projection.boxGroups ?? []) {
+    if (!group.boxClass.includes("boundary")) continue;
+    for (const box of group.boxes) {
+      const b = toWorldBox(box, yMin, yMax);
+      const geo = track(new THREE.BoxGeometry(b.w, b.h, b.d));
+      const mat = track(new THREE.MeshBasicMaterial({ color: BOUNDARY_COLOR, transparent: true, opacity: 0.075, depthWrite: false, side: THREE.DoubleSide }));
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(b.x, b.y, b.z);
+      root.add(mesh);
+      const edgeGeo = track(new THREE.EdgesGeometry(geo));
+      const edge = new THREE.LineSegments(edgeGeo, track(new THREE.LineBasicMaterial({ color: BOUNDARY_COLOR, transparent: true, opacity: 0.5 })));
+      edge.position.copy(mesh.position);
+      root.add(edge);
+      const label = makeTextSprite(box.label ?? box.id, { fg: "#7d704b", bg: "rgba(255,255,255,0.82)", scaleY: 0.5, bold: true });
+      label.position.set(b.labelX, yMax + 0.25, b.labelZ);
+      disposeSprite(label, disposables);
+      root.add(label);
+    }
+  }
 
   return { root, disposables };
 }
@@ -188,9 +283,9 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   dir.position.set(6, 14, 9);
   scene.add(dir);
 
-  const scene3d = buildScene3D(ctx.layout);
+  const scene3d = buildScene3D(ctx.layout, { scale: SCENE_SCALE });
   const iconMap = new Map([...resolveNodeIcons(ctx.model)].map(([id, r]) => [id, r.icon]));
-  const { root, disposables } = buildSceneGraph(scene3d, iconMap);
+  const { root, disposables } = buildSceneGraph(ctx, scene3d, iconMap);
   scene.add(root);
 
   // Ground grid sized to the scene footprint.

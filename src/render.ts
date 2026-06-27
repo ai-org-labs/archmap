@@ -542,9 +542,9 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
 }
 
 /** Semantic views offered by the controls toolbar: what the user wants to inspect. */
-export const BASE_VIEWS = ["overview", "zone", "layer"] as const;
+export const BASE_VIEWS = ["overview", "layer"] as const;
 /** Render modes offered by the controls toolbar: how to display the selected view. */
-export const RENDER_MODES = ["2d", "isometric", "3d"] as const;
+export const RENDER_MODES = ["2d", "3d"] as const;
 
 export async function fetchArchMapSource(src: string, fetchImpl: typeof fetch = fetch): Promise<string> {
   const response = await fetchImpl(src);

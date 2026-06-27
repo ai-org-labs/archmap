@@ -43,14 +43,12 @@
         <label class="control-group"><span class="control-label">Views</span>
           <select id="base-view">
             <option value="overview">overview</option>
-            <option value="zone">zone</option>
             <option value="layer">layer</option>
           </select>
         </label>
         <label class="control-group"><span class="control-label">Render modes</span>
           <select id="render-mode">
             <option value="2d">2d</option>
-            <option value="isometric">isometric</option>
             <option value="3d">3d</option>
           </select>
         </label>
@@ -70,17 +68,23 @@ graph LR
   Web -->|HTTPS + JWT| APIGW[API Gateway]
   Android -->|HTTPS + JWT| APIGW
   FirebaseAuth[Firebase Auth] -->|issues JWT| Web
+  APIGW -->|validate JWT| FirebaseAuth
   APIGW -->|HTTPS| GCPApp[Cloud Run]
   GCPApp -->|SQL| CloudSQL[(Cloud SQL)]
   GCPApp -->|HTTPS / VPN| AWSApp[AWS Service]
   AWSApp -->|SQL| RDS[(RDS)]
   GCPApp -->|metrics| Datadog[Datadog]
+  GCPApp -->|logs| Datadog
   Wiz[Wiz] -->|scans| GCPApp
+  Admin[Admin User] --> AdminConsole[Admin Console]
+  AdminConsole -->|admin HTTPS| APIGW
 ---
 nodes:
   User: { zone: client, layer: client, kind: user }
+  Admin: { zone: client, layer: client, kind: user, principal: admin-user }
   Web: { zone: client, layer: client, kind: web_app }
   Android: { zone: client, layer: client, kind: android_app }
+  AdminConsole: { zone: client, layer: client, kind: web_app, principal: admin-user }
   FirebaseAuth: { zone: identity, layer: identity, kind: identity_provider, provider: firebase }
   APIGW: { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
   GCPApp: { zone: gcp, layer: runtime, kind: serverless_service, provider: gcp, principal: gcp-app-sa }
@@ -97,6 +101,34 @@ edges:
     flow: request
     auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
     boundaryCrossing: true
+  admin_api:
+    from: AdminConsole
+    to: APIGW
+    label: admin HTTPS
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
+    boundaryCrossing: true
+  Android__APIGW__0:
+    from: Android
+    to: APIGW
+    label: HTTPS + JWT
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
+    boundaryCrossing: true
+  FirebaseAuth__Web__0:
+    from: FirebaseAuth
+    to: Web
+    label: issues JWT
+    flow: token_issue
+    auth: { token: JWT, issuer: FirebaseAuth, recipient: Web }
+    boundaryCrossing: true
+  APIGW__FirebaseAuth__0:
+    from: APIGW
+    to: FirebaseAuth
+    label: validate JWT
+    flow: token_validate
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: FirebaseAuth, recipient: APIGW }
+    boundaryCrossing: true
   gcp_db:
     from: GCPApp
     to: CloudSQL
@@ -109,21 +141,55 @@ edges:
     label: HTTPS / VPN
     flow: replication
     boundaryCrossing: true
+  metrics_export:
+    from: GCPApp
+    to: Datadog
+    label: metrics
+    flow: telemetry_export
+    data: [service_metrics]
+    boundaryCrossing: true
+  GCPApp__Datadog__1:
+    from: GCPApp
+    to: Datadog
+    label: logs
+    flow: log_export
+    data: [service_metrics]
+    boundaryCrossing: true
+  scan_findings:
+    from: Wiz
+    to: GCPApp
+    label: scans
+    flow: security_scan
+    boundaryCrossing: true
 identities:
   gcp-app-sa: { kind: service_account, provider: gcp, attachedTo: GCPApp }
+  admin-user: { kind: user, provider: internal, attachedTo: [Admin, AdminConsole] }
 data:
   customer_profile:
     label: Customer Profile
     classification: personal
     storedIn: [CloudSQL, RDS]
     flows: [gcp_db, gcp_aws]
+    processedBy: [GCPApp]
+  service_metrics:
+    label: Service Metrics
+    classification: internal
+    flows: [metrics_export, GCPApp__Datadog__1]
+    processedBy: [GCPApp, Datadog]
+permissions:
+  app_db_client: { principal: gcp-app-sa, action: connect, resource: CloudSQL, role: roles/cloudsql.client }
+  app_metrics_writer: { principal: gcp-app-sa, action: write, resource: Datadog, role: metrics.writer }
+  admin_gateway_viewer: { principal: admin-user, action: administer, resource: APIGW, role: roles/apigateway.admin }
 zones:
-  client: { label: Client, contains: [User, Web, Android] }
+  client: { label: Client, contains: [User, Admin, Web, Android, AdminConsole] }
+  identity: { label: Identity, contains: [FirebaseAuth] }
   gcp: { label: GCP, contains: [APIGW, GCPApp, CloudSQL] }
   aws: { label: AWS, contains: [AWSApp, RDS] }
+  saas: { label: SaaS, contains: [Datadog, Wiz] }
 boundaries:
   public_edge: { label: Public→GCP Trust Boundary, kind: trust_boundary, contains: [APIGW] }
   gcp_private: { label: GCP Private Network, kind: network_boundary, contains: [GCPApp, CloudSQL] }
+  ops_boundary: { label: Operations Boundary, kind: policy_boundary, contains: [Datadog, Wiz] }
   </script>
 
   <script type="module">
