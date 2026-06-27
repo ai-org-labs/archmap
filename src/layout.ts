@@ -644,7 +644,6 @@ function routeEdges(
   interface Plan {
     e: { id: string; from: string; to: string; label?: string };
     mode: Mode;
-    allowDiagonal: boolean;
     forward: boolean;
     targetAbove: boolean;
     src: End;
@@ -685,9 +684,18 @@ function routeEdges(
     return 1;
   };
   const balancedHubFace = (node: string, preferred: Face): Face => {
+    const g = geom(node);
+    const maxCapacity = Math.max(g.flowSize, g.crossSize, 1);
+    const faceCapacity = (face: Face): number => face === "fL" || face === "fH" ? g.crossSize : g.flowSize;
     const faces: Face[] = ["fL", "fH", "cL", "cH"];
     const best = faces
-      .map((face) => ({ face, score: (faceUse.get(`${node}|${face}`) ?? 0) * 4 + faceCost(face, preferred) }))
+      .map((face) => {
+        const capacityPenalty = maxCapacity / Math.max(faceCapacity(face), 1);
+        return {
+          face,
+          score: (faceUse.get(`${node}|${face}`) ?? 0) * 4 * capacityPenalty + faceCost(face, preferred) + capacityPenalty * 0.25,
+        };
+      })
       .sort((a, b) => a.score - b.score || faceCost(a.face, preferred) - faceCost(b.face, preferred))[0].face;
     faceUse.set(`${node}|${best}`, (faceUse.get(`${node}|${best}`) ?? 0) + 1);
     return best;
@@ -755,7 +763,7 @@ function routeEdges(
     }
 
     const plan: Plan = {
-      e, mode, allowDiagonal: multiEdgePair,
+      e, mode,
       forward, targetAbove,
       src: { node: e.from, face: srcFace, flow: 0, cross: 0 },
       dst: { node: e.to, face: dstFace, flow: 0, cross: 0 },
@@ -786,9 +794,6 @@ function routeEdges(
       if (varyFlow) { end.flow = pos; end.cross = fixed; }
       else { end.cross = pos; end.flow = fixed; }
     });
-    if (entries.length >= 4) {
-      for (const entry of entries) plans[entry.planIndex].allowDiagonal = true;
-    }
   }
 
   // Distribute vertical trunks for forward same/trunk edges in the column gap.
@@ -844,23 +849,17 @@ function routeEdges(
       };
       const so = offset(plan.src);
       const de = offset(plan.dst);
-      if (plan.allowDiagonal) {
-        // Last resort for dense/reciprocal routes: keep component stubs
-        // orthogonal, but allow the middle segment to be diagonal.
-        points = simplifyPolyline([s, toXY(so.flow, so.cross, horizontal), toXY(de.flow, de.cross, horizontal), d]);
-      } else {
-        const mid =
-          Math.abs(so.flow - de.flow) >= Math.abs(so.cross - de.cross)
-            ? [{ flow: (so.flow + de.flow) / 2, cross: so.cross }, { flow: (so.flow + de.flow) / 2, cross: de.cross }]
-            : [{ flow: so.flow, cross: (so.cross + de.cross) / 2 }, { flow: de.flow, cross: (so.cross + de.cross) / 2 }];
-        points = simplifyPolyline([
-          s,
-          toXY(so.flow, so.cross, horizontal),
-          ...mid.map((p) => toXY(p.flow, p.cross, horizontal)),
-          toXY(de.flow, de.cross, horizontal),
-          d,
-        ]);
-      }
+      const mid =
+        Math.abs(so.flow - de.flow) >= Math.abs(so.cross - de.cross)
+          ? [{ flow: (so.flow + de.flow) / 2, cross: so.cross }, { flow: (so.flow + de.flow) / 2, cross: de.cross }]
+          : [{ flow: so.flow, cross: (so.cross + de.cross) / 2 }, { flow: de.flow, cross: (so.cross + de.cross) / 2 }];
+      points = simplifyPolyline([
+        s,
+        toXY(so.flow, so.cross, horizontal),
+        ...mid.map((p) => toXY(p.flow, p.cross, horizontal)),
+        toXY(de.flow, de.cross, horizontal),
+        d,
+      ]);
     } else if (plan.mode === "same") {
       // H-V-H: source flow face -> trunk -> target flow face.
       points = simplifyPolyline([s, toXY(plan.trunk, plan.src.cross, horizontal), toXY(plan.trunk, plan.dst.cross, horizontal), d]);

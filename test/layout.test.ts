@@ -199,8 +199,9 @@ describe("computeLayout", () => {
     }
     expect(touches.size).toBeGreaterThanOrEqual(3);
     for (const edge of layout.edges.filter((e) => e.from === "Hub" || e.to === "Hub")) {
-      expect(isAxisAligned(edge.points[0], edge.points[1])).toBe(true);
-      expect(isAxisAligned(edge.points[edge.points.length - 2], edge.points[edge.points.length - 1])).toBe(true);
+      for (let i = 0; i < edge.points.length - 1; i++) {
+        expect(isAxisAligned(edge.points[i], edge.points[i + 1])).toBe(true);
+      }
     }
   });
 

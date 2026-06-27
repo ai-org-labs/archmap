@@ -39,6 +39,14 @@ describe("render", () => {
     expect(svg).toContain('class="archmap-zone"');
   });
 
+  it("marks edge endpoints with small dots", () => {
+    const m = parse(`graph LR
+      A[A] --> B[B]
+    `);
+    const { svg } = render(m, { view: "overview" });
+    expect(svg).toContain('class="archmap-edge-endpoint"');
+  });
+
   it("supports the baseView plus overlays API", () => {
     const m = parse(example);
     const { svg, view } = render(m, { baseView: "overview", overlays: ["auth", "dataflow"] });

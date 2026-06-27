@@ -76,6 +76,10 @@ export function edgePathFromD(d: string, markerId = "archmap-arrow"): string {
   return `<path class="archmap-edge-path" d="${d}" marker-end="url(#${markerId})" fill="none" />`;
 }
 
+export function edgeEndpointSvg(point: { x: number; y: number }): string {
+  return `<circle class="archmap-edge-endpoint" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="3" />`;
+}
+
 interface Seg {
   edgeId: string;
   x0: number;
@@ -188,6 +192,7 @@ export const DEFAULT_STYLE = `
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; }
+.archmap-edge-endpoint { fill: var(--archmap-edge-endpoint, #111827); stroke: var(--archmap-bg, #ffffff); stroke-width: 1; }
 .archmap-arrowhead { fill: var(--archmap-edge-stroke, #5b6b86); }
 .archmap-edge-label text { fill: var(--archmap-edge-label, #3a4a63); font: 400 11px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-label-bg { fill: var(--archmap-bg, #ffffff); opacity: 0.85; }

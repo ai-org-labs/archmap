@@ -15,6 +15,7 @@ import {
   MARKERS,
   buildEdgePaths,
   edgeLabelSvg,
+  edgeEndpointSvg,
   edgePathFromD,
   escapeXml,
   nodeBadgeSvg,
@@ -187,7 +188,7 @@ function renderOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<stri
       const label = entry.edge.label && !suppressLabel
         ? edgeLabelSvg(entry.edge.label, labelAnchor(entry.to, entry.target.face, stack.slot, stack.count, entry.edge.label), "h")
         : "";
-      return `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${label}</g>`;
+      return `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${edgeEndpointSvg(entry.target)}${label}</g>`;
     })
     .join("") +
     [...permissionLabelsByTarget.entries()]
@@ -224,8 +225,9 @@ export function renderDiagram(spec: DiagramSpec): string {
       const emph = emphasizeEdges?.has(e.id) ?? false;
       const cls = `archmap-edge${channelClass(e.id, emphasizeEdges)}`;
       const path = edgePathFromD(edgePaths.get(e.id) ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
+      const endpoint = edgeEndpointSvg(e.points[e.points.length - 1]);
       const label = e.label ? edgeLabelSvg(e.label, e.labelAt, e.labelOrient) : "";
-      return `<g class="${cls}" data-id="${escapeXml(e.id)}">${path}${label}</g>`;
+      return `<g class="${cls}" data-id="${escapeXml(e.id)}">${path}${endpoint}${label}</g>`;
     })
     .join("");
 
