@@ -59,7 +59,7 @@ describe("dataflow view", () => {
 describe("boundary view", () => {
   it("draws boundary boxes and emphasizes boundary-crossing edges", () => {
     const { svg } = render(model, { view: "boundary" });
-    expect(svg).toContain('class="archmap-boundary"');
+    expect(svg).toContain('class="archmap-boundary archmap-boundary-depth-');
     expect(svg).toContain("GCP Private Boundary");
     expect(svg).toContain('class="archmap-edge archmap-emphasis" data-id="web_api"');
   });

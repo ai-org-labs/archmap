@@ -22,6 +22,10 @@ const comprehensive = readFileSync(
   fileURLToPath(new URL("fixtures/comprehensive.archmap", import.meta.url)),
   "utf8",
 );
+const nestedZones = readFileSync(
+  fileURLToPath(new URL("../examples/nested-zones.archmap", import.meta.url)),
+  "utf8",
+);
 
 function textBoxes(svg: string, className: string): Array<{ x0: number; x1: number; y0: number; y1: number }> {
   return [...svg.matchAll(new RegExp(`<text class="${className}" x="([0-9.]+)" y="([0-9.]+)">([^<]+)</text>`, "g"))].map((m) => {
@@ -53,7 +57,7 @@ describe("render", () => {
     expect(svg).toContain('data-id="CloudSQL"');
     expect(svg).toContain("HTTPS + JWT");
     // Zones are drawn.
-    expect(svg).toContain('class="archmap-zone"');
+    expect(svg).toContain('class="archmap-zone archmap-zone-depth-');
   });
 
   it("marks edge startpoints with small dots", () => {
@@ -90,6 +94,37 @@ describe("render", () => {
     expect(style.match(/\.archmap-zone-box \{[^}]*stroke-dasharray/)).toBeNull();
     expect(style.match(/\.archmap-boundary-box \{[^}]*stroke-dasharray/)).toBeNull();
     expect(svg).toContain('rx="14" ry="14"');
+  });
+
+  it("marks nested zone depth for styling", () => {
+    const m = parse(`graph LR
+      App[App]
+      ---
+      nodes:
+        App: { zone: cluster }
+      zones:
+        cloud: { label: Cloud, contains: [project] }
+        project: { label: Project, parent: cloud, contains: [cluster] }
+        cluster: { label: Cluster, parent: project, contains: [App] }
+    `);
+    const svg = render(m, { baseView: "zone" }).svg!;
+    expect(svg).toContain('data-id="cloud" data-depth="0"');
+    expect(svg).toContain('data-id="project" data-depth="1"');
+    expect(svg).toContain('data-id="cluster" data-depth="2"');
+    expect(svg).toContain(".archmap-zone-depth-2 .archmap-zone-box");
+  });
+
+  it("renders the nested-zones example with zone and boundary layers", () => {
+    const m = parse(nestedZones);
+    const svg = render(m, { baseView: "zone", overlays: ["boundary"] }).svg!;
+    expect(m.errors).toHaveLength(0);
+    expect(svg).toContain("Google Cloud");
+    expect(svg).toContain("VPC");
+    expect(svg).toContain("us-west1 / GKE Standard");
+    expect(svg).toContain('data-id="google_cloud" data-depth="0"');
+    expect(svg).toContain('data-id="vpc" data-depth="1"');
+    expect(svg).toContain('data-id="us_west1" data-depth="2"');
+    expect(svg).toContain("Multi-cluster Service frontend");
   });
 
   it("supports the baseView plus overlays API", () => {
@@ -142,7 +177,7 @@ describe("render", () => {
     const m = parse(example);
     const { svg } = render(m, { baseView: "overview", overlays: ["boundary"] });
     expect(svg).toContain("archmap-view-overview archmap-overlay-boundary");
-    expect(svg).toContain('class="archmap-boundary"');
+    expect(svg).toContain('class="archmap-boundary archmap-boundary-depth-');
     expect(svg).toContain("GCP Private Boundary");
   });
 
@@ -209,7 +244,7 @@ ${permissions}
     expect(target.innerHTML).not.toContain("data-overlays");
     result.setOverlays(["boundary"]);
     expect(result.svg).toContain('data-overlays="boundary"');
-    expect(target.innerHTML).toContain('class="archmap-boundary"');
+    expect(target.innerHTML).toContain('class="archmap-boundary archmap-boundary-depth-');
     result.toggleOverlay("boundary");
     expect(result.svg).not.toContain("data-overlays");
     result.destroy();

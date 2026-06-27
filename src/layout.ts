@@ -29,6 +29,9 @@ export interface LayoutNode {
 export interface LayoutZone {
   id: string;
   label?: string;
+  parent?: string;
+  kind?: string;
+  depth?: number;
   x: number;
   y: number;
   z: number;
@@ -373,26 +376,82 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   const width = horizontal ? flowEnd : crossMax;
   const height = horizontal ? crossMax : flowEnd;
 
-  // --- Zones (bounding boxes of members) ------------------------------------
-  const zones: LayoutZone[] = [];
+  // --- Zones (bounding boxes of members, including nested child zones) -------
+  const zoneById = new Map(model.zones.map((z) => [z.id, z]));
+  const childrenByZone = new Map<string, string[]>();
   for (const z of model.zones) {
-    const members = (z.contains ?? []).map((id) => laid.get(id)).filter((n): n is LayoutNode => !!n);
-    if (members.length === 0) continue;
-    const minX = Math.min(...members.map((m) => m.x)) - ZONE_PAD;
-    const minY = Math.min(...members.map((m) => m.y)) - ZONE_LABEL_PAD;
-    const maxX = Math.max(...members.map((m) => m.x + m.w)) + ZONE_PAD;
-    const maxY = Math.max(...members.map((m) => m.y + m.h)) + ZONE_PAD;
-    zones.push({
+    if (z.parent && zoneById.has(z.parent)) {
+      childrenByZone.set(z.parent, [...(childrenByZone.get(z.parent) ?? []), z.id]);
+    }
+    for (const child of z.resolvedContains ?? []) {
+      if (child.type !== "zone") continue;
+      childrenByZone.set(z.id, [...(childrenByZone.get(z.id) ?? []), child.id]);
+    }
+  }
+  for (const [parent, children] of childrenByZone) {
+    childrenByZone.set(parent, [...new Set(children)]);
+  }
+
+  const directZoneNodeIds = (zoneId: string): string[] => {
+    const z = zoneById.get(zoneId);
+    const explicit = (z?.resolvedContains ?? [])
+      .filter((child) => child.type === "node")
+      .map((child) => child.id);
+    const fallback = (z?.contains ?? []).filter((id) => laid.has(id));
+    return [...new Set([...explicit, ...fallback])];
+  };
+
+  const zonesById = new Map<string, LayoutZone>();
+  const visitingZones = new Set<string>();
+  const zoneDepth = (id: string, seen = new Set<string>()): number => {
+    const z = zoneById.get(id);
+    if (!z?.parent || !zoneById.has(z.parent) || seen.has(id)) return 0;
+    seen.add(id);
+    return zoneDepth(z.parent, seen) + 1;
+  };
+  const buildZoneBox = (id: string): LayoutZone | undefined => {
+    if (zonesById.has(id)) return zonesById.get(id);
+    if (visitingZones.has(id)) return undefined;
+    const z = zoneById.get(id);
+    if (!z) return undefined;
+    visitingZones.add(id);
+
+    const directNodes = directZoneNodeIds(id)
+      .map((nodeId) => laid.get(nodeId))
+      .filter((n): n is LayoutNode => !!n);
+    const childZones = (childrenByZone.get(id) ?? [])
+      .map((childId) => buildZoneBox(childId))
+      .filter((box): box is LayoutZone => !!box);
+    const boxes = [
+      ...directNodes.map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h, z: n.z, nodeIds: [n.id] })),
+      ...childZones.map((box) => ({ x: box.x, y: box.y, w: box.w, h: box.h, z: box.z, nodeIds: box.nodeIds })),
+    ];
+    visitingZones.delete(id);
+    if (boxes.length === 0) return undefined;
+
+    const minX = Math.min(...boxes.map((m) => m.x)) - ZONE_PAD;
+    const minY = Math.min(...boxes.map((m) => m.y)) - ZONE_LABEL_PAD;
+    const maxX = Math.max(...boxes.map((m) => m.x + m.w)) + ZONE_PAD;
+    const maxY = Math.max(...boxes.map((m) => m.y + m.h)) + ZONE_PAD;
+    const nodeIds = [...new Set(boxes.flatMap((box) => box.nodeIds))];
+    const box: LayoutZone = {
       id: z.id,
       label: z.label ?? z.id,
+      parent: z.parent,
+      kind: z.kind,
+      depth: zoneDepth(z.id),
       x: minX,
       y: minY,
-      z: Math.min(...members.map((m) => m.z)),
+      z: Math.min(...boxes.map((m) => m.z)),
       w: maxX - minX,
       h: maxY - minY,
-      nodeIds: members.map((m) => m.id),
-    });
-  }
+      nodeIds,
+    };
+    zonesById.set(id, box);
+    return box;
+  };
+  for (const z of model.zones) buildZoneBox(z.id);
+  const zones = [...zonesById.values()].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0) || a.id.localeCompare(b.id));
 
   // --- Boundaries (bounding boxes, resolving nested boundary refs) -----------
   const boundaries: LayoutBoundary[] = [];
@@ -404,6 +463,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     const ids: string[] = [];
     for (const c of b.contains ?? []) {
       if (laid.has(c)) ids.push(c);
+      else if (zonesById.has(c)) ids.push(...(zonesById.get(c)?.nodeIds ?? []));
       else if (boundaryById.has(c)) ids.push(...resolveBoundaryNodes(c, seen));
     }
     return ids;

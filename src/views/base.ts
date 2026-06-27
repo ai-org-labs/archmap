@@ -25,6 +25,7 @@ import {
 export interface Box {
   id: string;
   label?: string;
+  depth?: number;
   x: number;
   y: number;
   w: number;
@@ -317,8 +318,9 @@ export function renderDiagram(spec: DiagramSpec): string {
           const maxY = b.y + Math.min(Math.max(20, b.h - 8), 68);
           while (y <= maxY && reservedBoxLabels.some((other) => overlaps(textBox(label, x, y), other))) y += 16;
           reservedBoxLabels.push(textBox(label, x, y));
+          const depth = Math.max(0, Math.min(9, Math.floor(b.depth ?? 0)));
           return (
-            `<g class="${group.boxClass}" data-id="${escapeXml(b.id)}">` +
+            `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}" data-id="${escapeXml(b.id)}" data-depth="${depth}">` +
             `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14" ry="14" />` +
             `<text class="${boxLabelClass}" x="${x}" y="${y}">${escapeXml(label)}</text>` +
             `</g>`

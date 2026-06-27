@@ -1,0 +1,85 @@
+graph LR
+  Client[External Client] --> Gateway[Multi-cluster External Gateway]
+  Gateway --> FrontWest[Stateless frontend]
+  Gateway --> FrontCentral[Stateless frontend]
+  Gateway --> FrontEast[Stateless frontend]
+  FrontWest --> MidWest[Middleware stack]
+  FrontCentral --> MidCentral[Middleware stack]
+  FrontEast --> MidEast[Middleware stack]
+  MidWest --> Cart[Stateful backend]
+  MidCentral --> Cart
+  MidEast --> Cart
+---
+nodes:
+  Client: { zone: external, layer: client, kind: external_user }
+  Gateway: { zone: gcp_edge, layer: edge, kind: load_balancer, provider: gcp }
+  FrontWest: { zone: us_west1, layer: runtime, kind: kubernetes_service, provider: gcp }
+  FrontCentral: { zone: us_central1, layer: runtime, kind: kubernetes_service, provider: gcp }
+  FrontEast: { zone: us_east1, layer: runtime, kind: kubernetes_service, provider: gcp }
+  MidWest: { zone: us_west1, layer: runtime, kind: kubernetes_service, provider: gcp }
+  MidCentral: { zone: us_central1, layer: runtime, kind: kubernetes_service, provider: gcp }
+  MidEast: { zone: us_east1, layer: runtime, kind: kubernetes_service, provider: gcp }
+  Cart: { zone: us_west1, layer: data, kind: kubernetes_service, provider: gcp }
+zones:
+  external:
+    label: External
+    kind: external
+    contains: [Client]
+  google_cloud:
+    label: Google Cloud
+    kind: cloud
+    provider: gcp
+    contains: [vpc]
+  vpc:
+    label: VPC
+    kind: network
+    parent: google_cloud
+    contains: [gcp_edge, us_west1, us_central1, us_east1]
+  gcp_edge:
+    label: External Gateway
+    kind: edge
+    parent: vpc
+    contains: [Gateway]
+  us_west1:
+    label: us-west1 / GKE Standard
+    kind: region
+    parent: vpc
+    contains: [FrontWest, MidWest, Cart]
+  us_central1:
+    label: us-central1 / GKE Autopilot
+    kind: region
+    parent: vpc
+    contains: [FrontCentral, MidCentral]
+  us_east1:
+    label: us-east1 / GKE Autopilot
+    kind: region
+    parent: vpc
+    contains: [FrontEast, MidEast]
+boundaries:
+  frontend_service:
+    label: Multi-cluster Service frontend
+    kind: network_boundary
+    contains: [gcp_edge, us_west1, us_central1, us_east1]
+  cart_service:
+    label: Multi-cluster Service cartservice
+    kind: network_boundary
+    contains: [us_west1]
+edges:
+  Client->Gateway:
+    label: store.example.com
+    flow: request
+    protocol: HTTPS
+    boundaryCrossing: [frontend_service]
+  Gateway->FrontWest: { label: route, flow: request }
+  Gateway->FrontCentral: { label: route, flow: request }
+  Gateway->FrontEast: { label: route, flow: request }
+  FrontWest->MidWest: { flow: request }
+  FrontCentral->MidCentral: { flow: request }
+  FrontEast->MidEast: { flow: request }
+  MidWest->Cart: { label: cart RPC, flow: request, boundaryCrossing: [cart_service] }
+  MidCentral->Cart: { label: cart RPC, flow: request, boundaryCrossing: [cart_service] }
+  MidEast->Cart: { label: cart RPC, flow: request, boundaryCrossing: [cart_service] }
+view:
+  default:
+    base: zone
+    overlays: [boundary]

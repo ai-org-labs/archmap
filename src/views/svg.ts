@@ -340,6 +340,9 @@ export const MARKERS = ARROW_MARKER + ARROW_MARKER_EMPH;
 /** Default theme: CSS variables with sensible fallbacks so the SVG renders standalone. */
 export const DEFAULT_STYLE = `
 .archmap-zone-box { fill: var(--archmap-zone-fill, rgba(226,238,250,0.62)); stroke: var(--archmap-zone-stroke, #8aa8cc); stroke-width: 1.2; }
+.archmap-zone-depth-1 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-1, rgba(249,240,218,0.55)); stroke: var(--archmap-zone-stroke-depth-1, #c7b474); }
+.archmap-zone-depth-2 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-2, rgba(235,229,248,0.5)); stroke: var(--archmap-zone-stroke-depth-2, #a799cc); }
+.archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); stroke: var(--archmap-zone-stroke-depth-3, #8fbf9c); }
 .archmap-zone-label { fill: var(--archmap-zone-label, #687486); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-node-shape { fill: var(--archmap-node-fill, #ffffff); stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
