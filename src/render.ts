@@ -14,7 +14,7 @@ import { parse } from "./parser-entry.js";
 import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
 import { resolveNodeIcons } from "./icons.js";
-import { overviewView, layerBoxes, layerView, subgraphBoxes } from "./views/overview.js";
+import { overviewView, layerBoxes, layerView } from "./views/overview.js";
 import { zoneView } from "./views/zone.js";
 import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
@@ -349,10 +349,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     ? new Set([...(projection.emphasizeEdges ?? []), ...baseEdges])
     : undefined;
   const baseBoxGroups = view === "layer"
-    ? [
-        { boxes: layerBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-layer" },
-        { boxes: subgraphBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-subgraph" },
-      ]
+    ? [{ boxes: layerBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-layer" }]
     : view === "zone"
       ? [{ boxes: layout.zones, boxClass: "archmap-zone" }]
       : [];

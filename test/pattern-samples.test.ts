@@ -34,9 +34,9 @@ describe("pattern sample fixtures", () => {
   it.each(sampleFiles)("renders %s across 2D base views and overlays", (file) => {
     const model = parse(readSample(file));
     const renderCases = [
-      { baseView: "overview", overlays: ["zone", "boundary", "validation"] },
-      { baseView: "overview", overlays: ["zone", "auth", "dataflow", "boundary", "permission", "validation"] },
-      { baseView: "layer", overlays: ["zone", "boundary", "validation"] },
+      { baseView: "overview", overlays: ["subgraph", "zone", "boundary", "validation"] },
+      { baseView: "overview", overlays: ["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"] },
+      { baseView: "layer", overlays: ["subgraph", "zone", "boundary", "validation"] },
     ];
 
     for (const renderCase of renderCases) {

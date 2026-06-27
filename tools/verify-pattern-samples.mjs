@@ -13,7 +13,7 @@ const samples = [
 ];
 
 const baseViews = ["overview", "layer"];
-const overlays = ["zone", "auth", "dataflow", "boundary", "permission", "validation"];
+const overlays = ["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"];
 const allowedDiagnosticCodes = new Set(["zone_crossing_marked_false", "view_3d_unavailable"]);
 
 const fixtureUrl = new URL("../test/fixtures/pattern-samples/", import.meta.url);

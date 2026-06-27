@@ -1,5 +1,5 @@
 /**
- * Overview View (§24.1): all nodes, all edges, edge labels, and zone boxes.
+ * Overview View (§24.1): all nodes, all edges, and edge labels.
  * Resembles a normal architecture diagram.
  */
 
@@ -109,10 +109,7 @@ export function layerView(ctx: ViewContext): string {
   return renderDiagram({
     layout: ctx.layout,
     viewClass: "layer",
-    boxGroups: [
-      { boxes: layerBoxes(ctx), boxClass: "archmap-layer" },
-      { boxes: subgraphBoxes(ctx), boxClass: "archmap-subgraph" },
-    ],
+    boxGroups: [{ boxes: layerBoxes(ctx), boxClass: "archmap-layer" }],
     nodeIcons: resolveNodeIcons(ctx.model),
   });
 }

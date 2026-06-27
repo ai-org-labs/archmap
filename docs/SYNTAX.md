@@ -34,7 +34,7 @@ nodes:
 | Bare reference | `A` | reuses a node defined elsewhere |
 | Plain edge | `A --> B` | |
 | Labeled edge | `A -->\|Label\| B` | |
-| Subgraph | `subgraph Name … end` | becomes a **zone** (flat) if not redefined in metadata |
+| Subgraph | `subgraph Name … end` | graph grouping; rendered with the `subgraph` Add info overlay |
 | Comment | `%% …` | stripped |
 
 **Node IDs**: start with an ASCII letter; then letters, digits, `_`, `-`.
@@ -164,7 +164,7 @@ layout: { mode: auto, direction: LR, nodes: { … } }   # parsed but renderer
 view:
   default:
     base: overview      # overview or layer
-    overlays: [zone]    # additive information layers
+    overlays: [subgraph, zone]  # additive information layers
   enabled: [...]        # parsed, NOT yet applied
   filters: { zones: [...], layers: [...] }  # parsed, NOT yet applied
 ```
@@ -244,13 +244,14 @@ selects the base renderer while `overlays` applies semantic projections from
 the same parsed model without reparsing. Known overlays are recorded on the SVG
 root (`data-overlays`, `archmap-overlay-*`) and can emphasize relevant
 nodes/edges, synthesize permission overlay edges, add compact badges, or draw
-boundary boxes. Unknown overlays emit `unknown_overlay` warnings and do not
-block rendering.
+subgraph/zone/boundary boxes. Unknown overlays emit `unknown_overlay` warnings
+and do not block rendering.
 
 | View | Shows |
 | --- | --- |
 | `overview` | structural nodes/edges only until Add info overlays are enabled |
-| `layer` | fixed layer bands; graph `subgraph` groups are shown as grouping boxes |
+| `layer` | fixed layer bands; Add info overlays can add grouping/area context |
+| `subgraph` overlay | graph subgraph boxes and labels as additive information |
 | `zone` overlay | zone boxes and zone labels as additive information |
 | `auth` | identity/auth/user nodes + token-carrying & auth-flow edges; rest faded |
 | `dataflow` | storage nodes + data-carrying edges; classification badges; rest faded |
