@@ -288,23 +288,6 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const { root, disposables } = buildSceneGraph(ctx, scene3d, iconMap);
   scene.add(root);
 
-  // Ground grid sized to the scene footprint.
-  const span = Math.max(
-    scene3d.bounds.max.x - scene3d.bounds.min.x,
-    scene3d.bounds.max.z - scene3d.bounds.min.z,
-    4,
-  );
-  const floorGeo = new THREE.PlaneGeometry(span * 1.45, span * 1.45);
-  const floorMat = new THREE.MeshBasicMaterial({ color: 0xf7f9fc, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.72;
-  scene.add(floor);
-
-  const grid = new THREE.GridHelper(Math.ceil(span * 1.4), 20, 0xc9d3e3, 0xe5eaf2);
-  grid.position.y = -0.69;
-  scene.add(grid);
-
   // Frame the camera on the scene center.
   const b = scene3d.bounds;
   const center = new THREE.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
@@ -437,10 +420,6 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
       observer.disconnect();
       controls.dispose();
       for (const d of disposables) d.dispose();
-      floorGeo.dispose();
-      floorMat.dispose();
-      grid.geometry.dispose();
-      (grid.material as THREE.Material).dispose();
       renderer.dispose();
       renderer.domElement.remove();
       cube.remove();
