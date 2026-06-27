@@ -39,12 +39,12 @@ describe("render", () => {
     expect(svg).toContain('class="archmap-zone"');
   });
 
-  it("marks edge endpoints with small dots", () => {
+  it("marks edge startpoints with small dots", () => {
     const m = parse(`graph LR
       A[A] --> B[B]
     `);
     const { svg } = render(m, { view: "overview" });
-    expect(svg).toContain('class="archmap-edge-endpoint"');
+    expect(svg).toContain('class="archmap-edge-startpoint"');
   });
 
   it("supports the baseView plus overlays API", () => {

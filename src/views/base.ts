@@ -15,7 +15,7 @@ import {
   MARKERS,
   buildEdgePaths,
   edgeLabelSvg,
-  edgeEndpointSvg,
+  edgeStartpointSvg,
   edgePathFromD,
   escapeXml,
   nodeBadgeSvg,
@@ -69,6 +69,25 @@ interface Port {
   y: number;
 }
 
+interface OverlayDrawable {
+  id: string;
+  index: number;
+  entry: {
+    edge: OverlayEdge;
+    from: LayoutNode;
+    to: LayoutNode;
+    source: Port;
+    target: Port;
+  };
+  points: Array<{ x: number; y: number }>;
+}
+
+interface OverlayPlan {
+  drawables: OverlayDrawable[];
+  permissionLabelsByTarget: Map<string, string[]>;
+  targetSlot: Map<string, { slot: number; count: number }>;
+}
+
 function center(n: LayoutNode): { x: number; y: number } {
   return { x: n.x + n.w / 2, y: n.y + n.h / 2 };
 }
@@ -94,13 +113,13 @@ function portPoint(node: LayoutNode, face: Face, slot: number, count: number): {
   return { x: node.x + inset + span * along, y: node.y + node.h };
 }
 
-function orthogonalPath(a: { x: number; y: number }, b: { x: number; y: number }, sourceFace: Face): string {
+function orthogonalPoints(a: { x: number; y: number }, b: { x: number; y: number }, sourceFace: Face): Array<{ x: number; y: number }> {
   if (sourceFace === "left" || sourceFace === "right") {
     const midX = (a.x + b.x) / 2;
-    return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${midX.toFixed(1)} ${a.y.toFixed(1)} L ${midX.toFixed(1)} ${b.y.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    return [a, { x: midX, y: a.y }, { x: midX, y: b.y }, b];
   }
   const midY = (a.y + b.y) / 2;
-  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${a.x.toFixed(1)} ${midY.toFixed(1)} L ${b.x.toFixed(1)} ${midY.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  return [a, { x: a.x, y: midY }, { x: b.x, y: midY }, b];
 }
 
 function labelAnchor(node: LayoutNode, face: Face, slot: number, count: number, label: string): { x: number; y: number; orient: "h" | "v" } {
@@ -128,8 +147,8 @@ function permissionSummarySvg(node: LayoutNode, labels: string[]): string {
   );
 }
 
-function renderOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string, LayoutNode>): string {
-  if (!edges?.length) return "";
+function planOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string, LayoutNode>): OverlayPlan {
+  if (!edges?.length) return { drawables: [], permissionLabelsByTarget: new Map(), targetSlot: new Map() };
   const permissionEdges = edges.filter((edge) => edge.className?.includes("archmap-permission-edge"));
   const densePermissionOverlay = permissionEdges.length > 8;
   const permissionLabelsByTarget = new Map<string, string[]>();
@@ -177,23 +196,33 @@ function renderOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<stri
     entries.forEach((entry, slot) => targetSlot.set(`${entry.edgeIndex}|${key}`, { slot, count: entries.length }));
   }
 
-  return resolved
-    .map((entry, index) => {
-      if (!entry) return "";
-      const d = orthogonalPath(entry.source, entry.target, entry.source.face);
+  const drawables = resolved
+    .map((entry, index) => entry
+      ? { id: entry.edge.id, index, entry, points: orthogonalPoints(entry.source, entry.target, entry.source.face) }
+      : undefined)
+    .filter((item): item is OverlayDrawable => !!item);
+
+  return { drawables, permissionLabelsByTarget, targetSlot };
+}
+
+function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, densePermissionOverlay: boolean): string {
+  return plan.drawables
+    .map((item) => {
+      const { entry, index } = item;
+      const d = edgePaths.get(entry.edge.id) ?? "";
       const cls = entry.edge.className ?? "archmap-overlay-edge";
       const key = `${index}|${entry.edge.to}|${entry.target.face}`;
-      const stack = targetSlot.get(key) ?? { slot: 0, count: 1 };
+      const stack = plan.targetSlot.get(key) ?? { slot: 0, count: 1 };
       const suppressLabel = densePermissionOverlay && entry.edge.className?.includes("archmap-permission-edge");
       const label = entry.edge.label && !suppressLabel
         ? edgeLabelSvg(entry.edge.label, labelAnchor(entry.to, entry.target.face, stack.slot, stack.count, entry.edge.label), "h")
         : "";
-      return `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${edgeEndpointSvg(entry.target)}${label}</g>`;
+      return `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${edgeStartpointSvg(entry.source)}${label}</g>`;
     })
     .join("") +
-    [...permissionLabelsByTarget.entries()]
+    [...plan.permissionLabelsByTarget.entries()]
       .map(([target, labels]) => {
-        const node = nodeById.get(target);
+        const node = plan.drawables.find((item) => item.entry.to.id === target)?.entry.to;
         return node ? permissionSummarySvg(node, labels) : "";
       })
       .join("");
@@ -219,20 +248,22 @@ export function renderDiagram(spec: DiagramSpec): string {
     })
     .join("");
 
-  const edgePaths = buildEdgePaths(layout.edges);
+  const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
+  const overlayPlan = planOverlayEdges(overlayEdges, nodeById);
+  const densePermissionOverlay = (overlayEdges ?? []).filter((edge) => edge.className?.includes("archmap-permission-edge")).length > 8;
+  const edgePaths = buildEdgePaths([...layout.edges, ...overlayPlan.drawables]);
   const edgesSvg = layout.edges
     .map((e) => {
       const emph = emphasizeEdges?.has(e.id) ?? false;
       const cls = `archmap-edge${channelClass(e.id, emphasizeEdges)}`;
       const path = edgePathFromD(edgePaths.get(e.id) ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
-      const endpoint = edgeEndpointSvg(e.points[e.points.length - 1]);
+      const startpoint = edgeStartpointSvg(e.points[0]);
       const label = e.label ? edgeLabelSvg(e.label, e.labelAt, e.labelOrient) : "";
-      return `<g class="${cls}" data-id="${escapeXml(e.id)}">${path}${endpoint}${label}</g>`;
+      return `<g class="${cls}" data-id="${escapeXml(e.id)}">${path}${startpoint}${label}</g>`;
     })
     .join("");
 
-  const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
-  const overlayEdgesSvg = renderOverlayEdges(overlayEdges, nodeById);
+  const overlayEdgesSvg = renderOverlayEdges(overlayPlan, edgePaths, densePermissionOverlay);
 
   const nodesSvg = layout.nodes
     .map((n) => {

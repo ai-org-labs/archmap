@@ -76,8 +76,8 @@ export function edgePathFromD(d: string, markerId = "archmap-arrow"): string {
   return `<path class="archmap-edge-path" d="${d}" marker-end="url(#${markerId})" fill="none" />`;
 }
 
-export function edgeEndpointSvg(point: { x: number; y: number }): string {
-  return `<circle class="archmap-edge-endpoint" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="3" />`;
+export function edgeStartpointSvg(point: { x: number; y: number }): string {
+  return `<circle class="archmap-edge-startpoint" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="3" />`;
 }
 
 interface Seg {
@@ -103,6 +103,48 @@ function segmentsOf(edgeId: string, points: { x: number; y: number }[]): Seg[] {
   return segs;
 }
 
+function parallelOffsets(allSegs: Seg[], spacing = 6): WeakMap<Seg, number> {
+  const result = new WeakMap<Seg, number>();
+  const groups = new Map<string, Seg[]>();
+  for (const seg of allSegs) {
+    if (seg.orient === "diag") continue;
+    const lane = seg.orient === "h" ? seg.y0 : seg.x0;
+    const key = `${seg.orient}|${Math.round(lane * 2) / 2}`;
+    (groups.get(key) ?? (groups.set(key, []), groups.get(key)!)).push(seg);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+    const ordered = [...group].sort((a, b) => {
+      const a0 = a.orient === "h" ? Math.min(a.x0, a.x1) : Math.min(a.y0, a.y1);
+      const b0 = b.orient === "h" ? Math.min(b.x0, b.x1) : Math.min(b.y0, b.y1);
+      const a1 = a.orient === "h" ? Math.max(a.x0, a.x1) : Math.max(a.y0, a.y1);
+      const b1 = b.orient === "h" ? Math.max(b.x0, b.x1) : Math.max(b.y0, b.y1);
+      return a0 - b0 || a1 - b1 || a.edgeId.localeCompare(b.edgeId);
+    });
+    const laneEnds: number[] = [];
+    const laneBySeg = new WeakMap<Seg, number>();
+    for (const seg of ordered) {
+      const start = seg.orient === "h" ? Math.min(seg.x0, seg.x1) : Math.min(seg.y0, seg.y1);
+      const end = seg.orient === "h" ? Math.max(seg.x0, seg.x1) : Math.max(seg.y0, seg.y1);
+      let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start + 4);
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(end);
+      } else {
+        laneEnds[lane] = end;
+      }
+      laneBySeg.set(seg, lane);
+    }
+    if (laneEnds.length <= 1) continue;
+    for (const seg of group) {
+      const lane = laneBySeg.get(seg) ?? 0;
+      result.set(seg, (lane - (laneEnds.length - 1) / 2) * spacing);
+    }
+  }
+  return result;
+}
+
 /**
  * Build the SVG path `d` for every edge, inserting a small gap in each
  * horizontal segment where a vertical segment of a *different* edge crosses it.
@@ -113,8 +155,10 @@ export function buildEdgePaths(
   edges: { id: string; points: { x: number; y: number }[] }[],
   gap = 7,
 ): Map<string, string> {
-  const allSegs = edges.flatMap((e) => segmentsOf(e.id, e.points));
+  const segsByEdge = new Map(edges.map((e) => [e.id, segmentsOf(e.id, e.points)]));
+  const allSegs = [...segsByEdge.values()].flat();
   const verticals = allSegs.filter((s) => s.orient === "v");
+  const offsets = parallelOffsets(allSegs);
   const result = new Map<string, string>();
 
   for (const e of edges) {
@@ -122,18 +166,48 @@ export function buildEdgePaths(
       result.set(e.id, "");
       continue;
     }
-    const segs = segmentsOf(e.id, e.points);
-    let d = `M ${e.points[0].x.toFixed(1)} ${e.points[0].y.toFixed(1)}`;
+    const segs = segsByEdge.get(e.id) ?? [];
+    let current = e.points[0];
+    let d = `M ${current.x.toFixed(1)} ${current.y.toFixed(1)}`;
+    const lineTo = (p: { x: number; y: number }): void => {
+      if (Math.abs(current.x - p.x) < 0.5 && Math.abs(current.y - p.y) < 0.5) return;
+      d += ` L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+      current = p;
+    };
+    const connectTo = (p: { x: number; y: number }): void => {
+      if (Math.abs(current.x - p.x) < 0.5 || Math.abs(current.y - p.y) < 0.5) {
+        lineTo(p);
+        return;
+      }
+      lineTo({ x: p.x, y: current.y });
+      lineTo(p);
+    };
 
     for (const s of segs) {
+      const offset = offsets.get(s) ?? 0;
+      const start = s.orient === "h"
+        ? { x: s.x0, y: s.y0 + offset }
+        : s.orient === "v"
+          ? { x: s.x0 + offset, y: s.y0 }
+          : { x: s.x0, y: s.y0 };
+      const end = s.orient === "h"
+        ? { x: s.x1, y: s.y1 + offset }
+        : s.orient === "v"
+          ? { x: s.x1 + offset, y: s.y1 }
+          : { x: s.x1, y: s.y1 };
+      connectTo(start);
       if (s.orient !== "h") {
-        d += ` L ${s.x1.toFixed(1)} ${s.y1.toFixed(1)}`;
+        lineTo(end);
         continue;
       }
-      const y = s.y0;
-      const lo = Math.min(s.x0, s.x1);
-      const hi = Math.max(s.x0, s.x1);
-      const dir = Math.sign(s.x1 - s.x0) || 1;
+      if (offset !== 0) {
+        lineTo(end);
+        continue;
+      }
+      const y = start.y;
+      const lo = Math.min(start.x, end.x);
+      const hi = Math.max(start.x, end.x);
+      const dir = Math.sign(end.x - start.x) || 1;
       const crosses = verticals
         .filter((v) => v.edgeId !== s.edgeId)
         .filter((v) => v.x0 > lo + gap && v.x0 < hi - gap)
@@ -141,11 +215,13 @@ export function buildEdgePaths(
         .map((v) => v.x0)
         .sort((a, b) => (a - b) * dir);
       for (const cx of crosses) {
-        d += ` L ${(cx - dir * gap).toFixed(1)} ${y.toFixed(1)}`;
+        lineTo({ x: cx - dir * gap, y });
         d += ` M ${(cx + dir * gap).toFixed(1)} ${y.toFixed(1)}`;
+        current = { x: cx + dir * gap, y };
       }
-      d += ` L ${s.x1.toFixed(1)} ${s.y1.toFixed(1)}`;
+      lineTo(end);
     }
+    connectTo(e.points[e.points.length - 1]);
     result.set(e.id, d);
   }
   return result;
@@ -192,7 +268,7 @@ export const DEFAULT_STYLE = `
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; }
-.archmap-edge-endpoint { fill: var(--archmap-edge-endpoint, #111827); stroke: var(--archmap-bg, #ffffff); stroke-width: 1; }
+.archmap-edge-startpoint { fill: var(--archmap-edge-startpoint, #111827); stroke: var(--archmap-bg, #ffffff); stroke-width: 1; }
 .archmap-arrowhead { fill: var(--archmap-edge-stroke, #5b6b86); }
 .archmap-edge-label text { fill: var(--archmap-edge-label, #3a4a63); font: 400 11px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-label-bg { fill: var(--archmap-bg, #ffffff); opacity: 0.85; }

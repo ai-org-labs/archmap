@@ -137,4 +137,15 @@ describe("crossing jumps (buildEdgePaths)", () => {
     const paths = buildEdgePaths(edges, 7);
     expect(paths.get("L")!.match(/M /g)!.length).toBe(1);
   });
+
+  it("offsets overlapping parallel segments onto separate lanes", () => {
+    const edges = [
+      { id: "a", points: [{ x: 0, y: 50 }, { x: 120, y: 50 }] },
+      { id: "b", points: [{ x: 0, y: 50 }, { x: 120, y: 50 }] },
+    ];
+    const paths = buildEdgePaths(edges, 7);
+    expect(paths.get("a")).not.toBe(paths.get("b"));
+    expect(paths.get("a")).toContain("47.0");
+    expect(paths.get("b")).toContain("53.0");
+  });
 });
