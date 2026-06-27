@@ -331,18 +331,32 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   controls.screenSpacePanning = true;
   controls.update();
 
+  let snap: {
+    elapsed: number;
+    duration: number;
+    fromPosition: THREE.Vector3;
+    toPosition: THREE.Vector3;
+    fromUp: THREE.Vector3;
+    toUp: THREE.Vector3;
+  } | undefined;
+  const clock = new THREE.Clock();
+  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
   const snapCamera = (view: "top" | "front" | "right") => {
     const offset = view === "top"
       ? new THREE.Vector3(0, dist, 0.001)
       : view === "front"
         ? new THREE.Vector3(0, 0, dist)
         : new THREE.Vector3(dist, 0, 0);
-    camera.position.copy(center).add(offset);
-    camera.up.set(0, 1, 0);
-    if (view === "top") camera.up.set(0, 0, -1);
-    camera.lookAt(center);
+    const toUp = view === "top" ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(0, 1, 0);
+    snap = {
+      elapsed: 0,
+      duration: 0.42,
+      fromPosition: camera.position.clone(),
+      toPosition: center.clone().add(offset),
+      fromUp: camera.up.clone(),
+      toUp,
+    };
     controls.target.copy(center);
-    controls.update();
   };
 
   const cube = document.createElement("div");
@@ -384,6 +398,15 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   let raf = 0;
   const tick = () => {
     raf = requestAnimationFrame(tick);
+    const delta = clock.getDelta();
+    if (snap) {
+      snap.elapsed += delta;
+      const t = ease(Math.min(1, snap.elapsed / snap.duration));
+      camera.position.lerpVectors(snap.fromPosition, snap.toPosition, t);
+      camera.up.lerpVectors(snap.fromUp, snap.toUp, t).normalize();
+      camera.lookAt(center);
+      if (t >= 1) snap = undefined;
+    }
     controls.update();
     renderer.clear();
     renderer.render(scene, camera);
