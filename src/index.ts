@@ -31,6 +31,8 @@ export {
 export type { RenderableIcon, ResolvedIcon } from "./icons.js";
 export { reportDiagnosticsToConsole } from "./diagnostics.js";
 export type { ConsoleReportOptions } from "./diagnostics.js";
+export { attachPanZoom, computeFitTransform, isInteractiveTarget } from "./views/interaction.js";
+export type { PanZoomHandle, PanZoomTransform } from "./views/interaction.js";
 export { extractArchMapBlocks } from "./parser/sections.js";
 export {
   render,
@@ -39,6 +41,7 @@ export {
   listViews,
   initialize,
   defineArchMapViewerElement,
+  BASE_VIEWS,
   diagnosticsHtml,
   fetchArchMapSource,
   parseOverlaysAttribute,

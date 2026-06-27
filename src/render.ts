@@ -23,6 +23,8 @@ import { validationView } from "./views/validation.js";
 import { renderDiagram } from "./views/base.js";
 import { escapeXml } from "./views/svg.js";
 import { buildOverlayProjection, OVERLAY_NAMES } from "./views/overlays.js";
+import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
+import type { PanZoomHandle } from "./views/interaction.js";
 
 export interface ViewContext {
   model: ArchMapModel;
@@ -62,6 +64,8 @@ export interface RenderOptions {
   /** Report diagnostics to the console (spec 02 §23). Default: off for the
    * programmatic API; engines (viewer/initialize) default it on. */
   console?: boolean | ConsoleReportOptions;
+  /** Enable SVG pan/zoom on the target for 2D views (default on with a DOM target). */
+  interactive?: boolean;
 }
 
 export interface RenderResult {
@@ -226,6 +230,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     view: options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview",
     overlays: [...(options.overlays ?? metadataOverlays(model))],
   };
+  let panZoom: PanZoomHandle | undefined;
 
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
     validateOverlays(model, state.overlays);
@@ -248,6 +253,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
       if (options.target && "innerHTML" in options.target) {
         options.target.innerHTML = svg;
+        panZoom?.dispose();
+        panZoom = undefined;
+        if (options.interactive !== false && isInteractiveTarget(options.target)) {
+          panZoom = attachPanZoom(options.target);
+        }
       }
       return { view: state.view, layout, model, svg, handle: undefined };
     }
@@ -278,9 +288,15 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
         : [...state.overlays, overlay];
       apply(snapshot());
     },
-    fit() {},
-    reset() {},
+    fit() {
+      panZoom?.fit();
+    },
+    reset() {
+      panZoom?.reset();
+    },
     destroy() {
+      panZoom?.dispose();
+      panZoom = undefined;
       result.handle?.dispose();
       result.handle = undefined;
       result.svg = undefined;
@@ -322,6 +338,8 @@ export interface ViewerAttributeOptions {
   fallbackToInline: boolean;
   /** Console diagnostics reporting; default on for the viewer (spec 02 §23). */
   consoleReport: boolean;
+  /** Show the controls toolbar (base-view selector, overlays, fit/reset). */
+  controls: boolean;
 }
 
 export function parseOverlaysAttribute(value: string | null): string[] {
@@ -342,8 +360,12 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     diagnosticsTarget: attrs.getAttribute("diagnostics-target") ?? undefined,
     fallbackToInline: attrs.hasAttribute?.("fallback-to-inline") === true,
     consoleReport: attrs.getAttribute("console") !== "false",
+    controls: attrs.getAttribute("controls") === "true" || attrs.hasAttribute?.("controls") === true,
   };
 }
+
+/** Base views offered by the controls toolbar (spec 03 §7). */
+export const BASE_VIEWS = ["overview", "zone", "3d"] as const;
 
 export async function fetchArchMapSource(src: string, fetchImpl: typeof fetch = fetch): Promise<string> {
   const response = await fetchImpl(src);
@@ -358,12 +380,13 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "fallback-to-inline", "console"];
+      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "fallback-to-inline", "console", "controls"];
     }
 
     private source = "";
     private container?: HTMLDivElement;
     private diagnosticsPanel?: HTMLDivElement;
+    private controlsBar?: HTMLDivElement;
     private result?: RenderResult;
     private loadVersion = 0;
 
@@ -440,6 +463,92 @@ export function defineArchMapViewerElement(): void {
         diagnosticsTarget: this.diagnosticsTarget(options),
         console: options.consoleReport,
       });
+      if (options.controls) this.renderControls(options);
+      else this.controlsBar?.remove(), (this.controlsBar = undefined);
+    }
+
+    /** Controls toolbar: base-view selector, overlay checkboxes, fit/reset,
+     * diagnostics indicator (spec 03 §7). */
+    private renderControls(options: ViewerAttributeOptions): void {
+      const result = this.result;
+      if (!result) return;
+      const bar = document.createElement("div");
+      bar.className = "archmap-viewer-controls";
+      bar.style.cssText =
+        "display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 10px;" +
+        "font:13px system-ui,sans-serif;border-bottom:1px solid #d4dae6;background:#f7f9fc;";
+
+      const group = (label: string) => {
+        const g = document.createElement("span");
+        g.className = "archmap-controls-group";
+        const l = document.createElement("span");
+        l.className = "archmap-controls-label";
+        l.textContent = label;
+        g.appendChild(l);
+        return g;
+      };
+
+      const active = { base: result.view, overlays: new Set(options.overlays) };
+
+      const baseGroup = group("Base:");
+      const baseButtons = new Map<string, HTMLButtonElement>();
+      for (const view of BASE_VIEWS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = view === "3d" ? "3D" : view[0].toUpperCase() + view.slice(1);
+        btn.className = "archmap-control-base" + (view === active.base ? " is-active" : "");
+        btn.addEventListener("click", () => {
+          result.setBaseView(view);
+          active.base = view;
+          baseButtons.forEach((b, name) => b.classList.toggle("is-active", name === view));
+          updateDiagnostics();
+        });
+        baseButtons.set(view, btn);
+        baseGroup.appendChild(btn);
+      }
+      bar.appendChild(baseGroup);
+
+      const overlayGroup = group("Overlays:");
+      for (const overlay of OVERLAY_NAMES) {
+        const wrap = document.createElement("label");
+        wrap.className = "archmap-control-overlay";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = active.overlays.has(overlay);
+        cb.addEventListener("change", () => {
+          result.toggleOverlay(overlay);
+          if (cb.checked) active.overlays.add(overlay);
+          else active.overlays.delete(overlay);
+          updateDiagnostics();
+        });
+        wrap.append(cb, document.createTextNode(" " + overlay));
+        overlayGroup.appendChild(wrap);
+      }
+      bar.appendChild(overlayGroup);
+
+      const fit = document.createElement("button");
+      fit.type = "button";
+      fit.textContent = "Fit";
+      fit.addEventListener("click", () => result.fit());
+      const reset = document.createElement("button");
+      reset.type = "button";
+      reset.textContent = "Reset";
+      reset.addEventListener("click", () => result.reset());
+      bar.append(fit, reset);
+
+      const diag = document.createElement("span");
+      diag.className = "archmap-controls-diagnostics";
+      diag.style.cssText = "margin-left:auto;color:#5b6b86;";
+      const updateDiagnostics = () => {
+        const m = result.model;
+        diag.textContent = `Errors ${m.errors.length} / Warnings ${m.warnings.length} / Suggestions ${m.suggestions.length} / Infos ${m.infos.length}`;
+      };
+      updateDiagnostics();
+      bar.appendChild(diag);
+
+      this.controlsBar?.remove();
+      this.controlsBar = bar;
+      this.insertBefore(bar, this.firstChild);
     }
 
     private renderSourceFailure(src: string, error: unknown, options: ViewerAttributeOptions): void {

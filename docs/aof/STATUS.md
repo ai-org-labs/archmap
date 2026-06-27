@@ -1,10 +1,12 @@
 # ArchMap — AOF Shared Development State
 
-The primary shared runtime state is now **[`.aof/`](../../.aof/)**. This file is
-the human-readable status bridge for ArchMap, used so multiple agents (Claude
-Code and Codex) can work **alternately** without losing context. Read `.aof`
-project bootstrap/orientation/goals/tasks first, then this file for narrative
-handoff detail; update `.aof` and the Handoff log before ending a session.
+> **Being phased out.** The canonical shared state is **[`.aof/`](../../.aof/)**
+> (goals, tasks, context), managed via the AOF CLI. New handoff/triage goes into
+> `.aof` task triage notes / `alignment-pulse`, **not** here. This file is kept
+> for historical narrative only and is no longer updated per session.
+
+Read `.aof` orientation/goals/tasks for current state. The notes below are a
+historical bridge from the early Claude/Codex alternation.
 
 - Frameworks: **AOF v6.4.0** (https://github.com/ai-org-labs/ai-organization-framework/tree/v6.4.0) · **QIF v0.3.0** (https://github.com/ai-org-labs/quality-intent-framework/tree/v0.3.0)
 - Authoritative specs (in repo): [`docs/specs/v0.1/`](../specs/v0.1/) — authority order: product-principles → model-validation → dsl-syntax → views-rendering → engine-api

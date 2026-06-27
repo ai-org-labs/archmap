@@ -286,7 +286,13 @@ overlaid.toggleOverlay("boundary");
   `<archmap-viewer>` by default when `customElements` is available; call
   `defineArchMapViewerElement()` directly if you do not use `initialize()`.
   Supported first-pass attributes: `base-view`, `overlays`, `width`, `height`,
-  `src`, `fallback-to-inline`, `diagnostics`, `diagnostics-target`, and `console`.
+  `src`, `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`,
+  and `controls`.
+- **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows a
+  toolbar (base-view selector, overlay checkboxes, Fit/Reset, diagnostics
+  indicator). 2D views support wheel zoom and drag pan; `render(model,{target})`
+  attaches this automatically (`interactive: false` to disable), and
+  `RenderResult.fit()/reset()` control the view.
   External `src` takes priority; failed loads emit `src_fetch_failed` and show
   diagnostics. Inline fallback is used only when `fallback-to-inline` is present.
 - **Console diagnostics** (spec 02 §23): the viewer logs warnings+errors to the

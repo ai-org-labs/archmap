@@ -186,6 +186,7 @@ describe("archmap-viewer attributes", () => {
       diagnosticsTarget: "#warnings",
       fallbackToInline: true,
       consoleReport: true,
+      controls: false,
     });
   });
 
