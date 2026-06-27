@@ -683,7 +683,7 @@ export function defineArchMapViewerElement(): void {
       else this.controlsBar?.remove(), (this.controlsBar = undefined);
     }
 
-    /** Controls toolbar: view selector, render mode, additive overlay checkboxes, fit/reset,
+    /** Controls toolbar: exclusive view/mode radios, additive overlay tags, fit/reset,
      * diagnostics indicator (spec 03 §7). */
     private renderControls(options: ViewerAttributeOptions): void {
       const result = this.result;
@@ -691,54 +691,107 @@ export function defineArchMapViewerElement(): void {
       const bar = document.createElement("div");
       bar.className = "archmap-viewer-controls";
       bar.style.cssText =
-        "display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 10px;" +
+        "display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;" +
         "font:13px system-ui,sans-serif;border-bottom:1px solid #d4dae6;background:#f7f9fc;";
+      const uid = Math.random().toString(36).slice(2);
+      const panelElements: HTMLElement[] = [];
+      const tagCss =
+        "display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:3px 8px;" +
+        "border:1px solid #cbd5e1;border-radius:999px;background:#f8fafc;color:#334155;" +
+        "font:600 12px system-ui,sans-serif;white-space:nowrap;cursor:pointer;";
+      const actionCss =
+        "min-width:28px;min-height:26px;padding:3px 8px;border-radius:999px;background:#eef2f7;" +
+        "color:#334155;border:1px solid #cbd5e1;cursor:pointer;";
+      const paintTag = (wrap: HTMLElement, checked: boolean) => {
+        wrap.style.cssText = tagCss + (checked ? "background:#e6edf7;border-color:#7892bd;color:#213a63;" : "");
+      };
 
       const group = (label: string) => {
         const g = document.createElement("span");
         g.className = "archmap-controls-group";
+        g.style.cssText = "display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;";
         const l = document.createElement("span");
         l.className = "archmap-controls-label";
         l.textContent = label;
+        l.style.cssText = "font-size:11px;font-weight:700;color:#64748b;margin-right:2px;";
         g.appendChild(l);
+        panelElements.push(g);
         return g;
       };
 
       const active = { base: options.baseView ?? "overview", renderMode: options.renderMode, overlays: new Set(options.overlays) };
 
+      const expand = document.createElement("button");
+      expand.type = "button";
+      expand.textContent = "+";
+      expand.title = "Expand tags";
+      expand.style.cssText = actionCss;
+      const minimize = document.createElement("button");
+      minimize.type = "button";
+      minimize.textContent = "-";
+      minimize.title = "Minimize tags";
+      minimize.style.cssText = actionCss;
+      minimize.addEventListener("click", () => {
+        for (const el of panelElements) el.style.display = "none";
+        minimize.style.display = "none";
+        bar.style.width = "auto";
+      });
+      expand.addEventListener("click", () => {
+        for (const el of panelElements) el.style.display = "";
+        minimize.style.display = "";
+        bar.style.width = "min(960px, 100%)";
+      });
+      bar.append(expand, minimize);
+
       const baseGroup = group("Views:");
-      const baseButtons = new Map<string, HTMLButtonElement>();
       for (const view of BASE_VIEWS) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = BASE_VIEW_LABELS[view];
-        btn.className = "archmap-control-base" + (view === active.base ? " is-active" : "");
-        btn.addEventListener("click", () => {
+        const wrap = document.createElement("label");
+        wrap.className = "archmap-control-base";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = `archmap-base-view-${uid}`;
+        input.value = view;
+        input.checked = view === active.base;
+        input.style.margin = "0";
+        input.addEventListener("change", () => {
+          if (!input.checked) return;
           result.setBaseView(view);
           active.base = view;
-          baseButtons.forEach((b, name) => b.classList.toggle("is-active", name === view));
+          baseGroup.querySelectorAll("label").forEach((label) => {
+            const radio = label.querySelector("input");
+            paintTag(label as HTMLElement, radio instanceof HTMLInputElement && radio.checked);
+          });
           updateDiagnostics();
         });
-        baseButtons.set(view, btn);
-        baseGroup.appendChild(btn);
+        wrap.append(input, document.createTextNode(BASE_VIEW_LABELS[view]));
+        paintTag(wrap, input.checked);
+        baseGroup.appendChild(wrap);
       }
       bar.appendChild(baseGroup);
 
       const modeGroup = group("Render modes:");
-      const modeButtons = new Map<string, HTMLButtonElement>();
       for (const mode of RENDER_MODES) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = mode === "3d" ? "3D" : mode[0].toUpperCase() + mode.slice(1);
-        btn.className = "archmap-control-render-mode" + (mode === active.renderMode ? " is-active" : "");
-        btn.addEventListener("click", () => {
+        const wrap = document.createElement("label");
+        wrap.className = "archmap-control-render-mode";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = `archmap-render-mode-${uid}`;
+        input.value = mode;
+        input.checked = mode === active.renderMode;
+        input.style.margin = "0";
+        input.addEventListener("change", () => {
+          if (!input.checked) return;
           result.setRenderMode(mode);
           active.renderMode = mode;
-          modeButtons.forEach((b, name) => b.classList.toggle("is-active", name === mode));
+          modeGroup.querySelectorAll("label").forEach((label) => {
+            const radio = label.querySelector("input");
+            paintTag(label as HTMLElement, radio instanceof HTMLInputElement && radio.checked);
+          });
           updateDiagnostics();
         });
-        modeButtons.set(mode, btn);
-        modeGroup.appendChild(btn);
+        wrap.append(input, document.createTextNode(mode === "3d" ? "3D" : mode.toUpperCase()));
+        paintTag(wrap, input.checked);
+        modeGroup.appendChild(wrap);
       }
       bar.appendChild(modeGroup);
 
@@ -746,9 +799,11 @@ export function defineArchMapViewerElement(): void {
       for (const overlay of OVERLAY_NAMES) {
         const wrap = document.createElement("label");
         wrap.className = "archmap-control-overlay";
+        paintTag(wrap, active.overlays.has(overlay));
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = active.overlays.has(overlay);
+        cb.style.margin = "0";
         cb.addEventListener("change", () => {
           if (cb.checked) {
             active.overlays.add(overlay);
@@ -757,6 +812,7 @@ export function defineArchMapViewerElement(): void {
             active.overlays.delete(overlay);
             result.removeOverlay(overlay);
           }
+          paintTag(wrap, cb.checked);
           updateDiagnostics();
         });
         wrap.append(cb, document.createTextNode(" " + overlay));
@@ -767,12 +823,19 @@ export function defineArchMapViewerElement(): void {
       const fit = document.createElement("button");
       fit.type = "button";
       fit.textContent = "Fit";
+      fit.style.cssText = actionCss;
       fit.addEventListener("click", () => result.fit());
       const reset = document.createElement("button");
       reset.type = "button";
       reset.textContent = "Reset";
+      reset.style.cssText = actionCss;
       reset.addEventListener("click", () => result.reset());
-      bar.append(fit, reset);
+      const actionGroup = document.createElement("span");
+      actionGroup.className = "archmap-controls-group";
+      actionGroup.style.cssText = "display:inline-flex;align-items:center;gap:5px;";
+      actionGroup.append(fit, reset);
+      panelElements.push(actionGroup);
+      bar.append(actionGroup);
 
       const diag = document.createElement("span");
       diag.className = "archmap-controls-diagnostics";
@@ -782,6 +845,7 @@ export function defineArchMapViewerElement(): void {
         diag.textContent = `Errors ${m.errors.length} / Warnings ${m.warnings.length} / Suggestions ${m.suggestions.length} / Infos ${m.infos.length}`;
       };
       updateDiagnostics();
+      panelElements.push(diag);
       bar.appendChild(diag);
 
       this.controlsBar?.remove();

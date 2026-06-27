@@ -265,6 +265,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
 function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const el = target as HTMLElement;
   el.innerHTML = "";
+  if (!el.style.position) el.style.position = "relative";
   const width = el.clientWidth || 800;
   const height = el.clientHeight || 520;
   const isIsometric = ctx.options.renderMode === "isometric";
@@ -331,6 +332,44 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   controls.screenSpacePanning = true;
   controls.update();
 
+  const snapCamera = (view: "top" | "front" | "side") => {
+    const offset = view === "top"
+      ? new THREE.Vector3(0, dist, 0.001)
+      : view === "front"
+        ? new THREE.Vector3(0, 0, dist)
+        : new THREE.Vector3(dist, 0, 0);
+    camera.position.copy(center).add(offset);
+    camera.up.set(0, 1, 0);
+    if (view === "top") camera.up.set(0, 0, -1);
+    camera.lookAt(center);
+    controls.target.copy(center);
+    controls.update();
+  };
+
+  const gizmo = document.createElement("div");
+  gizmo.className = "archmap-view-gizmo";
+  gizmo.style.cssText =
+    "position:absolute;right:12px;top:12px;z-index:4;display:flex;gap:6px;padding:6px;" +
+    "border:1px solid rgba(148,163,184,0.45);border-radius:8px;background:rgba(255,255,255,0.9);" +
+    "box-shadow:0 10px 28px rgba(28,39,51,0.14);backdrop-filter:blur(8px);";
+  const makeGizmoButton = (label: string, view: "top" | "front" | "side") => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    btn.title = `Snap camera to ${label.toLowerCase()} view`;
+    btn.style.cssText =
+      "min-width:44px;min-height:28px;border:1px solid #cbd5e1;border-radius:999px;" +
+      "background:#f8fafc;color:#334155;font:700 12px system-ui,sans-serif;cursor:pointer;";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      snapCamera(view);
+    });
+    return btn;
+  };
+  gizmo.append(makeGizmoButton("Top", "top"), makeGizmoButton("Front", "front"), makeGizmoButton("Side", "side"));
+  el.appendChild(gizmo);
+
   // Orientation gizmo in the corner. Clicking an axis snaps the camera to that
   // view (top / front / side); it animates around the scene center.
   const viewHelper = new ViewHelper(camera, renderer.domElement);
@@ -388,6 +427,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
       (grid.material as THREE.Material).dispose();
       renderer.dispose();
       renderer.domElement.remove();
+      gizmo.remove();
     },
   };
 }
