@@ -312,8 +312,10 @@ export function buildEdgePaths(
 export function nodeBadgeSvg(n: LayoutNode, text: string): string {
   const cx = n.x + n.w / 2;
   const y = n.y + n.h + 12;
+  const [rawLabel, ...titleParts] = text.split("\n");
+  const title = titleParts.length ? `<title>${escapeXml(titleParts.join("\n"))}</title>` : "";
   if (text.startsWith("auth:")) {
-    const label = text.slice("auth:".length);
+    const label = rawLabel.slice("auth:".length);
     const w = Math.max(54, label.length * 7 + 30);
     const h = 20;
     const x = cx - w / 2;
@@ -322,6 +324,7 @@ export function nodeBadgeSvg(n: LayoutNode, text: string): string {
     const textX = x + 27;
     return (
       `<g class="archmap-badge archmap-auth-badge">` +
+      title +
       `<rect x="${x.toFixed(1)}" y="${rectY.toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="10" />` +
       `<path class="archmap-auth-badge-icon-stroke" d="M ${(iconX - 5).toFixed(1)} ${(rectY + 11).toFixed(1)} v -3 a 5 5 0 0 1 10 0 v 3" />` +
       `<rect class="archmap-auth-badge-icon-fill" x="${(iconX - 5).toFixed(1)}" y="${(rectY + 11).toFixed(1)}" width="10" height="8" rx="2" />` +
@@ -329,20 +332,47 @@ export function nodeBadgeSvg(n: LayoutNode, text: string): string {
       `</g>`
     );
   }
-  return `<text class="archmap-badge" x="${cx.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${escapeXml(text)}</text>`;
+  const semantic = rawLabel.match(/^(data|permission|validation|boundary):(.+)$/);
+  if (semantic) {
+    const [, kind, label] = semantic;
+    const w = Math.max(64, label.length * 6.5 + 18);
+    const h = 18;
+    const x = cx - w / 2;
+    const rectY = y - 14;
+    return (
+      `<g class="archmap-badge archmap-${kind}-badge">` +
+      title +
+      `<rect x="${x.toFixed(1)}" y="${rectY.toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="9" />` +
+      `<text x="${cx.toFixed(1)}" y="${(rectY + h / 2 + 0.5).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(label)}</text>` +
+      `</g>`
+    );
+  }
+  return `<text class="archmap-badge" x="${cx.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${title}${escapeXml(rawLabel)}</text>`;
 }
 
 export interface EdgeBadgeSpec {
-  kind: "auth-summary";
+  kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary";
   label: string;
   title?: string;
 }
 
-function edgeBadgeIcon(x: number, y: number): string {
-  return (
-    `<path class="archmap-auth-edge-badge-icon-stroke" d="M ${x} ${y + 1} v -3 a 4 4 0 0 1 8 0 v 3" />` +
-    `<rect class="archmap-auth-edge-badge-icon-fill" x="${x}" y="${y + 1}" width="8" height="7" rx="1.5" />`
-  );
+function edgeBadgeIcon(kind: EdgeBadgeSpec["kind"], x: number, y: number): string {
+  if (kind === "auth-summary") {
+    return (
+      `<path class="archmap-edge-badge-icon-stroke" d="M ${x} ${y + 1} v -3 a 4 4 0 0 1 8 0 v 3" />` +
+      `<rect class="archmap-edge-badge-icon-fill" x="${x}" y="${y + 1}" width="8" height="7" rx="1.5" />`
+    );
+  }
+  if (kind === "data-summary") {
+    return `<path class="archmap-edge-badge-icon-stroke" d="M ${x} ${y - 4} a 5 2.4 0 1 0 10 0 v 8 a 5 2.4 0 1 1 -10 0 z M ${x} ${y} a 5 2.4 0 1 0 10 0" />`;
+  }
+  if (kind === "boundary-summary") {
+    return `<path class="archmap-edge-badge-icon-stroke" d="M ${x - 1} ${y - 5} h 11 v 11 h -11 z M ${x + 2} ${y - 7} v 15 M ${x + 7} ${y - 7} v 15" />`;
+  }
+  if (kind === "permission-summary") {
+    return `<path class="archmap-edge-badge-icon-stroke" d="M ${x} ${y} a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M ${x + 6} ${y} h 6 M ${x + 10} ${y} v 3" />`;
+  }
+  return `<path class="archmap-edge-badge-icon-stroke" d="M ${x + 5} ${y - 6} l 6 11 h -12 z M ${x + 5} ${y - 2} v 3 M ${x + 5} ${y + 4} v 1" />`;
 }
 
 export function edgeBadgesSize(badges: EdgeBadgeSpec[]): { w: number; h: number } {
@@ -357,14 +387,15 @@ export function edgeBadgesSvg(badges: EdgeBadgeSpec[], at: { x: number; y: numbe
   const total = sizes.reduce((sum, size) => sum + size, 0) + gap * (sizes.length - 1);
   let x = at.x - total / 2;
   const y = at.y;
-  return `<g class="archmap-edge-badges archmap-auth-edge-badges">` + badges.map((badge, index) => {
+  return `<g class="archmap-edge-badges">` + badges.map((badge, index) => {
     const w = sizes[index];
     const rect = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="9" />`;
     const title = badge.title ? `<title>${escapeXml(badge.title)}</title>` : "";
-    const icon = edgeBadgeIcon(x + 9, y + 7);
+    const icon = edgeBadgeIcon(badge.kind, x + 9, y + 7);
     const text = `<text x="${(x + 23).toFixed(1)}" y="${(y + 9.5).toFixed(1)}" dominant-baseline="central">${escapeXml(badge.label)}</text>`;
     x += w + gap;
-    return `<g class="archmap-auth-edge-badge archmap-${badge.kind}">${title}${rect}${icon}${text}</g>`;
+    const legacyClass = badge.kind === "auth-summary" ? " archmap-auth-edge-badge" : ` archmap-${badge.kind.replace("-summary", "")}-edge-badge`;
+    return `<g class="archmap-edge-badge${legacyClass} archmap-${badge.kind}">${title}${rect}${icon}${text}</g>`;
   }).join("") + `</g>`;
 }
 
@@ -431,10 +462,21 @@ export const DEFAULT_STYLE = `
 .archmap-auth-badge text { fill: var(--archmap-auth-badge-text, #7f1d1d); font: 800 11px var(--archmap-font, system-ui, sans-serif); letter-spacing: 0; }
 .archmap-auth-badge-icon-fill { fill: var(--archmap-auth-badge-stroke, #b3261e); stroke: none; }
 .archmap-auth-badge-icon-stroke { fill: none; stroke: var(--archmap-auth-badge-stroke, #b3261e); stroke-width: 1.8; stroke-linecap: round; }
-.archmap-auth-edge-badge rect { fill: var(--archmap-auth-badge-fill, #fff7ed); stroke: var(--archmap-auth-badge-stroke, #b3261e); stroke-width: 1.1; opacity: 0.96; }
-.archmap-auth-edge-badge text { fill: var(--archmap-auth-badge-text, #7f1d1d); font: 800 10px var(--archmap-font, system-ui, sans-serif); letter-spacing: 0; }
-.archmap-auth-edge-badge-icon, .archmap-auth-edge-badge-icon-stroke { fill: none; stroke: var(--archmap-auth-badge-stroke, #b3261e); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.archmap-auth-edge-badge-icon-fill { fill: var(--archmap-auth-badge-stroke, #b3261e); stroke: none; }
+.archmap-data-badge rect { fill: var(--archmap-data-badge-fill, #eef9f5); stroke: var(--archmap-data-badge-stroke, #16846d); stroke-width: 1; }
+.archmap-data-badge text { fill: var(--archmap-data-badge-text, #0f5f4e); font: 700 10px var(--archmap-font, system-ui, sans-serif); }
+.archmap-permission-badge rect { fill: var(--archmap-permission-badge-fill, #f6f0ff); stroke: var(--archmap-permission, #7a4f9a); stroke-width: 1; }
+.archmap-permission-badge text { fill: var(--archmap-permission, #7a4f9a); font: 700 10px var(--archmap-font, system-ui, sans-serif); }
+.archmap-validation-badge rect { fill: var(--archmap-validation-badge-fill, #fff7ed); stroke: var(--archmap-validation, #c2410c); stroke-width: 1; }
+.archmap-validation-badge text { fill: var(--archmap-validation, #c2410c); font: 800 10px var(--archmap-font, system-ui, sans-serif); }
+.archmap-edge-badge rect { fill: var(--archmap-edge-badge-fill, #ffffff); stroke: var(--archmap-edge-badge-stroke, #5b6b86); stroke-width: 1.1; opacity: 0.96; }
+.archmap-edge-badge text { fill: var(--archmap-edge-badge-text, #1f2937); font: 800 10px var(--archmap-font, system-ui, sans-serif); letter-spacing: 0; }
+.archmap-edge-badge-icon-stroke { fill: none; stroke: var(--archmap-edge-badge-stroke, #5b6b86); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.archmap-edge-badge-icon-fill { fill: var(--archmap-edge-badge-stroke, #5b6b86); stroke: none; }
+.archmap-auth-summary { --archmap-edge-badge-fill: var(--archmap-auth-badge-fill, #fff7ed); --archmap-edge-badge-stroke: var(--archmap-auth-badge-stroke, #b3261e); --archmap-edge-badge-text: var(--archmap-auth-badge-text, #7f1d1d); }
+.archmap-data-summary { --archmap-edge-badge-fill: var(--archmap-data-badge-fill, #eef9f5); --archmap-edge-badge-stroke: var(--archmap-data-badge-stroke, #16846d); --archmap-edge-badge-text: var(--archmap-data-badge-text, #0f5f4e); }
+.archmap-boundary-summary { --archmap-edge-badge-fill: var(--archmap-boundary-badge-fill, #fffaf0); --archmap-edge-badge-stroke: var(--archmap-boundary-stroke, #c0a044); --archmap-edge-badge-text: var(--archmap-boundary-label, #7d704b); }
+.archmap-permission-summary { --archmap-edge-badge-fill: var(--archmap-permission-badge-fill, #f6f0ff); --archmap-edge-badge-stroke: var(--archmap-permission, #7a4f9a); --archmap-edge-badge-text: var(--archmap-permission, #7a4f9a); }
+.archmap-validation-summary { --archmap-edge-badge-fill: var(--archmap-validation-badge-fill, #fff7ed); --archmap-edge-badge-stroke: var(--archmap-validation, #c2410c); --archmap-edge-badge-text: var(--archmap-validation, #c2410c); }
 .archmap-overlay-edge .archmap-edge-path { stroke: var(--archmap-permission, #7a4f9a); stroke-width: 2; stroke-dasharray: 6 4; }
 .archmap-overlay-edge .archmap-edge-startpoint { fill: var(--archmap-permission, #7a4f9a); }
 .archmap-overlay-edge .archmap-edge-label text { fill: var(--archmap-permission, #7a4f9a); font-weight: 600; }

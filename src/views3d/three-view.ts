@@ -46,7 +46,7 @@ interface LabelOpts {
   bg?: string;
   scaleY?: number;
   bold?: boolean;
-  icon?: "auth";
+  icon?: "auth" | "data" | "boundary" | "permission" | "validation";
 }
 
 function makeTextSprite(text: string, opts: LabelOpts = {}): THREE.Sprite {
@@ -66,8 +66,13 @@ function makeTextSprite(text: string, opts: LabelOpts = {}): THREE.Sprite {
   ctx.font = font;
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  if (opts.icon === "auth") {
-    ctx.fillStyle = "#b3261e";
+  if (opts.icon) {
+    const color = opts.icon === "auth" ? "#b3261e"
+      : opts.icon === "data" ? "#16846d"
+        : opts.icon === "boundary" ? "#c0a044"
+          : opts.icon === "permission" ? "#7a4f9a"
+            : "#c2410c";
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(pad + 8, 16, 5, 0, Math.PI * 2);
     ctx.fill();
@@ -103,6 +108,14 @@ function makeIconSprite(icon: RenderableIcon): { sprite: THREE.Sprite; texture: 
 function disposeSprite(sprite: THREE.Sprite, disposables: { dispose(): void }[]): void {
   if (sprite.material.map) disposables.push(sprite.material.map);
   disposables.push(sprite.material);
+}
+
+function edgeBadgeStyle(kind: string): Pick<LabelOpts, "fg" | "bg" | "icon"> {
+  if (kind === "auth-summary") return { fg: "#7f1d1d", bg: "rgba(255,247,237,0.96)", icon: "auth" };
+  if (kind === "data-summary") return { fg: "#0f5f4e", bg: "rgba(238,249,245,0.96)", icon: "data" };
+  if (kind === "boundary-summary") return { fg: "#7d704b", bg: "rgba(255,250,240,0.96)", icon: "boundary" };
+  if (kind === "permission-summary") return { fg: "#7a4f9a", bg: "rgba(246,240,255,0.96)", icon: "permission" };
+  return { fg: "#c2410c", bg: "rgba(255,247,237,0.96)", icon: "validation" };
 }
 
 function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, RenderableIcon>): {
@@ -189,14 +202,13 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
       disposeSprite(label, disposables);
       root.add(label);
     }
-    const authBadge = edgeBadges.get(e.id)?.find((badge) => badge.kind === "auth-summary");
-    if (authBadge) {
-      const label = makeTextSprite(authBadge.label, {
-        fg: "#7f1d1d",
-        bg: "rgba(255,247,237,0.96)",
+    const edgeBadge = edgeBadges.get(e.id)?.[0];
+    if (edgeBadge) {
+      const style = edgeBadgeStyle(edgeBadge.kind);
+      const label = makeTextSprite(edgeBadge.label, {
+        ...style,
         scaleY: 0.42,
         bold: true,
-        icon: "auth",
       });
       label.position.set((e.a.x + e.b.x) / 2, Math.max(e.a.y, e.b.y) + 0.82, (e.a.z + e.b.z) / 2);
       disposeSprite(label, disposables);

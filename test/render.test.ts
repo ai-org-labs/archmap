@@ -192,7 +192,9 @@ describe("render", () => {
     expect(svg).toContain(">JWT<");
     expect(svg).toContain("archmap-auth-badge");
     expect(svg).toContain("archmap-auth-edge-badge");
+    expect(svg).toContain("archmap-data-edge-badge");
     expect(svg).toContain("JWT · issuer FirebaseAuth · validator APIGW");
+    expect(svg).toContain("customer_profile · personal");
     expect(svg).toContain("issuer: FirebaseAuth");
     expect(svg).toContain("validator: APIGW");
     expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");
@@ -319,6 +321,44 @@ describe("render", () => {
     expect(svg).toContain("archmap-permission-summary");
     expect(svg).toContain(">2 permissions<");
     expect(svg).toContain("roles/cloudsql.client");
+  });
+
+  it("renders boundary, dataflow, permission, and validation as grouped semantic badges", () => {
+    const m = parse(`graph LR
+      App[App] --> API[API]
+      API --> DB[(DB)]
+      App --> DB
+      ---
+      nodes:
+        App: { zone: client, principal: app-sa }
+        API: { zone: app, kind: api_gateway }
+        DB: { zone: data, kind: database }
+      boundaries:
+        public_boundary: { contains: [API] }
+        data_boundary: { contains: [DB] }
+      zones:
+        client: { contains: [App] }
+        app: { contains: [API] }
+        data: { contains: [DB] }
+      edges:
+        App->API: { flow: request, boundaryCrossing: [public_boundary] }
+        API->DB: { flow: data_write, data: [profile], boundaryCrossing: [data_boundary] }
+        App->DB: { flow: data_read, boundaryCrossing: false }
+      data:
+        profile: { label: User Profile, classification: confidential, storedIn: [DB], flows: [API->DB] }
+      permissions:
+        db_write: { principal: app-sa, action: write, resource: DB, role: roles/db.writer }
+    `);
+    const svg = render(m, { baseView: "overview", overlays: ["boundary", "dataflow", "permission", "validation"] }).svg!;
+    expect(svg).toContain("archmap-boundary-edge-badge");
+    expect(svg).toContain("crosses public_boundary");
+    expect(svg).toContain("archmap-data-edge-badge");
+    expect(svg).toContain("profile · confidential");
+    expect(svg).toContain("archmap-permission-badge");
+    expect(svg).toContain(">1 permission<");
+    expect(svg).toContain("roles/db.writer");
+    expect(svg).toContain("archmap-validation-badge");
+    expect(svg).toContain("zone_crossing_marked_false");
   });
 
   it("collapses dense permission overlay labels into target summaries", () => {

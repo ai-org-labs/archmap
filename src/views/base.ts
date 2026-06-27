@@ -51,7 +51,7 @@ export interface DiagramSpec {
   /** Node id -> short caption rendered beneath the node. */
   nodeBadges?: Map<string, string>;
   /** Edge id -> compact semantic badges rendered near the edge. */
-  edgeBadges?: Map<string, Array<{ kind: "auth-summary"; label: string; title?: string }>>;
+  edgeBadges?: Map<string, Array<{ kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary"; label: string; title?: string }>>;
   /** Overlay-only edges, such as synthesized permission relationships. */
   overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   /** Node id -> resolved provider/kind icon (from the icon registry). */
@@ -206,12 +206,14 @@ function labelAnchor(node: LayoutNode, face: Face, slot: number, count: number, 
 function permissionSummarySvg(node: LayoutNode, labels: string[]): string {
   const unique = [...new Set(labels)];
   const text = unique.length === 1 ? "1 permission" : `${unique.length} permissions`;
+  const title = unique.map((label, index) => `${index + 1}. ${label}`).join("\n");
   const w = Math.min(node.w - 14, Math.max(76, text.length * 6.2 + 14));
   const h = 18;
   const x = node.x + node.w - w - 7;
   const y = node.y + node.h - h - 6;
   return (
     `<g class="archmap-overlay-summary archmap-permission-summary">` +
+    `<title>${escapeXml(title)}</title>` +
     `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="4" />` +
     `<text x="${(x + w / 2).toFixed(1)}" y="${(y + h / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(text)}</text>` +
     `</g>`

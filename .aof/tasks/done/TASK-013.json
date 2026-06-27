@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-013",
+  "title": "Semantic overlay badge consolidation",
+  "description": "Apply the grouped-label rule from auth to dataflow, boundary, permission, and validation overlays. Each overlay must render one meaningful badge or summary per target/edge, keep details in hover/inspector-friendly metadata, respect overlay priority, and avoid label overlap.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-28T03:40:02.000+09:00",
+  "updated_at": "2026-06-28T03:40:02.000+09:00",
+  "assigned_at": "2026-06-28T03:40:02.000+09:00",
+  "done_at": "2026-06-28T03:40:02.000+09:00",
+  "retired_at": null,
+  "last_triaged_at": "2026-06-28T03:40:02.000+09:00",
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "DONE (Codex): generalized semantic edge badges beyond auth. Dataflow now groups data object and classification into one compact edge badge and storage node badge with hover details. Boundary now groups crossing information into one crossing badge while keeping boundary boxes distinct from zones. Permission now summarizes access at the resource node or existing related edge, preserving role/action details in title text and avoiding dense synthetic routes. Validation now groups diagnostic counts/details per node or edge and has highest badge priority when overlays compete. All semantic edge badges share the existing collision-avoiding placement and render as grouped labels in 3D. Verification: npm run typecheck, npm test -- --run test/render.test.ts test/scene3d.test.ts (38 passing), npm run build, comprehensive fixture SVG check with all overlays enabled (31 semantic edge badges: auth 7, data 9, boundary 4, permission 9, validation 2, overlaps 0)."
+}
