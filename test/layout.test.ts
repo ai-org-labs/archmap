@@ -137,6 +137,24 @@ describe("computeLayout", () => {
     expect(hub.h).toBeGreaterThan(leaf.h);
   });
 
+  it("keeps same-lane components visually separated", () => {
+    const m = parse(`graph LR
+      A[A]
+      B[B]
+      ---
+      nodes:
+        A: { zone: gcp }
+        B: { zone: gcp }
+      zones:
+        gcp: { contains: [A, B] }
+    `);
+    const layout = computeLayout(m);
+    const a = layout.nodes.find((n) => n.id === "A")!;
+    const b = layout.nodes.find((n) => n.id === "B")!;
+    const gap = Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h);
+    expect(gap).toBeGreaterThanOrEqual(72);
+  });
+
   it("counts permission overlay relationships when sizing hub components", () => {
     const m = parse(`graph LR
       Principal[Service] --> Hub[Service]
