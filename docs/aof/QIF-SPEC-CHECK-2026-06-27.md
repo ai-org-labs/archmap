@@ -26,7 +26,7 @@ quality intent, risk, and loss framing. Authority order follows
 | 3D base view | Spec requires `3d` as a base view name and `view_3d_unavailable` fallback when the renderer is absent. Core registry lacked a fallback before this check. | Fixed in `TASK-004` |
 | Overlay API | Previous scaffold validated overlay names but did not apply semantic projections. That risked drifting into a class-only API. | Improved in `TASK-004` |
 | Engine API | Custom element, `src`, diagnostics target, SVG pan/zoom lifecycle, viewer UI controls, configurable console diagnostics, and inspector target hooks now exist. | Improved through `TASK-007` |
-| Rendering quality | Current layout protects many legibility basics and overlays now combine. Inspector handoff exists, but visual selection highlight, diagnostics-to-diagram focus, and dense overlay conflict collapse remain open. | Residual gap |
+| Rendering quality | Current layout protects legibility basics, overlays combine, dense permission labels collapse to summaries, nested zones/boundaries render, and selected/diagnostic targets can be highlighted on the diagram. | Improved through `TASK-008` |
 
 ## Fixes Applied In TASK-004
 
@@ -99,13 +99,25 @@ quality intent, risk, and loss framing. Authority order follows
   project, account, network, subnet, cluster, and fleet as required modeled
   object references.
 
+## Follow-up Applied In TASK-008
+
+- Dense rendering quality was hardened around route readability: orthogonal
+  graph routes avoid node shapes, keep routed edge geometry inside the canvas,
+  prefer nearby ports/shorter routes, and preserve non-rectangular shape
+  boundaries for endpoints.
+- Zone and boundary labels now use scored in-box placement to avoid nodes, edge
+  labels, edge segments, and other group labels.
+- Nested zones render from existing `zones.parent` / `zones.contains`
+  semantics, and boundaries can wrap referenced zones.
+- Selection and diagnostics focus now add `archmap-selected` on the diagram, and
+  diagnostics-panel clicks can highlight the related model element.
+
 ## Residual Gaps
 
-- Visual selected-element highlighting and diagnostics-to-diagram focus are not
-  yet styled as first-class interactions.
-- Overlay conflict priority is represented only by current composition order and
-  badge overwrites; conflict-collapse into the inspector remains open.
-- Responsive re-fit on container resize and 3D fit/reset parity remain open.
+- Responsive re-fit on container resize and 3D fit/reset parity remain open for
+  TASK-009 / viewer polish.
+- Optional richer isometric/3D controls (angle presets, depth, layer visibility)
+  remain open for TASK-009.
 
 ## Completion And Success
 

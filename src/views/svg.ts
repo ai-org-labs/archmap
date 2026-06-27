@@ -355,6 +355,10 @@ export const DEFAULT_STYLE = `
 .archmap-faded { opacity: 0.18; }
 .archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(247,240,220,0.48)); stroke: var(--archmap-boundary-stroke, #c0a044); stroke-width: 1.8; }
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
+.archmap-selected .archmap-node-shape, .archmap-selected .archmap-node-shape-top { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
+.archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
+.archmap-selected .archmap-edge-path { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
+.archmap-selected .archmap-edge-startpoint { fill: var(--archmap-selected, #2563eb); }
 .archmap-emphasis .archmap-node-shape, .archmap-emphasis .archmap-node-shape-top { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
 .archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
 .archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis, #b3261e); }

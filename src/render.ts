@@ -128,6 +128,57 @@ function selectableKind(el: Element): InspectorSelection["type"] | undefined {
   return undefined;
 }
 
+function resolvedSelection(model: ArchMapModel, selection: InspectorSelection | null | undefined): InspectorSelection | undefined {
+  if (!selection) return undefined;
+  if (selection.type !== "diagnostic") return selection;
+  const diagnostic = model.diagnostics[Number(selection.id)] ?? model.diagnostics.find((entry) => entry.code === selection.id);
+  const target = diagnostic?.target ?? (diagnostic?.ref ? { type: diagnostic.ref.kind, id: diagnostic.ref.id } : undefined);
+  if (!target || target.type === "view") return selection;
+  return { type: target.type as InspectorSelection["type"], id: target.id };
+}
+
+function selectedSelector(selection: InspectorSelection): string | undefined {
+  if (selection.type === "diagnostic") return undefined;
+  const encoded = escapeXml(selection.id);
+  if (selection.type === "node") return `(<g class=")(archmap-node[^"]*)(" data-id="${encoded}")`;
+  if (selection.type === "edge") return `(<g class=")(archmap-edge[^"]*)(" data-id="${encoded}")`;
+  if (selection.type === "zone") return `(<g class=")(archmap-zone[^"]*)(" data-id="${encoded}")`;
+  if (selection.type === "boundary") return `(<g class=")(archmap-boundary[^"]*)(" data-id="${encoded}")`;
+  if (selection.type === "permission") return `(<g class=")(archmap-overlay-edge archmap-permission-edge[^"]*)(" data-id="permission:${encoded}:[^"]*")`;
+  return undefined;
+}
+
+function decorateSvgWithSelection(svg: string, model: ArchMapModel, selection: InspectorSelection | null | undefined): string {
+  const resolved = resolvedSelection(model, selection);
+  if (!resolved) return svg;
+  const pattern = selectedSelector(resolved);
+  if (!pattern) return svg;
+  return svg.replace(new RegExp(pattern), (_match, prefix: string, classes: string, suffix: string) => {
+    if (classes.includes("archmap-selected")) return `${prefix}${classes}${suffix}`;
+    return `${prefix}${classes} archmap-selected${suffix}`;
+  });
+}
+
+function clearSelected(target: Element): void {
+  target.querySelectorAll?.(".archmap-selected").forEach((el) => el.classList.remove("archmap-selected"));
+}
+
+function markSelectedElement(target: Element, selection: InspectorSelection): void {
+  clearSelected(target);
+  if (selection.type === "diagnostic") return;
+  const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(selection.id) : selection.id.replace(/["\\]/g, "\\$&");
+  const selectors: Partial<Record<InspectorSelection["type"], string>> = {
+    node: `.archmap-node[data-id="${escaped}"]`,
+    edge: `.archmap-edge[data-id="${escaped}"]`,
+    zone: `.archmap-zone[data-id="${escaped}"]`,
+    boundary: `.archmap-boundary[data-id="${escaped}"]`,
+    permission: `.archmap-permission-edge[data-id^="permission:${escaped}:"]`,
+  };
+  const selector = selectors[selection.type];
+  if (!selector) return;
+  target.querySelector?.(selector)?.classList.add("archmap-selected");
+}
+
 function attachInspectorSelection(target: Element, model: ArchMapModel, inspectorTarget: Element | string | null | undefined): () => void {
   const elementFor = (selection: InspectorSelection): unknown => {
     switch (selection.type) {
@@ -151,11 +202,37 @@ function attachInspectorSelection(target: Element, model: ArchMapModel, inspecto
     if (!type || !rawId) return;
     const id = type === "permission" ? rawId.split(":")[1] ?? rawId : rawId;
     const selection: InspectorSelection = { type, id };
+    markSelectedElement(target, selection);
     renderInspector(model, selection, inspectorTarget);
     target.dispatchEvent(new CustomEvent(`archmap:select-${type}`, { detail: { selection, [type]: elementFor(selection) }, bubbles: true }));
   };
   target.addEventListener("click", handler);
   return () => target.removeEventListener("click", handler);
+}
+
+function attachDiagnosticSelection(
+  diagramTarget: Element,
+  model: ArchMapModel,
+  diagnosticsTarget: Element | string | null | undefined,
+  inspectorTarget: Element | string | null | undefined,
+): (() => void) | undefined {
+  const diagnosticsEl = diagnosticTarget(diagnosticsTarget);
+  if (!diagnosticsEl) return undefined;
+  const handler = (event: Event) => {
+    const source = event.target instanceof Element ? event.target.closest("[data-diagnostic-index]") : null;
+    const index = source?.getAttribute("data-diagnostic-index");
+    if (index === null || index === undefined) return;
+    const diagnosticSelection: InspectorSelection = { type: "diagnostic", id: index };
+    const targetSelection = resolvedSelection(model, diagnosticSelection);
+    if (targetSelection) markSelectedElement(diagramTarget, targetSelection);
+    renderInspector(model, diagnosticSelection, inspectorTarget);
+    diagramTarget.dispatchEvent(new CustomEvent("archmap:select-diagnostic", {
+      detail: { selection: diagnosticSelection, diagnostic: model.diagnostics[Number(index)] },
+      bubbles: true,
+    }));
+  };
+  diagnosticsEl.addEventListener("click", handler);
+  return () => diagnosticsEl.removeEventListener("click", handler);
 }
 
 export function diagnosticsHtml(model: ArchMapModel): string {
@@ -294,6 +371,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   };
   let panZoom: PanZoomHandle | undefined;
   let detachInspector: (() => void) | undefined;
+  let detachDiagnostics: (() => void) | undefined;
 
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
     validateOverlays(model, state.overlays);
@@ -310,7 +388,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays } });
 
     if (typeof out === "string") {
-      const svg = decorateSvgWithOverlays(out, knownOverlays);
+      const svg = decorateSvgWithSelection(decorateSvgWithOverlays(out, knownOverlays), model, options.selection);
       syncDiagnostics(model);
       renderDiagnostics(model, options.diagnosticsTarget);
       renderInspector(model, options.selection ?? null, options.inspectorTarget);
@@ -321,11 +399,16 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
         panZoom = undefined;
         detachInspector?.();
         detachInspector = undefined;
+        detachDiagnostics?.();
+        detachDiagnostics = undefined;
         if (options.interactive !== false && isInteractiveTarget(options.target)) {
           panZoom = attachPanZoom(options.target);
         }
         if (options.inspectorTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
           detachInspector = attachInspectorSelection(options.target, model, options.inspectorTarget);
+        }
+        if (options.diagnosticsTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
+          detachDiagnostics = attachDiagnosticSelection(options.target, model, options.diagnosticsTarget, options.inspectorTarget);
         }
       }
       return { view: state.view, layout, model, svg, handle: undefined };
@@ -383,6 +466,8 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       panZoom = undefined;
       detachInspector?.();
       detachInspector = undefined;
+      detachDiagnostics?.();
+      detachDiagnostics = undefined;
       result.handle?.dispose();
       result.handle = undefined;
       result.svg = undefined;

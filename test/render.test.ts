@@ -152,6 +152,31 @@ describe("render", () => {
     expect(svg).toContain("Multi-cluster Service frontend");
   });
 
+  it("marks the selected model element in the SVG", () => {
+    const m = parse(example);
+    const nodeSvg = render(m, { baseView: "overview", selection: { type: "node", id: "GCPApp" } }).svg!;
+    expect(nodeSvg).toContain('class="archmap-node archmap-shape-rectangle archmap-selected" data-id="GCPApp"');
+
+    const edgeSvg = render(m, { baseView: "overview", selection: { type: "edge", id: "web_api" } }).svg!;
+    expect(edgeSvg).toContain('class="archmap-edge archmap-selected" data-id="web_api"');
+
+    const zoneSvg = render(m, { baseView: "overview", selection: { type: "zone", id: "gcp" } }).svg!;
+    expect(zoneSvg).toContain('class="archmap-zone archmap-zone-depth-0 archmap-selected" data-id="gcp"');
+  });
+
+  it("marks diagnostic targets in the SVG", () => {
+    const m = parse(`graph LR
+      A[A]
+      ---
+      nodes:
+        A: { kind: made_up_kind }
+    `);
+    const diagnosticIndex = m.diagnostics.findIndex((d) => d.code === "unknown_node_kind");
+    expect(diagnosticIndex).toBeGreaterThanOrEqual(0);
+    const svg = render(m, { baseView: "overview", selection: { type: "diagnostic", id: String(diagnosticIndex) } }).svg!;
+    expect(svg).toContain('class="archmap-node archmap-shape-rectangle archmap-selected" data-id="A"');
+  });
+
   it("supports the baseView plus overlays API", () => {
     const m = parse(example);
     const { svg, view } = render(m, { baseView: "overview", overlays: ["auth", "dataflow"] });
