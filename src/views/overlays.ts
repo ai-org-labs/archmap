@@ -133,6 +133,14 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
   }
 
   if (active.includes("permission")) {
+    const densePermissionOverlay = model.permissions.length > 8;
+    const permissionCountByResource = new Map<string, number>();
+    for (const permission of model.permissions) {
+      const resource = permissionResourceId(permission);
+      if (resource && nodeIds.has(resource)) {
+        permissionCountByResource.set(resource, (permissionCountByResource.get(resource) ?? 0) + 1);
+      }
+    }
     for (const permission of model.permissions) {
       const resource = permissionResourceId(permission);
       const principalNodes = [
@@ -143,7 +151,9 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
       if (resource && nodeIds.has(resource)) {
         nodes.add(resource);
         const label = permissionLabel(permission);
-        setBadge(badges, resource, label);
+        if (!densePermissionOverlay && (permissionCountByResource.get(resource) ?? 0) <= 2) {
+          setBadge(badges, resource, label);
+        }
         for (const from of principalNodes) {
           if (from === resource) continue;
           overlayEdges.push({

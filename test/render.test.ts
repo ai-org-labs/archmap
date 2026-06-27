@@ -95,6 +95,24 @@ describe("render", () => {
     expect(new Set(labelYs).size).toBeGreaterThanOrEqual(2);
   });
 
+  it("collapses dense permission overlay labels into target summaries", () => {
+    const permissions = Array.from({ length: 9 }, (_, i) => `        p${i}: { principal: app-sa, action: a${i}, resource: DB, role: role-${i} }`).join("\n");
+    const m = parse(`graph LR
+      App[App] --> DB[(DB)]
+      ---
+      nodes:
+        App: { principal: app-sa }
+        DB: { kind: database }
+      permissions:
+${permissions}
+    `);
+    const svg = render(m, { baseView: "overview", overlays: ["permission"] }).svg!;
+    expect(svg).toContain("archmap-permission-summary");
+    expect(svg).toContain(">9 permissions<");
+    expect(svg).not.toContain(">role-0<");
+    expect(svg).not.toContain(">role-8<");
+  });
+
   it("updates overlays through the render result handle", () => {
     const target = { innerHTML: "" } as Element & { innerHTML: string };
     const m = parse(example);

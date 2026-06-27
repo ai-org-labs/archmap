@@ -200,4 +200,6 @@ export const DEFAULT_STYLE = `
 .archmap-badge { fill: var(--archmap-badge, #7a4f9a); font: 600 10px var(--archmap-font, system-ui, sans-serif); }
 .archmap-overlay-edge .archmap-edge-path { stroke: var(--archmap-permission, #7a4f9a); stroke-width: 2; stroke-dasharray: 6 4; }
 .archmap-overlay-edge .archmap-edge-label text { fill: var(--archmap-permission, #7a4f9a); font-weight: 600; }
+.archmap-overlay-summary rect { fill: var(--archmap-bg, #ffffff); stroke: var(--archmap-permission, #7a4f9a); stroke-width: 1; opacity: 0.94; }
+.archmap-overlay-summary text { fill: var(--archmap-permission, #7a4f9a); font: 600 10px var(--archmap-font, system-ui, sans-serif); }
 `.trim();

@@ -112,8 +112,32 @@ function labelAnchor(node: LayoutNode, face: Face, slot: number, count: number, 
   return { x: p.x, y: node.y + node.h + offset, orient: "h" };
 }
 
+function permissionSummarySvg(node: LayoutNode, labels: string[]): string {
+  const unique = [...new Set(labels)];
+  const text = unique.length === 1 ? "1 permission" : `${unique.length} permissions`;
+  const w = Math.min(node.w - 14, Math.max(76, text.length * 6.2 + 14));
+  const h = 18;
+  const x = node.x + node.w - w - 7;
+  const y = node.y + node.h - h - 6;
+  return (
+    `<g class="archmap-overlay-summary archmap-permission-summary">` +
+    `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="4" />` +
+    `<text x="${(x + w / 2).toFixed(1)}" y="${(y + h / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(text)}</text>` +
+    `</g>`
+  );
+}
+
 function renderOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string, LayoutNode>): string {
   if (!edges?.length) return "";
+  const permissionEdges = edges.filter((edge) => edge.className?.includes("archmap-permission-edge"));
+  const densePermissionOverlay = permissionEdges.length > 8;
+  const permissionLabelsByTarget = new Map<string, string[]>();
+  if (densePermissionOverlay) {
+    for (const edge of permissionEdges) {
+      if (!edge.label) continue;
+      permissionLabelsByTarget.set(edge.to, [...(permissionLabelsByTarget.get(edge.to) ?? []), edge.label]);
+    }
+  }
   const sourcePorts = new Map<string, Port[]>();
   const targetPorts = new Map<string, Port[]>();
   const resolved = edges.map((edge, index) => {
@@ -159,12 +183,19 @@ function renderOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<stri
       const cls = entry.edge.className ?? "archmap-overlay-edge";
       const key = `${index}|${entry.edge.to}|${entry.target.face}`;
       const stack = targetSlot.get(key) ?? { slot: 0, count: 1 };
-      const label = entry.edge.label
+      const suppressLabel = densePermissionOverlay && entry.edge.className?.includes("archmap-permission-edge");
+      const label = entry.edge.label && !suppressLabel
         ? edgeLabelSvg(entry.edge.label, labelAnchor(entry.to, entry.target.face, stack.slot, stack.count, entry.edge.label), "h")
         : "";
       return `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${label}</g>`;
     })
-    .join("");
+    .join("") +
+    [...permissionLabelsByTarget.entries()]
+      .map(([target, labels]) => {
+        const node = nodeById.get(target);
+        return node ? permissionSummarySvg(node, labels) : "";
+      })
+      .join("");
 }
 
 export function renderDiagram(spec: DiagramSpec): string {
