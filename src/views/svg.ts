@@ -179,7 +179,7 @@ export function buildEdgePaths(
         lineTo(p);
         return;
       }
-      lineTo({ x: p.x, y: current.y });
+      lineTo({ x: current.x, y: p.y });
       lineTo(p);
     };
 
@@ -208,9 +208,11 @@ export function buildEdgePaths(
       const lo = Math.min(start.x, end.x);
       const hi = Math.max(start.x, end.x);
       const dir = Math.sign(end.x - start.x) || 1;
+      const cornerGuard = 16;
       const crosses = verticals
         .filter((v) => v.edgeId !== s.edgeId)
         .filter((v) => v.x0 > lo + gap && v.x0 < hi - gap)
+        .filter((v) => v.x0 > lo + cornerGuard && v.x0 < hi - cornerGuard)
         .filter((v) => y > Math.min(v.y0, v.y1) + 1 && y < Math.max(v.y0, v.y1) - 1)
         .map((v) => v.x0)
         .sort((a, b) => (a - b) * dir);
@@ -267,7 +269,7 @@ export const DEFAULT_STYLE = `
 .archmap-node-shape { fill: var(--archmap-node-fill, #ffffff); stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
-.archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; }
+.archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
 .archmap-edge-startpoint { fill: var(--archmap-edge-startpoint, #111827); stroke: var(--archmap-bg, #ffffff); stroke-width: 1; }
 .archmap-arrowhead { fill: var(--archmap-edge-stroke, #5b6b86); }
 .archmap-edge-label text { fill: var(--archmap-edge-label, #3a4a63); font: 400 11px var(--archmap-font, system-ui, sans-serif); }

@@ -138,6 +138,15 @@ describe("crossing jumps (buildEdgePaths)", () => {
     expect(paths.get("L")!.match(/M /g)!.length).toBe(1);
   });
 
+  it("does not create a crossing gap beside a corner", () => {
+    const edges = [
+      { id: "h", points: [{ x: 0, y: 50 }, { x: 80, y: 50 }] },
+      { id: "v", points: [{ x: 72, y: 0 }, { x: 72, y: 100 }] },
+    ];
+    const paths = buildEdgePaths(edges, 7);
+    expect(paths.get("h")!.match(/M /g)!.length).toBe(1);
+  });
+
   it("offsets overlapping parallel segments onto separate lanes", () => {
     const edges = [
       { id: "a", points: [{ x: 0, y: 50 }, { x: 120, y: 50 }] },
