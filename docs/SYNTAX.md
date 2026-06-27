@@ -34,7 +34,7 @@ nodes:
 | Bare reference | `A` | reuses a node defined elsewhere |
 | Plain edge | `A --> B` | |
 | Labeled edge | `A -->\|Label\| B` | |
-| Subgraph | `subgraph Name … end` | graph grouping; rendered with the `subgraph` Add info overlay |
+| Subgraph | `subgraph Name … end` | authoring-only grouping; preserved in the model but does not render by itself |
 | Comment | `%% …` | stripped |
 
 **Node IDs**: start with an ASCII letter; then letters, digits, `_`, `-`.
@@ -107,7 +107,8 @@ zones:
     label: GCP
     kind: cloud
     provider: gcp
-    contains: [API, App, DB]   # node ids (zone-in-zone not supported)
+    contains: [API, App, DB]   # node ids or child zone ids
+    parent: cloud              # optional alternative/companion to parent contains
     trustLevel: private
     description: "…"
 ```
@@ -118,8 +119,7 @@ boundaries:
   gcp_private:
     label: GCP Private
     kind: network_boundary
-    contains: [App, DB]        # node ids OR boundary ids (nested refs resolved
-                               #   into the box; nested *rendering* is backlog)
+    contains: [App, DB]        # node ids, zone ids, or child boundary ids
     zone: gcp
     description: "…"
 ```
@@ -163,8 +163,8 @@ layout: { mode: auto, direction: LR, nodes: { … } }   # parsed but renderer
                                                        # ignores manual positions
 view:
   default:
-    base: overview      # overview or layer
-    overlays: [subgraph, zone]  # additive information layers
+    base: overview      # overview or layer (shown as Stack in the UI)
+    overlays: [zone]    # additive information layers
   enabled: [...]        # parsed, NOT yet applied
   filters: { zones: [...], layers: [...] }  # parsed, NOT yet applied
 ```
@@ -244,19 +244,19 @@ selects the base renderer while `overlays` applies semantic projections from
 the same parsed model without reparsing. Known overlays are recorded on the SVG
 root (`data-overlays`, `archmap-overlay-*`) and can emphasize relevant
 nodes/edges, synthesize permission overlay edges, add compact badges, or draw
-subgraph/zone/boundary boxes. Unknown overlays emit `unknown_overlay` warnings
-and do not block rendering.
+zone/boundary boxes. Unknown overlays emit `unknown_overlay` warnings and do not
+block rendering.
 
 | View | Shows |
 | --- | --- |
 | `overview` | structural nodes/edges only until Add info overlays are enabled |
-| `layer` | fixed layer bands; Add info overlays can add grouping/area context |
-| `subgraph` overlay | graph subgraph boxes and labels as additive information |
-| `zone` overlay | zone boxes and zone labels as additive information |
-| `auth` | identity/auth/user nodes + token-carrying & auth-flow edges; rest faded |
-| `dataflow` | storage nodes + data-carrying edges; classification badges; rest faded |
-| `boundary` | boundary boxes + boundary/zone-crossing edges; rest faded |
-| `validation` | nodes/edges referenced by diagnostics flagged |
+| `layer` / UI `Stack` | fixed stack bands from `nodes.*.layer`; zone and boundary do not change the stack partition |
+| `zone` overlay | physical component areas from explicit `zones` metadata |
+| `boundary` overlay | logical component areas from explicit `boundaries` metadata, plus boundary/zone-crossing edges; rest faded |
+| `auth` | auth-related components/connectors and token/auth labels |
+| `dataflow` | data-related components/connectors and data/classification labels |
+| `permission` | permission-related components/connectors and role/action labels or summaries |
+| `validation` | components/connectors referenced by diagnostics, with error/warning labels |
 | `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
 
 **Layout behavior:** zones are laid out as swimlanes (so zone boxes don't
@@ -318,7 +318,6 @@ overlaid.toggleOverlay("boundary");
 
 ## 7. Not yet supported
 
-Parsed/modeled but **not rendered**: node `contains` nesting, nested boundary
-rendering, manual `layout` positions, `view.enabled` / `view.filters`. Not
-modeled: zone-in-zone. SVG pan/zoom controls and richer diagnostics/inspector UI
-are still engine API follow-up work. (Nesting is tracked in the backlog.)
+Parsed/modeled but **not rendered**: node `contains` nesting, manual `layout`
+positions, `view.enabled` / `view.filters`. SVG pan/zoom controls and richer
+diagnostics/inspector UI are still engine API follow-up work.

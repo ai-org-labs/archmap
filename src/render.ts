@@ -557,6 +557,10 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
 
 /** Semantic views offered by the controls toolbar: what the user wants to inspect. */
 export const BASE_VIEWS = ["overview", "layer"] as const;
+const BASE_VIEW_LABELS: Record<(typeof BASE_VIEWS)[number], string> = {
+  overview: "Overview",
+  layer: "Stack",
+};
 /** Render modes offered by the controls toolbar: how to display the selected view. */
 export const RENDER_MODES = ["2d", "3d"] as const;
 
@@ -707,7 +711,7 @@ export function defineArchMapViewerElement(): void {
       for (const view of BASE_VIEWS) {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.textContent = view[0].toUpperCase() + view.slice(1);
+        btn.textContent = BASE_VIEW_LABELS[view];
         btn.className = "archmap-control-base" + (view === active.base ? " is-active" : "");
         btn.addEventListener("click", () => {
           result.setBaseView(view);

@@ -242,7 +242,7 @@ describe("render", () => {
     expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
   });
 
-  it("shows subgraph, zone, and boundary area overlays only when requested", () => {
+  it("shows zone and boundary area overlays only when requested", () => {
     const m = parse(`graph LR
       subgraph Runtime
         App[App]
@@ -256,24 +256,27 @@ describe("render", () => {
       zones:
         private: { label: Private Zone, contains: [App, DB] }
       boundaries:
-        private_boundary: { label: Private Boundary, contains: [App, DB] }
+        data_boundary: { label: Data Boundary, contains: [DB] }
+        private_boundary: { label: Private Boundary, contains: [App, data_boundary] }
     `);
-    const { svg } = render(m, { baseView: "overview", overlays: ["subgraph", "zone", "boundary"] });
-    expect(svg).toContain("archmap-view-overview archmap-overlay-subgraph archmap-overlay-zone archmap-overlay-boundary");
-    expect(svg).toContain('class="archmap-subgraph archmap-subgraph-depth-');
+    const { svg } = render(m, { baseView: "overview", overlays: ["zone", "boundary"] });
+    expect(svg).toContain("archmap-view-overview archmap-overlay-zone archmap-overlay-boundary");
+    expect(svg).not.toContain('class="archmap-subgraph archmap-subgraph-depth-');
     expect(svg).toContain('class="archmap-zone archmap-zone-depth-');
     expect(svg).toContain('class="archmap-boundary archmap-boundary-depth-');
+    expect(svg).toContain('data-id="private_boundary" data-depth="0"');
+    expect(svg).toContain('data-id="data_boundary" data-depth="1"');
     expect(svg).toContain("Private Boundary");
   });
 
-  it("adds subgraph grouping boxes to any base view through Add info", () => {
+  it("does not let graph subgraphs affect rendered geometry", () => {
     const m = parse(androidDriverStack);
-    const overview = render(m, { baseView: "overview", overlays: ["subgraph"] }).svg!;
-    const layer = render(m, { baseView: "layer", overlays: ["subgraph"] }).svg!;
-    expect(overview).toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Device_A_App"');
-    expect(layer).toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Device_A_App"');
-    expect(overview).toContain(">Device A App<");
-    expect(layer).toContain(">Device A App<");
+    const overview = render(m, { baseView: "overview" }).svg!;
+    const stack = render(m, { baseView: "layer" }).svg!;
+    expect(overview).not.toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Device_A_App"');
+    expect(stack).not.toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Device_A_App"');
+    expect(overview).not.toContain(">Device A App<");
+    expect(stack).not.toContain(">Device A App<");
   });
 
   it("routes isometric render mode through the interactive 3D renderer slot", () => {
@@ -438,7 +441,7 @@ ${permissions}
 
 describe("archmap-viewer attributes", () => {
   it("parses comma-separated overlays", () => {
-    expect(parseOverlaysAttribute("subgraph, zone, auth, dataflow,boundary")).toEqual(["subgraph", "zone", "auth", "dataflow", "boundary"]);
+    expect(parseOverlaysAttribute("zone, auth, dataflow,boundary")).toEqual(["zone", "auth", "dataflow", "boundary"]);
     expect(parseOverlaysAttribute("")).toEqual([]);
   });
 

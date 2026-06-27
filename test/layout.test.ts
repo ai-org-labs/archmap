@@ -227,7 +227,7 @@ describe("computeLayout", () => {
     expect(cloud.nodeIds.sort()).toEqual(["App", "DB"]);
   });
 
-  it("wraps boundaries around referenced zones", () => {
+  it("wraps nested boundaries around referenced zones and child boundaries", () => {
     const m = parse(`graph LR
       App[App]
       DB[(DB)]
@@ -238,15 +238,23 @@ describe("computeLayout", () => {
       zones:
         project: { label: Project, contains: [App, DB] }
       boundaries:
-        network: { label: Network, kind: network_boundary, contains: [project] }
+        data: { label: Data Boundary, kind: trust_boundary, contains: [DB] }
+        network: { label: Network, kind: network_boundary, contains: [project, data] }
     `);
     const layout = computeLayout(m);
     const zone = layout.zones.find((z) => z.id === "project")!;
+    const child = layout.boundaries.find((b) => b.id === "data")!;
     const boundary = layout.boundaries.find((b) => b.id === "network")!;
+    expect(boundary.depth).toBe(0);
+    expect(child.depth).toBe(1);
     expect(boundary.x).toBeLessThanOrEqual(zone.x);
     expect(boundary.y).toBeLessThanOrEqual(zone.y);
     expect(boundary.x + boundary.w).toBeGreaterThanOrEqual(zone.x + zone.w);
     expect(boundary.y + boundary.h).toBeGreaterThanOrEqual(zone.y + zone.h);
+    expect(boundary.x).toBeLessThanOrEqual(child.x);
+    expect(boundary.y).toBeLessThanOrEqual(child.y);
+    expect(boundary.x + boundary.w).toBeGreaterThanOrEqual(child.x + child.w);
+    expect(boundary.y + boundary.h).toBeGreaterThanOrEqual(child.y + child.h);
   });
 
   it("expands high-degree components to give connection ports more room", () => {

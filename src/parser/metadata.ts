@@ -248,7 +248,6 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
 
   // --- Zones ----------------------------------------------------------------
   const zones: Zone[] = [];
-  // Promote graph subgraphs to zones when not redefined in metadata.
   const metaZones = isObject(meta.zones) ? meta.zones : {};
   for (const [id, value] of Object.entries(metaZones)) {
     if (!isObject(value)) continue;
@@ -263,11 +262,6 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
       owner: asString(value.owner),
       description: asString(value.description),
     });
-  }
-  for (const sg of graph.subgraphs) {
-    if (!zones.some((z) => z.id === sg.id)) {
-      zones.push({ id: sg.id, label: sg.label, contains: [...sg.members] });
-    }
   }
 
   // --- Boundaries -----------------------------------------------------------

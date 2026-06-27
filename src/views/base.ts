@@ -385,11 +385,11 @@ export function renderDiagram(spec: DiagramSpec): string {
       const boxLabelClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-label" : "archmap-zone-label";
       const resolvedLabelClass = group.boxClass === "archmap-layer"
         ? "archmap-layer-label"
-        : group.boxClass === "archmap-subgraph" ? "archmap-subgraph-label" : boxLabelClass;
+        : boxLabelClass;
       const boxBoxClass = group.boxClass === "archmap-boundary"
         ? "archmap-boundary-box"
         : group.boxClass === "archmap-layer" ? "archmap-layer-box"
-          : group.boxClass === "archmap-subgraph" ? "archmap-subgraph-box" : "archmap-zone-box";
+          : "archmap-zone-box";
       return group.boxes
         .map((b) => {
           const label = b.label ?? b.id;

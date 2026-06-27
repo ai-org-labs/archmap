@@ -45,6 +45,7 @@ export interface LayoutBoundary {
   id: string;
   label?: string;
   kind?: string;
+  depth?: number;
   x: number;
   y: number;
   z: number;
@@ -519,40 +520,77 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   for (const z of model.zones) buildZoneBox(z.id);
   const zones = [...zonesById.values()].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0) || a.id.localeCompare(b.id));
 
-  // --- Boundaries (bounding boxes, resolving nested boundary refs) -----------
-  const boundaries: LayoutBoundary[] = [];
+  // --- Boundaries (bounding boxes, resolving zone and nested boundary refs) --
   const boundaryById = new Map(model.boundaries.map((b) => [b.id, b]));
-  const resolveBoundaryNodes = (id: string, seen: Set<string>): string[] => {
-    const b = boundaryById.get(id);
-    if (!b || seen.has(id)) return [];
+  const childrenByBoundary = new Map<string, string[]>();
+  for (const b of model.boundaries) {
+    for (const child of b.resolvedContains ?? []) {
+      if (child.type === "boundary") {
+        childrenByBoundary.set(b.id, [...(childrenByBoundary.get(b.id) ?? []), child.id]);
+      }
+    }
+  }
+  const boundaryDepth = (id: string, seen = new Set<string>()): number => {
+    if (seen.has(id)) return 0;
     seen.add(id);
+    const parents = [...childrenByBoundary.entries()]
+      .filter(([, children]) => children.includes(id))
+      .map(([parent]) => parent);
+    if (parents.length === 0) return 0;
+    return Math.max(...parents.map((parent) => boundaryDepth(parent, new Set(seen)) + 1));
+  };
+  const directBoundaryNodes = (id: string): string[] => {
+    const b = boundaryById.get(id);
+    if (!b) return [];
     const ids: string[] = [];
-    for (const c of b.contains ?? []) {
-      if (laid.has(c)) ids.push(c);
-      else if (zonesById.has(c)) ids.push(...(zonesById.get(c)?.nodeIds ?? []));
-      else if (boundaryById.has(c)) ids.push(...resolveBoundaryNodes(c, seen));
+    for (const child of b.resolvedContains ?? []) {
+      if (child.type === "node" && laid.has(child.id)) ids.push(child.id);
+      if (child.type === "zone" && zonesById.has(child.id)) ids.push(...(zonesById.get(child.id)?.nodeIds ?? []));
     }
     return ids;
   };
-  for (const b of model.boundaries) {
-    const memberIds = resolveBoundaryNodes(b.id, new Set());
-    const members = memberIds.map((id) => laid.get(id)).filter((n): n is LayoutNode => !!n);
-    if (members.length === 0) continue;
-    const minX = Math.min(...members.map((m) => m.x)) - ZONE_PAD;
-    const minY = Math.min(...members.map((m) => m.y)) - ZONE_LABEL_PAD;
-    const maxX = Math.max(...members.map((m) => m.x + m.w)) + ZONE_PAD;
-    const maxY = Math.max(...members.map((m) => m.y + m.h)) + ZONE_PAD;
-    boundaries.push({
+  const boundariesById = new Map<string, LayoutBoundary>();
+  const visitingBoundaries = new Set<string>();
+  const buildBoundaryBox = (id: string): LayoutBoundary | undefined => {
+    if (boundariesById.has(id)) return boundariesById.get(id);
+    if (visitingBoundaries.has(id)) return undefined;
+    const b = boundaryById.get(id);
+    if (!b) return undefined;
+    visitingBoundaries.add(id);
+
+    const directNodes = directBoundaryNodes(id)
+      .map((nodeId) => laid.get(nodeId))
+      .filter((n): n is LayoutNode => !!n);
+    const childBoundaries = (childrenByBoundary.get(id) ?? [])
+      .map((childId) => buildBoundaryBox(childId))
+      .filter((box): box is LayoutBoundary => !!box);
+    const boxes = [
+      ...directNodes.map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h, z: n.z })),
+      ...childBoundaries.map((box) => ({ x: box.x, y: box.y, w: box.w, h: box.h, z: box.z })),
+    ];
+    visitingBoundaries.delete(id);
+    if (boxes.length === 0) return undefined;
+
+    const minX = Math.min(...boxes.map((m) => m.x)) - ZONE_PAD;
+    const minY = Math.min(...boxes.map((m) => m.y)) - ZONE_LABEL_PAD;
+    const maxX = Math.max(...boxes.map((m) => m.x + m.w)) + ZONE_PAD;
+    const maxY = Math.max(...boxes.map((m) => m.y + m.h)) + ZONE_PAD;
+    const box: LayoutBoundary = {
       id: b.id,
       label: b.label ?? b.id,
       kind: b.kind,
+      depth: boundaryDepth(b.id),
       x: minX,
       y: minY,
-      z: Math.min(...members.map((m) => m.z)),
+      z: Math.min(...boxes.map((m) => m.z)),
       w: maxX - minX,
       h: maxY - minY,
-    });
-  }
+    };
+    boundariesById.set(id, box);
+    return box;
+  };
+  for (const b of model.boundaries) buildBoundaryBox(b.id);
+  const boundaries = [...boundariesById.values()].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0) || a.id.localeCompare(b.id));
 
   // --- Edges: orthogonal routing with port + channel distribution -----------
   const nodeLane = new Map(model.nodes.map((n) => [n.id, laneIndex.get(laneKey(n))!]));

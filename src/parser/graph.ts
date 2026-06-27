@@ -2,8 +2,8 @@
  * Parser for the graph section (§6, §26).
  *
  * Supports: `graph LR|TD`, the four node shapes, plain and labelled edges,
- * and simple `subgraph ... end` grouping. Subgraphs are visual-only in v0.1
- * and are surfaced so metadata can promote them to zones/boundaries later.
+ * and simple `subgraph ... end` grouping. Subgraphs are authoring-only model
+ * hierarchy and do not create rendered geometry by themselves.
  */
 
 import { diagnostic } from "../diagnostics.js";

@@ -43,7 +43,7 @@
         <label class="control-group"><span class="control-label">Views</span>
           <select id="base-view">
             <option value="overview">overview</option>
-            <option value="layer">layer</option>
+            <option value="layer">Stack</option>
           </select>
         </label>
         <label class="control-group"><span class="control-label">Render modes</span>
@@ -200,7 +200,7 @@ boundaries:
     installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
     installThreeView(); // opt-in 3D view; core does not bundle three.js
     const $ = (id) => document.getElementById(id);
-    const overlayNames = ["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"];
+    const overlayNames = ["zone", "auth", "dataflow", "boundary", "permission", "validation"];
     $("src").value = $("seed").textContent.trim();
     for (const overlay of overlayNames) {
       const label = document.createElement("label");

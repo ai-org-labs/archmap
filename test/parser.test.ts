@@ -77,6 +77,16 @@ describe("metadata merge", () => {
     expect(m.permissions[0].resource).toBe("CloudSQL");
     expect(m.data[0].classification).toBe("personal");
   });
+
+  it("preserves graph subgraphs without implicitly creating zones", () => {
+    const m = parse(`graph LR
+      subgraph Runtime
+        App[App]
+      end
+    `);
+    expect(m.graph.subgraphs.Runtime).toEqual({ id: "Runtime", label: undefined, members: ["App"] });
+    expect(m.zones).toEqual([]);
+  });
 });
 
 describe("pair-key edges (Stage 1, spec 01 §7 / 02 §6)", () => {

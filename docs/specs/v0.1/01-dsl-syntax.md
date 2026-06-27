@@ -198,9 +198,9 @@ subgraph GCP
 end
 ```
 
-A subgraph may be inferred as a zone if metadata does not define it explicitly.
+A subgraph is authoring-only grouping. It is preserved in the model so tooling can understand source hierarchy, but it does not create rendered geometry by itself.
 
-Subgraph inference is normalized by the model layer. Explicit metadata takes precedence over inferred subgraph information.
+Use explicit `zones`, `boundaries`, or `nodes.*.layer` metadata when a group should affect rendering.
 
 ---
 
@@ -512,6 +512,7 @@ zones:
 - A zone may contain node IDs and zone IDs.
 - A zone may declare `parent`.
 - If both `parent` and `contains` are present, they must describe the same hierarchy.
+- A zone may contain child zones.
 - Cyclic zone nesting is an error.
 - A node should have one primary `zone`.
 - Additional infrastructure dimensions should use `placement`.

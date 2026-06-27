@@ -24,9 +24,9 @@ The samples follow the current ArchMap authoring shape:
 Use these combinations during renderer development:
 
 ```js
-render(model, { baseView: "overview", overlays: ["subgraph", "zone", "boundary", "validation"] });
-render(model, { baseView: "layer", overlays: ["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"] });
-render(model, { baseView: "overview", renderMode: "3d", overlays: ["subgraph", "zone", "boundary", "dataflow", "permission", "validation"] });
+render(model, { baseView: "overview", overlays: ["zone", "boundary", "validation"] });
+render(model, { baseView: "layer", overlays: ["zone", "auth", "dataflow", "boundary", "permission", "validation"] });
+render(model, { baseView: "overview", renderMode: "3d", overlays: ["zone", "boundary", "dataflow", "permission", "validation"] });
 ```
 
 The Android framework/device samples are especially useful for validating layer/zone/isometric rendering. They intentionally model non-cloud components such as Android framework APIs, Binder IPC, HAL, kernel drivers, hardware controllers, and Bluetooth links.
