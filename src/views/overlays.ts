@@ -5,7 +5,7 @@ import type { Box } from "./base.js";
 export const OVERLAY_NAMES = new Set(["zone", "auth", "dataflow", "boundary", "permission", "validation"]);
 
 export interface OverlayEdgeBadge {
-  kind: "auth-token" | "auth-issuer" | "auth-validator";
+  kind: "auth-summary";
   label: string;
   title?: string;
 }
@@ -152,14 +152,16 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
         edge.auth?.validatedBy ? `validator: ${edge.auth.validatedBy}` : undefined,
         edge.auth?.recipient ? `recipient: ${edge.auth.recipient}` : undefined,
       ].filter(Boolean).join("\n");
-      const authBadges: OverlayEdgeBadge[] = [];
+      const labelParts = [
+        edge.auth?.token,
+        edge.auth?.issuer ? `issuer ${edge.auth.issuer}` : undefined,
+        edge.auth?.validatedBy ? `validator ${edge.auth.validatedBy}` : undefined,
+        edge.auth?.recipient ? `recipient ${edge.auth.recipient}` : undefined,
+      ].filter(Boolean);
       if (edge.auth?.token) {
         setBadge(badges, edge.to, `auth:${edge.auth.token}`);
-        authBadges.push({ kind: "auth-token", label: edge.auth.token, title });
       }
-      if (edge.auth?.issuer) authBadges.push({ kind: "auth-issuer", label: `iss ${edge.auth.issuer}`, title });
-      if (edge.auth?.validatedBy) authBadges.push({ kind: "auth-validator", label: `val ${edge.auth.validatedBy}`, title });
-      if (authBadges.length) edgeBadges.set(edge.id, authBadges);
+      if (labelParts.length) edgeBadges.set(edge.id, [{ kind: "auth-summary", label: labelParts.join(" · "), title }]);
     }
   }
 

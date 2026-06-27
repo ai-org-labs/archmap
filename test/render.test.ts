@@ -192,8 +192,7 @@ describe("render", () => {
     expect(svg).toContain(">JWT<");
     expect(svg).toContain("archmap-auth-badge");
     expect(svg).toContain("archmap-auth-edge-badge");
-    expect(svg).toContain("iss FirebaseAuth");
-    expect(svg).toContain("val APIGW");
+    expect(svg).toContain("JWT · issuer FirebaseAuth · validator APIGW");
     expect(svg).toContain("issuer: FirebaseAuth");
     expect(svg).toContain("validator: APIGW");
     expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");

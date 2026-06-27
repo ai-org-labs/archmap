@@ -333,22 +333,21 @@ export function nodeBadgeSvg(n: LayoutNode, text: string): string {
 }
 
 export interface EdgeBadgeSpec {
-  kind: "auth-token" | "auth-issuer" | "auth-validator";
+  kind: "auth-summary";
   label: string;
   title?: string;
 }
 
-function edgeBadgeIcon(kind: EdgeBadgeSpec["kind"], x: number, y: number): string {
-  if (kind === "auth-issuer") {
-    return `<path class="archmap-auth-edge-badge-icon" d="M ${x} ${y - 5} h 9 v 11 h -9 z M ${x + 2} ${y - 2} h 5 M ${x + 2} ${y + 1} h 5" />`;
-  }
-  if (kind === "auth-validator") {
-    return `<path class="archmap-auth-edge-badge-icon" d="M ${x - 1} ${y} l 3 3 l 7 -8" />`;
-  }
+function edgeBadgeIcon(x: number, y: number): string {
   return (
     `<path class="archmap-auth-edge-badge-icon-stroke" d="M ${x} ${y + 1} v -3 a 4 4 0 0 1 8 0 v 3" />` +
     `<rect class="archmap-auth-edge-badge-icon-fill" x="${x}" y="${y + 1}" width="8" height="7" rx="1.5" />`
   );
+}
+
+export function edgeBadgesSize(badges: EdgeBadgeSpec[]): { w: number; h: number } {
+  const sizes = badges.map((badge) => Math.max(42, badge.label.length * 6.2 + 26));
+  return { w: sizes.reduce((sum, size) => sum + size, 0) + 5 * Math.max(0, sizes.length - 1), h: 18 };
 }
 
 export function edgeBadgesSvg(badges: EdgeBadgeSpec[], at: { x: number; y: number }): string {
@@ -357,12 +356,12 @@ export function edgeBadgesSvg(badges: EdgeBadgeSpec[], at: { x: number; y: numbe
   const gap = 5;
   const total = sizes.reduce((sum, size) => sum + size, 0) + gap * (sizes.length - 1);
   let x = at.x - total / 2;
-  const y = at.y + 13;
+  const y = at.y;
   return `<g class="archmap-edge-badges archmap-auth-edge-badges">` + badges.map((badge, index) => {
     const w = sizes[index];
     const rect = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="9" />`;
     const title = badge.title ? `<title>${escapeXml(badge.title)}</title>` : "";
-    const icon = edgeBadgeIcon(badge.kind, x + 9, y + 7);
+    const icon = edgeBadgeIcon(x + 9, y + 7);
     const text = `<text x="${(x + 23).toFixed(1)}" y="${(y + 9.5).toFixed(1)}" dominant-baseline="central">${escapeXml(badge.label)}</text>`;
     x += w + gap;
     return `<g class="archmap-auth-edge-badge archmap-${badge.kind}">${title}${rect}${icon}${text}</g>`;

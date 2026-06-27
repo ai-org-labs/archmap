@@ -189,7 +189,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
       disposeSprite(label, disposables);
       root.add(label);
     }
-    const authBadge = edgeBadges.get(e.id)?.find((badge) => badge.kind === "auth-token");
+    const authBadge = edgeBadges.get(e.id)?.find((badge) => badge.kind === "auth-summary");
     if (authBadge) {
       const label = makeTextSprite(authBadge.label, {
         fg: "#7f1d1d",

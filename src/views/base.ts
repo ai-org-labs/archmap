@@ -14,6 +14,7 @@ import {
   DEFAULT_STYLE,
   MARKERS,
   buildEdgePaths,
+  edgeBadgesSize,
   edgeBadgesSvg,
   edgeLabelSvg,
   edgeStartpointSvg,
@@ -50,7 +51,7 @@ export interface DiagramSpec {
   /** Node id -> short caption rendered beneath the node. */
   nodeBadges?: Map<string, string>;
   /** Edge id -> compact semantic badges rendered near the edge. */
-  edgeBadges?: Map<string, Array<{ kind: "auth-token" | "auth-issuer" | "auth-validator"; label: string; title?: string }>>;
+  edgeBadges?: Map<string, Array<{ kind: "auth-summary"; label: string; title?: string }>>;
   /** Overlay-only edges, such as synthesized permission relationships. */
   overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   /** Node id -> resolved provider/kind icon (from the icon registry). */
@@ -63,6 +64,7 @@ function channelClass(id: string, set: Set<string> | undefined): string {
 }
 
 type OverlayEdge = NonNullable<DiagramSpec["overlayEdges"]>[number];
+type EdgeBadgeList = NonNullable<DiagramSpec["edgeBadges"]> extends Map<string, infer V> ? V : never;
 type Face = "left" | "right" | "top" | "bottom";
 
 interface Port {
@@ -224,6 +226,36 @@ function overlapArea(a: Box, b: Box): number {
   const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
   const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
   return ox > 0 && oy > 0 ? ox * oy : 0;
+}
+
+function boxesOverlap(a: Box, b: Box): boolean {
+  return overlapArea(a, b) > 0;
+}
+
+function placeEdgeBadges(badges: EdgeBadgeList, at: { x: number; y: number }, reserved: Box[]): { x: number; y: number; box: Box } {
+  const size = edgeBadgesSize(badges);
+  const candidates = [
+    { dx: 0, dy: 13 },
+    { dx: 0, dy: -34 },
+    { dx: 0, dy: 38 },
+    { dx: 0, dy: -58 },
+    { dx: 72, dy: 13 },
+    { dx: -72, dy: 13 },
+    { dx: 72, dy: -34 },
+    { dx: -72, dy: -34 },
+    { dx: 120, dy: 38 },
+    { dx: -120, dy: 38 },
+  ];
+  for (const candidate of candidates) {
+    const x = at.x + candidate.dx;
+    const y = at.y + candidate.dy;
+    const box: Box = { id: "", x: x - size.w / 2 - 2, y: y - 2, w: size.w + 4, h: size.h + 4 };
+    if (!reserved.some((other) => boxesOverlap(box, other))) return { x, y, box };
+  }
+  const fallback = candidates[candidates.length - 1];
+  const x = at.x + fallback.dx;
+  const y = at.y + fallback.dy + reserved.length * 22;
+  return { x, y, box: { id: "", x: x - size.w / 2 - 2, y: y - 2, w: size.w + 4, h: size.h + 4 } };
 }
 
 function segmentIntersectsBox(a: { x: number; y: number }, b: { x: number; y: number }, box: Box): boolean {
@@ -414,6 +446,7 @@ export function renderDiagram(spec: DiagramSpec): string {
   const overlayPlan = planOverlayEdges(overlayEdges, nodeById);
   const densePermissionOverlay = (overlayEdges ?? []).filter((edge) => edge.className?.includes("archmap-permission-edge")).length > 8;
   const edgePaths = buildEdgePaths([...layout.edges, ...overlayPlan.drawables]);
+  const reservedEdgeBadges: Box[] = [];
   const edgesSvg = layout.edges
     .map((e) => {
       const emph = emphasizeEdges?.has(e.id) ?? false;
@@ -422,7 +455,9 @@ export function renderDiagram(spec: DiagramSpec): string {
       const startpoint = edgeStartpointSvg(e.points[0]);
       const label = e.label ? edgeLabelSvg(e.label, e.labelAt, e.labelOrient) : "";
       const badges = edgeBadges?.get(e.id);
-      const badgeSvg = badges ? edgeBadgesSvg(badges, e.labelAt) : "";
+      const placedBadges = badges ? placeEdgeBadges(badges, e.labelAt, reservedEdgeBadges) : undefined;
+      if (placedBadges) reservedEdgeBadges.push(placedBadges.box);
+      const badgeSvg = badges && placedBadges ? edgeBadgesSvg(badges, placedBadges) : "";
       return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}">${path}${startpoint}${label}${badgeSvg}</g>`;
     })
     .join("");
