@@ -1,0 +1,22 @@
+{
+  "task_id": "TASK-007",
+  "title": "Inspector and diagnostics UX",
+  "description": "Implement selection and inspector surfaces for nodes, edges, zones, boundaries, data, permissions, and diagnostics; add diagnostics panel/external target rendering and configurable console diagnostics.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [
+    "codex-inspector-diagnostics"
+  ],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-26T19:09:25.729Z",
+  "updated_at": "2026-06-27T02:51:17Z",
+  "assigned_at": "2026-06-27T02:40:00Z",
+  "done_at": "2026-06-27T02:51:17Z",
+  "retired_at": null,
+  "last_triaged_at": null,
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "DONE (Codex): added src/inspector.ts with inspectModelElement(), inspectorHtml(), and renderInspector() for node/edge/zone/boundary/data/permission/identity/diagnostic selections. Node/edge/zone/boundary inspectors expose the v0.1 spec-listed fields, related diagnostics, related data/permissions/identities, and crossing edges where applicable. render(model,{inspectorTarget,selection}) and <archmap-viewer inspector inspector-target> now render inspector output; viewer clicks on SVG nodes/edges/zones/boundaries/permission overlay edges update the inspector and dispatch archmap:select-* events with stable model references. Diagnostics HTML now includes diagnostic index and target data attributes for focus/filter follow-up. Verified: npm run typecheck, npm test (96), npm run build, aof organization-verify (22/22). Residuals: visual highlight-on-select and click-from-external-diagnostics-to-diagram focus remain TASK-008 rendering-quality polish."
+}

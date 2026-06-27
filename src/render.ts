@@ -25,6 +25,8 @@ import { escapeXml } from "./views/svg.js";
 import { buildOverlayProjection, OVERLAY_NAMES } from "./views/overlays.js";
 import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
 import type { PanZoomHandle } from "./views/interaction.js";
+import { renderInspector } from "./inspector.js";
+import type { InspectorSelection } from "./inspector.js";
 
 export interface ViewContext {
   model: ArchMapModel;
@@ -61,6 +63,10 @@ export interface RenderOptions {
   target?: Element | null;
   /** DOM element or selector to receive diagnostics after render. */
   diagnosticsTarget?: Element | string | null;
+  /** DOM element or selector to receive selected-element inspector output. */
+  inspectorTarget?: Element | string | null;
+  /** Initial inspector selection. */
+  selection?: InspectorSelection | null;
   /** Report diagnostics to the console (spec 02 §23). Default: off for the
    * programmatic API; engines (viewer/initialize) default it on. */
   console?: boolean | ConsoleReportOptions;
@@ -108,13 +114,57 @@ function diagnosticTarget(target: Element | string | null | undefined): Element 
   return typeof document !== "undefined" ? document.querySelector(target) ?? undefined : undefined;
 }
 
+function selectableKind(el: Element): InspectorSelection["type"] | undefined {
+  if (el.classList.contains("archmap-node")) return "node";
+  if (el.classList.contains("archmap-edge")) return "edge";
+  if (el.classList.contains("archmap-zone")) return "zone";
+  if (el.classList.contains("archmap-boundary")) return "boundary";
+  if (el.classList.contains("archmap-permission-edge")) return "permission";
+  return undefined;
+}
+
+function attachInspectorSelection(target: Element, model: ArchMapModel, inspectorTarget: Element | string | null | undefined): () => void {
+  const elementFor = (selection: InspectorSelection): unknown => {
+    switch (selection.type) {
+      case "node": return model.nodes.find((entry) => entry.id === selection.id);
+      case "edge": return model.edges.find((entry) => entry.id === selection.id);
+      case "zone": return model.zones.find((entry) => entry.id === selection.id);
+      case "boundary": return model.boundaries.find((entry) => entry.id === selection.id);
+      case "permission": return model.permissions.find((entry) => entry.id === selection.id);
+      case "identity": return model.identities.find((entry) => entry.id === selection.id);
+      case "data": return model.data.find((entry) => entry.id === selection.id);
+      case "diagnostic": return model.diagnostics[Number(selection.id)] ?? model.diagnostics.find((entry) => entry.code === selection.id);
+    }
+  };
+  const handler = (event: Event) => {
+    const source = event.target instanceof Element
+      ? event.target.closest(".archmap-node,.archmap-edge,.archmap-zone,.archmap-boundary,.archmap-permission-edge")
+      : null;
+    if (!source) return;
+    const type = selectableKind(source);
+    const rawId = source.getAttribute("data-id");
+    if (!type || !rawId) return;
+    const id = type === "permission" ? rawId.split(":")[1] ?? rawId : rawId;
+    const selection: InspectorSelection = { type, id };
+    renderInspector(model, selection, inspectorTarget);
+    target.dispatchEvent(new CustomEvent(`archmap:select-${type}`, { detail: { selection, [type]: elementFor(selection) }, bubbles: true }));
+  };
+  target.addEventListener("click", handler);
+  return () => target.removeEventListener("click", handler);
+}
+
 export function diagnosticsHtml(model: ArchMapModel): string {
   syncDiagnostics(model);
   const items = model.diagnostics
-    .map((d) => {
+    .map((d, index) => {
       const target = d.target ? ` ${d.target.type}:${d.target.id}` : "";
+      const targetAttrs = d.target
+        ? ` data-target-type="${escapeXml(d.target.type)}" data-target-id="${escapeXml(d.target.id)}"`
+        : "";
       return `<li class="archmap-diagnostic archmap-diagnostic-${escapeXml(d.level ?? d.severity)}">` +
+        `<button type="button" data-diagnostic-index="${index}"${targetAttrs}>` +
         `<strong>${escapeXml(d.code)}</strong>${escapeXml(target)}: ${escapeXml(d.message)}` +
+        `</button>` +
         `</li>`;
     })
     .join("");
@@ -231,6 +281,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     overlays: [...(options.overlays ?? metadataOverlays(model))],
   };
   let panZoom: PanZoomHandle | undefined;
+  let detachInspector: (() => void) | undefined;
 
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
     validateOverlays(model, state.overlays);
@@ -250,13 +301,19 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       const svg = decorateSvgWithOverlays(out, knownOverlays);
       syncDiagnostics(model);
       renderDiagnostics(model, options.diagnosticsTarget);
+      renderInspector(model, options.selection ?? null, options.inspectorTarget);
       if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
       if (options.target && "innerHTML" in options.target) {
         options.target.innerHTML = svg;
         panZoom?.dispose();
         panZoom = undefined;
+        detachInspector?.();
+        detachInspector = undefined;
         if (options.interactive !== false && isInteractiveTarget(options.target)) {
           panZoom = attachPanZoom(options.target);
+        }
+        if (options.inspectorTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
+          detachInspector = attachInspectorSelection(options.target, model, options.inspectorTarget);
         }
       }
       return { view: state.view, layout, model, svg, handle: undefined };
@@ -264,6 +321,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const handle = options.target ? out.mount(options.target) : undefined;
     syncDiagnostics(model);
     renderDiagnostics(model, options.diagnosticsTarget);
+    renderInspector(model, options.selection ?? null, options.inspectorTarget);
     if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
     return { view: state.view, layout, model, handle, svg: undefined };
   };
@@ -297,6 +355,8 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     destroy() {
       panZoom?.dispose();
       panZoom = undefined;
+      detachInspector?.();
+      detachInspector = undefined;
       result.handle?.dispose();
       result.handle = undefined;
       result.svg = undefined;
@@ -335,6 +395,8 @@ export interface ViewerAttributeOptions {
   src?: string;
   diagnostics: boolean;
   diagnosticsTarget?: string;
+  inspector: boolean;
+  inspectorTarget?: string;
   fallbackToInline: boolean;
   /** Console diagnostics reporting; default on for the viewer (spec 02 §23). */
   consoleReport: boolean;
@@ -358,6 +420,8 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     src: attrs.getAttribute("src") ?? undefined,
     diagnostics: attrs.getAttribute("diagnostics") === "true" || attrs.hasAttribute?.("diagnostics") === true,
     diagnosticsTarget: attrs.getAttribute("diagnostics-target") ?? undefined,
+    inspector: attrs.getAttribute("inspector") === "true" || attrs.hasAttribute?.("inspector") === true,
+    inspectorTarget: attrs.getAttribute("inspector-target") ?? undefined,
     fallbackToInline: attrs.hasAttribute?.("fallback-to-inline") === true,
     consoleReport: attrs.getAttribute("console") !== "false",
     controls: attrs.getAttribute("controls") === "true" || attrs.hasAttribute?.("controls") === true,
@@ -380,12 +444,13 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "fallback-to-inline", "console", "controls"];
+      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
     }
 
     private source = "";
     private container?: HTMLDivElement;
     private diagnosticsPanel?: HTMLDivElement;
+    private inspectorPanel?: HTMLDivElement;
     private controlsBar?: HTMLDivElement;
     private result?: RenderResult;
     private loadVersion = 0;
@@ -437,6 +502,15 @@ export function defineArchMapViewerElement(): void {
       return panel;
     }
 
+    private ensureInspectorPanel(): HTMLDivElement {
+      if (this.inspectorPanel) return this.inspectorPanel;
+      const panel = document.createElement("div");
+      panel.className = "archmap-viewer-inspector";
+      this.appendChild(panel);
+      this.inspectorPanel = panel;
+      return panel;
+    }
+
     private applyFrameStyle(): void {
       const options = viewerOptionsFromAttributes(this);
       this.style.display = this.style.display || "block";
@@ -453,6 +527,11 @@ export function defineArchMapViewerElement(): void {
       return options.diagnostics ? this.ensureDiagnosticsPanel() : undefined;
     }
 
+    private inspectorTarget(options: ViewerAttributeOptions): Element | undefined {
+      if (options.inspectorTarget) return document.querySelector(options.inspectorTarget) ?? undefined;
+      return options.inspector ? this.ensureInspectorPanel() : undefined;
+    }
+
     private renderModel(model: ArchMapModel, options: ViewerAttributeOptions): void {
       this.applyFrameStyle();
       this.result?.destroy();
@@ -461,6 +540,7 @@ export function defineArchMapViewerElement(): void {
         overlays: options.overlays,
         target: this.ensureContainer(),
         diagnosticsTarget: this.diagnosticsTarget(options),
+        inspectorTarget: this.inspectorTarget(options),
         console: options.consoleReport,
       });
       if (options.controls) this.renderControls(options);

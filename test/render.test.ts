@@ -12,6 +12,7 @@ import {
   listViews,
   viewerOptionsFromAttributes,
 } from "../src/render.js";
+import { renderInspector } from "../src/inspector.js";
 
 const example = readFileSync(
   fileURLToPath(new URL("../examples/multi-cloud.archmap", import.meta.url)),
@@ -136,6 +137,28 @@ describe("render", () => {
     expect(diagnosticsHtml(m)).toContain("Errors 0 / Warnings 0");
   });
 
+  it("renders an inspector to an external target", () => {
+    const target = { innerHTML: "" } as Element & { innerHTML: string };
+    const m = parse(`graph LR
+      App[App] -->|HTTPS| API[API]
+      ---
+      nodes:
+        App: { zone: client, kind: web_app, principal: app-sa }
+        API: { zone: gcp, kind: api_gateway }
+      identities:
+        app-id: { kind: service_account, attachedTo: App }
+      data:
+        profile: { storedIn: [API], processedBy: [App] }
+      permissions:
+        call-api: { principal: app-sa, action: invoke, resource: API }
+    `);
+    render(m, { inspectorTarget: target, selection: { type: "node", id: "App" } });
+    expect(target.innerHTML).toContain("archmap-inspector");
+    expect(target.innerHTML).toContain("attached identities");
+    expect(target.innerHTML).toContain("app-id");
+    expect(renderInspector(m, { type: "edge", id: "App__API__0" }, null)).toContain("HTTPS");
+  });
+
   it("escapes special characters in labels", () => {
     const m = parse(`graph LR
       A[a & <b>] --> B[b]
@@ -184,6 +207,8 @@ describe("archmap-viewer attributes", () => {
       src: "./arch.archmap",
       diagnostics: true,
       diagnosticsTarget: "#warnings",
+      inspector: false,
+      inspectorTarget: undefined,
       fallbackToInline: true,
       consoleReport: true,
       controls: false,

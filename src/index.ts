@@ -31,6 +31,17 @@ export {
 export type { RenderableIcon, ResolvedIcon } from "./icons.js";
 export { reportDiagnosticsToConsole } from "./diagnostics.js";
 export type { ConsoleReportOptions } from "./diagnostics.js";
+export {
+  inspectModelElement,
+  inspectorHtml,
+  renderInspector,
+} from "./inspector.js";
+export type {
+  InspectableKind,
+  InspectorDetails,
+  InspectorField,
+  InspectorSelection,
+} from "./inspector.js";
 export { attachPanZoom, computeFitTransform, isInteractiveTarget } from "./views/interaction.js";
 export type { PanZoomHandle, PanZoomTransform } from "./views/interaction.js";
 export { extractArchMapBlocks } from "./parser/sections.js";

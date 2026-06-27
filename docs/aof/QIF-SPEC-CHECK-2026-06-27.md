@@ -25,8 +25,8 @@ quality intent, risk, and loss framing. Authority order follows
 | View metadata | Spec allows `view.default: { base, overlays }`; implementation only used compact string before this check. | Fixed in `TASK-004` |
 | 3D base view | Spec requires `3d` as a base view name and `view_3d_unavailable` fallback when the renderer is absent. Core registry lacked a fallback before this check. | Fixed in `TASK-004` |
 | Overlay API | Previous scaffold validated overlay names but did not apply semantic projections. That risked drifting into a class-only API. | Improved in `TASK-004` |
-| Engine API | Custom element, `src`, diagnostics target, SVG pan/zoom lifecycle, and viewer UI controls remain future work. Mutable `RenderResult` controls are now implemented. | Split to engine task |
-| Rendering quality | Current layout protects many legibility basics and overlays now combine, but full inspector behavior and dense-diagram controls are not complete. | Residual gap |
+| Engine API | Custom element, `src`, diagnostics target, SVG pan/zoom lifecycle, viewer UI controls, configurable console diagnostics, and inspector target hooks now exist. | Improved through `TASK-007` |
+| Rendering quality | Current layout protects many legibility basics and overlays now combine. Inspector handoff exists, but visual selection highlight, diagnostics-to-diagram focus, and dense overlay conflict collapse remain open. | Residual gap |
 
 ## Fixes Applied In TASK-004
 
@@ -64,12 +64,33 @@ quality intent, risk, and loss framing. Authority order follows
   `diagnostics-target` can render a diagnostics summary/list to an internal
   panel or external element.
 
+## Follow-up Applied In TASK-006
+
+- Viewer `controls=true` now provides base-view buttons, overlay checkboxes,
+  fit/reset controls, and a diagnostics indicator.
+- SVG pan/zoom is attached for interactive 2D DOM targets; `RenderResult.fit()`
+  and `reset()` now drive the SVG transform through the interaction handle.
+
+## Follow-up Applied In TASK-007
+
+- Added a spec-shaped inspector helper layer for nodes, edges, zones,
+  boundaries, data objects, permissions, identities, and diagnostics.
+- `render(model,{inspectorTarget,selection})` and `<archmap-viewer inspector>`
+  / `inspector-target` can render selected-element details into an internal or
+  external target.
+- Viewer SVG clicks on nodes, edges, zones, boundaries, and permission overlay
+  edges update the inspector and emit `archmap:select-*` events with stable
+  model references.
+- Diagnostics panel rows now carry diagnostic index and target data attributes
+  so follow-up focus/filter/highlight behavior can bind without parsing text.
+
 ## Residual Gaps
 
-- SVG pan/zoom, configurable console diagnostics, richer diagnostics
-  interaction, and viewer UI controls remain engine API work.
+- Visual selected-element highlighting and diagnostics-to-diagram focus are not
+  yet styled as first-class interactions.
 - Overlay conflict priority is represented only by current composition order and
-  badge overwrites; a full inspector and conflict-collapse system remains open.
+  badge overwrites; conflict-collapse into the inspector remains open.
+- Responsive re-fit on container resize and 3D fit/reset parity remain open.
 
 ## Completion And Success
 
