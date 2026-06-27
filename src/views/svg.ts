@@ -103,6 +103,26 @@ function segmentsOf(edgeId: string, points: { x: number; y: number }[]): Seg[] {
   return segs;
 }
 
+function simplifyPoints(points: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  for (const p of points) {
+    const last = out[out.length - 1];
+    if (last && Math.abs(last.x - p.x) < 0.5 && Math.abs(last.y - p.y) < 0.5) continue;
+    if (out.length >= 2) {
+      const prev = out[out.length - 2];
+      const collinear =
+        (Math.abs(prev.x - last.x) < 0.5 && Math.abs(last.x - p.x) < 0.5) ||
+        (Math.abs(prev.y - last.y) < 0.5 && Math.abs(last.y - p.y) < 0.5);
+      if (collinear) {
+        out[out.length - 1] = p;
+        continue;
+      }
+    }
+    out.push(p);
+  }
+  return out;
+}
+
 function parallelOffsets(allSegs: Seg[], spacing = 6): WeakMap<Seg, number> {
   const result = new WeakMap<Seg, number>();
   const groups = new Map<string, Seg[]>();
@@ -145,6 +165,39 @@ function parallelOffsets(allSegs: Seg[], spacing = 6): WeakMap<Seg, number> {
   return result;
 }
 
+function offsetSegmentPoint(seg: Seg, point: { x: number; y: number }, offset: number): { x: number; y: number } {
+  if (seg.orient === "h") return { x: point.x, y: point.y + offset };
+  if (seg.orient === "v") return { x: point.x + offset, y: point.y };
+  return point;
+}
+
+function offsetCorner(prev: Seg, next: Seg, prevOffset: number, nextOffset: number): { x: number; y: number } {
+  const prevEnd = offsetSegmentPoint(prev, { x: prev.x1, y: prev.y1 }, prevOffset);
+  const nextStart = offsetSegmentPoint(next, { x: next.x0, y: next.y0 }, nextOffset);
+  if (prev.orient === "h" && next.orient === "v") return { x: nextStart.x, y: prevEnd.y };
+  if (prev.orient === "v" && next.orient === "h") return { x: prevEnd.x, y: nextStart.y };
+  return nextStart;
+}
+
+function offsetPolyline(points: Array<{ x: number; y: number }>, segs: Seg[], offsets: WeakMap<Seg, number>): Array<{ x: number; y: number }> {
+  if (segs.length === 0) return points;
+  const out: Array<{ x: number; y: number }> = [points[0]];
+  const first = segs[0];
+  out.push(offsetSegmentPoint(first, { x: first.x0, y: first.y0 }, offsets.get(first) ?? 0));
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i];
+    const offset = offsets.get(seg) ?? 0;
+    if (i < segs.length - 1) {
+      const next = segs[i + 1];
+      out.push(offsetCorner(seg, next, offset, offsets.get(next) ?? 0));
+    } else {
+      out.push(offsetSegmentPoint(seg, { x: seg.x1, y: seg.y1 }, offset));
+    }
+  }
+  out.push(points[points.length - 1]);
+  return simplifyPoints(out);
+}
+
 /**
  * Build the SVG path `d` for every edge, inserting a small gap in each
  * horizontal segment where a vertical segment of a *different* edge crosses it.
@@ -157,8 +210,10 @@ export function buildEdgePaths(
 ): Map<string, string> {
   const segsByEdge = new Map(edges.map((e) => [e.id, segmentsOf(e.id, e.points)]));
   const allSegs = [...segsByEdge.values()].flat();
-  const verticals = allSegs.filter((s) => s.orient === "v");
   const offsets = parallelOffsets(allSegs);
+  const routed = new Map(edges.map((e) => [e.id, offsetPolyline(e.points, segsByEdge.get(e.id) ?? [], offsets)]));
+  const routedSegs = new Map(edges.map((e) => [e.id, segmentsOf(e.id, routed.get(e.id) ?? e.points)]));
+  const verticals = [...routedSegs.values()].flat().filter((s) => s.orient === "v");
   const result = new Map<string, string>();
 
   for (const e of edges) {
@@ -166,8 +221,9 @@ export function buildEdgePaths(
       result.set(e.id, "");
       continue;
     }
-    const segs = segsByEdge.get(e.id) ?? [];
-    let current = e.points[0];
+    const points = routed.get(e.id) ?? e.points;
+    const segs = routedSegs.get(e.id) ?? [];
+    let current = points[0];
     let d = `M ${current.x.toFixed(1)} ${current.y.toFixed(1)}`;
     const lineTo = (p: { x: number; y: number }): void => {
       if (Math.abs(current.x - p.x) < 0.5 && Math.abs(current.y - p.y) < 0.5) return;
@@ -184,23 +240,10 @@ export function buildEdgePaths(
     };
 
     for (const s of segs) {
-      const offset = offsets.get(s) ?? 0;
-      const start = s.orient === "h"
-        ? { x: s.x0, y: s.y0 + offset }
-        : s.orient === "v"
-          ? { x: s.x0 + offset, y: s.y0 }
-          : { x: s.x0, y: s.y0 };
-      const end = s.orient === "h"
-        ? { x: s.x1, y: s.y1 + offset }
-        : s.orient === "v"
-          ? { x: s.x1 + offset, y: s.y1 }
-          : { x: s.x1, y: s.y1 };
+      const start = { x: s.x0, y: s.y0 };
+      const end = { x: s.x1, y: s.y1 };
       connectTo(start);
       if (s.orient !== "h") {
-        lineTo(end);
-        continue;
-      }
-      if (offset !== 0) {
         lineTo(end);
         continue;
       }
@@ -223,7 +266,6 @@ export function buildEdgePaths(
       }
       lineTo(end);
     }
-    connectTo(e.points[e.points.length - 1]);
     result.set(e.id, d);
   }
   return result;

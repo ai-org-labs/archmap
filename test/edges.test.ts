@@ -3,6 +3,27 @@ import { parse } from "../src/parser-entry.js";
 import { computeLayout } from "../src/layout.js";
 import { buildEdgePaths } from "../src/views/svg.js";
 
+function pathSegments(d: string): Array<{ orient: "h" | "v" | "diag"; len: number }> {
+  const tokens = [...d.matchAll(/[ML]|-?\d+(?:\.\d+)?/g)].map((m) => m[0]);
+  let cmd: string | null = null;
+  let current: { x: number; y: number } | null = null;
+  const segs: Array<{ orient: "h" | "v" | "diag"; len: number }> = [];
+  for (let i = 0; i < tokens.length;) {
+    if (tokens[i] === "M" || tokens[i] === "L") cmd = tokens[i++];
+    const x = Number(tokens[i++]);
+    const y = Number(tokens[i++]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) break;
+    const next = { x, y };
+    if (cmd === "L" && current) {
+      const dx = Math.abs(next.x - current.x);
+      const dy = Math.abs(next.y - current.y);
+      if (dx > 0.5 || dy > 0.5) segs.push({ orient: dy < 0.5 ? "h" : dx < 0.5 ? "v" : "diag", len: dx + dy });
+    }
+    current = next;
+  }
+  return segs;
+}
+
 describe("orthogonal routing", () => {
   it("bends (4 points) when endpoints are not aligned on the flow axis", () => {
     // A and B share rank 0 (stacked at different y); both point at C in rank 1.
@@ -156,5 +177,21 @@ describe("crossing jumps (buildEdgePaths)", () => {
     expect(paths.get("a")).not.toBe(paths.get("b"));
     expect(paths.get("a")).toContain("47.0");
     expect(paths.get("b")).toContain("53.0");
+  });
+
+  it("keeps offset route corners aligned without interior tick marks", () => {
+    const edges = [
+      { id: "a", points: [{ x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 120 }] },
+      { id: "b", points: [{ x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 0 }] },
+    ];
+    const paths = buildEdgePaths(edges, 7);
+    for (const id of ["a", "b"]) {
+      const segs = pathSegments(paths.get(id)!);
+      for (let i = 2; i < segs.length - 2; i++) {
+        if (segs[i - 1].orient !== segs[i].orient || segs[i].orient !== segs[i + 1].orient) {
+          expect(Math.min(segs[i - 1].len, segs[i].len, segs[i + 1].len)).toBeGreaterThan(8);
+        }
+      }
+    }
   });
 });
