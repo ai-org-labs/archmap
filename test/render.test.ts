@@ -60,9 +60,11 @@ describe("render", () => {
   it("synthesizes permission overlay edges", () => {
     const m = parse(`graph LR
       App[App] --> DB[(DB)]
+      Admin[Admin] --> DB
       ---
       nodes:
         App: { principal: app-sa }
+        Admin: { principal: admin-sa }
         DB: { kind: database }
       permissions:
         db_connect:
@@ -70,11 +72,27 @@ describe("render", () => {
           action: connect
           resource: DB
           role: roles/cloudsql.client
+        db_admin:
+          principal: admin-sa
+          action: administer
+          resource: DB
+          role: roles/cloudsql.admin
     `);
-    const { svg } = render(m, { baseView: "overview", overlays: ["permission"] });
+    const svg = render(m, { baseView: "overview", overlays: ["permission"] }).svg!;
     expect(svg).toContain('class="archmap-overlay-edge archmap-permission-edge"');
     expect(svg).toContain('data-id="permission:db_connect:App-&gt;DB"');
     expect(svg).toContain("roles/cloudsql.client");
+    expect(svg).toContain("roles/cloudsql.admin");
+    const permissionPaths = [...svg.matchAll(/class="archmap-overlay-edge archmap-permission-edge" data-id="permission:[^"]+">.*?<path class="archmap-edge-path" d="([^"]+)"/g)].map((m) => m[1]);
+    expect(permissionPaths.length).toBe(2);
+    expect(permissionPaths.every((d) => (d.match(/\bL\b/g) ?? []).length >= 3)).toBe(true);
+    const labelYs = [...svg.matchAll(/roles\/cloudsql\.(?:client|admin).*?<\/text>/g)]
+      .map((match) => {
+        const rect = svg.slice(Math.max(0, match.index! - 180), match.index);
+        return rect.match(/ y="([0-9.]+)"/)?.[1];
+      })
+      .filter(Boolean);
+    expect(new Set(labelYs).size).toBeGreaterThanOrEqual(2);
   });
 
   it("updates overlays through the render result handle", () => {

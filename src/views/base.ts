@@ -7,7 +7,7 @@
  * means a new view is a small classifier, not a new renderer.
  */
 
-import type { LayoutResult } from "../layout.js";
+import type { LayoutNode, LayoutResult } from "../layout.js";
 import type { ResolvedIcon } from "../icons.js";
 import { iconDomId } from "../icons.js";
 import {
@@ -57,6 +57,116 @@ function channelClass(id: string, set: Set<string> | undefined): string {
   return set.has(id) ? " archmap-emphasis" : " archmap-faded";
 }
 
+type OverlayEdge = NonNullable<DiagramSpec["overlayEdges"]>[number];
+type Face = "left" | "right" | "top" | "bottom";
+
+interface Port {
+  edgeIndex: number;
+  face: Face;
+  sort: number;
+  x: number;
+  y: number;
+}
+
+function center(n: LayoutNode): { x: number; y: number } {
+  return { x: n.x + n.w / 2, y: n.y + n.h / 2 };
+}
+
+function chooseFaces(from: LayoutNode, to: LayoutNode): { source: Face; target: Face } {
+  const a = center(from);
+  const b = center(to);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? { source: "right", target: "left" } : { source: "left", target: "right" };
+  }
+  return dy >= 0 ? { source: "bottom", target: "top" } : { source: "top", target: "bottom" };
+}
+
+function portPoint(node: LayoutNode, face: Face, slot: number, count: number): { x: number; y: number } {
+  const inset = Math.min(10, Math.max(4, Math.min(node.w, node.h) * 0.12));
+  const span = face === "left" || face === "right" ? Math.max(1, node.h - inset * 2) : Math.max(1, node.w - inset * 2);
+  const along = count <= 1 ? 0.5 : slot / (count - 1);
+  if (face === "left") return { x: node.x, y: node.y + inset + span * along };
+  if (face === "right") return { x: node.x + node.w, y: node.y + inset + span * along };
+  if (face === "top") return { x: node.x + inset + span * along, y: node.y };
+  return { x: node.x + inset + span * along, y: node.y + node.h };
+}
+
+function orthogonalPath(a: { x: number; y: number }, b: { x: number; y: number }, sourceFace: Face): string {
+  if (sourceFace === "left" || sourceFace === "right") {
+    const midX = (a.x + b.x) / 2;
+    return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${midX.toFixed(1)} ${a.y.toFixed(1)} L ${midX.toFixed(1)} ${b.y.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  }
+  const midY = (a.y + b.y) / 2;
+  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${a.x.toFixed(1)} ${midY.toFixed(1)} L ${b.x.toFixed(1)} ${midY.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+}
+
+function labelAnchor(node: LayoutNode, face: Face, slot: number, count: number, label: string): { x: number; y: number; orient: "h" | "v" } {
+  const p = portPoint(node, face, slot, count);
+  const labelWidth = label.length * 6.5 + 8;
+  const offset = 12;
+  if (face === "left") return { x: node.x - labelWidth / 2 - offset, y: p.y, orient: "h" };
+  if (face === "right") return { x: node.x + node.w + labelWidth / 2 + offset, y: p.y, orient: "h" };
+  if (face === "top") return { x: p.x, y: node.y - offset, orient: "h" };
+  return { x: p.x, y: node.y + node.h + offset, orient: "h" };
+}
+
+function renderOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string, LayoutNode>): string {
+  if (!edges?.length) return "";
+  const sourcePorts = new Map<string, Port[]>();
+  const targetPorts = new Map<string, Port[]>();
+  const resolved = edges.map((edge, index) => {
+    const from = nodeById.get(edge.from);
+    const to = nodeById.get(edge.to);
+    if (!from || !to) return undefined;
+    const faces = chooseFaces(from, to);
+    const fromCenter = center(from);
+    const toCenter = center(to);
+    const source: Port = { edgeIndex: index, face: faces.source, sort: toCenter.y * 100000 + toCenter.x, x: 0, y: 0 };
+    const target: Port = { edgeIndex: index, face: faces.target, sort: fromCenter.y * 100000 + fromCenter.x, x: 0, y: 0 };
+    const sourceKey = `${edge.from}|${faces.source}`;
+    const targetKey = `${edge.to}|${faces.target}`;
+    (sourcePorts.get(sourceKey) ?? (sourcePorts.set(sourceKey, []), sourcePorts.get(sourceKey)!)).push(source);
+    (targetPorts.get(targetKey) ?? (targetPorts.set(targetKey, []), targetPorts.get(targetKey)!)).push(target);
+    return { edge, from, to, source, target };
+  });
+
+  const assign = (ports: Map<string, Port[]>): void => {
+    for (const [key, entries] of ports) {
+      const node = nodeById.get(key.slice(0, key.lastIndexOf("|")))!;
+      const face = key.slice(key.lastIndexOf("|") + 1) as Face;
+      entries.sort((a, b) => a.sort - b.sort || a.edgeIndex - b.edgeIndex);
+      entries.forEach((entry, slot) => {
+        const p = portPoint(node, face, slot, entries.length);
+        entry.x = p.x;
+        entry.y = p.y;
+      });
+    }
+  };
+  assign(sourcePorts);
+  assign(targetPorts);
+
+  const targetSlot = new Map<string, { slot: number; count: number }>();
+  for (const [key, entries] of targetPorts) {
+    entries.forEach((entry, slot) => targetSlot.set(`${entry.edgeIndex}|${key}`, { slot, count: entries.length }));
+  }
+
+  return resolved
+    .map((entry, index) => {
+      if (!entry) return "";
+      const d = orthogonalPath(entry.source, entry.target, entry.source.face);
+      const cls = entry.edge.className ?? "archmap-overlay-edge";
+      const key = `${index}|${entry.edge.to}|${entry.target.face}`;
+      const stack = targetSlot.get(key) ?? { slot: 0, count: 1 };
+      const label = entry.edge.label
+        ? edgeLabelSvg(entry.edge.label, labelAnchor(entry.to, entry.target.face, stack.slot, stack.count, entry.edge.label), "h")
+        : "";
+      return `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${label}</g>`;
+    })
+    .join("");
+}
+
 export function renderDiagram(spec: DiagramSpec): string {
   const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, overlayEdges, nodeIcons } = spec;
   const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
@@ -89,19 +199,7 @@ export function renderDiagram(spec: DiagramSpec): string {
     .join("");
 
   const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
-  const overlayEdgesSvg = (overlayEdges ?? [])
-    .map((e) => {
-      const from = nodeById.get(e.from);
-      const to = nodeById.get(e.to);
-      if (!from || !to) return "";
-      const a = { x: from.x + from.w / 2, y: from.y + from.h / 2 };
-      const b = { x: to.x + to.w / 2, y: to.y + to.h / 2 };
-      const d = `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} L ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
-      const label = e.label ? edgeLabelSvg(e.label, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }) : "";
-      const cls = e.className ?? "archmap-overlay-edge";
-      return `<g class="${cls}" data-id="${escapeXml(e.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${label}</g>`;
-    })
-    .join("");
+  const overlayEdgesSvg = renderOverlayEdges(overlayEdges, nodeById);
 
   const nodesSvg = layout.nodes
     .map((n) => {
