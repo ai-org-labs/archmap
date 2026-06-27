@@ -14,7 +14,7 @@ import { parse } from "./parser-entry.js";
 import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
 import { resolveNodeIcons } from "./icons.js";
-import { overviewView } from "./views/overview.js";
+import { overviewView, layerView } from "./views/overview.js";
 import { zoneView } from "./views/zone.js";
 import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
@@ -51,8 +51,10 @@ export interface MountableView {
 export type ViewRenderer = (ctx: ViewContext) => string | MountableView;
 
 export interface RenderOptions {
-  /** Stage 4 base-view API; prefer this for overview/zone/3d selection. */
+  /** What semantic structure to inspect: overview, zone, or layer. */
   baseView?: string;
+  /** How to display the selected semantic view. */
+  renderMode?: "2d" | "isometric" | "3d" | string;
   /** Stage 4 overlay names toggled on top of the selected base view. */
   overlays?: string[];
   /** Legacy flat view selector. Kept for compatibility with existing callers. */
@@ -83,6 +85,7 @@ export interface RenderResult {
   /** Present for mounted (3D) views when a target was supplied. */
   handle?: ViewHandle;
   setBaseView(view: string): void;
+  setRenderMode(mode: string): void;
   setOverlays(overlays: string[]): void;
   toggleOverlay(overlay: string): void;
   fit(): void;
@@ -186,6 +189,7 @@ export function renderDiagnostics(model: ArchMapModel, target: Element | string 
 // Built-in views.
 registerView("overview", overviewView);
 registerView("zone", zoneView);
+registerView("layer", layerView);
 registerView("auth", authView);
 registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
@@ -209,7 +213,9 @@ registerView("3d", ({ model }) => {
  * axis by zone too would collapse both axes onto zone and route edges across
  * nodes. It just emphasizes cross-zone edges on the normal layout.
  */
-const VIEW_RANK_BY: Record<string, LayoutOptions["rankBy"]> = {};
+const VIEW_RANK_BY: Record<string, LayoutOptions["rankBy"]> = {
+  layer: "layer",
+};
 
 function validateOverlays(model: ArchMapModel, overlays: string[]): void {
   for (const overlay of overlays) {
@@ -245,7 +251,7 @@ function metadataOverlays(model: ArchMapModel): string[] {
 }
 
 function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[]): string | undefined {
-  if (overlays.length === 0 || (view !== "overview" && view !== "zone")) return undefined;
+  if (overlays.length === 0 || (view !== "overview" && view !== "zone" && view !== "layer")) return undefined;
   const projection = buildOverlayProjection(model, layout, overlays);
   const baseEdges = new Set<string>();
   if (view === "zone") {
@@ -276,8 +282,12 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
 
 /** Render a model into an SVG string, optionally injecting it into a target. */
 export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
+  const requestedView = options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview";
+  const renderMode = options.renderMode ?? "2d";
   const state = {
-    view: options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview",
+    view: renderMode === "3d" || renderMode === "isometric" ? "3d" : requestedView,
+    requestedView,
+    renderMode,
     overlays: [...(options.overlays ?? metadataOverlays(model))],
   };
   let panZoom: PanZoomHandle | undefined;
@@ -291,11 +301,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       syncDiagnostics(model);
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
-    const rankBy = options.rankBy ?? VIEW_RANK_BY[state.view];
+    const rankBy = options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view];
     const layout = computeLayout(model, { direction: options.direction, rankBy });
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
     const overlaidSvg = renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
-    const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.view, overlays: state.overlays } });
+    const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays } });
 
     if (typeof out === "string") {
       const svg = decorateSvgWithOverlays(out, knownOverlays);
@@ -328,12 +338,18 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
 
   const result: RenderResult = {
     view: state.view,
-    layout: computeLayout(model, { direction: options.direction, rankBy: options.rankBy ?? VIEW_RANK_BY[state.view] }),
+    layout: computeLayout(model, { direction: options.direction, rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view] }),
     model,
     svg: undefined,
     handle: undefined,
     setBaseView(view: string) {
-      state.view = view;
+      state.requestedView = view;
+      state.view = state.renderMode === "3d" || state.renderMode === "isometric" ? "3d" : view;
+      apply(snapshot());
+    },
+    setRenderMode(mode: string) {
+      state.renderMode = mode;
+      state.view = mode === "3d" || mode === "isometric" ? "3d" : state.requestedView;
       apply(snapshot());
     },
     setOverlays(overlays: string[]) {
@@ -389,6 +405,7 @@ export interface InitializeOptions {
 
 export interface ViewerAttributeOptions {
   baseView?: string;
+  renderMode: string;
   overlays: string[];
   width: string;
   height: string;
@@ -414,6 +431,7 @@ export function parseOverlaysAttribute(value: string | null): string[] {
 export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute"> & Partial<Pick<Element, "hasAttribute">>): ViewerAttributeOptions {
   return {
     baseView: attrs.getAttribute("base-view") ?? undefined,
+    renderMode: attrs.getAttribute("render-mode") ?? "2d",
     overlays: parseOverlaysAttribute(attrs.getAttribute("overlays")),
     width: attrs.getAttribute("width") ?? "100%",
     height: attrs.getAttribute("height") ?? "600px",
@@ -428,8 +446,10 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
   };
 }
 
-/** Base views offered by the controls toolbar (spec 03 §7). */
-export const BASE_VIEWS = ["overview", "zone", "3d"] as const;
+/** Semantic views offered by the controls toolbar: what the user wants to inspect. */
+export const BASE_VIEWS = ["overview", "zone", "layer"] as const;
+/** Render modes offered by the controls toolbar: how to display the selected view. */
+export const RENDER_MODES = ["2d", "isometric", "3d"] as const;
 
 export async function fetchArchMapSource(src: string, fetchImpl: typeof fetch = fetch): Promise<string> {
   const response = await fetchImpl(src);
@@ -444,7 +464,7 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
+      return ["base-view", "render-mode", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
     }
 
     private source = "";
@@ -474,6 +494,8 @@ export function defineArchMapViewerElement(): void {
       const options = viewerOptionsFromAttributes(this);
       if (name === "base-view" && options.baseView) {
         this.result.setBaseView(options.baseView);
+      } else if (name === "render-mode") {
+        this.result.setRenderMode(options.renderMode);
       } else if (name === "overlays") {
         this.result.setOverlays(options.overlays);
       } else if (name === "width" || name === "height") {
@@ -537,6 +559,7 @@ export function defineArchMapViewerElement(): void {
       this.result?.destroy();
       this.result = render(model, {
         baseView: options.baseView,
+        renderMode: options.renderMode,
         overlays: options.overlays,
         target: this.ensureContainer(),
         diagnosticsTarget: this.diagnosticsTarget(options),
@@ -568,14 +591,14 @@ export function defineArchMapViewerElement(): void {
         return g;
       };
 
-      const active = { base: result.view, overlays: new Set(options.overlays) };
+      const active = { base: options.baseView ?? "overview", renderMode: options.renderMode, overlays: new Set(options.overlays) };
 
-      const baseGroup = group("Base:");
+      const baseGroup = group("Views:");
       const baseButtons = new Map<string, HTMLButtonElement>();
       for (const view of BASE_VIEWS) {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.textContent = view === "3d" ? "3D" : view[0].toUpperCase() + view.slice(1);
+        btn.textContent = view[0].toUpperCase() + view.slice(1);
         btn.className = "archmap-control-base" + (view === active.base ? " is-active" : "");
         btn.addEventListener("click", () => {
           result.setBaseView(view);
@@ -587,6 +610,24 @@ export function defineArchMapViewerElement(): void {
         baseGroup.appendChild(btn);
       }
       bar.appendChild(baseGroup);
+
+      const modeGroup = group("Render modes:");
+      const modeButtons = new Map<string, HTMLButtonElement>();
+      for (const mode of RENDER_MODES) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = mode === "3d" ? "3D" : mode[0].toUpperCase() + mode.slice(1);
+        btn.className = "archmap-control-render-mode" + (mode === active.renderMode ? " is-active" : "");
+        btn.addEventListener("click", () => {
+          result.setRenderMode(mode);
+          active.renderMode = mode;
+          modeButtons.forEach((b, name) => b.classList.toggle("is-active", name === mode));
+          updateDiagnostics();
+        });
+        modeButtons.set(mode, btn);
+        modeGroup.appendChild(btn);
+      }
+      bar.appendChild(modeGroup);
 
       const overlayGroup = group("Overlays:");
       for (const overlay of OVERLAY_NAMES) {

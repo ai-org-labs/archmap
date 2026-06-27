@@ -16,3 +16,13 @@ export function overviewView(ctx: ViewContext): string {
     nodeIcons: resolveNodeIcons(ctx.model),
   });
 }
+
+export function layerView(ctx: ViewContext): string {
+  return renderDiagram({
+    layout: ctx.layout,
+    viewClass: "layer",
+    boxes: ctx.layout.zones,
+    boxClass: "archmap-zone",
+    nodeIcons: resolveNodeIcons(ctx.model),
+  });
+}

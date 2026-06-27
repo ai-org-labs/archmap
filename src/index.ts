@@ -53,6 +53,7 @@ export {
   initialize,
   defineArchMapViewerElement,
   BASE_VIEWS,
+  RENDER_MODES,
   diagnosticsHtml,
   fetchArchMapSource,
   parseOverlaysAttribute,

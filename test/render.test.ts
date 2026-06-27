@@ -22,6 +22,7 @@ const example = readFileSync(
 describe("render", () => {
   it("registers the overview view by default", () => {
     expect(listViews()).toContain("overview");
+    expect(listViews()).toContain("layer");
   });
 
   it("renders an SVG string for the overview view", () => {
@@ -47,6 +48,14 @@ describe("render", () => {
     expect(svg).toContain("archmap-overlay-dataflow");
     expect(svg).toContain('class="archmap-edge archmap-emphasis" data-id="web_api"');
     expect(svg).toContain(">JWT<");
+  });
+
+  it("supports layer as a semantic 2D view", () => {
+    const m = parse(example);
+    const { svg, view, layout } = render(m, { baseView: "layer" });
+    expect(view).toBe("layer");
+    expect(svg).toContain("archmap-view-layer");
+    expect(new Set(layout.nodes.map((n) => n.z)).size).toBeGreaterThan(1);
   });
 
   it("combines boundary overlay boxes with overview base", () => {
@@ -227,6 +236,7 @@ describe("archmap-viewer attributes", () => {
   it("uses viewer attribute defaults", () => {
     const attrs = new Map<string, string>([
       ["base-view", "zone"],
+      ["render-mode", "isometric"],
       ["overlays", "auth,validation"],
       ["diagnostics-target", "#warnings"],
       ["src", "./arch.archmap"],
@@ -237,6 +247,7 @@ describe("archmap-viewer attributes", () => {
     });
     expect(options).toEqual({
       baseView: "zone",
+      renderMode: "isometric",
       overlays: ["auth", "validation"],
       width: "100%",
       height: "600px",

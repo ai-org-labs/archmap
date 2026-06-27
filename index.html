@@ -20,9 +20,12 @@
     main { display: grid; grid-template-columns: 360px 1fr; gap: 0; height: calc(100vh - 49px); }
     .panel { display: flex; flex-direction: column; border-right: 1px solid #d4dae6; background: #fff; }
     textarea { flex: 1; border: 0; padding: 12px; font: 12px/1.5 ui-monospace, monospace; resize: none; outline: none; }
-    .controls { padding: 8px 12px; border-top: 1px solid #d4dae6; display: flex; gap: 8px; align-items: center; }
+    .controls { padding: 8px 12px; border-top: 1px solid #d4dae6; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
     button { padding: 6px 14px; border: 0; border-radius: 6px; background: #34507a; color: #fff; cursor: pointer; }
     select { padding: 5px; border: 1px solid #c5cde0; border-radius: 6px; }
+    .control-group { display: inline-flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+    .control-label { font-size: 12px; font-weight: 700; color: #53627a; }
+    .overlay-check { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
     .diagram { overflow: auto; padding: 16px; }
     .diagram svg { background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: 100%; height: auto; }
     .diag-log { max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; font: 11px ui-monospace, monospace; }
@@ -31,23 +34,29 @@
   </style>
 </head>
 <body>
-  <header><h1>ArchMap <span>dev playground · Overview view</span></h1></header>
+  <header><h1>ArchMap <span>dev playground · base view + overlays</span></h1></header>
   <main>
     <div class="panel">
       <textarea id="src" spellcheck="false"></textarea>
       <div class="controls">
         <button id="run">Render</button>
-        <label>View
-          <select id="view">
+        <label class="control-group"><span class="control-label">Views</span>
+          <select id="base-view">
             <option value="overview">overview</option>
             <option value="zone">zone</option>
-            <option value="auth">auth</option>
-            <option value="dataflow">dataflow</option>
-            <option value="boundary">boundary</option>
-            <option value="validation">validation</option>
+            <option value="layer">layer</option>
+          </select>
+        </label>
+        <label class="control-group"><span class="control-label">Render modes</span>
+          <select id="render-mode">
+            <option value="2d">2d</option>
+            <option value="isometric">isometric</option>
             <option value="3d">3d</option>
           </select>
         </label>
+        <span class="control-group" id="overlays">
+          <span class="control-label">Overlays</span>
+        </span>
       </div>
       <div class="diag-log" id="log"></div>
     </div>
@@ -125,13 +134,25 @@ boundaries:
     installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
     installThreeView(); // opt-in 3D view; core does not bundle three.js
     const $ = (id) => document.getElementById(id);
+    const overlayNames = ["auth", "dataflow", "boundary", "permission", "validation"];
     $("src").value = $("seed").textContent.trim();
+    for (const overlay of overlayNames) {
+      const label = document.createElement("label");
+      label.className = "overlay-check";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = overlay;
+      input.addEventListener("change", draw);
+      label.append(input, document.createTextNode(overlay));
+      $("overlays").appendChild(label);
+    }
     let handle = null;
+    const selectedOverlays = () => [...$("overlays").querySelectorAll("input:checked")].map((input) => input.value);
     function draw() {
       if (handle) { handle.dispose(); handle = null; } // tear down a live 3D scene
       const model = parse($("src").value);
       // Passing target lets render() inject SVG (2D) or mount WebGL (3D).
-      const res = render(model, { view: $("view").value, target: $("diagram") });
+      const res = render(model, { baseView: $("base-view").value, renderMode: $("render-mode").value, overlays: selectedOverlays(), target: $("diagram") });
       handle = res.handle ?? null;
       const log = [
         ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),
@@ -140,7 +161,8 @@ boundaries:
       $("log").innerHTML = log.join("") || '<div style="color:#1a7f37">✓ no diagnostics</div>';
     }
     $("run").addEventListener("click", draw);
-    $("view").addEventListener("change", draw);
+    $("base-view").addEventListener("change", draw);
+    $("render-mode").addEventListener("change", draw);
     draw();
   </script>
 </body>
