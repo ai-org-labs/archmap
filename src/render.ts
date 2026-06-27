@@ -14,7 +14,7 @@ import { parse } from "./parser-entry.js";
 import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
 import { resolveNodeIcons } from "./icons.js";
-import { overviewView, layerView } from "./views/overview.js";
+import { overviewView, layerBoxes, layerView } from "./views/overview.js";
 import { zoneView } from "./views/zone.js";
 import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
@@ -293,6 +293,10 @@ registerView("3d", ({ model }) => {
  * nodes. It just emphasizes cross-zone edges on the normal layout.
  */
 const VIEW_RANK_BY: Record<string, LayoutOptions["rankBy"]> = {
+  layer: "topo",
+};
+
+const VIEW_LANE_BY: Record<string, LayoutOptions["laneBy"]> = {
   layer: "layer",
 };
 
@@ -348,7 +352,9 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     layout,
     viewClass: view,
     boxGroups: [
-      { boxes: layout.zones, boxClass: "archmap-zone" },
+      view === "layer"
+        ? { boxes: layerBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-layer" }
+        : { boxes: layout.zones, boxClass: "archmap-zone" },
       ...(projection.boxGroups ?? []),
     ],
     emphasizeNodes: projection.emphasizeNodes,
@@ -382,7 +388,8 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
     const rankBy = options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view];
-    const layout = computeLayout(model, { direction: options.direction, rankBy });
+    const laneBy = VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view];
+    const layout = computeLayout(model, { direction: options.direction, rankBy, laneBy });
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
     const overlaidSvg = renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays } });
@@ -423,7 +430,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
 
   const result: RenderResult = {
     view: state.view,
-    layout: computeLayout(model, { direction: options.direction, rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view] }),
+    layout: computeLayout(model, {
+      direction: options.direction,
+      rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view],
+      laneBy: VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view],
+    }),
     model,
     svg: undefined,
     handle: undefined,

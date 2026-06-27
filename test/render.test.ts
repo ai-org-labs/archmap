@@ -26,6 +26,10 @@ const nestedZones = readFileSync(
   fileURLToPath(new URL("../examples/nested-zones.archmap", import.meta.url)),
   "utf8",
 );
+const androidDriverStack = readFileSync(
+  fileURLToPath(new URL("fixtures/pattern-samples/06-android-framework-driver-bt-devices.archmap", import.meta.url)),
+  "utf8",
+);
 
 function textBoxes(svg: string, className: string): Array<{ x0: number; x1: number; y0: number; y1: number }> {
   return [...svg.matchAll(new RegExp(`<text class="${className}" x="([0-9.]+)" y="([0-9.]+)">([^<]+)</text>`, "g"))].map((m) => {
@@ -214,6 +218,24 @@ describe("render", () => {
     expect(view).toBe("layer");
     expect(svg).toContain("archmap-view-layer");
     expect(new Set(layout.nodes.map((n) => n.z)).size).toBeGreaterThan(1);
+  });
+
+  it("renders Android platform stacks as fixed layer bands", () => {
+    const m = parse(androidDriverStack);
+    const { svg } = render(m, { baseView: "layer" });
+    expect(svg).toBeDefined();
+    const layerSvg = svg!;
+    expect(layerSvg).toContain('class="archmap-layer archmap-layer-depth-0" data-id="applications"');
+    expect(layerSvg).toContain(">Applications<");
+    expect(layerSvg).toContain(">Application Framework<");
+    expect(layerSvg).toContain(">Libraries (user space)<");
+    expect(layerSvg).toContain(">Linux Kernel<");
+    expect(layerSvg).toContain(">Baseband<");
+
+    const heights = [...layerSvg.matchAll(/<rect class="archmap-layer-box" x="[0-9.]+" y="[0-9.]+" width="[0-9.]+" height="([0-9.]+)"/g)]
+      .map((match) => Number(match[1]));
+    expect(heights.length).toBeGreaterThanOrEqual(5);
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
   });
 
   it("routes isometric render mode through the interactive 3D renderer slot", () => {

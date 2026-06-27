@@ -383,7 +383,10 @@ export function renderDiagram(spec: DiagramSpec): string {
   const boxesSvg = boxGroups
     .map((group) => {
       const boxLabelClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-label" : "archmap-zone-label";
-      const boxBoxClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-box" : "archmap-zone-box";
+      const resolvedLabelClass = group.boxClass === "archmap-layer" ? "archmap-layer-label" : boxLabelClass;
+      const boxBoxClass = group.boxClass === "archmap-boundary"
+        ? "archmap-boundary-box"
+        : group.boxClass === "archmap-layer" ? "archmap-layer-box" : "archmap-zone-box";
       return group.boxes
         .map((b) => {
           const label = b.label ?? b.id;
@@ -393,7 +396,7 @@ export function renderDiagram(spec: DiagramSpec): string {
           return (
             `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}" data-id="${escapeXml(b.id)}" data-depth="${depth}">` +
             `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14" ry="14" />` +
-            `<text class="${boxLabelClass}" x="${placedLabel.x}" y="${placedLabel.y}">${escapeXml(label)}</text>` +
+            `<text class="${resolvedLabelClass}" x="${placedLabel.x}" y="${placedLabel.y}">${escapeXml(label)}</text>` +
             `</g>`
           );
         })

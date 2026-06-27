@@ -138,6 +138,8 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     node.contains = asStringArray(value.contains);
     node.tags = asStringArray(value.tags);
     node.description = asString(value.description);
+    node.androidComponent = asString(value.androidComponent);
+    node.androidLayer = asString(value.androidLayer);
   }
 
   // --- Edges (spec 01 §7, 02 §6) --------------------------------------------

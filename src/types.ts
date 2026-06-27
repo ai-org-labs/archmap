@@ -65,6 +65,9 @@ export interface ArchNode {
   contains?: string[];
   tags?: string[];
   description?: string;
+  /** Extension metadata for platform-stack diagrams such as Android. */
+  androidComponent?: string;
+  androidLayer?: string;
   /** Fields populated by inference rather than explicit metadata. */
   inferred?: string[];
 }

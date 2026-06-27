@@ -348,6 +348,12 @@ export const DEFAULT_STYLE = `
 .archmap-zone-depth-2 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-2, rgba(235,229,248,0.5)); stroke: var(--archmap-zone-stroke-depth-2, #a799cc); }
 .archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); stroke: var(--archmap-zone-stroke-depth-3, #8fbf9c); }
 .archmap-zone-label { fill: var(--archmap-zone-label, #687486); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
+.archmap-layer-box { fill: var(--archmap-layer-fill, rgba(236,241,248,0.72)); stroke: var(--archmap-layer-stroke, #b8c5d6); stroke-width: 1.1; }
+.archmap-layer-depth-1 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-1, rgba(247,239,222,0.68)); }
+.archmap-layer-depth-2 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-2, rgba(232,243,232,0.66)); }
+.archmap-layer-depth-3 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-3, rgba(239,233,248,0.66)); }
+.archmap-layer-depth-4 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-4, rgba(248,235,235,0.62)); }
+.archmap-layer-label { fill: var(--archmap-layer-label, #5f6d7b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-node-shape { fill: var(--archmap-node-fill, #ffffff); stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
@@ -360,7 +366,7 @@ export const DEFAULT_STYLE = `
 .archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(247,240,220,0.48)); stroke: var(--archmap-boundary-stroke, #c0a044); stroke-width: 1.8; }
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-selected .archmap-node-shape, .archmap-selected .archmap-node-shape-top { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
-.archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
+.archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box, .archmap-selected .archmap-layer-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-path { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-startpoint { fill: var(--archmap-selected, #2563eb); }
 .archmap-emphasis .archmap-node-shape, .archmap-emphasis .archmap-node-shape-top { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }

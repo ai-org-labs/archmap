@@ -11,7 +11,7 @@
  * node borders; orthogonal routing and crossing minimization come later.
  */
 
-import type { ArchMapModel, Direction, NodeShape } from "./types.js";
+import type { ArchMapModel, ArchNode, Direction, NodeShape } from "./types.js";
 
 export interface LayoutNode {
   id: string;
@@ -86,6 +86,8 @@ export interface LayoutOptions {
   direction?: Direction;
   /** How to assign the primary (flow) axis rank. */
   rankBy?: "topo" | "layer" | "zone";
+  /** How to assign the secondary swimlane axis. */
+  laneBy?: "zone" | "layer";
 }
 
 /** §10 layer order, used for `z` depth and optional layer-based ranking. */
@@ -101,6 +103,16 @@ const ZONE_ORDER = [
   "onprem", "saas", "partner", "identity", "operations", "unknown",
 ];
 
+const ANDROID_LAYER_ORDER = [
+  "applications",
+  "application_framework",
+  "libraries",
+  "linux_kernel",
+  "baseband",
+];
+
+const ANDROID_LAYER_INDEX = new Map(ANDROID_LAYER_ORDER.map((l, i) => [l, i]));
+
 // Geometry constants.
 const NODE_H = 48;
 const NODE_MIN_W = 96;
@@ -112,6 +124,8 @@ const NODE_PAD_X = 28;
 const RANK_GAP = 170; // gap between bands along the flow axis
 const NODE_GAP = 72; // gap between nodes within a band
 const LANE_GAP = 128; // gap between zone lanes on the cross axis (clears zone boxes)
+const LAYER_LANE_GAP = 28;
+const LAYER_LANE_EXTENT = 116;
 const MARGIN = 40;
 const ZONE_PAD = 22;
 const ZONE_LABEL_PAD = 36;
@@ -131,6 +145,39 @@ function nodeSize(label: string, degree = 0): { w: number; h: number } {
 function layerDepth(layer: string | undefined): number {
   if (!layer) return 0;
   return LAYER_INDEX.get(layer) ?? 0;
+}
+
+function androidStackLayer(node: Pick<ArchNode, "androidComponent" | "androidLayer" | "provider" | "layer">): string | undefined {
+  const androidLayer = node.androidLayer;
+  if (node.androidComponent === "application" || node.androidComponent === "activity") return "applications";
+  if (androidLayer === "framework_api" || androidLayer === "framework_service" || androidLayer === "system_service" || androidLayer === "ipc") {
+    return "application_framework";
+  }
+  if (androidLayer === "hal" || androidLayer === "native_library" || androidLayer === "vendor_library") return "libraries";
+  if (androidLayer === "kernel_driver" || node.provider === "linux") return "linux_kernel";
+  if (androidLayer === "hardware" || androidLayer === "hardware_controller" || node.provider === "device") return "baseband";
+  if (node.provider === "android" && node.layer === "client") return "applications";
+  return undefined;
+}
+
+function layerLaneKey(node: Pick<ArchNode, "androidComponent" | "androidLayer" | "provider" | "layer">): string {
+  return androidStackLayer(node) ?? node.layer ?? "";
+}
+
+function buildLayerRank(nodes: ArchNode[]): (layer: string | undefined) => number {
+  const hasAndroidStack = nodes.some((n) => !!androidStackLayer(n));
+  const known = hasAndroidStack ? ANDROID_LAYER_INDEX : LAYER_INDEX;
+  let next = known.size;
+  const custom = new Map<string, number>();
+  for (const node of nodes) {
+    const layer = layerLaneKey(node);
+    if (!layer || known.has(layer) || custom.has(layer)) continue;
+    custom.set(layer, next++);
+  }
+  return (layer) => {
+    if (!layer) return next;
+    return known.get(layer) ?? custom.get(layer) ?? next;
+  };
 }
 
 /**
@@ -174,6 +221,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   const direction = options.direction ?? model.direction;
   const horizontal = direction === "LR";
   const rankBy = options.rankBy ?? "topo";
+  const laneBy = options.laneBy ?? "zone";
 
   const nodeIds = model.nodes.map((n) => n.id);
   const validEdges = model.edges.filter(
@@ -237,7 +285,8 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   // Zone lanes (swimlanes) on the cross axis, so each zone occupies a disjoint
   // band and zone boxes never overlap. Lanes are ordered by §11 zone order,
   // with custom/zoneless lanes appended in first-seen order.
-  const laneKey = (n: { zone?: string }) => n.zone ?? "";
+  const layerRankFor = buildLayerRank(model.nodes);
+  const laneKey = (n: ArchNode) => laneBy === "layer" ? layerLaneKey(n) : n.zone ?? "";
   const seen: string[] = [];
   for (const n of model.nodes) {
     const k = laneKey(n);
@@ -245,8 +294,8 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   }
   const zoneRankFor = buildZoneRank(model.nodes.map((n) => n.zone));
   const laneOrder = [...seen].sort((a, b) => {
-    const ra = a === "" ? Number.MAX_SAFE_INTEGER : zoneRankFor(a);
-    const rb = b === "" ? Number.MAX_SAFE_INTEGER : zoneRankFor(b);
+    const ra = a === "" ? Number.MAX_SAFE_INTEGER : laneBy === "layer" ? layerRankFor(a) : zoneRankFor(a);
+    const rb = b === "" ? Number.MAX_SAFE_INTEGER : laneBy === "layer" ? layerRankFor(b) : zoneRankFor(b);
     return ra - rb || seen.indexOf(a) - seen.indexOf(b);
   });
   const laneIndex = new Map(laneOrder.map((k, i) => [k, i]));
@@ -301,9 +350,19 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   const bandExtent = new Map<number, number>();
   for (const r of ranks) {
     let ext = 0;
-    for (const n of byRank.get(r)!) {
-      const size = sizeById.get(n.id)!;
-      ext = Math.max(ext, horizontal ? size.w : size.h);
+    if (laneBy === "layer" && horizontal) {
+      const sums = new Map<string, number>();
+      for (const n of byRank.get(r)!) {
+        const size = sizeById.get(n.id)!;
+        const lane = laneKey(n);
+        sums.set(lane, (sums.get(lane) ?? 0) + size.w + NODE_GAP);
+      }
+      ext = Math.max(...[...sums.values()].map((value) => value - NODE_GAP), NODE_MIN_W);
+    } else {
+      for (const n of byRank.get(r)!) {
+        const size = sizeById.get(n.id)!;
+        ext = Math.max(ext, horizontal ? size.w : size.h);
+      }
     }
     bandExtent.set(r, ext);
   }
@@ -324,13 +383,17 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     return horizontal ? size.h : size.w;
   };
   const laneExtent = new Map<string, number>();
-  for (const r of ranks) {
-    const sums = new Map<string, number>();
-    for (const n of byRank.get(r)!) {
-      sums.set(laneKey(n), (sums.get(laneKey(n)) ?? 0) + crossSizeOf(n) + NODE_GAP);
-    }
-    for (const [lane, s] of sums) {
-      laneExtent.set(lane, Math.max(laneExtent.get(lane) ?? 0, s - NODE_GAP));
+  if (laneBy === "layer") {
+    for (const lane of laneOrder) laneExtent.set(lane, LAYER_LANE_EXTENT);
+  } else {
+    for (const r of ranks) {
+      const sums = new Map<string, number>();
+      for (const n of byRank.get(r)!) {
+        sums.set(laneKey(n), (sums.get(laneKey(n)) ?? 0) + crossSizeOf(n) + NODE_GAP);
+      }
+      for (const [lane, s] of sums) {
+        laneExtent.set(lane, Math.max(laneExtent.get(lane) ?? 0, s - NODE_GAP));
+      }
     }
   }
   // Cumulative cross-axis start per lane.
@@ -339,7 +402,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     let cursor = MARGIN;
     for (const lane of laneOrder) {
       laneStart.set(lane, cursor);
-      cursor += (laneExtent.get(lane) ?? NODE_H) + LANE_GAP;
+      cursor += (laneExtent.get(lane) ?? NODE_H) + (laneBy === "layer" ? LAYER_LANE_GAP : LANE_GAP);
     }
   }
   const crossTotal = laneOrder.length
@@ -355,10 +418,13 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
       const { w, h } = sizeById.get(n.id)!;
       const lane = laneKey(n);
       const cs = crossSizeOf(n);
-      const cur = laneCursor.get(lane) ?? laneStart.get(lane)!;
-      laneCursor.set(lane, cur + cs + NODE_GAP);
+      const cur = laneCursor.get(lane) ?? (laneBy === "layer" && horizontal ? flow : laneStart.get(lane)!);
+      laneCursor.set(lane, cur + (laneBy === "layer" && horizontal ? w : cs) + NODE_GAP);
       let x: number, y: number;
-      if (horizontal) {
+      if (horizontal && laneBy === "layer") {
+        x = cur;
+        y = laneStart.get(lane)! + ((laneExtent.get(lane) ?? LAYER_LANE_EXTENT) - h) / 2;
+      } else if (horizontal) {
         x = flow + (ext - w) / 2; // center node in its band along the flow axis
         y = cur;
       } else {
