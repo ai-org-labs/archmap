@@ -63,7 +63,11 @@ export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string): strin
       break;
   }
   const icon = iconKey ? iconBadgeSvg(n, iconKey) : "";
-  return `<g class="${cls}" data-id="${escapeXml(n.id)}">${shape}${centeredLabel(n)}${icon}</g>`;
+  return (
+    `<g class="${cls}" data-id="${escapeXml(n.id)}" ` +
+    `data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-w="${w.toFixed(1)}" data-h="${h.toFixed(1)}">` +
+    `${shape}${centeredLabel(n)}${icon}</g>`
+  );
 }
 
 export function edgePathSvg(points: { x: number; y: number }[], markerId = "archmap-arrow"): string {

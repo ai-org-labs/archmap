@@ -13,7 +13,7 @@
   <div id="diagram"></div>
   <pre id="report">running...</pre>
   <script type="module">
-    import { parse, render, registerIcon } from "/src/index.ts";
+    import { parse, render, registerIcon, validateRenderedSvgPorts } from "/src/index.ts";
     import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "/src/views3d/three-view.ts";
 
@@ -58,6 +58,7 @@
         startpoints: svg.querySelectorAll("circle.archmap-edge-startpoint").length,
         diagonalPaths: paths.filter((path) => !isOrthogonal(pathPoints(path))).length,
         invalid: /\b(?:NaN|undefined|Infinity)\b/.test(svg.outerHTML),
+        portFailures: validateRenderedSvgPorts(svg),
       };
     }
 
@@ -109,6 +110,7 @@
                 if (entry.svg.invalid) failures.push({ ...entry, stage: "invalid-svg-token" });
                 if (entry.svg.diagonalPaths) failures.push({ ...entry, stage: "diagonal-svg-path" });
                 if (entry.svg.paths !== entry.svg.startpoints) failures.push({ ...entry, stage: "startpoint-count" });
+                if (entry.svg.portFailures.length) failures.push({ ...entry, stage: "port-validation" });
               }
             } else {
               if (!entry.canvas) failures.push({ ...entry, stage: "missing-canvas" });

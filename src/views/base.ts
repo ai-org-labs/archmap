@@ -86,6 +86,7 @@ interface OverlayDrawable {
 interface OverlayPlan {
   drawables: OverlayDrawable[];
   permissionLabelsByTarget: Map<string, string[]>;
+  permissionSummaryTargets: Map<string, LayoutNode>;
   targetSlot: Map<string, { slot: number; count: number }>;
 }
 
@@ -280,19 +281,25 @@ function placeBoxLabel(
 }
 
 function planOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string, LayoutNode>): OverlayPlan {
-  if (!edges?.length) return { drawables: [], permissionLabelsByTarget: new Map(), targetSlot: new Map() };
+  if (!edges?.length) return { drawables: [], permissionLabelsByTarget: new Map(), permissionSummaryTargets: new Map(), targetSlot: new Map() };
   const permissionEdges = edges.filter((edge) => edge.className?.includes("archmap-permission-edge"));
-  const densePermissionOverlay = permissionEdges.length > 8;
+  const summarizePermissionOverlay = permissionEdges.length > 0;
   const permissionLabelsByTarget = new Map<string, string[]>();
-  if (densePermissionOverlay) {
+  const permissionSummaryTargets = new Map<string, LayoutNode>();
+  if (summarizePermissionOverlay) {
     for (const edge of permissionEdges) {
       if (!edge.label) continue;
       permissionLabelsByTarget.set(edge.to, [...(permissionLabelsByTarget.get(edge.to) ?? []), edge.label]);
+      const target = nodeById.get(edge.to);
+      if (target) permissionSummaryTargets.set(edge.to, target);
     }
   }
+  const drawableEdges = summarizePermissionOverlay
+    ? edges.filter((edge) => !edge.className?.includes("archmap-permission-edge"))
+    : edges;
   const sourcePorts = new Map<string, Port[]>();
   const targetPorts = new Map<string, Port[]>();
-  const resolved = edges.map((edge, index) => {
+  const resolved = drawableEdges.map((edge, index) => {
     const from = nodeById.get(edge.from);
     const to = nodeById.get(edge.to);
     if (!from || !to) return undefined;
@@ -334,7 +341,7 @@ function planOverlayEdges(edges: OverlayEdge[] | undefined, nodeById: Map<string
       : undefined)
     .filter((item): item is OverlayDrawable => !!item);
 
-  return { drawables, permissionLabelsByTarget, targetSlot };
+  return { drawables, permissionLabelsByTarget, permissionSummaryTargets, targetSlot };
 }
 
 function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, densePermissionOverlay: boolean): string {
@@ -349,12 +356,15 @@ function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, d
       const label = entry.edge.label && !suppressLabel
         ? edgeLabelSvg(entry.edge.label, labelAnchor(entry.to, entry.target.face, stack.slot, stack.count, entry.edge.label), "h")
         : "";
-      return `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}">${edgePathFromD(d, "archmap-arrow-emph")}${edgeStartpointSvg(entry.source)}${label}</g>`;
+      return (
+        `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}" data-from="${escapeXml(entry.edge.from)}" data-to="${escapeXml(entry.edge.to)}">` +
+        `${edgePathFromD(d, "archmap-arrow-emph")}${edgeStartpointSvg(entry.source)}${label}</g>`
+      );
     })
     .join("") +
     [...plan.permissionLabelsByTarget.entries()]
       .map(([target, labels]) => {
-        const node = plan.drawables.find((item) => item.entry.to.id === target)?.entry.to;
+        const node = plan.permissionSummaryTargets.get(target) ?? plan.drawables.find((item) => item.entry.to.id === target)?.entry.to;
         return node ? permissionSummarySvg(node, labels) : "";
       })
       .join("");
@@ -402,7 +412,7 @@ export function renderDiagram(spec: DiagramSpec): string {
       const path = edgePathFromD(edgePaths.get(e.id) ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
       const startpoint = edgeStartpointSvg(e.points[0]);
       const label = e.label ? edgeLabelSvg(e.label, e.labelAt, e.labelOrient) : "";
-      return `<g class="${cls}" data-id="${escapeXml(e.id)}">${path}${startpoint}${label}</g>`;
+      return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}">${path}${startpoint}${label}</g>`;
     })
     .join("");
 

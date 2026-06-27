@@ -231,10 +231,11 @@ describe("render", () => {
     expect(svg).toContain("GCP Private Boundary");
   });
 
-  it("synthesizes permission overlay edges", () => {
+  it("summarizes permission overlays without routing extra edges", () => {
     const m = parse(`graph LR
-      App[App] --> DB[(DB)]
-      Admin[Admin] --> DB
+      App[App]
+      Admin[Admin]
+      DB[(DB)]
       ---
       nodes:
         App: { principal: app-sa }
@@ -253,26 +254,17 @@ describe("render", () => {
           role: roles/cloudsql.admin
     `);
     const svg = render(m, { baseView: "overview", overlays: ["permission"] }).svg!;
-    expect(svg).toContain('class="archmap-overlay-edge archmap-permission-edge"');
-    expect(svg).toContain('data-id="permission:db_connect:App-&gt;DB"');
+    expect(svg).not.toContain('class="archmap-overlay-edge archmap-permission-edge"');
+    expect(svg).toContain("archmap-permission-summary");
+    expect(svg).toContain(">2 permissions<");
     expect(svg).toContain("roles/cloudsql.client");
-    expect(svg).toContain("roles/cloudsql.admin");
-    const permissionPaths = [...svg.matchAll(/class="archmap-overlay-edge archmap-permission-edge" data-id="permission:[^"]+">.*?<path class="archmap-edge-path" d="([^"]+)"/g)].map((m) => m[1]);
-    expect(permissionPaths.length).toBe(2);
-    expect(permissionPaths.every((d) => (d.match(/\bL\b/g) ?? []).length >= 3)).toBe(true);
-    const labelYs = [...svg.matchAll(/roles\/cloudsql\.(?:client|admin).*?<\/text>/g)]
-      .map((match) => {
-        const rect = svg.slice(Math.max(0, match.index! - 180), match.index);
-        return rect.match(/ y="([0-9.]+)"/)?.[1];
-      })
-      .filter(Boolean);
-    expect(new Set(labelYs).size).toBeGreaterThanOrEqual(2);
   });
 
   it("collapses dense permission overlay labels into target summaries", () => {
     const permissions = Array.from({ length: 9 }, (_, i) => `        p${i}: { principal: app-sa, action: a${i}, resource: DB, role: role-${i} }`).join("\n");
     const m = parse(`graph LR
-      App[App] --> DB[(DB)]
+      App[App]
+      DB[(DB)]
       ---
       nodes:
         App: { principal: app-sa }

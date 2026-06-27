@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { parse, render } from "../dist/archmap.js";
+import { parse, render, validateRenderedSvgPorts } from "../dist/archmap.js";
 
 const samples = [
   "01-small-web-basic.archmap",
@@ -98,9 +98,11 @@ for (const sample of samples) {
         const box = viewBox(svg);
         const paths = edgePaths(svg);
         const startpoints = (svg.match(/class="archmap-edge-startpoint"/g) ?? []).length;
+        const portFailures = validateRenderedSvgPorts(svg);
         maxPaths = Math.max(maxPaths, paths.length);
         maxStartpoints = Math.max(maxStartpoints, startpoints);
         if (paths.length !== startpoints) failures.push({ sample, baseView, overlays: overlaySet, stage: "startpoint-count", paths: paths.length, startpoints });
+        for (const failure of portFailures) failures.push({ sample, baseView, overlays: overlaySet, stage: "port-validation", failure });
         for (const path of paths) {
           const points = pathPoints(path);
           if (!isOrthogonal(points)) failures.push({ sample, baseView, overlays: overlaySet, stage: "diagonal-path", path });

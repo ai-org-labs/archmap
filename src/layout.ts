@@ -1410,30 +1410,47 @@ function routeEdges(
     const labelAt = seg.orient === "h" ? { x: seg.x, y: seg.y - 11 } : { x: seg.x + 8, y: seg.y };
     return { plan, edge: { id: plan.e.id, from: plan.e.from, to: plan.e.to, label: plan.e.label, points: routed, labelAt, labelOrient: seg.orient } };
   });
-  const inferFaceFromPoint = (nodeId: string, point: LayoutPoint): Face => {
+  const inferFaceFromPoint = (nodeId: string, point: LayoutPoint, adjacent: LayoutPoint): Face => {
     const node = laid.get(nodeId)!;
-    const distances = [
-      { face: "fL" as Face, distance: Math.abs(point.x - node.x) },
-      { face: "fH" as Face, distance: Math.abs(point.x - (node.x + node.w)) },
-      { face: "cL" as Face, distance: Math.abs(point.y - node.y) },
-      { face: "cH" as Face, distance: Math.abs(point.y - (node.y + node.h)) },
-    ];
+    const dx = adjacent.x - point.x;
+    const dy = adjacent.y - point.y;
+    if (horizontal) {
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 0.5) return dx < 0 ? "fL" : "fH";
+      if (Math.abs(dy) > 0.5) return dy < 0 ? "cL" : "cH";
+    } else {
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 0.5) return dy < 0 ? "fL" : "fH";
+      if (Math.abs(dx) > 0.5) return dx < 0 ? "cL" : "cH";
+    }
+    const distanceToFace = (face: Face): number => {
+      const screenFace = boxFace(face);
+      if (screenFace === "left") return Math.abs(point.x - node.x);
+      if (screenFace === "right") return Math.abs(point.x - (node.x + node.w));
+      if (screenFace === "top") return Math.abs(point.y - node.y);
+      return Math.abs(point.y - (node.y + node.h));
+    };
+    const distances = (["fL", "fH", "cL", "cH"] as Face[]).map((face) => ({ face, distance: distanceToFace(face) }));
     return distances.sort((a, b) => a.distance - b.distance)[0].face;
+  };
+  const endpointAxisForFace = (face: Face, point: LayoutPoint): number => {
+    const varyFlow = face === "cL" || face === "cH";
+    return varyFlow
+      ? (horizontal ? point.x : point.y)
+      : (horizontal ? point.y : point.x);
   };
   type RoutedEndpoint = { edge: LayoutEdge; pointIndex: number; adjacentIndex: number; nodeId: string; face: Face; sortKey: number };
   const endpointEntries: RoutedEndpoint[] = [];
   for (const item of routedPlans) {
     const points = item.edge.points;
     if (points.length < 2) continue;
-    const srcFace = inferFaceFromPoint(item.plan.e.from, points[0]);
-    const dstFace = inferFaceFromPoint(item.plan.e.to, points[points.length - 1]);
+    const srcFace = inferFaceFromPoint(item.plan.e.from, points[0], points[1]);
+    const dstFace = inferFaceFromPoint(item.plan.e.to, points[points.length - 1], points[points.length - 2]);
     endpointEntries.push({
       edge: item.edge,
       pointIndex: 0,
       adjacentIndex: 1,
       nodeId: item.plan.e.from,
       face: srcFace,
-      sortKey: srcFace[0] === "f" ? points[1].x : points[1].y,
+      sortKey: endpointAxisForFace(srcFace, points[1]),
     });
     endpointEntries.push({
       edge: item.edge,
@@ -1441,7 +1458,7 @@ function routeEdges(
       adjacentIndex: points.length - 2,
       nodeId: item.plan.e.to,
       face: dstFace,
-      sortKey: dstFace[0] === "f" ? points[points.length - 2].x : points[points.length - 2].y,
+      sortKey: endpointAxisForFace(dstFace, points[points.length - 2]),
     });
   }
   const endpointGroups = new Map<string, RoutedEndpoint[]>();
@@ -1471,25 +1488,121 @@ function routeEdges(
     const underflow = min - positions[0];
     if (underflow > 0) positions = positions.map((pos) => pos + underflow);
     group.forEach((entry, index) => {
-      const before = entry.edge.points.map((point) => ({ ...point }));
-      const end: End = {
-        node: entry.nodeId,
-        face: entry.face,
-        flow: varyFlow ? positions[index] : entry.face === "fL" ? geom(entry.nodeId).flowLow : entry.face === "fH" ? geom(entry.nodeId).flowHigh : geom(entry.nodeId).flowCenter,
-        cross: varyFlow ? entry.face === "cL" ? geom(entry.nodeId).crossLow : entry.face === "cH" ? geom(entry.nodeId).crossHigh : geom(entry.nodeId).crossCenter : positions[index],
-      };
-      projectEnd(end);
-      const nextPoint = toXY(end.flow, end.cross, horizontal);
-      const adjacent = entry.edge.points[entry.adjacentIndex];
-      const previousEndpoint = entry.edge.points[entry.pointIndex];
-      entry.edge.points[entry.pointIndex] = nextPoint;
-      if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
-      if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
-      entry.edge.points = simplifyPolyline(entry.edge.points);
-      if (routeNodeHits(entry.edge.points, entry.edge.from, entry.edge.to) > 0 || routeBorderCoincidence(entry.edge.points, entry.edge.from, entry.edge.to) > 0) {
-        entry.edge.points = before;
+      const original = entry.edge.points.map((point) => ({ ...point }));
+      const originalEndpoint = original[entry.pointIndex];
+      const originalAxis = varyFlow
+        ? (horizontal ? originalEndpoint.x : originalEndpoint.y)
+        : (horizontal ? originalEndpoint.y : originalEndpoint.x);
+      const spread = (index - (group.length - 1) / 2) * Math.max(minSep, 6);
+      const candidates = [
+        positions[index],
+        originalAxis + spread,
+        originalAxis - spread,
+        originalAxis - 6,
+        originalAxis + 6,
+        originalAxis - 12,
+        originalAxis + 12,
+        originalAxis - 18,
+        originalAxis + 18,
+        originalAxis - 30,
+        originalAxis + 30,
+      ].map((value) => Math.min(max, Math.max(min, value)));
+      for (const candidate of [...new Set(candidates.map((value) => Math.round(value * 10) / 10))]) {
+        entry.edge.points = original.map((point) => ({ ...point }));
+        const end: End = {
+          node: entry.nodeId,
+          face: entry.face,
+          flow: varyFlow ? candidate : entry.face === "fL" ? geom(entry.nodeId).flowLow : entry.face === "fH" ? geom(entry.nodeId).flowHigh : geom(entry.nodeId).flowCenter,
+          cross: varyFlow ? entry.face === "cL" ? geom(entry.nodeId).crossLow : entry.face === "cH" ? geom(entry.nodeId).crossHigh : geom(entry.nodeId).crossCenter : candidate,
+        };
+        projectEnd(end);
+        const nextPoint = toXY(end.flow, end.cross, horizontal);
+        const adjacent = entry.edge.points[entry.adjacentIndex];
+        const previousEndpoint = entry.edge.points[entry.pointIndex];
+        entry.edge.points[entry.pointIndex] = nextPoint;
+        if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
+        if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
+        const simplified = simplifyPolyline(entry.edge.points);
+        if (routeNodeHits(simplified, entry.edge.from, entry.edge.to) === 0 && routeBorderCoincidence(simplified, entry.edge.from, entry.edge.to) === 0) {
+          entry.edge.points = simplified;
+          return;
+        }
       }
+      entry.edge.points = original;
     });
+  }
+  const setEndpointOnFace = (entry: RoutedEndpoint, face: Face, axisValue: number, requireClearRoute = true): boolean => {
+    const original = entry.edge.points.map((point) => ({ ...point }));
+    const node = laid.get(entry.nodeId)!;
+    const varyFlow = face === "cL" || face === "cH";
+    const low = varyFlow ? (horizontal ? node.x : node.y) : (horizontal ? node.y : node.x);
+    const size = varyFlow ? (horizontal ? node.w : node.h) : (horizontal ? node.h : node.w);
+    const min = low + FACE_INSET;
+    const max = low + size - FACE_INSET;
+    const candidate = Math.min(max, Math.max(min, axisValue));
+    const end: End = {
+      node: entry.nodeId,
+      face,
+      flow: varyFlow ? candidate : face === "fL" ? geom(entry.nodeId).flowLow : face === "fH" ? geom(entry.nodeId).flowHigh : geom(entry.nodeId).flowCenter,
+      cross: varyFlow ? face === "cL" ? geom(entry.nodeId).crossLow : face === "cH" ? geom(entry.nodeId).crossHigh : geom(entry.nodeId).crossCenter : candidate,
+    };
+    projectEnd(end);
+    const nextPoint = toXY(end.flow, end.cross, horizontal);
+    const adjacent = entry.edge.points[entry.adjacentIndex];
+    const previousEndpoint = entry.edge.points[entry.pointIndex];
+    entry.edge.points[entry.pointIndex] = nextPoint;
+    if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
+    if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
+    const simplified = simplifyPolyline(entry.edge.points);
+    if (!requireClearRoute || (routeNodeHits(simplified, entry.edge.from, entry.edge.to) === 0 && routeBorderCoincidence(simplified, entry.edge.from, entry.edge.to) === 0)) {
+      entry.edge.points = simplified;
+      return true;
+    }
+    entry.edge.points = original;
+    return false;
+  };
+  const endpointIsOnFace = (nodeId: string, point: LayoutPoint, face: Face): boolean => {
+    const node = laid.get(nodeId)!;
+    const screenFace = boxFace(face);
+    if (screenFace === "left") return Math.abs(point.x - node.x) < 0.5;
+    if (screenFace === "right") return Math.abs(point.x - (node.x + node.w)) < 0.5;
+    if (screenFace === "top") return Math.abs(point.y - node.y) < 0.5;
+    return Math.abs(point.y - (node.y + node.h)) < 0.5;
+  };
+  for (const entry of endpointEntries) {
+    const point = entry.edge.points[entry.pointIndex];
+    const adjacent = entry.edge.points[entry.adjacentIndex];
+    if (!point || !adjacent) continue;
+    const face = inferFaceFromPoint(entry.nodeId, point, adjacent);
+    if (endpointIsOnFace(entry.nodeId, point, face)) continue;
+    const axisValue = endpointAxisForFace(face, point);
+    setEndpointOnFace(entry, face, axisValue, false);
+  }
+  const exactEndpointGroups = new Map<string, RoutedEndpoint[]>();
+  for (const entry of endpointEntries) {
+    const point = entry.edge.points[entry.pointIndex];
+    const adjacent = entry.edge.points[entry.adjacentIndex];
+    if (!point || !adjacent) continue;
+    const face = inferFaceFromPoint(entry.nodeId, point, adjacent);
+    const key = `${entry.nodeId}|${face}|${Math.round(point.x * 2) / 2}|${Math.round(point.y * 2) / 2}`;
+    (exactEndpointGroups.get(key) ?? (exactEndpointGroups.set(key, []), exactEndpointGroups.get(key)!)).push({ ...entry, face });
+  }
+  for (const group of exactEndpointGroups.values()) {
+    if (group.length <= 1) continue;
+    const face = group[0].face;
+    const node = laid.get(group[0].nodeId)!;
+    const varyFlow = face === "cL" || face === "cH";
+    const low = varyFlow ? (horizontal ? node.x : node.y) : (horizontal ? node.y : node.x);
+    const size = varyFlow ? (horizontal ? node.w : node.h) : (horizontal ? node.h : node.w);
+    const min = low + FACE_INSET;
+    const max = low + size - FACE_INSET;
+    const span = Math.max(1, max - min);
+    group
+      .sort((a, b) => a.edge.id.localeCompare(b.edge.id))
+      .forEach((entry, index) => {
+        const axisValue = min + (span * (index + 1)) / (group.length + 1);
+        setEndpointOnFace(entry, face, axisValue);
+      });
   }
   const finalEndpointRecords = (): Array<{ edgeId: string; x: number; y: number }> =>
     routedPlans.flatMap((item) => {
@@ -1543,6 +1656,197 @@ function routeEdges(
         item.edge.points = replacement;
       }
     }
+  }
+  const componentPadding = 8;
+  const inflatedNodeBox = (node: LayoutNode) => ({
+    x0: node.x - componentPadding,
+    y0: node.y - componentPadding,
+    x1: node.x + node.w + componentPadding,
+    y1: node.y + node.h + componentPadding,
+  });
+  const segmentHitsBox = (a: LayoutPoint, b: LayoutPoint, box: { x0: number; y0: number; x1: number; y1: number }): boolean => {
+    const horizontalSeg = Math.abs(a.y - b.y) < 0.5;
+    const verticalSeg = Math.abs(a.x - b.x) < 0.5;
+    if (horizontalSeg) {
+      const x0 = Math.min(a.x, b.x);
+      const x1 = Math.max(a.x, b.x);
+      return a.y > box.y0 && a.y < box.y1 && Math.min(x1, box.x1) - Math.max(x0, box.x0) > 0.5;
+    }
+    if (verticalSeg) {
+      const y0 = Math.min(a.y, b.y);
+      const y1 = Math.max(a.y, b.y);
+      return a.x > box.x0 && a.x < box.x1 && Math.min(y1, box.y1) - Math.max(y0, box.y0) > 0.5;
+    }
+    return true;
+  };
+  const routeComponentHits = (points: LayoutPoint[], from: string, to: string): number => {
+    let hits = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      for (const node of laid.values()) {
+        if (node.id === from || node.id === to) continue;
+        if (segmentHitsBox(points[i], points[i + 1], inflatedNodeBox(node))) hits++;
+      }
+    }
+    return hits;
+  };
+  const componentSafeRoute = (edge: LayoutEdge): LayoutPoint[] | undefined => {
+    if (routeComponentHits(edge.points, edge.from, edge.to) === 0) return edge.points;
+    const faces: Face[] = ["fL", "fH", "cL", "cH"];
+    const alongs = [0.15, 0.32, 0.5, 0.68, 0.85];
+    const sourcePorts = faces.flatMap((face) => alongs.map((along) => toXY(facePoint(edge.from, face, along).flow, facePoint(edge.from, face, along).cross, horizontal)));
+    const targetPorts = faces.flatMap((face) => alongs.map((along) => toXY(facePoint(edge.to, face, along).flow, facePoint(edge.to, face, along).cross, horizontal)));
+    const obstacles = [...laid.values()].filter((node) => node.id !== edge.from && node.id !== edge.to).map(inflatedNodeBox);
+    const validSegment = (a: LayoutPoint, b: LayoutPoint): boolean =>
+      (Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5) && obstacles.every((box) => !segmentHitsBox(a, b, box));
+    const directCandidates = sourcePorts.flatMap((src) => targetPorts.flatMap((dst) => {
+      const paths: LayoutPoint[][] = [];
+      if (Math.abs(src.x - dst.x) < 0.5 || Math.abs(src.y - dst.y) < 0.5) paths.push([src, dst]);
+      paths.push([src, { x: dst.x, y: src.y }, dst]);
+      paths.push([src, { x: src.x, y: dst.y }, dst]);
+      return paths.map(simplifyPolyline);
+    }));
+    const direct = directCandidates
+      .filter((route) => route.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)))
+      .filter((route) => route.slice(0, -1).every((point, i) => validSegment(point, route[i + 1])))
+      .sort((a, b) => routeLength(a) - routeLength(b) || a.length - b.length)[0];
+    if (direct) return direct;
+
+    const xs = new Set<number>();
+    const ys = new Set<number>();
+    const addPoint = (point: LayoutPoint) => {
+      xs.add(Math.round(point.x * 10) / 10);
+      ys.add(Math.round(point.y * 10) / 10);
+    };
+    sourcePorts.forEach(addPoint);
+    targetPorts.forEach(addPoint);
+    for (const box of obstacles) {
+      [box.x0 - 12, box.x1 + 12].forEach((x) => xs.add(Math.round(x * 10) / 10));
+      [box.y0 - 12, box.y1 + 12].forEach((y) => ys.add(Math.round(y * 10) / 10));
+    }
+    const xList = [...xs].sort((a, b) => a - b);
+    const yList = [...ys].sort((a, b) => a - b);
+    const keyOf = (point: LayoutPoint) => `${point.x},${point.y}`;
+    const grid = xList.flatMap((x) => yList.map((y) => ({ x, y })));
+    const sourceKeys = new Set(sourcePorts.map((point) => keyOf({ x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 })));
+    const targetKeys = new Set(targetPorts.map((point) => keyOf({ x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 })));
+    const dist = new Map<string, number>();
+    const prev = new Map<string, string>();
+    const queue: Array<{ key: string; point: LayoutPoint; cost: number }> = [];
+    for (const point of grid) {
+      const key = keyOf(point);
+      if (!sourceKeys.has(key)) continue;
+      dist.set(key, 0);
+      queue.push({ key, point, cost: 0 });
+    }
+    const pointByKey = new Map(grid.map((point) => [keyOf(point), point]));
+    while (queue.length) {
+      queue.sort((a, b) => a.cost - b.cost);
+      const current = queue.shift()!;
+      if (current.cost !== dist.get(current.key)) continue;
+      if (targetKeys.has(current.key)) {
+        const route: LayoutPoint[] = [];
+        let key: string | undefined = current.key;
+        while (key) {
+          route.push(pointByKey.get(key)!);
+          key = prev.get(key);
+        }
+        return simplifyPolyline(route.reverse());
+      }
+      const cx = xList.indexOf(current.point.x);
+      const cy = yList.indexOf(current.point.y);
+      const neighbors = [
+        cx > 0 ? { x: xList[cx - 1], y: current.point.y } : undefined,
+        cx < xList.length - 1 ? { x: xList[cx + 1], y: current.point.y } : undefined,
+        cy > 0 ? { x: current.point.x, y: yList[cy - 1] } : undefined,
+        cy < yList.length - 1 ? { x: current.point.x, y: yList[cy + 1] } : undefined,
+      ].filter((point): point is LayoutPoint => !!point);
+      for (const next of neighbors) {
+        if (!validSegment(current.point, next)) continue;
+        const nextKey = keyOf(next);
+        const cost = current.cost + Math.abs(next.x - current.point.x) + Math.abs(next.y - current.point.y);
+        if (cost >= (dist.get(nextKey) ?? Number.POSITIVE_INFINITY)) continue;
+        dist.set(nextKey, cost);
+        prev.set(nextKey, current.key);
+        queue.push({ key: nextKey, point: next, cost });
+      }
+    }
+    return undefined;
+  };
+  for (const item of routedPlans) {
+    const repaired = componentSafeRoute(item.edge);
+    if (repaired && routeComponentHits(repaired, item.edge.from, item.edge.to) === 0) item.edge.points = repaired;
+  }
+  const finalEndpointSide = (nodeId: string, point: LayoutPoint): BoxFace => {
+    const node = laid.get(nodeId)!;
+    const distances = [
+      { side: "left" as BoxFace, distance: Math.abs(point.x - node.x) },
+      { side: "right" as BoxFace, distance: Math.abs(point.x - (node.x + node.w)) },
+      { side: "top" as BoxFace, distance: Math.abs(point.y - node.y) },
+      { side: "bottom" as BoxFace, distance: Math.abs(point.y - (node.y + node.h)) },
+    ];
+    return distances.sort((a, b) => a.distance - b.distance)[0].side;
+  };
+  const moveFinalEndpoint = (entry: RoutedEndpoint, side: BoxFace, axisValue: number): void => {
+    const node = laid.get(entry.nodeId)!;
+    const x = side === "left" ? node.x : side === "right" ? node.x + node.w : Math.min(node.x + node.w - FACE_INSET, Math.max(node.x + FACE_INSET, axisValue));
+    const y = side === "top" ? node.y : side === "bottom" ? node.y + node.h : Math.min(node.y + node.h - FACE_INSET, Math.max(node.y + FACE_INSET, axisValue));
+    const nextPoint = boundaryPoint(node, side, { x, y });
+    const adjacent = entry.edge.points[entry.adjacentIndex];
+    const previousEndpoint = entry.edge.points[entry.pointIndex];
+    entry.edge.points[entry.pointIndex] = nextPoint;
+    if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
+    if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
+    entry.edge.points = simplifyPolyline(entry.edge.points);
+  };
+  const finalEndpointEntries: RoutedEndpoint[] = [];
+  for (const item of routedPlans) {
+    const points = item.edge.points;
+    if (points.length < 2) continue;
+    finalEndpointEntries.push({
+      edge: item.edge,
+      pointIndex: 0,
+      adjacentIndex: 1,
+      nodeId: item.plan.e.from,
+      face: inferFaceFromPoint(item.plan.e.from, points[0], points[1]),
+      sortKey: 0,
+    });
+    finalEndpointEntries.push({
+      edge: item.edge,
+      pointIndex: points.length - 1,
+      adjacentIndex: points.length - 2,
+      nodeId: item.plan.e.to,
+      face: inferFaceFromPoint(item.plan.e.to, points[points.length - 1], points[points.length - 2]),
+      sortKey: 0,
+    });
+  }
+  const finalSideGroups = new Map<string, RoutedEndpoint[]>();
+  for (const entry of finalEndpointEntries) {
+    const point = entry.edge.points[entry.pointIndex];
+    const side = finalEndpointSide(entry.nodeId, point);
+    const axis = side === "left" || side === "right" ? point.y : point.x;
+    entry.sortKey = axis;
+    (finalSideGroups.get(`${entry.nodeId}|${side}`) ?? (finalSideGroups.set(`${entry.nodeId}|${side}`, []), finalSideGroups.get(`${entry.nodeId}|${side}`)!)).push(entry);
+  }
+  for (const [key, group] of finalSideGroups) {
+    if (group.length <= 1) continue;
+    const [nodeId, sideValue] = key.split("|") as [string, BoxFace];
+    const node = laid.get(nodeId)!;
+    const side = sideValue;
+    const low = side === "left" || side === "right" ? node.y : node.x;
+    const size = side === "left" || side === "right" ? node.h : node.w;
+    const min = low + FACE_INSET;
+    const max = low + size - FACE_INSET;
+    const span = Math.max(1, max - min);
+    group.sort((a, b) => a.sortKey - b.sortKey || a.edge.id.localeCompare(b.edge.id));
+    const positions = group.map((entry) => Math.min(max, Math.max(min, entry.sortKey)));
+    for (let i = 1; i < positions.length; i++) {
+      if (positions[i] - positions[i - 1] >= 6) continue;
+      const start = min + (span * i) / (group.length + 1);
+      const end = min + (span * (i + 1)) / (group.length + 1);
+      positions[i - 1] = Math.min(max, Math.max(min, start));
+      positions[i] = Math.min(max, Math.max(min, end));
+    }
+    group.forEach((entry, index) => moveFinalEndpoint(entry, side, positions[index]));
   }
   return routedPlans.map((item) => {
     const seg = longestSegment(item.edge.points);

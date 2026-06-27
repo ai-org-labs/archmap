@@ -64,6 +64,11 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
   const boxGroups: Array<{ boxes: Box[]; boxClass: string }> = [];
   const nodeIds = new Set(model.nodes.map((n) => n.id));
   const edgeById = new Map(model.edges.map((e) => [e.id, e]));
+  const edgesByNodePair = new Map<string, string[]>();
+  for (const edge of model.edges) {
+    const key = edge.from < edge.to ? `${edge.from}\t${edge.to}` : `${edge.to}\t${edge.from}`;
+    edgesByNodePair.set(key, [...(edgesByNodePair.get(key) ?? []), edge.id]);
+  }
   const nodeByPrincipal = new Map<string, string[]>();
   for (const node of model.nodes) {
     if (!node.principal) continue;
@@ -156,6 +161,12 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
         }
         for (const from of principalNodes) {
           if (from === resource) continue;
+          const pairKey = from < resource ? `${from}\t${resource}` : `${resource}\t${from}`;
+          const existing = edgesByNodePair.get(pairKey);
+          if (existing?.length) {
+            addAll(edges, existing);
+            continue;
+          }
           overlayEdges.push({
             id: `permission:${permission.id}:${from}->${resource}`,
             from,

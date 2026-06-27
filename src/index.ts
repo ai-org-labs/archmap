@@ -60,6 +60,13 @@ export {
   renderDiagnostics,
   viewerOptionsFromAttributes,
 } from "./render.js";
+export {
+  validateRenderedSvgPorts,
+} from "./render-validation.js";
+export type {
+  RenderValidationFailure,
+  RenderValidationOptions,
+} from "./render-validation.js";
 export type {
   ViewRenderer,
   ViewContext,
