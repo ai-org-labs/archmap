@@ -21,6 +21,7 @@ import { dataflowView } from "./views/dataflow.js";
 import { boundaryView } from "./views/boundary.js";
 import { validationView } from "./views/validation.js";
 import { renderDiagram } from "./views/base.js";
+import { renderIsometricDiagram } from "./views/isometric.js";
 import { escapeXml } from "./views/svg.js";
 import { buildOverlayProjection, OVERLAY_NAMES } from "./views/overlays.js";
 import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
@@ -280,12 +281,42 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   });
 }
 
+function renderIsometricBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[]): string | undefined {
+  if (view !== "overview" && view !== "zone" && view !== "layer") return undefined;
+  const projection = buildOverlayProjection(model, layout, overlays);
+  const baseEdges = new Set<string>();
+  if (view === "zone") {
+    const zoneOf = new Map(model.nodes.map((n) => [n.id, n.resolvedZone === "unknown" ? undefined : n.resolvedZone ?? n.zone]));
+    for (const edge of layout.edges) {
+      const a = zoneOf.get(edge.from);
+      const b = zoneOf.get(edge.to);
+      if (a !== undefined && b !== undefined && a !== b) baseEdges.add(edge.id);
+    }
+  }
+  const emphasizeEdges = projection.emphasizeEdges || baseEdges.size
+    ? new Set([...(projection.emphasizeEdges ?? []), ...baseEdges])
+    : undefined;
+  return renderIsometricDiagram({
+    layout,
+    viewClass: view,
+    boxGroups: [
+      { boxes: layout.zones, boxClass: "archmap-zone" },
+      ...(projection.boxGroups ?? []),
+    ],
+    emphasizeNodes: projection.emphasizeNodes,
+    emphasizeEdges,
+    nodeBadges: projection.nodeBadges,
+    overlayEdges: projection.overlayEdges,
+    nodeIcons: resolveNodeIcons(model),
+  });
+}
+
 /** Render a model into an SVG string, optionally injecting it into a target. */
 export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
   const requestedView = options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview";
   const renderMode = options.renderMode ?? "2d";
   const state = {
-    view: renderMode === "3d" || renderMode === "isometric" ? "3d" : requestedView,
+    view: renderMode === "3d" ? "3d" : requestedView,
     requestedView,
     renderMode,
     overlays: [...(options.overlays ?? metadataOverlays(model))],
@@ -304,7 +335,9 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const rankBy = options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view];
     const layout = computeLayout(model, { direction: options.direction, rankBy });
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
-    const overlaidSvg = renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
+    const overlaidSvg = state.renderMode === "isometric"
+      ? renderIsometricBaseViewWithOverlays(model, layout, state.view, knownOverlays)
+      : renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays } });
 
     if (typeof out === "string") {
@@ -344,12 +377,12 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     handle: undefined,
     setBaseView(view: string) {
       state.requestedView = view;
-      state.view = state.renderMode === "3d" || state.renderMode === "isometric" ? "3d" : view;
+      state.view = state.renderMode === "3d" ? "3d" : view;
       apply(snapshot());
     },
     setRenderMode(mode: string) {
       state.renderMode = mode;
-      state.view = mode === "3d" || mode === "isometric" ? "3d" : state.requestedView;
+      state.view = mode === "3d" ? "3d" : state.requestedView;
       apply(snapshot());
     },
     setOverlays(overlays: string[]) {
