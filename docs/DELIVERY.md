@@ -110,10 +110,12 @@ This repository includes a GitHub Actions workflow at
 The Pages root is a copy of `examples/demo.html` rewritten to load `./dist/*`.
 The original demo remains available at `/examples/demo.html`.
 
-Repository setup required in GitHub:
+Repository setup:
 
-- Settings → Pages → Source: **GitHub Actions**.
 - The `main` branch must be pushed to the GitHub repository.
+- The workflow enables GitHub Pages for GitHub Actions deployments on first
+  run. If organization policy blocks automatic enablement, set
+  Settings → Pages → Source to **GitHub Actions** manually.
 - Optional: add a release tag after npm publish so the Pages version and npm
   package version can be traced together.
 

@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-050 checkpoint done under TASK-010: initial sanitized public GitHub repo ai-org-labs/archmap was created/pushed, but the first Pages workflow failed during npm ci prepare/build because CI lacked Node type declarations for node:fs/node:url used by tests and Vite config. Added explicit @types/node dev dependency and verified npm run typecheck + npm run build locally. Next: push the CI fix to the sanitized public repo, confirm GitHub Pages workflow succeeds, publish @archmap/core@0.1.0 to npm, and verify jsDelivr CDN URLs. If npm publish asks for OTP/MFA, request it from the human. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T23:34:00.000+09:00",
+  "content": "TASK-051 checkpoint done under TASK-010: sanitized public GitHub repo ai-org-labs/archmap exists and TASK-050 CI typing fix was pushed. The next Pages workflow failed at actions/configure-pages because GitHub Pages was not enabled yet for the new repo. Updated the workflow to call configure-pages with enablement: true and documented the manual Settings fallback if organization policy blocks automatic enablement. Next: push TASK-051 to the sanitized public repo, confirm GitHub Pages deployment succeeds, publish @archmap/core@0.1.0 to npm, and verify jsDelivr CDN URLs. If npm publish asks for OTP/MFA, request it from the human. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T23:39:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

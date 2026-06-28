@@ -1,0 +1,17 @@
+{
+  "task_id": "TASK-051",
+  "title": "Enable GitHub Pages from release workflow",
+  "description": "Updated the Pages workflow so a newly created public repository can enable GitHub Pages for GitHub Actions deployments on first run, with documentation fallback if organization policy blocks automatic enablement.",
+  "status": "done",
+  "origin": "TASK-010-pages-enable-release",
+  "created_at": "2026-06-28T23:36:00.000+09:00",
+  "done_at": "2026-06-28T23:39:00.000+09:00",
+  "decision_notes": [
+    "The sanitized public repository was created successfully, but the second workflow failed at actions/configure-pages because the Pages site did not exist yet.",
+    "Using configure-pages enablement keeps the first public release path reproducible while preserving a manual Settings fallback in DELIVERY.md."
+  ],
+  "verification": [
+    "gh run view 28325536006 --repo ai-org-labs/archmap --log-failed: Pages site Not Found during configure-pages",
+    "git diff --check"
+  ]
+}
