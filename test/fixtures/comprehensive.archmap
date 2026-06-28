@@ -1,0 +1,1695 @@
+graph LR
+  %% ArchMap comprehensive sample: Mermaid-like graph + semantic YAML metadata
+  subgraph Client
+    EndUser((End User))
+    AdminUser((Admin User))
+    Web[Web App]
+    Mobile[Mobile App]
+    AdminConsole[Admin Console]
+  end
+
+  subgraph Identity
+    FirebaseAuth[Firebase Auth]
+    IAM[Cloud IAM]
+  end
+
+  subgraph GCP_Edge
+    WAF[Cloud Armor WAF]
+    APIGW[API Gateway]
+    PolicyDecision{Policy Decision}
+  end
+
+  subgraph GCP_App_Project
+    CloudRun[Cloud Run Service]
+    GKECluster[GKE Cluster]
+    PubSub[(Pub/Sub Topic)]
+    Worker[Batch Worker]
+    CloudSQL[(Cloud SQL)]
+    GCSUploads[(Cloud Storage Uploads)]
+    SecretManager[(Secret Manager)]
+    ArtifactRegistry[(Artifact Registry)]
+  end
+
+  subgraph GCP_Network
+    SharedVPC[Shared VPC]
+    SubnetJP[Subnet JP]
+    CloudVPN[Cloud VPN]
+    CloudNAT[Cloud NAT]
+  end
+
+  subgraph GCP_Operations
+    CloudLogging[Cloud Logging]
+    CloudMonitoring[Cloud Monitoring]
+    TraceBackend[Trace Backend]
+    CICD[CI/CD]
+  end
+
+  subgraph GCP_Analytics
+    BigQuery[(BigQuery)]
+  end
+
+  subgraph AWS
+    AWSVPC[AWS VPC]
+    AWSApp[AWS Service]
+    RDS[(Amazon RDS)]
+  end
+
+  subgraph OnPrem
+    OnPremVPN[On-prem VPN]
+    OnPremERP[On-prem ERP]
+  end
+
+  subgraph SaaS
+    Datadog[Datadog]
+    Wiz[Wiz]
+    GitHub[GitHub]
+  end
+
+  EndUser --> Web
+  EndUser --> Mobile
+  AdminUser --> AdminConsole
+  FirebaseAuth -->|issues JWT| Web
+  FirebaseAuth -->|issues JWT| Mobile
+  Web -->|HTTPS + JWT| WAF
+  Mobile -->|HTTPS + JWT| WAF
+  AdminConsole -->|Admin HTTPS + JWT| APIGW
+  WAF -->|HTTPS| APIGW
+  APIGW -->|policy check| PolicyDecision
+  PolicyDecision -->|IAM check| IAM
+  APIGW -->|HTTPS + JWT| CloudRun
+  CloudRun -->|internal HTTPS| GKECluster
+  CloudRun -->|SQL| CloudSQL
+  CloudRun -->|pub/sub| PubSub
+  PubSub -->|message| Worker
+  Worker -->|batch write| BigQuery
+  CloudRun -->|signed URL upload| GCSUploads
+  CloudRun -->|secret read| SecretManager
+  CloudRun -->|HTTPS / VPN replication| AWSApp
+  AWSApp -->|SQL| RDS
+  CloudRun -->|sync via VPN| OnPremERP
+  SharedVPC --> SubnetJP
+  SharedVPC --> CloudVPN
+  SharedVPC --> CloudNAT
+  CloudVPN -->|IPsec VPN| AWSVPC
+  CloudVPN -->|IPsec VPN| OnPremVPN
+  AWSVPC --> AWSApp
+  OnPremVPN --> OnPremERP
+  CloudRun -->|metrics| CloudMonitoring
+  CloudRun -->|metrics export| Datadog
+  CloudRun -->|logs| CloudLogging
+  CloudLogging -->|log export| BigQuery
+  CloudRun -->|traces| TraceBackend
+  Wiz -->|scans| CloudRun
+  GitHub -->|webhook| CICD
+  CICD -->|push image| ArtifactRegistry
+  ArtifactRegistry -->|deploy image| CloudRun
+---
+title: ArchMap v0.1 Comprehensive Sample
+description: A single DSL sample covering Mermaid-like graph syntax, semantic metadata, zones, nested zones, boundaries, authentication,
+  permissions, identities, dataflow, placement, view hints, layout hints, edge normalization, transient data, and label inference.
+  Includes explicit service/icon hints for product-level icon resolution.
+nodes:
+  EndUser:
+    label: End User
+    zone: client
+    layer: client
+    kind: user
+    tags:
+    - human
+    - public
+    description: Normal user of the web and mobile clients.
+    service: user
+    icon: generic:user
+  AdminUser:
+    label: Admin User
+    zone: client
+    layer: client
+    kind: user
+    principal: admin-user
+    tags:
+    - human
+    - privileged
+    description: Privileged operator.
+    service: user
+    icon: generic:admin-user
+  Web:
+    label: Web App
+    zone: client
+    layer: client
+    kind: web_app
+    provider: browser
+    tags:
+    - public
+    - frontend
+    description: Browser-based frontend.
+    service: web_app
+    icon: generic:web-app
+  Mobile:
+    label: Mobile App
+    zone: client
+    layer: client
+    kind: mobile_app
+    provider: ios_android
+    tags:
+    - public
+    - frontend
+    description: Native mobile client.
+    service: mobile_app
+    icon: generic:mobile-app
+  AdminConsole:
+    label: Admin Console
+    zone: client
+    layer: client
+    kind: admin_console
+    principal: admin-user
+    tags:
+    - admin
+    description: Administrative UI used by operators.
+    service: admin_console
+    icon: generic:admin-console
+  FirebaseAuth:
+    label: Firebase Auth
+    zone: identity
+    layer: identity
+    kind: identity_provider
+    provider: firebase
+    principal: firebase-auth-service
+    description: OIDC/JWT issuer for user-facing clients.
+    service: firebase_authentication
+    icon: firebase:authentication
+  IAM:
+    label: Cloud IAM
+    zone: identity
+    layer: identity
+    kind: iam_policy
+    provider: gcp
+    description: Policy and role authority.
+    service: cloud_iam
+    icon: google-cloud:identity-and-access-management
+  WAF:
+    label: Cloud Armor WAF
+    zone: gcp_edge
+    layer: edge
+    kind: waf
+    provider: gcp
+    placement:
+      project: project-app
+      environment: prod
+    tags:
+    - public-edge
+    description: Public edge protection.
+    service: cloud_armor
+    icon: google-cloud:cloud-armor
+  APIGW:
+    label: API Gateway
+    zone: gcp_edge
+    layer: edge
+    kind: api_gateway
+    provider: gcp
+    principal: gcp-run-sa
+    placement:
+      project: project-app
+      region: asia-northeast1
+      environment: prod
+    tags:
+    - public-edge
+    description: Entry point for application APIs.
+    service: api_gateway
+    icon: google-cloud:api-gateway
+  PolicyDecision:
+    label: Policy Decision
+    zone: gcp_edge
+    layer: identity
+    kind: iam_policy
+    provider: gcp
+    description: Policy decision point for protected operations.
+    service: cloud_iam
+    icon: google-cloud:identity-and-access-management
+  CloudRun:
+    label: Cloud Run Service
+    zone: project_app
+    layer: runtime
+    kind: serverless_service
+    provider: gcp
+    principal: gcp-run-sa
+    placement:
+      project: project-app
+      region: asia-northeast1
+      network: shared-vpc
+      subnet: subnet-jp
+      environment: prod
+    tags:
+    - runtime
+    - prod
+    description: Main application backend.
+    service: cloud_run
+    icon: google-cloud:cloud-run
+  GKECluster:
+    label: GKE Cluster
+    zone: project_app
+    layer: runtime
+    kind: kubernetes_cluster
+    provider: gcp
+    principal: worker-sa
+    placement:
+      project: project-app
+      region: asia-northeast1
+      cluster: gke-prod-jp
+      fleet: fleet-prod
+      network: shared-vpc
+      environment: prod
+    description: GKE workload cluster registered to a fleet.
+    service: google_kubernetes_engine
+    icon: google-cloud:google-kubernetes-engine
+  PubSub:
+    label: Pub/Sub Topic
+    zone: project_app
+    layer: messaging
+    kind: topic
+    provider: gcp
+    placement:
+      project: project-app
+      region: asia-northeast1
+      environment: prod
+    description: Event topic for asynchronous processing.
+    service: pubsub
+    icon: google-cloud:pub-sub
+  Worker:
+    label: Batch Worker
+    zone: project_app
+    layer: runtime
+    kind: batch_job
+    provider: gcp
+    principal: worker-sa
+    placement:
+      project: project-app
+      region: asia-northeast1
+      environment: prod
+    description: Batch worker consuming events and writing analytics data.
+    service: batch
+    icon: google-cloud:batch
+  CloudSQL:
+    label: Cloud SQL
+    zone: project_app
+    layer: data
+    kind: relational_database
+    provider: gcp
+    placement:
+      project: project-app
+      region: asia-northeast1
+      network: shared-vpc
+      environment: prod
+    tags:
+    - personal-data
+    description: Primary relational database.
+    service: cloud_sql
+    icon: google-cloud:cloud-sql
+  GCSUploads:
+    label: Cloud Storage Uploads
+    zone: project_app
+    layer: data
+    kind: object_storage
+    provider: gcp
+    placement:
+      project: project-app
+      region: asia-northeast1
+      environment: prod
+    description: Object storage for user uploads.
+    service: cloud_storage
+    icon: google-cloud:cloud-storage
+  SecretManager:
+    label: Secret Manager
+    zone: project_app
+    layer: data
+    kind: secret
+    provider: gcp
+    placement:
+      project: project-app
+      region: global
+      environment: prod
+    description: Runtime secret store.
+    service: secret_manager
+    icon: google-cloud:secret-manager
+  BigQuery:
+    label: BigQuery
+    zone: project_analytics
+    layer: data
+    kind: data_warehouse
+    provider: gcp
+    placement:
+      project: project-analytics
+      region: asia-northeast1
+      environment: prod
+    description: Analytics data warehouse.
+    service: bigquery
+    icon: google-cloud:bigquery
+  SharedVPC:
+    label: Shared VPC
+    zone: shared_vpc
+    layer: network
+    kind: vpc
+    provider: gcp
+    placement:
+      project: shared-vpc-host
+      network: shared-vpc
+      environment: prod
+    description: Host project shared VPC network.
+    service: vpc
+    icon: google-cloud:virtual-private-cloud
+  SubnetJP:
+    label: Subnet JP
+    zone: shared_vpc
+    layer: network
+    kind: subnet
+    provider: gcp
+    placement:
+      project: shared-vpc-host
+      region: asia-northeast1
+      network: shared-vpc
+      subnet: subnet-jp
+    description: Japan subnet used by application workloads.
+    service: subnet
+    icon: generic:subnet
+  CloudVPN:
+    label: Cloud VPN
+    zone: shared_vpc
+    layer: network
+    kind: vpn
+    provider: gcp
+    placement:
+      project: shared-vpc-host
+      region: asia-northeast1
+      network: shared-vpc
+    description: VPN gateway for AWS and on-prem connectivity.
+    service: cloud_vpn
+    icon: google-cloud:cloud-vpn
+  CloudNAT:
+    label: Cloud NAT
+    zone: shared_vpc
+    layer: network
+    kind: nat
+    provider: gcp
+    placement:
+      project: shared-vpc-host
+      region: asia-northeast1
+      network: shared-vpc
+    description: Egress NAT for private workloads.
+    service: cloud_nat
+    icon: google-cloud:cloud-nat
+  AWSVPC:
+    label: AWS VPC
+    zone: aws_prod
+    layer: network
+    kind: vpc
+    provider: aws
+    placement:
+      account: aws-prod
+      region: ap-northeast-1
+      environment: prod
+    description: AWS production VPC.
+    service: vpc
+    icon: aws:amazon-vpc
+  AWSApp:
+    label: AWS Service
+    zone: aws_prod
+    layer: runtime
+    kind: runtime_service
+    provider: aws
+    principal: aws-app-role
+    placement:
+      account: aws-prod
+      region: ap-northeast-1
+      environment: prod
+    description: AWS-side application service.
+    service: generic_service
+    icon: aws:aws-service
+  RDS:
+    label: Amazon RDS
+    zone: aws_prod
+    layer: data
+    kind: relational_database
+    provider: aws
+    placement:
+      account: aws-prod
+      region: ap-northeast-1
+      environment: prod
+    description: AWS relational database replica.
+    service: rds
+    icon: aws:amazon-rds
+  OnPremVPN:
+    label: On-prem VPN
+    zone: onprem
+    layer: network
+    kind: vpn
+    provider: onprem
+    description: On-premises VPN endpoint.
+    service: onprem_vpn
+    icon: generic:vpn
+  OnPremERP:
+    label: On-prem ERP
+    zone: onprem
+    layer: runtime
+    kind: legacy_api
+    provider: onprem
+    description: Legacy ERP integration endpoint.
+    service: legacy_erp
+    icon: generic:legacy-erp
+  CloudLogging:
+    label: Cloud Logging
+    zone: gcp_ops
+    layer: operations
+    kind: logging
+    provider: gcp
+    placement:
+      project: project-ops
+      region: global
+      environment: prod
+    description: Central log collection.
+    service: cloud_logging
+    icon: google-cloud:cloud-logging
+  CloudMonitoring:
+    label: Cloud Monitoring
+    zone: gcp_ops
+    layer: operations
+    kind: monitoring
+    provider: gcp
+    placement:
+      project: project-ops
+      region: global
+      environment: prod
+    description: Central metrics collection.
+    service: cloud_monitoring
+    icon: google-cloud:cloud-monitoring
+  TraceBackend:
+    label: Trace Backend
+    zone: gcp_ops
+    layer: operations
+    kind: tracing
+    provider: gcp
+    placement:
+      project: project-ops
+      region: global
+      environment: prod
+    description: Distributed tracing backend.
+    service: cloud_trace
+    icon: google-cloud:cloud-trace
+  Datadog:
+    label: Datadog
+    zone: saas
+    layer: operations
+    kind: monitoring
+    provider: datadog
+    principal: datadog-api-key
+    description: Third-party monitoring SaaS.
+    service: datadog
+    icon: simple-icons:datadog
+  Wiz:
+    label: Wiz
+    zone: saas
+    layer: operations
+    kind: monitoring
+    provider: wiz
+    principal: wiz-integration
+    description: Third-party security scanner.
+    service: wiz
+    icon: vendor:wiz
+  GitHub:
+    label: GitHub
+    zone: saas
+    layer: operations
+    kind: repository
+    provider: github
+    description: Source repository and webhook sender.
+    service: github
+    icon: simple-icons:github
+  CICD:
+    label: CI/CD
+    zone: gcp_ops
+    layer: operations
+    kind: ci_cd
+    provider: gcp
+    principal: ci-deployer-sa
+    placement:
+      project: project-ops
+      region: global
+      environment: prod
+    description: Build and deployment pipeline.
+    service: cloud_build
+    icon: google-cloud:cloud-build
+  ArtifactRegistry:
+    label: Artifact Registry
+    zone: project_app
+    layer: data
+    kind: artifact_registry
+    provider: gcp
+    placement:
+      project: project-app
+      region: asia-northeast1
+      environment: prod
+    description: Container image registry.
+    service: artifact_registry
+    icon: google-cloud:artifact-registry
+edges:
+  EndUser->Web:
+    flow: request
+    direction: one_way
+    tags:
+    - entrypoint
+    description: User opens the browser frontend.
+  EndUser->Mobile:
+    flow: request
+    direction: one_way
+    tags:
+    - entrypoint
+    description: User opens the mobile application.
+  AdminUser->AdminConsole:
+    flow: admin_operation
+    direction: one_way
+    principal: admin-user
+    tags:
+    - admin
+    description: Admin user starts an administrative session.
+  firebase_web_token_issue:
+    from: FirebaseAuth
+    to: Web
+    label: issues JWT
+    flow: token_issue
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      recipient: Web
+      method: oidc
+      audience: archmap-web
+      scopes:
+      - openid
+      - email
+      - profile
+      claims:
+        sub: user_id
+        roles:
+        - user
+    data:
+    - access_token
+    boundaryCrossing:
+    - identity_client_boundary
+    description: Firebase Auth issues a JWT to the web client.
+  firebase_mobile_token_issue:
+    from: FirebaseAuth
+    to: Mobile
+    label: issues JWT
+    flow: token_issue
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      recipient: Mobile
+      method: oidc
+      audience: archmap-mobile
+      scopes:
+      - openid
+      - email
+      - profile
+      claims:
+        sub: user_id
+        roles:
+        - user
+    data:
+    - access_token
+    boundaryCrossing:
+    - identity_client_boundary
+    description: Firebase Auth issues a JWT to the mobile client.
+  web_waf_request:
+    from: Web
+    to: WAF
+    label: HTTPS + JWT
+    flow: request_response
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+      method: bearer
+    data:
+    - access_token
+    - customer_profile
+    boundaryCrossing:
+    - public_edge
+    direction: request_response
+    tags:
+    - public-api
+    description: Browser sends authenticated traffic through the public edge.
+  mobile_waf_request:
+    from: Mobile
+    to: WAF
+    label: HTTPS + JWT
+    flow: request_response
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+      method: bearer
+    data:
+    - access_token
+    - customer_profile
+    boundaryCrossing:
+    - public_edge
+    direction: request_response
+    tags:
+    - public-api
+    description: Mobile client sends authenticated traffic through the public edge.
+  admin_api_operation:
+    from: AdminConsole
+    to: APIGW
+    label: Admin HTTPS + JWT
+    flow: admin_operation
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+      method: bearer
+    principal: admin-user
+    data:
+    - admin_command
+    boundaryCrossing:
+    - public_edge
+    description: Privileged administrative operation.
+  waf_api_forward:
+    from: WAF
+    to: APIGW
+    label: HTTPS
+    flow: request_response
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+      method: bearer
+    data:
+    - access_token
+    - customer_profile
+    boundaryCrossing: false
+    direction: request_response
+    description: WAF forwards request to the API gateway inside the edge zone.
+  api_policy_check:
+    from: APIGW
+    to: PolicyDecision
+    label: policy check
+    flow: auth
+    protocol: IAM
+    principal: gcp-run-sa
+    boundaryCrossing: false
+    description: API Gateway asks the policy decision point for authorization context.
+  policy_iam_check:
+    from: PolicyDecision
+    to: IAM
+    label: IAM check
+    flow: auth
+    protocol: IAM
+    principal: gcp-run-sa
+    boundaryCrossing:
+    - identity_gcp_boundary
+    description: Policy decision point checks IAM policies.
+  api_token_validation:
+    from: APIGW
+    to: FirebaseAuth
+    label: validate JWT / JWKS
+    flow: token_validate
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+      method: oidc
+    data:
+    - access_token
+    boundaryCrossing:
+    - identity_gcp_boundary
+    description: 'Metadata-only semantic edge: APIGW validates tokens using Firebase Auth keys.'
+  api_app_request:
+    from: APIGW
+    to: CloudRun
+    label: HTTPS + JWT
+    flow: request_response
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+      method: bearer
+    data:
+    - access_token
+    - customer_profile
+    boundaryCrossing:
+    - gcp_private_boundary
+    direction: request_response
+    description: API Gateway invokes the application backend.
+  app_gke_request:
+    from: CloudRun
+    to: GKECluster
+    label: internal HTTPS
+    flow: request
+    protocol: HTTPS
+    principal: gcp-run-sa
+    data:
+    - internal_request
+    boundaryCrossing: false
+    description: Internal request from Cloud Run to a GKE workload in the same project zone.
+  app_cloudsql_access:
+    from: CloudRun
+    to: CloudSQL
+    label: SQL
+    flow: data_access
+    protocol: SQL
+    principal: gcp-run-sa
+    data:
+    - customer_profile
+    boundaryCrossing: false
+    description: Application reads and writes customer profile data.
+  app_pubsub_publish:
+    from: CloudRun
+    to: PubSub
+    label: pub/sub
+    flow: event_publish
+    protocol: Pub/Sub
+    principal: gcp-run-sa
+    data:
+    - order_event
+    boundaryCrossing: false
+    description: Application publishes order events.
+  pubsub_worker_subscribe:
+    from: PubSub
+    to: Worker
+    label: message
+    flow: event_subscribe
+    protocol: Pub/Sub
+    principal: worker-sa
+    data:
+    - order_event
+    boundaryCrossing: false
+    description: Worker consumes events from Pub/Sub.
+  worker_bigquery_write:
+    from: Worker
+    to: BigQuery
+    label: batch write
+    flow: data_write
+    protocol: BigQuery API
+    principal: worker-sa
+    data:
+    - order_event
+    - user_profile_summary
+    networkPath:
+    - SharedVPC
+    - SubnetJP
+    boundaryCrossing:
+    - project_boundary
+    description: Worker writes analytics records to BigQuery.
+  app_gcs_upload:
+    from: CloudRun
+    to: GCSUploads
+    label: signed URL upload
+    flow: data_write
+    protocol: HTTPS
+    principal: gcp-run-sa
+    data:
+    - upload_object
+    boundaryCrossing: false
+    description: Application writes uploaded objects to Cloud Storage.
+  app_secret_read:
+    from: CloudRun
+    to: SecretManager
+    label: secret read
+    flow: data_read
+    protocol: HTTPS
+    principal: gcp-run-sa
+    data:
+    - runtime_secret
+    boundaryCrossing: false
+    description: Application reads runtime secrets.
+  app_aws_replication:
+    from: CloudRun
+    to: AWSApp
+    label: HTTPS / VPN replication
+    flow: replication
+    protocol: HTTPS
+    principal: gcp-run-sa
+    data:
+    - customer_profile
+    networkPath:
+    - SharedVPC
+    - CloudVPN
+    - AWSVPC
+    boundaryCrossing:
+    - vpn_boundary
+    - aws_boundary
+    description: Cross-cloud data replication from GCP to AWS over VPN.
+  aws_rds_access:
+    from: AWSApp
+    to: RDS
+    label: SQL
+    flow: data_access
+    protocol: SQL
+    principal: aws-app-role
+    data:
+    - customer_profile
+    boundaryCrossing: false
+    description: AWS service accesses the RDS replica.
+  cloudrun_onprem_sync:
+    from: CloudRun
+    to: OnPremERP
+    label: sync via VPN
+    flow: sync
+    protocol: HTTPS
+    principal: gcp-run-sa
+    data:
+    - user_profile_summary
+    networkPath:
+    - SharedVPC
+    - CloudVPN
+    - OnPremVPN
+    boundaryCrossing:
+    - vpn_boundary
+    - onprem_boundary
+    description: Synchronizes summarized profile data with the on-prem ERP.
+  sharedvpc_subnet_route:
+    from: SharedVPC
+    to: SubnetJP
+    flow: network_route
+    protocol: GCP_INTERNAL
+    networkPath:
+    - SharedVPC
+    - SubnetJP
+    boundaryCrossing: false
+    description: Shared VPC contains the JP subnet route.
+  sharedvpc_vpn_route:
+    from: SharedVPC
+    to: CloudVPN
+    flow: network_route
+    protocol: GCP_INTERNAL
+    networkPath:
+    - SharedVPC
+    - CloudVPN
+    boundaryCrossing: false
+    description: Shared VPC route to Cloud VPN.
+  sharedvpc_nat_route:
+    from: SharedVPC
+    to: CloudNAT
+    flow: network_route
+    protocol: GCP_INTERNAL
+    networkPath:
+    - SharedVPC
+    - CloudNAT
+    boundaryCrossing: false
+    description: Shared VPC route to Cloud NAT.
+  cloudvpn_aws_route:
+    from: CloudVPN
+    to: AWSVPC
+    label: IPsec VPN
+    flow: network_route
+    protocol: IPsec VPN
+    networkPath:
+    - SharedVPC
+    - CloudVPN
+    - AWSVPC
+    boundaryCrossing:
+    - vpn_boundary
+    - aws_boundary
+    description: Network route from GCP to AWS over VPN.
+  cloudvpn_onprem_route:
+    from: CloudVPN
+    to: OnPremVPN
+    label: IPsec VPN
+    flow: network_route
+    protocol: IPsec VPN
+    networkPath:
+    - SharedVPC
+    - CloudVPN
+    - OnPremVPN
+    boundaryCrossing:
+    - vpn_boundary
+    - onprem_boundary
+    description: Network route from GCP to on-premises over VPN.
+  awsvpc_app_route:
+    from: AWSVPC
+    to: AWSApp
+    flow: network_route
+    protocol: AWS_INTERNAL
+    networkPath:
+    - AWSVPC
+    boundaryCrossing: false
+    description: AWS VPC routes to the AWS service.
+  onpremvpn_erp_route:
+    from: OnPremVPN
+    to: OnPremERP
+    flow: network_route
+    protocol: ONPREM_INTERNAL
+    networkPath:
+    - OnPremVPN
+    boundaryCrossing: false
+    description: On-prem VPN routes to the ERP system.
+  app_monitoring_metrics:
+    from: CloudRun
+    to: CloudMonitoring
+    label: metrics
+    data:
+    - runtime_metrics
+    boundaryCrossing:
+    - ops_boundary
+    description: Metrics edge intentionally omits flow so QIF demonstrates label inference.
+  app_datadog_metrics:
+    from: CloudRun
+    to: Datadog
+    label: metrics export
+    flow: metrics_export
+    protocol: HTTPS
+    principal: datadog-api-key
+    data:
+    - runtime_metrics
+    boundaryCrossing:
+    - saas_export_boundary
+    description: Metrics exported to a third-party monitoring SaaS.
+  app_cloud_logging:
+    from: CloudRun
+    to: CloudLogging
+    label: logs
+    data:
+    - audit_logs
+    boundaryCrossing:
+    - ops_boundary
+    description: Logs edge intentionally omits flow so QIF demonstrates label inference.
+  cloudlogging_bigquery_export:
+    from: CloudLogging
+    to: BigQuery
+    label: log export
+    flow: log_export
+    protocol: GCP_INTERNAL
+    data:
+    - audit_logs
+    boundaryCrossing:
+    - ops_boundary
+    - project_boundary
+    description: Operational logs are exported to BigQuery for audit analysis.
+  cloudrun_trace_export:
+    from: CloudRun
+    to: TraceBackend
+    label: traces
+    flow: trace_export
+    protocol: OTLP
+    data:
+    - trace_spans
+    boundaryCrossing:
+    - ops_boundary
+    description: Application sends distributed traces.
+  wiz_cloudrun_scan:
+    from: Wiz
+    to: CloudRun
+    label: scans
+    flow: security_scan
+    protocol: HTTPS
+    principal: wiz-integration
+    data:
+    - vulnerability_findings
+    boundaryCrossing:
+    - saas_export_boundary
+    description: External security scanner inspects the runtime surface.
+  github_ci_trigger:
+    from: GitHub
+    to: CICD
+    label: webhook
+    flow: deployment
+    protocol: HTTPS
+    data:
+    - build_metadata
+    boundaryCrossing: true
+    description: Repository webhook triggers the CI/CD pipeline.
+  ci_artifact_push:
+    from: CICD
+    to: ArtifactRegistry
+    label: push image
+    flow: deployment
+    protocol: HTTPS
+    principal: ci-deployer-sa
+    data:
+    - deployment_artifact
+    boundaryCrossing:
+    - deployment_boundary
+    description: CI/CD pushes container image to Artifact Registry.
+  artifact_cloudrun_deploy:
+    from: ArtifactRegistry
+    to: CloudRun
+    label: deploy image
+    flow: deployment
+    protocol: HTTPS
+    principal: ci-deployer-sa
+    data:
+    - deployment_artifact
+    boundaryCrossing:
+    - deployment_boundary
+    description: Deployment uses the image from Artifact Registry.
+  iam_runtime_identity_binding:
+    from: IAM
+    to: CloudRun
+    label: grant runtime identity
+    flow: permission_grant
+    protocol: IAM
+    principal: ci-deployer-sa
+    boundaryCrossing:
+    - identity_gcp_boundary
+    description: 'Metadata-only semantic edge: IAM grants runtime identity permissions.'
+identities:
+  admin-user:
+    kind: user
+    provider: internal
+    attachedTo:
+    - AdminUser
+    - AdminConsole
+    description: Human administrator.
+  firebase-auth-service:
+    kind: auth_service
+    provider: firebase
+    attachedTo: FirebaseAuth
+    description: Firebase Auth issuer identity.
+  gcp-run-sa:
+    kind: service_account
+    provider: gcp
+    attachedTo:
+    - APIGW
+    - CloudRun
+    description: Application runtime service account.
+  worker-sa:
+    kind: service_account
+    provider: gcp
+    attachedTo:
+    - GKECluster
+    - Worker
+    description: Worker service account.
+  aws-app-role:
+    kind: iam_role
+    provider: aws
+    attachedTo: AWSApp
+    description: AWS application IAM role.
+  ci-deployer-sa:
+    kind: service_account
+    provider: gcp
+    attachedTo: CICD
+    description: Deployment service account.
+  datadog-api-key:
+    kind: service_account
+    provider: datadog
+    attachedTo: Datadog
+    description: Datadog integration credential.
+  wiz-integration:
+    kind: service_account
+    provider: wiz
+    attachedTo: Wiz
+    description: Wiz integration identity.
+permissions:
+  cloudsql_connect:
+    principal: gcp-run-sa
+    action: connect
+    resource: CloudSQL
+    effect: allow
+    role: roles/cloudsql.client
+    condition: environment == prod
+    description: Cloud Run may connect to Cloud SQL.
+  gcs_upload_write:
+    principal: gcp-run-sa
+    action: write
+    resource: GCSUploads
+    effect: allow
+    role: roles/storage.objectCreator
+    description: Cloud Run may create upload objects.
+  secret_read:
+    principal: gcp-run-sa
+    action: read
+    resource: SecretManager
+    effect: allow
+    role: roles/secretmanager.secretAccessor
+    description: Cloud Run may read runtime secrets.
+  pubsub_publish:
+    principal: gcp-run-sa
+    action: publish
+    resource: PubSub
+    effect: allow
+    role: roles/pubsub.publisher
+    description: Cloud Run may publish events.
+  pubsub_subscribe:
+    principal: worker-sa
+    action: subscribe
+    resource: PubSub
+    effect: allow
+    role: roles/pubsub.subscriber
+    description: Worker may consume events.
+  bigquery_write:
+    principal: worker-sa
+    action: write
+    resource: BigQuery
+    effect: allow
+    role: roles/bigquery.dataEditor
+    description: Worker may write analytics tables.
+  aws_rds_connect:
+    principal: aws-app-role
+    action: connect
+    resource: RDS
+    effect: allow
+    role: rds-db:connect
+    description: AWS service may connect to RDS.
+  datadog_export:
+    principal: datadog-api-key
+    action: write
+    resource: Datadog
+    effect: allow
+    role: datadog.metrics.write
+    description: Metrics may be sent to Datadog.
+  ci_push_artifact:
+    principal: ci-deployer-sa
+    action: push
+    resource: ArtifactRegistry
+    effect: allow
+    role: roles/artifactregistry.writer
+    description: CI/CD may push container images.
+  ci_deploy_cloudrun:
+    principal: ci-deployer-sa
+    action: deploy
+    resource: CloudRun
+    effect: allow
+    role: roles/run.developer
+    condition:
+      branch: main
+      environment: prod
+    description: CI/CD may deploy the production Cloud Run service.
+  wiz_scan_project:
+    principal: wiz-integration
+    action: scan
+    resource:
+      type: zone
+      id: project_app
+    effect: allow
+    role: securityScanner
+    description: Wiz may scan the application project zone.
+  admin_api_invoke:
+    principal: admin-user
+    action: adminInvoke
+    resource: APIGW
+    effect: allow
+    role: custom/admin-api-invoker
+    description: Admin can invoke privileged API operations.
+  admin_direct_db_denied:
+    principal: admin-user
+    action: connect
+    resource: CloudSQL
+    effect: deny
+    role: no-direct-db-access
+    description: Admin must not connect directly to the database.
+data:
+  access_token:
+    label: Access Token
+    classification: secret
+    storage: transient
+    flows:
+    - firebase_web_token_issue
+    - firebase_mobile_token_issue
+    - web_waf_request
+    - mobile_waf_request
+    - waf_api_forward
+    - api_token_validation
+    - api_app_request
+    processedBy:
+    - Web
+    - Mobile
+    - APIGW
+    retention: session
+    description: JWT used for user authentication. Not persisted by ArchMap-modeled services.
+  customer_profile:
+    label: Customer Profile
+    classification: personal
+    storedIn:
+    - CloudSQL
+    - RDS
+    - BigQuery
+    processedBy:
+    - CloudRun
+    - AWSApp
+    - Worker
+    flows:
+    - web_waf_request
+    - mobile_waf_request
+    - waf_api_forward
+    - api_app_request
+    - app_cloudsql_access
+    - app_aws_replication
+    - aws_rds_access
+    retention: 365d
+    description: Personal profile data replicated between GCP and AWS.
+  order_event:
+    label: Order Event
+    classification: confidential
+    storedIn:
+    - PubSub
+    - BigQuery
+    processedBy:
+    - CloudRun
+    - Worker
+    flows:
+    - app_pubsub_publish
+    - pubsub_worker_subscribe
+    - worker_bigquery_write
+    retention: 90d
+    description: Order event sent to asynchronous processing.
+  user_profile_summary:
+    label: User Profile Summary
+    classification: confidential
+    storedIn:
+    - BigQuery
+    - OnPremERP
+    processedBy:
+    - Worker
+    - CloudRun
+    - OnPremERP
+    flows:
+    - worker_bigquery_write
+    - cloudrun_onprem_sync
+    retention: 365d
+    description: Summarized profile data shared with the on-prem ERP.
+  upload_object:
+    label: Uploaded Object
+    classification: confidential
+    storedIn:
+    - GCSUploads
+    processedBy:
+    - CloudRun
+    flows:
+    - app_gcs_upload
+    retention: 180d
+    description: User-uploaded object data.
+  runtime_secret:
+    label: Runtime Secret
+    classification: secret
+    storedIn:
+    - SecretManager
+    processedBy:
+    - CloudRun
+    flows:
+    - app_secret_read
+    retention: managed
+    description: Secret material used by runtime workloads.
+  runtime_metrics:
+    label: Runtime Metrics
+    classification: internal
+    storedIn:
+    - CloudMonitoring
+    - Datadog
+    processedBy:
+    - CloudRun
+    - CloudMonitoring
+    - Datadog
+    flows:
+    - app_monitoring_metrics
+    - app_datadog_metrics
+    retention: 30d
+    description: Operational metrics for service health.
+  audit_logs:
+    label: Audit Logs
+    classification: confidential
+    storedIn:
+    - CloudLogging
+    - BigQuery
+    processedBy:
+    - CloudRun
+    - CloudLogging
+    - BigQuery
+    flows:
+    - app_cloud_logging
+    - cloudlogging_bigquery_export
+    retention: 400d
+    description: Application and audit logs.
+  trace_spans:
+    label: Trace Spans
+    classification: internal
+    storedIn:
+    - TraceBackend
+    processedBy:
+    - CloudRun
+    - TraceBackend
+    flows:
+    - cloudrun_trace_export
+    retention: 14d
+    description: Distributed trace spans.
+  vulnerability_findings:
+    label: Vulnerability Findings
+    classification: confidential
+    storedIn:
+    - Wiz
+    processedBy:
+    - Wiz
+    flows:
+    - wiz_cloudrun_scan
+    retention: 90d
+    description: Findings created by the SaaS security scanner.
+  build_metadata:
+    label: Build Metadata
+    classification: internal
+    storedIn:
+    - GitHub
+    - CICD
+    processedBy:
+    - GitHub
+    - CICD
+    flows:
+    - github_ci_trigger
+    retention: 180d
+    description: Build trigger and commit metadata.
+  deployment_artifact:
+    label: Deployment Artifact
+    classification: internal
+    storedIn:
+    - ArtifactRegistry
+    processedBy:
+    - CICD
+    - ArtifactRegistry
+    - CloudRun
+    flows:
+    - ci_artifact_push
+    - artifact_cloudrun_deploy
+    retention: 180d
+    description: Container image used for deployment.
+  admin_command:
+    label: Admin Command
+    classification: secret
+    storage: transient
+    processedBy:
+    - AdminConsole
+    - APIGW
+    flows:
+    - admin_api_operation
+    retention: request
+    description: Privileged command payload. Not persisted.
+  internal_request:
+    label: Internal Request
+    classification: internal
+    storage: transient
+    processedBy:
+    - CloudRun
+    - GKECluster
+    flows:
+    - app_gke_request
+    retention: request
+    description: Internal service request.
+zones:
+  client:
+    label: Client
+    kind: client
+    trustLevel: public
+    contains:
+    - EndUser
+    - AdminUser
+    - Web
+    - Mobile
+    - AdminConsole
+    owner: frontend-team
+    description: User devices and browser/mobile clients.
+  identity:
+    label: Identity
+    kind: identity
+    trustLevel: restricted
+    contains:
+    - FirebaseAuth
+    - IAM
+    owner: platform-security
+    description: Identity providers and policy authority.
+  gcp:
+    label: GCP Organization
+    kind: provider
+    provider: gcp
+    trustLevel: private
+    contains:
+    - zone: gcp_edge
+    - zone: project_app
+    - zone: project_analytics
+    - zone: shared_vpc_host
+    - zone: gcp_ops
+    owner: platform-team
+    description: GCP organizational scope.
+  gcp_edge:
+    label: GCP Public Edge
+    kind: project
+    provider: gcp
+    parent: gcp
+    trustLevel: restricted
+    contains:
+    - WAF
+    - APIGW
+    - PolicyDecision
+    owner: platform-team
+    description: Public ingress and edge authorization components.
+  project_app:
+    label: Project App
+    kind: project
+    provider: gcp
+    parent: gcp
+    trustLevel: private
+    contains:
+    - CloudRun
+    - GKECluster
+    - PubSub
+    - Worker
+    - CloudSQL
+    - GCSUploads
+    - SecretManager
+    - ArtifactRegistry
+    owner: app-team
+    description: Application project.
+  project_analytics:
+    label: Project Analytics
+    kind: project
+    provider: gcp
+    parent: gcp
+    trustLevel: private
+    contains:
+    - BigQuery
+    owner: data-team
+    description: Analytics project.
+  shared_vpc_host:
+    label: Shared VPC Host Project
+    kind: project
+    provider: gcp
+    parent: gcp
+    trustLevel: private
+    contains:
+    - zone: shared_vpc
+    owner: network-team
+    description: Host project for Shared VPC.
+  shared_vpc:
+    label: Shared VPC
+    kind: network
+    provider: gcp
+    parent: shared_vpc_host
+    trustLevel: private
+    contains:
+    - SharedVPC
+    - SubnetJP
+    - CloudVPN
+    - CloudNAT
+    owner: network-team
+    description: Shared VPC network and related network components.
+  gcp_ops:
+    label: GCP Operations
+    kind: operations
+    provider: gcp
+    parent: gcp
+    trustLevel: private
+    contains:
+    - CloudLogging
+    - CloudMonitoring
+    - TraceBackend
+    - CICD
+    owner: sre-team
+    description: Operations and delivery project.
+  aws:
+    label: AWS Organization
+    kind: provider
+    provider: aws
+    trustLevel: private
+    contains:
+    - zone: aws_prod
+    owner: aws-platform-team
+    description: AWS account grouping.
+  aws_prod:
+    label: AWS Prod Account
+    kind: cloud
+    provider: aws
+    parent: aws
+    trustLevel: private
+    contains:
+    - AWSVPC
+    - AWSApp
+    - RDS
+    owner: aws-platform-team
+    description: AWS production account.
+  saas:
+    label: SaaS Providers
+    kind: saas
+    trustLevel: external
+    contains:
+    - Datadog
+    - Wiz
+    - GitHub
+    owner: vendor-management
+    description: External SaaS providers.
+  onprem:
+    label: On-premises
+    kind: onprem
+    trustLevel: private
+    contains:
+    - OnPremVPN
+    - OnPremERP
+    owner: corporate-it
+    description: Corporate on-premises network.
+boundaries:
+  public_edge:
+    label: Public → GCP Edge Trust Boundary
+    kind: trust_boundary
+    zone: gcp_edge
+    contains:
+    - zone: client
+    - zone: gcp_edge
+    - node: WAF
+    - node: APIGW
+    description: Boundary crossed by public client traffic entering GCP.
+  identity_client_boundary:
+    label: Identity → Client Boundary
+    kind: trust_boundary
+    zone: identity
+    contains:
+    - zone: identity
+    - zone: client
+    - node: FirebaseAuth
+    description: Boundary for token issuance to user-facing clients.
+  identity_gcp_boundary:
+    label: Identity ↔ GCP Control Boundary
+    kind: policy_boundary
+    zone: identity
+    contains:
+    - zone: identity
+    - zone: gcp_edge
+    - node: IAM
+    - node: FirebaseAuth
+    description: Boundary for token validation and IAM policy checks.
+  gcp_private_boundary:
+    label: GCP Private Runtime Boundary
+    kind: network_boundary
+    zone: project_app
+    contains:
+    - zone: project_app
+    - zone: project_analytics
+    - zone: shared_vpc
+    - zone: gcp_ops
+    description: Private GCP runtime and data boundary.
+  project_boundary:
+    label: GCP Project Separation Boundary
+    kind: org_boundary
+    zone: gcp
+    contains:
+    - zone: project_app
+    - zone: project_analytics
+    description: Boundary between application and analytics projects.
+  shared_vpc_boundary:
+    label: Shared VPC Boundary
+    kind: network_boundary
+    zone: shared_vpc
+    contains:
+    - zone: shared_vpc
+    - node: SharedVPC
+    - node: SubnetJP
+    - node: CloudVPN
+    - node: CloudNAT
+    description: Network boundary around the Shared VPC.
+  vpn_boundary:
+    label: VPN / Hybrid Boundary
+    kind: network_boundary
+    zone: shared_vpc
+    contains:
+    - node: CloudVPN
+    - zone: shared_vpc
+    - zone: aws_prod
+    - zone: onprem
+    description: Boundary crossed by VPN traffic to AWS and on-premises.
+  aws_boundary:
+    label: AWS Cloud Boundary
+    kind: cloud_boundary
+    zone: aws_prod
+    contains:
+    - zone: aws
+    - zone: aws_prod
+    - node: AWSVPC
+    - node: AWSApp
+    - node: RDS
+    description: Boundary for AWS-hosted services.
+  saas_export_boundary:
+    label: SaaS Export Boundary
+    kind: trust_boundary
+    zone: saas
+    contains:
+    - zone: saas
+    - node: Datadog
+    - node: Wiz
+    - node: GitHub
+    description: Boundary for data and control-plane interactions with SaaS providers.
+  ops_boundary:
+    label: Operations Boundary
+    kind: policy_boundary
+    zone: gcp_ops
+    contains:
+    - zone: gcp_ops
+    - node: CloudLogging
+    - node: CloudMonitoring
+    - node: TraceBackend
+    - node: CICD
+    description: Boundary for operational telemetry and delivery systems.
+  onprem_boundary:
+    label: On-premises Boundary
+    kind: org_boundary
+    zone: onprem
+    contains:
+    - zone: onprem
+    - node: OnPremVPN
+    - node: OnPremERP
+    description: Boundary for corporate on-premises systems.
+  deployment_boundary:
+    label: Deployment Boundary
+    kind: policy_boundary
+    zone: gcp_ops
+    contains:
+    - node: GitHub
+    - node: CICD
+    - node: ArtifactRegistry
+    - node: CloudRun
+    description: Boundary for build, artifact, and deployment operations.
+view:
+  default:
+    base: 3d
+    overlays:
+    - auth
+    - dataflow
+    - boundary
+    - permission
+    - validation
+layout:
+  mode: auto
+  direction: LR
+iconResolution:
+  strategy:
+  - node.icon
+  - provider+service
+  - provider+kind
+  - kind
+  - provider
+  - default
+  requiredPacks:
+  - google-cloud
+  - aws
+  - simple-icons
+  - generic
+  fallbackPolicy: Use provider generic icon only when service/product icon cannot be resolved.

@@ -1,0 +1,271 @@
+graph LR
+  %% 04. Android application: single app + Android framework APIs
+  subgraph Android_App
+    User((User))
+    Activity[Main Activity]
+    ViewModel[ViewModel]
+    Repository[Repository]
+    Retrofit[Retrofit Client]
+    WorkManager[WorkManager]
+    Room[(Room DB)]
+    DataStore[(DataStore)]
+  end
+
+  subgraph Android_Framework
+    PermissionController[Permission Controller]
+    LocationAPI[Location Manager API]
+    NotificationAPI[Notification Manager API]
+    CameraAPI[CameraX / Camera Manager]
+  end
+
+  subgraph Device_Resources
+    GPS[GPS Sensor]
+    Camera[Camera Device]
+    NotificationTray[Notification Tray]
+    LocalStorage[(App Local Storage)]
+  end
+
+  subgraph Backend
+    APIGW[Backend API Gateway]
+    AppAPI[Application API]
+  end
+
+  User --> Activity
+  Activity --> ViewModel
+  ViewModel --> Repository
+  Repository --> Retrofit
+  Retrofit -->|HTTPS + access_token| APIGW
+  APIGW --> AppAPI
+  Repository --> Room
+  Repository --> DataStore
+  WorkManager --> Repository
+  Activity --> PermissionController
+  Repository --> LocationAPI
+  Activity --> CameraAPI
+  WorkManager --> NotificationAPI
+  LocationAPI --> GPS
+  CameraAPI --> Camera
+  NotificationAPI --> NotificationTray
+  Room --> LocalStorage
+  DataStore --> LocalStorage
+---
+title: 04 Android Single App + Framework API
+description: Android single-app architecture showing app layers, framework APIs, local persistence, device resources, background work, and backend API access.
+nodes:
+  User:
+    zone: user
+    layer: client
+    kind: user
+    service: human_user
+    icon: generic:user
+  Activity:
+    label: Main Activity
+    zone: app_process
+    layer: client
+    kind: mobile_app
+    androidComponent: activity
+    owner: android-team
+    service: android_activity
+    icon: android:activity
+  ViewModel:
+    zone: app_process
+    layer: runtime
+    kind: runtime_service
+    androidComponent: view_model
+    owner: android-team
+    service: android_viewmodel
+    icon: android:viewmodel
+  Repository:
+    zone: app_process
+    layer: runtime
+    kind: runtime_service
+    androidComponent: repository
+    owner: android-team
+    service: repository
+    icon: generic:repository
+  Retrofit:
+    label: Retrofit Client
+    zone: app_process
+    layer: runtime
+    kind: runtime_service
+    androidComponent: network_client
+    owner: android-team
+    service: retrofit
+    icon: generic:http-client
+  WorkManager:
+    label: WorkManager
+    zone: app_process
+    layer: runtime
+    kind: workflow
+    androidComponent: background_worker
+    owner: android-team
+    service: work_manager
+    icon: android:workmanager
+  Room:
+    label: Room DB
+    zone: app_storage
+    layer: data
+    kind: database
+    androidComponent: room_database
+    owner: android-team
+    service: room
+    icon: android:room
+  DataStore:
+    zone: app_storage
+    layer: data
+    kind: file_storage
+    androidComponent: datastore
+    owner: android-team
+    service: datastore
+    icon: android:datastore
+  PermissionController:
+    label: Permission Controller
+    zone: android_framework
+    layer: identity
+    kind: iam_policy
+    provider: android
+    service: permission_controller
+    icon: android:permission-controller
+  LocationAPI:
+    label: Location Manager API
+    zone: android_framework
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: framework_api
+    service: location_manager
+    icon: android:location
+  NotificationAPI:
+    label: Notification Manager API
+    zone: android_framework
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: framework_api
+    service: notification_manager
+    icon: android:notification
+  CameraAPI:
+    label: CameraX / Camera Manager
+    zone: android_framework
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: framework_api
+    service: camera_manager
+    icon: android:camera
+  GPS:
+    label: GPS Sensor
+    zone: device_resources
+    layer: external
+    kind: runtime_service
+    provider: device
+    androidLayer: hardware
+    service: gps_sensor
+    icon: generic:gps
+  Camera:
+    label: Camera Device
+    zone: device_resources
+    layer: external
+    kind: runtime_service
+    provider: device
+    androidLayer: hardware
+    service: camera_device
+    icon: generic:camera
+  NotificationTray:
+    label: Notification Tray
+    zone: device_resources
+    layer: external
+    kind: runtime_service
+    provider: android
+    service: notification_tray
+    icon: android:notification-tray
+  LocalStorage:
+    label: App Local Storage
+    zone: device_resources
+    layer: data
+    kind: file_storage
+    provider: android
+    service: app_local_storage
+    icon: generic:storage
+  APIGW:
+    label: Backend API Gateway
+    zone: backend
+    layer: edge
+    kind: api_gateway
+    provider: cloud
+    service: api_gateway
+    icon: generic:api-gateway
+  AppAPI:
+    label: Application API
+    zone: backend
+    layer: runtime
+    kind: runtime_service
+    provider: cloud
+    service: application_api
+    icon: generic:service
+edges:
+  User->Activity: { flow: request, protocol: UI, data: [user_action], boundaryCrossing: false }
+  Activity->ViewModel: { flow: request, protocol: InProcessCall, data: [ui_state], boundaryCrossing: false }
+  ViewModel->Repository: { flow: request_response, protocol: InProcessCall, data: [domain_request], boundaryCrossing: false }
+  Repository->Retrofit: { flow: request_response, protocol: InProcessCall, data: [api_request], boundaryCrossing: false }
+  Retrofit->APIGW:
+    flow: request_response
+    protocol: HTTPS
+    auth: { token: access_token, issuer: AppAPI, validatedBy: APIGW, method: bearer }
+    data: [access_token, api_request, api_response]
+    boundaryCrossing: [internet_boundary]
+  APIGW->AppAPI: { flow: request_response, protocol: HTTPS, data: [api_request, api_response], boundaryCrossing: false }
+  Repository->Room: { flow: data_access, protocol: SQLite, principal: app-process, data: [cached_entity], boundaryCrossing: [local_storage_boundary] }
+  Repository->DataStore: { flow: data_access, protocol: FileIO, principal: app-process, data: [user_preferences], boundaryCrossing: [local_storage_boundary] }
+  WorkManager->Repository: { flow: batch, protocol: InProcessCall, principal: app-process, data: [sync_request], boundaryCrossing: false }
+  Activity->PermissionController: { flow: permission_grant, protocol: Binder, principal: app-process, data: [permission_request], boundaryCrossing: [framework_boundary] }
+  Repository->LocationAPI: { flow: request_response, protocol: Binder, principal: app-process, data: [location_sample], boundaryCrossing: [framework_boundary] }
+  Activity->CameraAPI: { flow: request_response, protocol: Binder, principal: app-process, data: [camera_frame], boundaryCrossing: [framework_boundary] }
+  WorkManager->NotificationAPI: { flow: admin_operation, protocol: Binder, principal: app-process, data: [notification_payload], boundaryCrossing: [framework_boundary] }
+  LocationAPI->GPS: { flow: data_read, protocol: HAL, data: [location_sample], boundaryCrossing: [hardware_boundary] }
+  CameraAPI->Camera: { flow: data_read, protocol: HAL, data: [camera_frame], boundaryCrossing: [hardware_boundary] }
+  NotificationAPI->NotificationTray: { flow: data_write, protocol: SystemUI, data: [notification_payload], boundaryCrossing: false }
+  Room->LocalStorage: { flow: data_write, protocol: FileIO, data: [cached_entity], boundaryCrossing: false }
+  DataStore->LocalStorage: { flow: data_write, protocol: FileIO, data: [user_preferences], boundaryCrossing: false }
+identities:
+  app-process: { kind: service_account, provider: android, attachedTo: [Activity, ViewModel, Repository, Retrofit, WorkManager], description: App Linux UID / process identity. }
+permissions:
+  location_permission: { principal: app-process, action: accessFineLocation, resource: LocationAPI, effect: allow, role: android.permission.ACCESS_FINE_LOCATION }
+  camera_permission: { principal: app-process, action: useCamera, resource: CameraAPI, effect: allow, role: android.permission.CAMERA }
+  notification_permission: { principal: app-process, action: postNotifications, resource: NotificationAPI, effect: allow, role: android.permission.POST_NOTIFICATIONS }
+  local_storage_access: { principal: app-process, action: readWrite, resource: LocalStorage, effect: allow, role: app_private_storage }
+data:
+  user_action: { label: User Action, classification: public, storage: transient, processedBy: [Activity], flows: [User->Activity], retention: request }
+  ui_state: { label: UI State, classification: internal, storage: transient, processedBy: [Activity, ViewModel], flows: [Activity->ViewModel], retention: memory }
+  domain_request: { label: Domain Request, classification: internal, storage: transient, processedBy: [ViewModel, Repository], flows: [ViewModel->Repository], retention: request }
+  api_request: { label: API Request, classification: confidential, storage: transient, processedBy: [Repository, Retrofit, APIGW, AppAPI], flows: [Repository->Retrofit, Retrofit->APIGW, APIGW->AppAPI], retention: request }
+  api_response: { label: API Response, classification: confidential, storage: transient, processedBy: [AppAPI, Retrofit, Repository], flows: [Retrofit->APIGW, APIGW->AppAPI], retention: request }
+  access_token: { label: Access Token, classification: secret, storage: transient, processedBy: [Retrofit, APIGW], flows: [Retrofit->APIGW], retention: session }
+  cached_entity: { label: Cached Entity, classification: confidential, storedIn: [Room, LocalStorage], processedBy: [Repository], flows: [Repository->Room, Room->LocalStorage], retention: 30d }
+  user_preferences: { label: User Preferences, classification: internal, storedIn: [DataStore, LocalStorage], processedBy: [Repository], flows: [Repository->DataStore, DataStore->LocalStorage], retention: until_uninstall }
+  sync_request: { label: Sync Request, classification: internal, storage: transient, processedBy: [WorkManager, Repository], flows: [WorkManager->Repository], retention: request }
+  permission_request: { label: Permission Request, classification: internal, storage: transient, processedBy: [Activity, PermissionController], flows: [Activity->PermissionController], retention: request }
+  location_sample: { label: Location Sample, classification: personal, storage: transient, processedBy: [LocationAPI, Repository], flows: [Repository->LocationAPI, LocationAPI->GPS], retention: request }
+  camera_frame: { label: Camera Frame, classification: personal, storage: transient, processedBy: [CameraAPI, Activity], flows: [Activity->CameraAPI, CameraAPI->Camera], retention: request }
+  notification_payload: { label: Notification Payload, classification: confidential, storage: transient, processedBy: [WorkManager, NotificationAPI, NotificationTray], flows: [WorkManager->NotificationAPI, NotificationAPI->NotificationTray], retention: request }
+zones:
+  user: { label: User, kind: client, trustLevel: public, contains: [User] }
+  app_process: { label: Android App Process, kind: namespace, provider: android, trustLevel: private, contains: [Activity, ViewModel, Repository, Retrofit, WorkManager], owner: android-team }
+  app_storage: { label: App Private Storage, kind: namespace, provider: android, trustLevel: restricted, contains: [Room, DataStore], owner: android-team }
+  android_framework: { label: Android Framework, kind: provider, provider: android, trustLevel: restricted, contains: [PermissionController, LocationAPI, NotificationAPI, CameraAPI], owner: android-platform }
+  device_resources: { label: Device Resources, kind: onprem, provider: device, trustLevel: restricted, contains: [GPS, Camera, NotificationTray, LocalStorage], owner: device }
+  backend: { label: Backend System, kind: cloud, provider: cloud, trustLevel: private, contains: [APIGW, AppAPI], owner: backend-team }
+boundaries:
+  framework_boundary: { label: App to Android Framework Boundary, kind: policy_boundary, contains: [zone: app_process, zone: android_framework] }
+  hardware_boundary: { label: Framework to Device Resource Boundary, kind: policy_boundary, contains: [zone: android_framework, zone: device_resources] }
+  local_storage_boundary: { label: App Private Storage Boundary, kind: trust_boundary, contains: [zone: app_process, zone: app_storage, node: LocalStorage] }
+  internet_boundary: { label: Mobile Internet Boundary, kind: trust_boundary, contains: [zone: app_process, zone: backend] }
+view:
+  default:
+    base: layer
+    overlays: [permission, dataflow, boundary, validation]
+layout:
+  mode: auto
+  direction: LR
+notes:
+  vocabulary: Android-specific fields such as androidComponent and androidLayer are extension metadata for mobile/platform diagrams.

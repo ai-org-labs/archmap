@@ -1,0 +1,153 @@
+graph LR
+  %% 05. Android application: inter-app collaboration
+  subgraph App_A
+    AppA_UI[App A Activity]
+    AppA_Service[App A Foreground Service]
+    AppA_Client[App A Content Resolver]
+  end
+
+  subgraph Android_OS
+    IntentResolver[Intent Resolver]
+    PackageManager[Package Manager]
+    PermissionController[Permission Controller]
+    Binder[Binder IPC]
+  end
+
+  subgraph App_B
+    AppB_Activity[App B Activity]
+    AppB_Provider[App B Content Provider]
+    AppB_Service[App B Bound Service]
+    AppB_DB[(App B Private DB)]
+  end
+
+  subgraph External
+    Browser[Browser App]
+  end
+
+  User((User)) --> AppA_UI
+  AppA_UI -->|explicit intent| IntentResolver
+  IntentResolver --> AppB_Activity
+  AppA_Client -->|content URI query| AppB_Provider
+  AppB_Provider --> AppB_DB
+  AppA_Service -->|bind service| Binder
+  Binder --> AppB_Service
+  Browser -->|deep link| IntentResolver
+  PackageManager --> IntentResolver
+  PermissionController --> AppB_Provider
+---
+title: 05 Android Inter-app Collaboration
+description: Android inter-app architecture showing explicit intent, deep link, content provider, bound service, Binder IPC, package visibility, and permission checks.
+nodes:
+  User: { zone: user, layer: client, kind: user, service: human_user, icon: generic:user }
+  AppA_UI: { label: App A Activity, zone: app_a, layer: client, kind: mobile_app, provider: android, androidComponent: activity, principal: app-a-uid, owner: app-a-team, service: app_a_activity, icon: android:activity }
+  AppA_Service: { label: App A Foreground Service, zone: app_a, layer: runtime, kind: runtime_service, provider: android, androidComponent: foreground_service, principal: app-a-uid, owner: app-a-team, service: app_a_foreground_service, icon: android:service }
+  AppA_Client: { label: App A Content Resolver, zone: app_a, layer: runtime, kind: runtime_service, provider: android, androidComponent: content_resolver, principal: app-a-uid, owner: app-a-team, service: content_resolver, icon: android:content-resolver }
+  IntentResolver: { label: Intent Resolver, zone: android_os, layer: runtime, kind: runtime_service, provider: android, androidLayer: framework_service, service: intent_resolver, icon: android:intent }
+  PackageManager: { label: Package Manager, zone: android_os, layer: runtime, kind: runtime_service, provider: android, androidLayer: framework_service, service: package_manager, icon: android:package-manager }
+  PermissionController: { label: Permission Controller, zone: android_os, layer: identity, kind: iam_policy, provider: android, androidLayer: framework_service, service: permission_controller, icon: android:permission-controller }
+  Binder: { label: Binder IPC, zone: android_os, layer: network, kind: runtime_service, provider: android, androidLayer: ipc, service: binder, icon: android:binder }
+  AppB_Activity: { label: App B Activity, zone: app_b, layer: client, kind: mobile_app, provider: android, androidComponent: activity, principal: app-b-uid, owner: app-b-team, service: app_b_activity, icon: android:activity }
+  AppB_Provider: { label: App B Content Provider, zone: app_b, layer: runtime, kind: runtime_service, provider: android, androidComponent: content_provider, principal: app-b-uid, owner: app-b-team, service: content_provider, icon: android:content-provider }
+  AppB_Service: { label: App B Bound Service, zone: app_b, layer: runtime, kind: runtime_service, provider: android, androidComponent: bound_service, principal: app-b-uid, owner: app-b-team, service: bound_service, icon: android:service }
+  AppB_DB: { label: App B Private DB, zone: app_b, layer: data, kind: database, provider: android, owner: app-b-team, service: room_database, icon: android:room }
+  Browser: { label: Browser App, zone: external_app, layer: client, kind: mobile_app, provider: android, principal: browser-uid, service: browser, icon: generic:browser }
+edges:
+  User->AppA_UI: { flow: request, protocol: UI, data: [user_action], boundaryCrossing: false }
+  app_a_launch_app_b:
+    from: AppA_UI
+    to: IntentResolver
+    label: explicit intent
+    flow: request
+    protocol: Intent
+    principal: app-a-uid
+    data: [intent_payload]
+    boundaryCrossing: [app_os_boundary]
+  IntentResolver->AppB_Activity:
+    flow: request
+    protocol: Intent
+    principal: app-a-uid
+    data: [intent_payload]
+    boundaryCrossing: [app_b_boundary]
+  app_a_query_provider:
+    from: AppA_Client
+    to: AppB_Provider
+    label: content URI query
+    flow: data_read
+    protocol: ContentProvider
+    principal: app-a-uid
+    data: [shared_contact_record]
+    boundaryCrossing: [app_b_boundary]
+  AppB_Provider->AppB_DB:
+    flow: data_access
+    protocol: SQLite
+    principal: app-b-uid
+    data: [shared_contact_record]
+    boundaryCrossing: false
+  app_a_bind_app_b_service:
+    from: AppA_Service
+    to: Binder
+    label: bind service
+    flow: request_response
+    protocol: Binder
+    principal: app-a-uid
+    data: [binder_request]
+    boundaryCrossing: [app_os_boundary]
+  Binder->AppB_Service:
+    flow: request_response
+    protocol: Binder
+    principal: app-a-uid
+    data: [binder_request]
+    boundaryCrossing: [app_b_boundary]
+  Browser->IntentResolver:
+    label: deep link
+    flow: request
+    protocol: AppLink
+    principal: browser-uid
+    data: [deep_link_uri]
+    boundaryCrossing: [external_app_boundary]
+  PackageManager->IntentResolver:
+    flow: auth
+    protocol: PackageVisibility
+    data: [package_visibility_metadata]
+    boundaryCrossing: false
+  PermissionController->AppB_Provider:
+    flow: auth
+    protocol: AndroidPermission
+    data: [provider_permission_policy]
+    boundaryCrossing: false
+identities:
+  app-a-uid: { kind: service_account, provider: android, attachedTo: [AppA_UI, AppA_Service, AppA_Client], description: Linux UID / signing identity for App A. }
+  app-b-uid: { kind: service_account, provider: android, attachedTo: [AppB_Activity, AppB_Provider, AppB_Service], description: Linux UID / signing identity for App B. }
+  browser-uid: { kind: service_account, provider: android, attachedTo: Browser, description: Browser app identity. }
+permissions:
+  app_a_start_app_b: { principal: app-a-uid, action: startActivity, resource: AppB_Activity, effect: allow, role: exported_activity_allowed }
+  app_a_query_app_b_provider: { principal: app-a-uid, action: query, resource: AppB_Provider, effect: allow, role: com.example.READ_PROVIDER }
+  app_a_bind_app_b: { principal: app-a-uid, action: bindService, resource: AppB_Service, effect: allow, role: com.example.BIND_REMOTE_SERVICE }
+  browser_deep_link: { principal: browser-uid, action: openDeepLink, resource: IntentResolver, effect: allow, role: verified_app_link }
+data:
+  user_action: { label: User Action, classification: public, storage: transient, processedBy: [AppA_UI], flows: [User->AppA_UI], retention: request }
+  intent_payload: { label: Intent Payload, classification: internal, storage: transient, processedBy: [AppA_UI, IntentResolver, AppB_Activity], flows: [app_a_launch_app_b, IntentResolver->AppB_Activity], retention: request }
+  shared_contact_record: { label: Shared Contact Record, classification: personal, storedIn: [AppB_DB], processedBy: [AppA_Client, AppB_Provider], flows: [app_a_query_provider, AppB_Provider->AppB_DB], retention: managed_by_app_b }
+  binder_request: { label: Binder Request, classification: confidential, storage: transient, processedBy: [AppA_Service, Binder, AppB_Service], flows: [app_a_bind_app_b_service, Binder->AppB_Service], retention: request }
+  deep_link_uri: { label: Deep Link URI, classification: public, storage: transient, processedBy: [Browser, IntentResolver], flows: [Browser->IntentResolver], retention: request }
+  package_visibility_metadata: { label: Package Visibility Metadata, classification: internal, storage: transient, processedBy: [PackageManager, IntentResolver], flows: [PackageManager->IntentResolver], retention: request }
+  provider_permission_policy: { label: Provider Permission Policy, classification: internal, storage: managed, storedIn: [PermissionController], processedBy: [PermissionController, AppB_Provider], flows: [PermissionController->AppB_Provider], retention: installed_app_lifetime }
+zones:
+  user: { label: User, kind: client, trustLevel: public, contains: [User] }
+  app_a: { label: App A Sandbox, kind: namespace, provider: android, trustLevel: private, contains: [AppA_UI, AppA_Service, AppA_Client], owner: app-a-team }
+  android_os: { label: Android OS Mediation, kind: provider, provider: android, trustLevel: restricted, contains: [IntentResolver, PackageManager, PermissionController, Binder], owner: android-platform }
+  app_b: { label: App B Sandbox, kind: namespace, provider: android, trustLevel: private, contains: [AppB_Activity, AppB_Provider, AppB_Service, AppB_DB], owner: app-b-team }
+  external_app: { label: External App, kind: client, provider: android, trustLevel: external, contains: [Browser] }
+boundaries:
+  app_os_boundary: { label: App to OS Boundary, kind: policy_boundary, contains: [zone: app_a, zone: android_os] }
+  app_b_boundary: { label: App B Export Boundary, kind: trust_boundary, contains: [zone: android_os, zone: app_b] }
+  external_app_boundary: { label: External App Link Boundary, kind: trust_boundary, contains: [zone: external_app, zone: android_os] }
+view:
+  default:
+    base: overview
+    overlays: [zone, permission, boundary, dataflow, validation]
+layout:
+  mode: auto
+  direction: LR
+notes:
+  vocabulary: Android-specific fields such as androidComponent and androidLayer are extension metadata for mobile/platform diagrams.

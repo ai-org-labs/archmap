@@ -1,0 +1,342 @@
+graph LR
+  %% 06. Android framework: drivers, middleware, Bluetooth communication between two devices
+  subgraph Device_A_App
+    AppA[App A]
+    BtApiA[Bluetooth Framework API A]
+    BtServiceA[Bluetooth System Service A]
+    BtHalA[Bluetooth HAL A]
+    KernelA[Kernel Bluetooth Driver A]
+    ControllerA[Bluetooth Controller A]
+  end
+
+  subgraph Wireless_Link
+    BLELink[[BLE / Classic Bluetooth Link]]
+  end
+
+  subgraph Device_B_Stack
+    ControllerB[Bluetooth Controller B]
+    KernelB[Kernel Bluetooth Driver B]
+    BtHalB[Bluetooth HAL B]
+    BtServiceB[Bluetooth System Service B]
+    BtApiB[Bluetooth Framework API B]
+    AppB[Companion App B]
+  end
+
+  subgraph Pairing_Trust
+    Pairing[Pairing / Bonding]
+    KeystoreA[(Keystore A)]
+    KeystoreB[(Keystore B)]
+  end
+
+  AppA -->|GATT request| BtApiA
+  BtApiA -->|Binder| BtServiceA
+  BtServiceA -->|HIDL/AIDL| BtHalA
+  BtHalA -->|kernel ioctl| KernelA
+  KernelA -->|HCI| ControllerA
+  ControllerA --> BLELink
+  BLELink --> ControllerB
+  ControllerB -->|HCI| KernelB
+  KernelB -->|kernel event| BtHalB
+  BtHalB -->|AIDL/HIDL| BtServiceB
+  BtServiceB -->|Binder callback| BtApiB
+  BtApiB -->|callback| AppB
+  AppA -->|pairing request| Pairing
+  Pairing --> KeystoreA
+  Pairing --> KeystoreB
+---
+title: 06 Android Framework, Driver, and Bluetooth Device-to-device Architecture
+description: Android platform stack showing application, framework API, system service, HAL, kernel driver, Bluetooth controller, wireless link, peer device, and pairing/key material.
+nodes:
+  AppA:
+    label: App A
+    zone: device_a_app
+    layer: client
+    kind: mobile_app
+    provider: android
+    androidComponent: application
+    principal: app-a-uid
+    owner: app-a-team
+    service: android_app
+    icon: android:app
+  BtApiA:
+    label: Bluetooth Framework API A
+    zone: device_a_framework
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: framework_api
+    service: bluetooth_framework_api
+    icon: android:bluetooth
+  BtServiceA:
+    label: Bluetooth System Service A
+    zone: device_a_framework
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: system_service
+    principal: bluetooth-system-uid-a
+    service: bluetooth_system_service
+    icon: android:system-service
+  BtHalA:
+    label: Bluetooth HAL A
+    zone: device_a_vendor
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: hal
+    principal: bluetooth-hal-a
+    service: bluetooth_hal
+    icon: android:hal
+  KernelA:
+    label: Kernel Bluetooth Driver A
+    zone: device_a_kernel
+    layer: network
+    kind: runtime_service
+    provider: linux
+    androidLayer: kernel_driver
+    service: bluetooth_kernel_driver
+    icon: linux:driver
+  ControllerA:
+    label: Bluetooth Controller A
+    zone: device_a_hardware
+    layer: external
+    kind: runtime_service
+    provider: device
+    androidLayer: hardware_controller
+    service: bluetooth_controller
+    icon: generic:bluetooth-controller
+  BLELink:
+    label: BLE / Classic Bluetooth Link
+    zone: wireless
+    layer: network
+    kind: network_boundary
+    provider: bluetooth
+    service: bluetooth_link
+    icon: generic:bluetooth
+  ControllerB:
+    label: Bluetooth Controller B
+    zone: device_b_hardware
+    layer: external
+    kind: runtime_service
+    provider: device
+    androidLayer: hardware_controller
+    service: bluetooth_controller
+    icon: generic:bluetooth-controller
+  KernelB:
+    label: Kernel Bluetooth Driver B
+    zone: device_b_kernel
+    layer: network
+    kind: runtime_service
+    provider: linux
+    androidLayer: kernel_driver
+    service: bluetooth_kernel_driver
+    icon: linux:driver
+  BtHalB:
+    label: Bluetooth HAL B
+    zone: device_b_vendor
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: hal
+    principal: bluetooth-hal-b
+    service: bluetooth_hal
+    icon: android:hal
+  BtServiceB:
+    label: Bluetooth System Service B
+    zone: device_b_framework
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: system_service
+    principal: bluetooth-system-uid-b
+    service: bluetooth_system_service
+    icon: android:system-service
+  BtApiB:
+    label: Bluetooth Framework API B
+    zone: device_b_framework
+    layer: runtime
+    kind: runtime_service
+    provider: android
+    androidLayer: framework_api
+    service: bluetooth_framework_api
+    icon: android:bluetooth
+  AppB:
+    label: Companion App B
+    zone: device_b_app
+    layer: client
+    kind: mobile_app
+    provider: android
+    androidComponent: application
+    principal: app-b-uid
+    owner: app-b-team
+    service: android_app
+    icon: android:app
+  Pairing:
+    label: Pairing / Bonding
+    zone: pairing
+    layer: identity
+    kind: auth_service
+    provider: bluetooth
+    service: bluetooth_pairing
+    icon: generic:pairing
+  KeystoreA:
+    label: Keystore A
+    zone: device_a_secure_storage
+    layer: data
+    kind: secret
+    provider: android
+    service: android_keystore
+    icon: android:keystore
+  KeystoreB:
+    label: Keystore B
+    zone: device_b_secure_storage
+    layer: data
+    kind: secret
+    provider: android
+    service: android_keystore
+    icon: android:keystore
+edges:
+  AppA->BtApiA:
+    flow: request_response
+    protocol: AndroidFrameworkCall
+    principal: app-a-uid
+    data: [gatt_request]
+    boundaryCrossing: [app_framework_boundary_a]
+  BtApiA->BtServiceA:
+    flow: request_response
+    protocol: Binder
+    principal: app-a-uid
+    data: [gatt_request]
+    boundaryCrossing: [binder_boundary_a]
+  BtServiceA->BtHalA:
+    flow: request_response
+    protocol: AIDL_HAL
+    principal: bluetooth-system-uid-a
+    data: [hci_command]
+    boundaryCrossing: [framework_hal_boundary_a]
+  BtHalA->KernelA:
+    flow: request_response
+    protocol: KernelIOCTL
+    principal: bluetooth-hal-a
+    data: [hci_command]
+    boundaryCrossing: [hal_kernel_boundary_a]
+  KernelA->ControllerA:
+    flow: request_response
+    protocol: HCI
+    data: [hci_command]
+    boundaryCrossing: [kernel_hardware_boundary_a]
+  ControllerA->BLELink:
+    flow: message_send
+    protocol: BLE
+    data: [ble_packet]
+    boundaryCrossing: [radio_boundary]
+  BLELink->ControllerB:
+    flow: message_receive
+    protocol: BLE
+    data: [ble_packet]
+    boundaryCrossing: [radio_boundary]
+  ControllerB->KernelB:
+    flow: message_receive
+    protocol: HCI
+    data: [hci_event]
+    boundaryCrossing: [kernel_hardware_boundary_b]
+  KernelB->BtHalB:
+    flow: message_receive
+    protocol: KernelEvent
+    data: [hci_event]
+    boundaryCrossing: [hal_kernel_boundary_b]
+  BtHalB->BtServiceB:
+    flow: message_receive
+    protocol: AIDL_HAL
+    principal: bluetooth-hal-b
+    data: [gatt_callback]
+    boundaryCrossing: [framework_hal_boundary_b]
+  BtServiceB->BtApiB:
+    flow: message_receive
+    protocol: Binder
+    principal: bluetooth-system-uid-b
+    data: [gatt_callback]
+    boundaryCrossing: [binder_boundary_b]
+  BtApiB->AppB:
+    flow: message_receive
+    protocol: Callback
+    principal: app-b-uid
+    data: [gatt_callback]
+    boundaryCrossing: [app_framework_boundary_b]
+  AppA->Pairing:
+    flow: auth
+    protocol: BluetoothPairing
+    principal: app-a-uid
+    data: [pairing_request]
+    boundaryCrossing: [pairing_boundary]
+  Pairing->KeystoreA:
+    flow: data_write
+    protocol: Keystore
+    data: [bond_key]
+    boundaryCrossing: [secure_storage_boundary_a]
+  Pairing->KeystoreB:
+    flow: data_write
+    protocol: Keystore
+    data: [bond_key]
+    boundaryCrossing: [secure_storage_boundary_b]
+identities:
+  app-a-uid: { kind: service_account, provider: android, attachedTo: AppA }
+  app-b-uid: { kind: service_account, provider: android, attachedTo: AppB }
+  bluetooth-system-uid-a: { kind: service_account, provider: android, attachedTo: BtServiceA }
+  bluetooth-system-uid-b: { kind: service_account, provider: android, attachedTo: BtServiceB }
+  bluetooth-hal-a: { kind: service_account, provider: android, attachedTo: BtHalA }
+  bluetooth-hal-b: { kind: service_account, provider: android, attachedTo: BtHalB }
+permissions:
+  app_a_bluetooth_connect: { principal: app-a-uid, action: bluetoothConnect, resource: BtApiA, effect: allow, role: android.permission.BLUETOOTH_CONNECT }
+  app_a_bluetooth_scan: { principal: app-a-uid, action: bluetoothScan, resource: BtApiA, effect: allow, role: android.permission.BLUETOOTH_SCAN }
+  app_b_receive_callback: { principal: app-b-uid, action: receiveGattCallback, resource: BtApiB, effect: allow, role: companion_device_allowed }
+  bt_system_hal_access_a: { principal: bluetooth-system-uid-a, action: callHal, resource: BtHalA, effect: allow, role: android.system.bluetooth_hal }
+  bt_system_hal_access_b: { principal: bluetooth-system-uid-b, action: callHal, resource: BtHalB, effect: allow, role: android.system.bluetooth_hal }
+data:
+  gatt_request: { label: GATT Request, classification: confidential, storage: transient, processedBy: [AppA, BtApiA, BtServiceA], flows: [AppA->BtApiA, BtApiA->BtServiceA], retention: request }
+  hci_command: { label: HCI Command, classification: internal, storage: transient, processedBy: [BtServiceA, BtHalA, KernelA, ControllerA], flows: [BtServiceA->BtHalA, BtHalA->KernelA, KernelA->ControllerA], retention: request }
+  ble_packet: { label: BLE Packet, classification: confidential, storage: transient, processedBy: [ControllerA, BLELink, ControllerB], flows: [ControllerA->BLELink, BLELink->ControllerB], retention: radio_transmission }
+  hci_event: { label: HCI Event, classification: internal, storage: transient, processedBy: [ControllerB, KernelB, BtHalB], flows: [ControllerB->KernelB, KernelB->BtHalB], retention: request }
+  gatt_callback: { label: GATT Callback, classification: confidential, storage: transient, processedBy: [BtHalB, BtServiceB, BtApiB, AppB], flows: [BtHalB->BtServiceB, BtServiceB->BtApiB, BtApiB->AppB], retention: request }
+  pairing_request: { label: Pairing Request, classification: secret, storage: transient, processedBy: [AppA, Pairing], flows: [AppA->Pairing], retention: request }
+  bond_key: { label: Bond Key, classification: secret, storedIn: [KeystoreA, KeystoreB], processedBy: [Pairing], flows: [Pairing->KeystoreA, Pairing->KeystoreB], retention: until_unpaired }
+zones:
+  device_a_app: { label: Device A App Layer, kind: namespace, provider: android, trustLevel: private, contains: [AppA], owner: app-a-team }
+  device_a_framework: { label: Device A Framework, kind: provider, provider: android, trustLevel: restricted, contains: [BtApiA, BtServiceA], owner: android-platform }
+  device_a_vendor: { label: Device A Vendor HAL, kind: provider, provider: android_vendor, trustLevel: restricted, contains: [BtHalA], owner: vendor-team }
+  device_a_kernel: { label: Device A Kernel, kind: provider, provider: linux, trustLevel: restricted, contains: [KernelA], owner: kernel-team }
+  device_a_hardware: { label: Device A Hardware, kind: onprem, provider: device, trustLevel: restricted, contains: [ControllerA], owner: device-vendor }
+  wireless: { label: Wireless Link, kind: network, provider: bluetooth, trustLevel: external, contains: [BLELink], owner: radio_environment }
+  device_b_hardware: { label: Device B Hardware, kind: onprem, provider: device, trustLevel: restricted, contains: [ControllerB], owner: device-vendor }
+  device_b_kernel: { label: Device B Kernel, kind: provider, provider: linux, trustLevel: restricted, contains: [KernelB], owner: kernel-team }
+  device_b_vendor: { label: Device B Vendor HAL, kind: provider, provider: android_vendor, trustLevel: restricted, contains: [BtHalB], owner: vendor-team }
+  device_b_framework: { label: Device B Framework, kind: provider, provider: android, trustLevel: restricted, contains: [BtServiceB, BtApiB], owner: android-platform }
+  device_b_app: { label: Device B App Layer, kind: namespace, provider: android, trustLevel: private, contains: [AppB], owner: app-b-team }
+  pairing: { label: Pairing / Trust Establishment, kind: identity, provider: bluetooth, trustLevel: restricted, contains: [Pairing], owner: android-platform }
+  device_a_secure_storage: { label: Device A Secure Storage, kind: namespace, provider: android, trustLevel: restricted, contains: [KeystoreA], owner: android-platform }
+  device_b_secure_storage: { label: Device B Secure Storage, kind: namespace, provider: android, trustLevel: restricted, contains: [KeystoreB], owner: android-platform }
+boundaries:
+  app_framework_boundary_a: { label: Device A App ↔ Framework Boundary, kind: policy_boundary, contains: [zone: device_a_app, zone: device_a_framework] }
+  binder_boundary_a: { label: Device A Binder Boundary, kind: policy_boundary, contains: [node: BtApiA, node: BtServiceA] }
+  framework_hal_boundary_a: { label: Device A Framework ↔ HAL Boundary, kind: policy_boundary, contains: [zone: device_a_framework, zone: device_a_vendor] }
+  hal_kernel_boundary_a: { label: Device A HAL ↔ Kernel Boundary, kind: policy_boundary, contains: [zone: device_a_vendor, zone: device_a_kernel] }
+  kernel_hardware_boundary_a: { label: Device A Kernel ↔ Hardware Boundary, kind: network_boundary, contains: [zone: device_a_kernel, zone: device_a_hardware] }
+  radio_boundary: { label: Bluetooth Radio Boundary, kind: network_boundary, contains: [zone: device_a_hardware, zone: wireless, zone: device_b_hardware] }
+  kernel_hardware_boundary_b: { label: Device B Kernel ↔ Hardware Boundary, kind: network_boundary, contains: [zone: device_b_kernel, zone: device_b_hardware] }
+  hal_kernel_boundary_b: { label: Device B HAL ↔ Kernel Boundary, kind: policy_boundary, contains: [zone: device_b_vendor, zone: device_b_kernel] }
+  framework_hal_boundary_b: { label: Device B Framework ↔ HAL Boundary, kind: policy_boundary, contains: [zone: device_b_framework, zone: device_b_vendor] }
+  binder_boundary_b: { label: Device B Binder Boundary, kind: policy_boundary, contains: [node: BtServiceB, node: BtApiB] }
+  app_framework_boundary_b: { label: Device B App ↔ Framework Boundary, kind: policy_boundary, contains: [zone: device_b_app, zone: device_b_framework] }
+  pairing_boundary: { label: Pairing Trust Boundary, kind: trust_boundary, contains: [zone: pairing, zone: device_a_app, zone: wireless] }
+  secure_storage_boundary_a: { label: Device A Secure Storage Boundary, kind: trust_boundary, contains: [zone: device_a_secure_storage, node: KeystoreA] }
+  secure_storage_boundary_b: { label: Device B Secure Storage Boundary, kind: trust_boundary, contains: [zone: device_b_secure_storage, node: KeystoreB] }
+view:
+  default:
+    base: 3d
+    overlays: [boundary, permission, dataflow, validation]
+layout:
+  mode: auto
+  direction: LR
+notes:
+  spatialIntent: This sample is intended for zone/layer/isometric or 3D rendering. The wireless link is a first-class zone connecting two device stacks.
+  vocabulary: Android platform fields such as androidLayer are extension metadata. Kind is kept mostly within current generic vocabulary to reduce validator noise.

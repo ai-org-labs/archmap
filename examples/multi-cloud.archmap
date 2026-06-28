@@ -1,0 +1,201 @@
+graph LR
+  User[User] --> Web[Web App]
+  User --> Android[Android App]
+  User --> IOS[iOS App]
+  Web -->|HTTPS + JWT| APIGW[API Gateway]
+  Android -->|HTTPS + JWT| APIGW
+  IOS -->|HTTPS + JWT| APIGW
+  FirebaseAuth[Firebase Auth] -->|issues JWT| Web
+  FirebaseAuth -->|issues JWT| Android
+  FirebaseAuth -->|issues JWT| IOS
+  APIGW -->|HTTPS| GCPApp[Cloud Run]
+  GCPApp -->|SQL| CloudSQL[(Cloud SQL)]
+  GCPApp -->|HTTPS / VPN| AWSApp[AWS Service]
+  AWSApp -->|SQL| RDS[(RDS)]
+  GCPApp -->|VPN| OnPremAPI[On-prem API]
+  OnPremAPI --> OnPremDB[(Legacy DB)]
+---
+nodes:
+  User:
+    zone: client
+    layer: client
+    kind: user
+  Web:
+    zone: client
+    layer: client
+    kind: web_app
+  Android:
+    zone: client
+    layer: client
+    kind: android_app
+  IOS:
+    zone: client
+    layer: client
+    kind: ios_app
+  FirebaseAuth:
+    zone: identity
+    layer: identity
+    kind: identity_provider
+    provider: firebase
+  APIGW:
+    zone: gcp
+    layer: edge
+    kind: api_gateway
+    provider: gcp
+  GCPApp:
+    zone: gcp
+    layer: runtime
+    kind: serverless_service
+    provider: gcp
+    principal: gcp-app-sa
+  CloudSQL:
+    zone: gcp
+    layer: data
+    kind: relational_database
+    provider: gcp
+  AWSApp:
+    zone: aws
+    layer: runtime
+    kind: runtime_service
+    provider: aws
+  RDS:
+    zone: aws
+    layer: data
+    kind: relational_database
+    provider: aws
+  OnPremAPI:
+    zone: onprem
+    layer: runtime
+    kind: legacy_api
+  OnPremDB:
+    zone: onprem
+    layer: data
+    kind: legacy_database
+edges:
+  web_api:
+    from: Web
+    to: APIGW
+    label: HTTPS + JWT
+    flow: request
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+    boundaryCrossing: true
+  android_api:
+    from: Android
+    to: APIGW
+    label: HTTPS + JWT
+    flow: request
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+    boundaryCrossing: true
+  ios_api:
+    from: IOS
+    to: APIGW
+    label: HTTPS + JWT
+    flow: request
+    protocol: HTTPS
+    auth:
+      token: JWT
+      issuer: FirebaseAuth
+      validatedBy: APIGW
+    boundaryCrossing: true
+  gcp_db:
+    from: GCPApp
+    to: CloudSQL
+    label: SQL
+    flow: data_access
+    protocol: SQL
+    principal: gcp-app-sa
+  gcp_aws:
+    from: GCPApp
+    to: AWSApp
+    label: HTTPS / VPN
+    flow: service_call
+    protocol: HTTPS
+    networkPath:
+      - VPN
+    boundaryCrossing: true
+  gcp_onprem:
+    from: GCPApp
+    to: OnPremAPI
+    label: VPN
+    flow: legacy_integration
+    protocol: HTTPS
+    networkPath:
+      - VPN
+      - Firewall
+      - Private Network
+    boundaryCrossing: true
+identities:
+  gcp-app-sa:
+    kind: service_account
+    provider: gcp
+    attachedTo: GCPApp
+permissions:
+  cloudsql_access:
+    principal: gcp-app-sa
+    action: connect
+    resource: CloudSQL
+    effect: allow
+    role: roles/cloudsql.client
+data:
+  customer_profile:
+    label: Customer Profile
+    classification: personal
+    storedIn:
+      - CloudSQL
+      - RDS
+      - OnPremDB
+    flows:
+      - web_api
+      - android_api
+      - ios_api
+      - gcp_db
+zones:
+  client:
+    label: Client
+    kind: client
+    contains:
+      - User
+      - Web
+      - Android
+      - IOS
+  gcp:
+    label: GCP
+    kind: cloud
+    provider: gcp
+    contains:
+      - APIGW
+      - GCPApp
+      - CloudSQL
+  aws:
+    label: AWS
+    kind: cloud
+    provider: aws
+    contains:
+      - AWSApp
+      - RDS
+  onprem:
+    label: On-prem
+    kind: onprem
+    contains:
+      - OnPremAPI
+      - OnPremDB
+boundaries:
+  public_to_gcp:
+    label: Public to GCP Trust Boundary
+    kind: trust_boundary
+    contains:
+      - APIGW
+  gcp_private:
+    label: GCP Private Boundary
+    kind: network_boundary
+    contains:
+      - GCPApp
+      - CloudSQL

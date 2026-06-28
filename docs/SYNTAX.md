@@ -1,0 +1,487 @@
+# ArchMap Syntax Reference (implemented)
+
+This documents **what the current implementation actually parses, models, and
+renders** — not the full v0.1 aspiration. For the language design see
+[SPEC.md](../SPEC.md); for project status see [README.md](../README.md).
+
+A document is a **graph section** followed by an optional **YAML metadata
+section**, separated by a line containing only `---`:
+
+````markdown
+```archmap
+graph LR
+  Web[Web App] -->|HTTPS + JWT| API[API Gateway]
+  API --> DB[(Cloud SQL)]
+---
+nodes:
+  Web: { zone: client, layer: client, kind: web_app }
+  API: { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
+  DB:  { zone: gcp, layer: data, kind: relational_database, provider: gcp }
+```
+````
+
+---
+
+## Quick start
+
+Use the graph section for the visible topology, then add YAML only when you
+need semantic views, overlays, validation, routing metadata, or icon matching.
+
+```archmap
+graph LR
+  User[User] -->|HTTPS + JWT| API[API Gateway]
+  API -->|SQL| DB[(Cloud SQL)]
+---
+nodes:
+  User: { zone: client, kind: user }
+  API:  { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
+  DB:   { zone: gcp, layer: data, kind: relational_database, provider: gcp }
+edges:
+  User->API:
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: API }
+  API->DB:
+    flow: data_access
+    protocol: SQL
+zones:
+  client: { label: Client, kind: org_boundary, contains: [User] }
+  gcp: { label: GCP, kind: cloud, provider: gcp, contains: [API, DB] }
+```
+
+Authoring rule of thumb:
+
+- Start with `overview` and no Add info overlays; it should be a plain
+  component diagram.
+- Add `zone`, `boundary`, `auth`, `dataflow`, `permission`, and `validation`
+  overlays only when you want those extra facts visible.
+- Use `layer` only for Stack view. It is a stack partition, not a zone.
+- Use `subgraph` for authoring hierarchy and abstraction. It does not imply a
+  physical or logical area unless you also define a zone or boundary.
+- Prefer explicit edge ids when multiple edges connect the same pair.
+
+---
+
+## Concepts
+
+| Concept | Defined by | Purpose | Render behavior |
+| --- | --- | --- | --- |
+| Component / node | Graph node plus `nodes.*` metadata | A thing in the architecture | Always rendered unless collapsed into an abstraction component |
+| Connector / edge | Graph arrow plus `edges.*` metadata | A relationship or flow between components | Rendered as component-safe orthogonal routes |
+| Subgraph | `subgraph ... end` in graph section | Authoring hierarchy and optional abstraction | Add info `subgraph` shows a translucent grouping; collapsed subgraphs become one component |
+| Zone | `zones.*` metadata | Physical or ownership area, such as client, GCP, AWS, on-prem | Add info `zone` shows nested areas; collapsed zones become one component |
+| Boundary | `boundaries.*` metadata | Logical/trust/policy boundary | Add info `boundary` shows nested boundary areas and crossing context |
+| Layer | `nodes.*.layer` | Stack view partition, such as application/framework/kernel | Used only by Stack view; it does not affect zone or boundary meaning |
+| Add info overlay | `render(..., { overlays })` or viewer checkboxes | Adds semantic information to the base diagram | Additive; it should not replace the base component diagram |
+
+`subgraph`, `zone`, and `boundary` are all user-authored. Overlay names,
+render modes, diagnostic levels, and the standard validation vocabularies are
+fixed by ArchMap, while `label`, `description`, `tags`, ids, zones,
+boundaries, permissions, identities, data objects, and custom icon registrations
+are user-controlled.
+
+---
+
+## 1. Graph section
+
+| Feature | Syntax | Notes |
+| --- | --- | --- |
+| Direction | `graph LR` / `graph TD` | `flowchart` and `TB` (→TD) also accepted. Missing → defaults to `LR` (warning). |
+| Rectangle node | `A[Label]` | |
+| Database node | `A[(Label)]` | cylinder |
+| Circle node | `A((Label))` | ellipse |
+| Diamond node | `A{Label}` | |
+| Bare reference | `A` | reuses a node defined elsewhere |
+| Plain edge | `A --> B` | |
+| Labeled edge | `A -->\|Label\| B` | |
+| Subgraph | `subgraph Name … end` | authoring hierarchy; can be shown by the `subgraph` overlay or collapsed as an abstraction |
+| Comment | `%% …` | stripped |
+
+**Node IDs**: start with an ASCII letter; then letters, digits, `_`, `-`.
+A node is *defined* by a token carrying a shape (`A[…]`); repeating a definition
+is a `duplicate_node` error. One arrow per line.
+
+Edges in the graph are reconciled with metadata edges by their `(from, to)`
+pair: a matching metadata edge adopts the graph label and its explicit id;
+unmatched graph edges get a generated id `from_to`.
+
+---
+
+## 2. Metadata section (YAML)
+
+Top-level keys parsed today: `title`, `description`, `nodes`, `edges`, `zones`,
+`boundaries`, `identities`, `permissions`, `data`, `layout`, `view`.
+
+### 2.1 `nodes`
+```yaml
+nodes:
+  App:
+    label: Cloud Run      # overrides graph label
+    zone: gcp
+    layer: runtime
+    kind: serverless_service
+    provider: gcp
+    principal: app-sa
+    contains: [Child1]    # parsed/modelled; prefer zones/subgraphs for visual grouping
+    tags: [public, prod]
+    description: "…"
+```
+
+### 2.2 `edges`
+Two forms (spec 01 §7 / 02 §6):
+
+- **Pair-key** `Source->Target:` — selects the matching graph edge and enriches
+  it (keeps a generated id `from__to__index`; not a stable id). Ambiguous if it
+  matches multiple graph edges (`edge_pair_ambiguous`).
+- **Explicit-id** — the key is a stable id; `from`/`to` required. Use for
+  multiple edges between the same pair or stable `data.flows` references.
+
+```yaml
+edges:
+  Web->API: { flow: request, protocol: HTTPS }   # pair-key form
+  web_api_admin: { from: Web, to: API, flow: admin_operation }   # explicit-id
+```
+```yaml
+edges:
+  web_api:
+    from: Web
+    to: API
+    label: HTTPS + JWT
+    flow: request
+    protocol: HTTPS
+    auth: { method: bearer, token: JWT, issuer: FirebaseAuth, audience: api,
+            validatedBy: API, scopes: [read], claims: {…} }
+    principal: app-sa
+    data: …               # free-form, stored as-is
+    networkPath: [VPN, Firewall]
+    boundaryCrossing: true # boolean or list
+    direction: request_response
+    tags: […]
+    description: "…"
+```
+
+### 2.3 `zones`
+```yaml
+zones:
+  gcp:
+    label: GCP
+    kind: cloud
+    provider: gcp
+    contains: [API, App, DB]   # node ids or child zone ids
+    parent: cloud              # optional alternative/companion to parent contains
+    trustLevel: private
+    description: "…"
+```
+
+### 2.4 `boundaries`
+```yaml
+boundaries:
+  gcp_private:
+    label: GCP Private
+    kind: network_boundary
+    contains: [App, DB]        # node ids, zone ids, or child boundary ids
+    zone: gcp
+    description: "…"
+```
+
+### 2.5 `identities`
+```yaml
+identities:
+  app-sa: { kind: service_account, provider: gcp, attachedTo: App }
+```
+`attachedTo` may be a string or list.
+
+### 2.6 `permissions`
+```yaml
+permissions:
+  cloudsql:
+    principal: app-sa   # required
+    action: connect     # required
+    resource: DB        # required
+    effect: allow
+    role: roles/cloudsql.client
+    condition: …
+    description: "…"
+```
+
+### 2.7 `data`
+```yaml
+data:
+  customer_profile:
+    label: Customer Profile
+    classification: personal   # shown as a node badge in the Data Flow view
+    storedIn: [DB, RDS]
+    processedBy: [App]
+    flows: [web_api, app_db]
+    retention: 30d
+    description: "…"
+```
+
+### 2.8 `layout` and `view` (parsed, partially applied)
+```yaml
+layout:
+  mode: auto
+  direction: LR       # LR or TD; manual node positions are parsed but ignored
+view:
+  default:
+    base: overview    # overview or layer (shown as Stack in the UI)
+    overlays: [zone]  # additive information layers
+  enabled: [...]      # parsed, not applied yet
+  filters: { zones: [...], layers: [...] }  # parsed, not applied yet
+```
+
+---
+
+## 3. Label inference
+
+Filled only when the field isn't set explicitly; each inferred field is listed
+in the edge's `inferred[]` so it's visible.
+
+| Label matches | Inferred |
+| --- | --- |
+| `https` | `protocol: HTTPS` |
+| `http` (word) | `protocol: HTTP` |
+| `sql` (word) | `protocol: SQL` |
+| `jwt` | `auth.token: JWT` |
+| `oauth` | `auth.method: oauth` |
+| `pub/sub` | `flow: event_publish` |
+| `sqs` (word) | `flow: message_send` |
+| `replication` | `flow: replication` |
+| `sync` (word) | `flow: sync` |
+
+Protocol precedence: HTTPS before HTTP.
+
+---
+
+## 4. Validation
+
+Attached to the model as `diagnostics`, with derived `errors`, `warnings`,
+`suggestions`, and `infos` arrays. Each diagnostic has a `level`, `code`,
+`message`, optional legacy `ref`, and spec-shaped `target`.
+
+**Errors:** `invalid_node_id`, `duplicate_node`, `invalid_yaml`,
+`metadata_not_object`, `edge_missing_endpoint`, `edge_unknown_source`,
+`edge_unknown_target`, `zone_parent_conflict`, `zone_cycle`,
+`boundary_cycle`.
+
+**Warnings:** `unparsed_line`, `metadata_node_not_in_graph`,
+`unknown_node_kind`, `unknown_layer`, `unknown_flow`,
+`unknown_zone_kind`, `unknown_boundary_kind`, `unknown_identity_kind`,
+`unknown_classification`, `edge_pair_ambiguous`, `edge_unknown_data`,
+`data_flow_mismatch`, `data_flow_ambiguous`, `auth_flow_without_token`,
+`auth_token_without_issuer`,
+`auth_token_without_validator`, `auth_unknown_issuer`,
+`auth_unknown_validator`, `auth_unknown_recipient`,
+`zone_crossing_without_boundary`,
+`zone_crossing_marked_false`, `data_access_without_principal`,
+`permission_incomplete`, `permission_unknown_principal`,
+`permission_unknown_resource`, `data_unknown_flow`, `data_unknown_node`,
+`zone_unknown_node`, `zone_unknown_child_zone`, `zone_parent_unknown`,
+`boundary_unknown_node`, `boundary_unknown_zone`,
+`boundary_unknown_boundary`, `boundary_unknown_related_zone`,
+`unknown_base_view`, `unknown_overlay`, `view_3d_unavailable`.
+
+**Suggestions:** `node_without_metadata`, `node_zone_unknown`,
+`data_without_classification`, `dataflow_missing_storage`,
+`telemetry_without_data_classification`, `placement_ref_unknown`,
+`auth_token_without_recipient`.
+
+**Infos:** `missing_direction`, `inferred_protocol`, `inferred_auth_token`,
+`inferred_flow`, `inferred_zone`.
+
+`kind` / `layer` / `flow` are validated against the standard vocabularies in
+`src/types.ts` (`STANDARD_KINDS`, `STANDARD_LAYERS`, `STANDARD_FLOWS`); unknown
+values are allowed but warned.
+
+---
+
+## 5. Views
+
+Set with `render(model, { view })` or the `view.default` key. All are SVG except
+`3d`.
+
+Stage 4 also accepts `render(model, { baseView, overlays })`. `baseView`
+selects the base renderer while `overlays` applies semantic projections from
+the same parsed model without reparsing. Known overlays are recorded on the SVG
+root (`data-overlays`, `archmap-overlay-*`) and can emphasize relevant
+nodes/edges, synthesize permission overlay edges, add compact badges, or draw
+zone/boundary boxes. Unknown overlays emit `unknown_overlay` warnings and do not
+block rendering.
+
+`subgraph` and `zone` can both act as optional abstraction hierarchies. When
+`render(model, { abstractionLevel, abstractionTarget })` or the viewer
+Abstraction slider is set above `0`, groups at the selected depth become
+abstraction components: contained nodes are hidden, external edges are rewired
+from the group component, duplicate external edges collapse to one edge, and Add
+info overlays use the same projected model. Level `1` collapses top-level
+subgraphs/zones; level `2` collapses their child groups, and so on. The default
+target is `subgraph`; use `abstractionTarget: "zone"` to collapse zones.
+Collapsed abstraction components render with a heavier outline, and in an
+interactive target they can be clicked to expand just that component/zone while
+leaving sibling abstractions collapsed.
+
+In the interactive viewer, zone and subgraph abstraction can also be managed by
+clicking visible areas/components. The abstraction lock control disables those
+open/close clicks when a read-only view is desired.
+
+| View | Shows |
+| --- | --- |
+| `overview` | structural nodes/edges only until Add info overlays are enabled |
+| `layer` / UI `Stack` | fixed stack bands from `nodes.*.layer`; zone and boundary do not change the stack partition |
+| `zone` overlay | physical component areas from explicit `zones` metadata |
+| `boundary` overlay | logical component areas from explicit `boundaries` metadata, plus boundary/zone-crossing edges; rest faded |
+| `auth` | auth-related components/connectors and token/auth labels |
+| `dataflow` | data-related components/connectors and data/classification labels |
+| `permission` | permission-related components/connectors and role/action labels or summaries |
+| `validation` | components/connectors referenced by diagnostics, with error/warning labels |
+| `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
+
+**Layout behavior:** overview and stack views use automatic placement plus
+component-safe orthogonal routing. Endpoints are distributed across component
+sides, parallel lanes are offset, component intersections are repaired when
+possible, and rendered SVG validation checks endpoint overlap, port spacing,
+long segment overlap, component intersections, and perpendicular incidence.
+
+**2D rendering order:** when multiple area overlays are enabled, areas are
+drawn from back to front as zone → boundary → subgraph so more specific
+grouping remains visible. Nested zones/boundaries are allowed.
+
+---
+
+## 6. JavaScript API
+
+```js
+import {
+  parse, render, computeLayout,
+  registerView, getView, listViews, initialize, defineArchMapViewerElement,
+  registerIcon, getIcon, listIcons, clearIcons, resolveIcon, resolveNodeIcons,
+  extractArchMapBlocks, version,
+} from "@archmap/core";
+
+const model = parse(source);                 // Text -> Model (+ errors/warnings)
+const { svg } = render(model, { view: "overview", target: el });
+const overlaid = render(model, { baseView: "overview", overlays: ["auth", "dataflow"] });
+const abstracted = render(model, { baseView: "overview", abstractionLevel: 1 });
+const zoneAbstracted = render(model, { baseView: "overview", abstractionTarget: "zone", abstractionLevel: 1 });
+const partlyExpanded = render(model, { baseView: "overview", abstractionLevel: 1, expandedAbstractions: ["subgraph:Runtime"] });
+overlaid.setOverlays(["permission", "validation"]);
+overlaid.toggleOverlay("boundary");
+abstracted.setAbstractionLevel(0);
+await overlaid.downloadPng("archmap.png");
+```
+
+- **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
+- **Render results** can update base view/overlays/abstraction without reparsing:
+  `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`,
+  `setAbstractionLevel(level)`, `setAbstractionTarget("subgraph" | "zone")`,
+  `exportPng({ scale, background })`, `downloadPng(filename)`, `destroy()`.
+- **Custom element (inline source):** `initialize()` defines
+  `<archmap-viewer>` by default when `customElements` is available; call
+  `defineArchMapViewerElement()` directly if you do not use `initialize()`.
+  Supported first-pass attributes: `base-view`, `overlays`,
+  `abstraction-level`, `abstraction-target`, `width`, `height`, `src`,
+  `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`, and
+  `controls`.
+- **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows
+  tag-style controls (View radio buttons, Render mode radio buttons, Add info
+  checkboxes, fit/reset, PNG export, full screen, abstraction lock, diagnostics
+  indicator).
+  2D views support wheel zoom and drag pan; `render(model,{target})` attaches
+  this automatically (`interactive: false` to disable), and
+  `RenderResult.fit()/reset()` control the view.
+  External `src` takes priority; failed loads emit `src_fetch_failed` and show
+  diagnostics. Inline fallback is used only when `fallback-to-inline` is present.
+- **Console diagnostics** (spec 02 §23): the viewer logs warnings+errors to the
+  console by default (`console="false"` to silence). The programmatic
+  `render(model, { console })` is opt-in; `reportDiagnosticsToConsole(model,
+  opts)` exposes it directly (configurable `levels` and `logger`).
+- **Icons** are opt-in (core ships none). `registerIcon("aws", { viewBox, body })`;
+  resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
+  [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified
+  drop-in (`installAwsIcons(registerIcon)`, etc.; AWS/GCP/Azure `provider/kind`
+  icons + famous services). The bundled `@archmap/core/packs/cloud-icons` is a tiny sample.
+- **3D / icon packs** live outside the core bundle:
+  `import { installThreeView } from "@archmap/core/views3d/three-view"` (needs `three`),
+  `import { installCloudIcons } from "@archmap/core/packs/cloud-icons"`.
+- **`initialize({ selector })`** scans the page and renders matching elements in
+  place (also reads ```archmap``` fences via `extractArchMapBlocks`).
+
+### 6.1 Browser viewer
+
+`<archmap-viewer>` is the easiest browser embedding surface:
+
+```html
+<archmap-viewer
+  base-view="overview"
+  render-mode="2d"
+  overlays="zone,auth,validation"
+  controls
+  diagnostics
+  style="display:block;min-height:640px"
+>
+graph LR
+  Web[Web App] -->|HTTPS + JWT| API[API Gateway]
+---
+nodes:
+  Web: { zone: client, kind: web_app }
+  API: { zone: gcp, kind: api_gateway, provider: gcp }
+</archmap-viewer>
+<script type="module">
+  import { initialize } from "@archmap/core";
+  initialize();
+</script>
+```
+
+For external source files, use `src="diagram.archmap"`. Inline text is used as
+fallback only when `fallback-to-inline` is present.
+
+### 6.2 PNG export
+
+All render results expose PNG export:
+
+```ts
+const result = render(model, { baseView: "overview", target: el });
+const png = await result.exportPng({ scale: 2, background: "#ffffff" });
+await result.downloadPng("architecture.png");
+```
+
+2D export converts the rendered SVG into a PNG canvas. 3D export captures the
+current WebGL canvas view, including the current camera angle.
+
+### 6.3 CDN / GitHub Pages viewer
+
+For a static viewer page, use an import map. After npm publication, replace
+`0.1.0` with the published version you want to pin:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js",
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
+    "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
+    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
+  }
+}
+</script>
+<script type="module">
+  import { initialize, registerIcon } from "@archmap/core";
+  import { installCloudProviderIcons } from "@archmap/icons";
+  import { installThreeView } from "@archmap/core/views3d/three-view";
+
+  installCloudProviderIcons(registerIcon);
+  installThreeView();
+  initialize();
+</script>
+```
+
+---
+
+## 7. Not yet supported / intentionally constrained
+
+Parsed/modeled but **not rendered**: node `contains` nesting, manual `layout`
+positions, `view.enabled` / `view.filters`.
+
+Security constraints: user-authored Markdown/HTML labels are not supported; URL
+fields are not rendered as clickable links. If either is added later, it needs a
+documented sanitizer/protocol allowlist first.

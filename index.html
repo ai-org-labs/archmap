@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ArchMap dev playground</title>
+  <style>
+    :root {
+      --archmap-bg: #ffffff;
+      --archmap-node-fill: #f7f9fc;
+      --archmap-node-stroke: #34507a;
+      --archmap-edge-stroke: #6678a0;
+      --archmap-zone-fill: rgba(80,120,200,0.06);
+      --archmap-zone-stroke: #9bb0d4;
+    }
+    body { margin: 0; font: 14px system-ui, sans-serif; color: #1c2733; background: #eef1f6; }
+    header { padding: 12px 16px; background: #1c2733; color: #fff; }
+    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    header span { opacity: 0.6; font-weight: 400; }
+    main { --editor-width: 360px; display: grid; grid-template-columns: var(--editor-width) 8px minmax(0, 1fr); gap: 0; height: calc(100vh - 49px); }
+    .panel { display: flex; flex-direction: column; min-width: 260px; border-right: 1px solid #d4dae6; background: #fff; }
+    .panel-top { padding: 8px 10px; border-bottom: 1px solid #d4dae6; display: flex; align-items: center; gap: 8px; }
+    .editor { flex: 1; min-height: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr); overflow: hidden; background: #fff; }
+    .line-numbers { overflow: hidden; padding: 12px 8px 12px 0; border-right: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; font: 12px/1.5 ui-monospace, monospace; text-align: right; user-select: none; white-space: pre; }
+    textarea { min-width: 0; height: 100%; border: 0; padding: 12px; font: 12px/1.5 ui-monospace, monospace; resize: none; outline: none; overflow: auto; white-space: pre; }
+    .resize-handle { cursor: col-resize; background: linear-gradient(90deg, #d7dde8, #eef1f6); border-right: 1px solid #d4dae6; }
+    .resize-handle:hover, .resize-handle.is-dragging { background: #b9c7dc; }
+    button { padding: 6px 14px; border: 0; border-radius: 6px; background: #34507a; color: #fff; cursor: pointer; }
+    .diagram { position: relative; overflow: auto; padding: 16px; height: calc(100vh - 49px); box-sizing: border-box; }
+    .diagram.is-fullscreen { position: fixed; inset: 0; z-index: 20; height: 100vh; background: #eef1f6; }
+    .diagram.is-fullscreen .diagram-tags { width: min(980px, calc(100% - 24px)); }
+    #diagram { min-height: calc(100vh - 96px); }
+    .diagram.is-fullscreen #diagram { min-height: calc(100vh - 32px); }
+    #diagram canvas { display: block; width: 100%; min-height: calc(100vh - 96px); }
+    .diagram.is-fullscreen #diagram canvas { min-height: calc(100vh - 32px); }
+    .diagram svg { background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: 100%; height: auto; }
+    .diagram-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; gap: 10px; background: rgba(248,250,252,0.62); backdrop-filter: blur(1px); color: #334155; font: 700 13px system-ui, sans-serif; pointer-events: none; }
+    .diagram-loading-spinner { width: 22px; height: 22px; border-radius: 999px; border: 3px solid rgba(100,116,139,0.25); border-top-color: #2563eb; animation: archmap-spin 0.75s linear infinite; }
+    @keyframes archmap-spin { to { transform: rotate(360deg); } }
+    .diagram-tags { position: sticky; top: 12px; left: 12px; z-index: 5; width: min(740px, calc(100% - 24px)); margin-bottom: -42px; display: flex; align-items: flex-start; gap: 8px; pointer-events: none; }
+    .tag-panel { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid rgba(148,163,184,0.45); border-radius: 8px; background: rgba(255,255,255,0.92); box-shadow: 0 10px 28px rgba(28,39,51,0.12); backdrop-filter: blur(8px); }
+    .tag-panel.is-minimized .tag-group, .tag-panel.is-minimized .tag-action-min { display: none; }
+    .tag-panel.is-expanded { width: min(960px, calc(100vw - 420px)); }
+    .tag-group { display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 0; margin: 0 4px 0 0; }
+    .tag-label { font-size: 11px; font-weight: 700; color: #64748b; margin-right: 2px; }
+    .tag { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 3px 8px; border: 1px solid #cbd5e1; border-radius: 999px; background: #f8fafc; color: #334155; font: 600 12px system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
+    .tag input { margin: 0; accent-color: #34507a; }
+    .tag:has(input:checked) { background: #e6edf7; border-color: #7892bd; color: #213a63; }
+    .tag-action { min-width: 28px; min-height: 26px; padding: 3px 8px; border-radius: 999px; background: #eef2f7; color: #334155; border: 1px solid #cbd5e1; }
+    .tag-action.is-active { background: #e6edf7; border-color: #7892bd; color: #213a63; }
+    .tag-action svg { width: 15px; height: 15px; display: block; stroke: currentColor; }
+    .diag-log { max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; font: 11px ui-monospace, monospace; }
+    .err { color: #b3261e; }
+    .warn { color: #a06a00; }
+  </style>
+</head>
+<body>
+  <header><h1>ArchMap <span>dev playground · base view + overlays</span></h1></header>
+  <main>
+    <div class="panel">
+      <div class="panel-top">
+        <button id="run">Render</button>
+      </div>
+      <div class="editor">
+        <pre class="line-numbers" id="line-numbers" aria-hidden="true">1</pre>
+        <textarea id="src" spellcheck="false"></textarea>
+      </div>
+      <div class="diag-log" id="log"></div>
+    </div>
+    <div class="resize-handle" id="resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize editor"></div>
+    <div class="diagram">
+      <div class="diagram-tags" id="diagram-tags">
+        <div class="tag-panel" id="tag-panel">
+          <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags" aria-label="Expand tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
+          <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags" aria-label="Minimize tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg></button>
+          <button class="tag-action" id="abstraction-lock-toggle" type="button" title="Lock component expansion" aria-label="Lock component expansion"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg></button>
+          <button class="tag-action" id="export-png" type="button" title="Export PNG" aria-label="Export PNG"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
+          <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen">Full</button>
+          <fieldset class="tag-group" id="base-view">
+            <span class="tag-label">Views</span>
+            <label class="tag"><input type="radio" name="base-view" value="overview" checked>Overview</label>
+            <label class="tag"><input type="radio" name="base-view" value="layer">Stack</label>
+          </fieldset>
+          <fieldset class="tag-group" id="render-mode">
+            <span class="tag-label">Render modes</span>
+            <label class="tag"><input type="radio" name="render-mode" value="2d" checked>2D</label>
+            <label class="tag"><input type="radio" name="render-mode" value="3d">3D</label>
+          </fieldset>
+          <fieldset class="tag-group" id="overlays">
+            <span class="tag-label">Add info</span>
+          </fieldset>
+        </div>
+      </div>
+      <div class="diagram-loading" id="loading"><span class="diagram-loading-spinner" aria-hidden="true"></span><span>Rendering</span></div>
+      <div id="diagram"></div>
+    </div>
+  </main>
+
+  <script type="text/plain" id="seed">
+graph LR
+  User[User] --> Web[Web App]
+  User --> Android[Android App]
+  Web -->|HTTPS + JWT| APIGW[API Gateway]
+  Android -->|HTTPS + JWT| APIGW
+  FirebaseAuth[Firebase Auth] -->|issues JWT| Web
+  APIGW -->|validate JWT| FirebaseAuth
+  APIGW -->|HTTPS| GCPApp[Cloud Run]
+  GCPApp -->|SQL| CloudSQL[(Cloud SQL)]
+  GCPApp -->|HTTPS / VPN| AWSApp[AWS Service]
+  AWSApp -->|SQL| RDS[(RDS)]
+  GCPApp -->|metrics| Datadog[Datadog]
+  GCPApp -->|logs| Datadog
+  Wiz[Wiz] -->|scans| GCPApp
+  Admin[Admin User] --> AdminConsole[Admin Console]
+  AdminConsole -->|admin HTTPS| APIGW
+---
+nodes:
+  User: { zone: client, layer: client, kind: user }
+  Admin: { zone: client, layer: client, kind: user, principal: admin-user }
+  Web: { zone: client, layer: client, kind: web_app }
+  Android: { zone: client, layer: client, kind: android_app }
+  AdminConsole: { zone: client, layer: client, kind: web_app, principal: admin-user }
+  FirebaseAuth: { zone: identity, layer: identity, kind: identity_provider, provider: firebase }
+  APIGW: { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
+  GCPApp: { zone: gcp, layer: runtime, kind: serverless_service, provider: gcp, principal: gcp-app-sa }
+  CloudSQL: { zone: gcp, layer: data, kind: relational_database, provider: gcp }
+  AWSApp: { zone: aws, layer: runtime, kind: runtime_service, provider: aws }
+  RDS: { zone: aws, layer: data, kind: relational_database, provider: aws }
+  Datadog: { zone: saas, layer: operations, kind: monitoring, provider: datadog }
+  Wiz: { zone: saas, layer: operations, kind: monitoring, provider: wiz }
+edges:
+  web_api:
+    from: Web
+    to: APIGW
+    label: HTTPS + JWT
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
+    boundaryCrossing: true
+  admin_api:
+    from: AdminConsole
+    to: APIGW
+    label: admin HTTPS
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
+    boundaryCrossing: true
+  Android__APIGW__0:
+    from: Android
+    to: APIGW
+    label: HTTPS + JWT
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
+    boundaryCrossing: true
+  FirebaseAuth__Web__0:
+    from: FirebaseAuth
+    to: Web
+    label: issues JWT
+    flow: token_issue
+    auth: { token: JWT, issuer: FirebaseAuth, recipient: Web }
+    boundaryCrossing: true
+  APIGW__FirebaseAuth__0:
+    from: APIGW
+    to: FirebaseAuth
+    label: validate JWT
+    flow: token_validate
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: FirebaseAuth, recipient: APIGW }
+    boundaryCrossing: true
+  gcp_db:
+    from: GCPApp
+    to: CloudSQL
+    label: SQL
+    flow: data_access
+    principal: gcp-app-sa
+  gcp_aws:
+    from: GCPApp
+    to: AWSApp
+    label: HTTPS / VPN
+    flow: replication
+    boundaryCrossing: true
+  metrics_export:
+    from: GCPApp
+    to: Datadog
+    label: metrics
+    flow: telemetry_export
+    data: [service_metrics]
+    boundaryCrossing: true
+  GCPApp__Datadog__1:
+    from: GCPApp
+    to: Datadog
+    label: logs
+    flow: log_export
+    data: [service_metrics]
+    boundaryCrossing: true
+  scan_findings:
+    from: Wiz
+    to: GCPApp
+    label: scans
+    flow: security_scan
+    boundaryCrossing: true
+identities:
+  gcp-app-sa: { kind: service_account, provider: gcp, attachedTo: GCPApp }
+  admin-user: { kind: user, provider: internal, attachedTo: [Admin, AdminConsole] }
+data:
+  customer_profile:
+    label: Customer Profile
+    classification: personal
+    storedIn: [CloudSQL, RDS]
+    flows: [gcp_db, gcp_aws]
+    processedBy: [GCPApp]
+  service_metrics:
+    label: Service Metrics
+    classification: internal
+    flows: [metrics_export, GCPApp__Datadog__1]
+    processedBy: [GCPApp, Datadog]
+permissions:
+  app_db_client: { principal: gcp-app-sa, action: connect, resource: CloudSQL, role: roles/cloudsql.client }
+  app_metrics_writer: { principal: gcp-app-sa, action: write, resource: Datadog, role: metrics.writer }
+  admin_gateway_viewer: { principal: admin-user, action: administer, resource: APIGW, role: roles/apigateway.admin }
+zones:
+  client: { label: Client, contains: [User, Admin, Web, Android, AdminConsole] }
+  identity: { label: Identity, contains: [FirebaseAuth] }
+  gcp: { label: GCP, contains: [APIGW, GCPApp, CloudSQL] }
+  aws: { label: AWS, contains: [AWSApp, RDS] }
+  saas: { label: SaaS, contains: [Datadog, Wiz] }
+boundaries:
+  public_edge: { label: Public→GCP Trust Boundary, kind: trust_boundary, contains: [APIGW] }
+  gcp_private: { label: GCP Private Network, kind: network_boundary, contains: [GCPApp, CloudSQL] }
+  ops_boundary: { label: Operations Boundary, kind: policy_boundary, contains: [Datadog, Wiz] }
+  </script>
+
+  <script type="module">
+    import { parse, render, registerIcon } from "/src/index.ts";
+    import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
+    import { installThreeView } from "/src/views3d/three-view.ts";
+    installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons (opt-in)
+    installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
+    installThreeView(); // opt-in 3D view; core does not bundle three.js
+    const $ = (id) => document.getElementById(id);
+    const overlayNames = ["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"];
+    const selectedRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
+    $("src").value = $("seed").textContent.trim();
+    const updateLineNumbers = () => {
+      const count = Math.max(1, $("src").value.split("\n").length);
+      $("line-numbers").textContent = Array.from({ length: count }, (_, i) => i + 1).join("\n");
+    };
+    $("src").addEventListener("input", updateLineNumbers);
+    $("src").addEventListener("scroll", () => {
+      $("line-numbers").scrollTop = $("src").scrollTop;
+    });
+    updateLineNumbers();
+    const setEditorWidth = (clientX) => {
+      const bounds = document.querySelector("main").getBoundingClientRect();
+      const width = Math.min(Math.max(clientX - bounds.left, 260), Math.min(820, bounds.width * 0.62));
+      document.querySelector("main").style.setProperty("--editor-width", `${Math.round(width)}px`);
+    };
+    $("resize-handle").addEventListener("pointerdown", (event) => {
+      $("resize-handle").classList.add("is-dragging");
+      $("resize-handle").setPointerCapture(event.pointerId);
+    });
+    $("resize-handle").addEventListener("pointermove", (event) => {
+      if (!$("resize-handle").classList.contains("is-dragging")) return;
+      setEditorWidth(event.clientX);
+    });
+    $("resize-handle").addEventListener("pointerup", (event) => {
+      $("resize-handle").classList.remove("is-dragging");
+      $("resize-handle").releasePointerCapture(event.pointerId);
+    });
+    $("resize-handle").addEventListener("pointercancel", () => {
+      $("resize-handle").classList.remove("is-dragging");
+    });
+    for (const overlay of overlayNames) {
+      const label = document.createElement("label");
+      label.className = "tag";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = overlay;
+      input.addEventListener("change", () => updateOverlay(input));
+      label.append(input, document.createTextNode(overlay));
+      $("overlays").appendChild(label);
+    }
+    let result = null;
+    let abstractionLocked = false;
+    const selectedOverlays = () => [...$("overlays").querySelectorAll("input:checked")].map((input) => input.value);
+    const showLoading = () => { $("loading").style.display = "flex"; };
+    const hideLoading = () => { $("loading").style.display = "none"; };
+    const renderWithLoading = (action) => {
+      showLoading();
+      requestAnimationFrame(() => {
+        try {
+          action();
+        } finally {
+          requestAnimationFrame(hideLoading);
+        }
+      });
+    };
+    const updateLog = (model) => {
+      const log = [
+        ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),
+        ...model.warnings.map((d) => `<div class="warn">▲ ${d.code}: ${d.message}</div>`),
+      ];
+      $("log").innerHTML = log.join("") || '<div style="color:#1a7f37">✓ no diagnostics</div>';
+    };
+    function draw() {
+      if (result) { result.destroy(); result = null; }
+      updateLineNumbers();
+      const model = parse($("src").value);
+      // Passing target lets render() inject SVG (2D) or mount WebGL (3D).
+      result = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), abstractionLocked, target: $("diagram") });
+      updateLog(result.model);
+    }
+    function updateOverlay(input) {
+      renderWithLoading(() => {
+        if (!result) { draw(); return; }
+        if (input.checked) result.addOverlay(input.value);
+        else result.removeOverlay(input.value);
+        updateLog(result.model);
+      });
+    }
+    function updateBaseView() {
+      renderWithLoading(() => {
+        if (!result) { draw(); return; }
+        result.setBaseView(selectedRadio("base-view"));
+        updateLog(result.model);
+      });
+    }
+    function updateRenderMode() {
+      renderWithLoading(() => {
+        if (!result) { draw(); return; }
+        result.setRenderMode(selectedRadio("render-mode"));
+        updateLog(result.model);
+      });
+    }
+    $("run").addEventListener("click", () => renderWithLoading(draw));
+    document.querySelectorAll('input[name="base-view"]').forEach((input) => input.addEventListener("change", updateBaseView));
+    document.querySelectorAll('input[name="render-mode"]').forEach((input) => input.addEventListener("change", updateRenderMode));
+    $("tags-max").addEventListener("click", () => {
+      $("tag-panel").classList.remove("is-minimized");
+      $("tag-panel").classList.add("is-expanded");
+    });
+    $("tags-min").addEventListener("click", () => {
+      $("tag-panel").classList.remove("is-expanded");
+      $("tag-panel").classList.add("is-minimized");
+    });
+    const paintAbstractionLock = () => {
+      $("abstraction-lock-toggle").title = abstractionLocked ? "Unlock component expansion" : "Lock component expansion";
+      $("abstraction-lock-toggle").ariaLabel = $("abstraction-lock-toggle").title;
+      $("abstraction-lock-toggle").classList.toggle("is-active", abstractionLocked);
+      $("abstraction-lock-toggle").innerHTML = abstractionLocked
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg>';
+    };
+    $("abstraction-lock-toggle").addEventListener("click", () => {
+      abstractionLocked = !abstractionLocked;
+      result?.setAbstractionLocked(abstractionLocked);
+      paintAbstractionLock();
+    });
+    paintAbstractionLock();
+    $("export-png").addEventListener("click", () => {
+      if (!result) return;
+      void result.downloadPng("archmap.png").catch((error) => {
+        console.error("ArchMap PNG export failed.", error);
+      });
+    });
+    $("fullscreen-toggle").addEventListener("click", () => {
+      $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
+      $("fullscreen-toggle").textContent = $("diagram-tags").parentElement.classList.contains("is-fullscreen") ? "Exit" : "Full";
+      requestAnimationFrame(() => result?.fit());
+    });
+    draw();
+  </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ArchMap pattern sample browser verification</title>
+  <style>
+    body { margin: 0; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; color: #1c2733; background: #f6f8fb; }
+    #diagram { position: fixed; inset: 0; opacity: 0.01; pointer-events: none; }
+    #report { white-space: pre-wrap; padding: 16px; }
+  </style>
+</head>
+<body>
+  <div id="diagram"></div>
+  <pre id="report">running...</pre>
+  <script type="module">
+    import { parse, render, registerIcon, validateRenderedSvgPorts } from "/src/index.ts";
+    import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
+    import { installThreeView } from "/src/views3d/three-view.ts";
+
+    installCloudProviderIcons(registerIcon);
+    installFamousServiceIcons(registerIcon);
+    installThreeView();
+
+    const samples = [
+      "01-small-web-basic.archmap",
+      "02-medium-auth-external-integrations.archmap",
+      "03-large-multiregion-hybrid-ops.archmap",
+      "04-android-single-app-framework-api.archmap",
+      "05-android-inter-app-collaboration.archmap",
+      "06-android-framework-driver-bt-devices.archmap",
+    ];
+    const baseViews = ["overview", "layer"];
+    const modes = ["2d", "isometric", "3d"];
+    const overlays = ["zone", "auth", "dataflow", "boundary", "permission", "validation"];
+    const allowedDiagnostics = new Set(["zone_crossing_marked_false"]);
+    const diagram = document.querySelector("#diagram");
+
+    const nums = (value) => [...String(value || "").matchAll(/-?\d+(?:\.\d+)?/g)].map((m) => Number(m[0]));
+    const edgePaths = (svg) => [...svg.querySelectorAll("path.archmap-edge-path")].map((p) => p.getAttribute("d") || "");
+    const pathPoints = (path) => [...path.matchAll(/[ML]\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+    const isOrthogonal = (points) => {
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        if (Math.abs(a.x - b.x) > 0.5 && Math.abs(a.y - b.y) > 0.5) return false;
+      }
+      return true;
+    };
+
+    function inspectSvg(svg) {
+      const paths = edgePaths(svg);
+      return {
+        className: svg.getAttribute("class"),
+        viewBox: nums(svg.getAttribute("viewBox")).slice(0, 4),
+        width: Number(svg.getAttribute("width")),
+        height: Number(svg.getAttribute("height")),
+        paths: paths.length,
+        startpoints: svg.querySelectorAll("circle.archmap-edge-startpoint").length,
+        diagonalPaths: paths.filter((path) => !isOrthogonal(pathPoints(path))).length,
+        invalid: /\b(?:NaN|undefined|Infinity)\b/.test(svg.outerHTML),
+        portFailures: validateRenderedSvgPorts(svg),
+      };
+    }
+
+    function inspectCanvas(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        width: canvas.width,
+        height: canvas.height,
+        cssWidth: rect.width,
+        cssHeight: rect.height,
+      };
+    }
+
+    async function run() {
+      const results = [];
+      const failures = [];
+      for (const sample of samples) {
+        window.__archmapPatternBrowserProgress = { sample, stage: "fetch" };
+        const source = await fetch(`/test/fixtures/pattern-samples/${sample}`).then((response) => {
+          if (!response.ok) throw new Error(`${sample}: ${response.status}`);
+          return response.text();
+        });
+        for (const baseView of baseViews) {
+          for (const mode of modes) {
+            window.__archmapPatternBrowserProgress = { sample, baseView, mode, stage: "render" };
+            const model = parse(source);
+            const result = render(model, { baseView, renderMode: mode, overlays, target: diagram });
+            window.__archmapPatternBrowserProgress = { sample, baseView, mode, stage: "inspect" };
+            const svg = diagram.querySelector("svg.archmap");
+            const canvas = diagram.querySelector("canvas");
+            const diagnostics = model.diagnostics.map((entry) => entry.code);
+            const unexpectedDiagnostics = diagnostics.filter((code) => !allowedDiagnostics.has(code));
+            const entry = {
+              sample,
+              baseView,
+              mode,
+              diagnostics,
+              errors: model.errors.length,
+              unexpectedDiagnostics,
+              svg: svg ? inspectSvg(svg) : null,
+              canvas: canvas ? inspectCanvas(canvas) : null,
+            };
+            results.push(entry);
+            if (model.errors.length || unexpectedDiagnostics.length) failures.push({ ...entry, stage: "diagnostics" });
+            if (mode === "2d") {
+              if (!entry.svg) failures.push({ ...entry, stage: "missing-svg" });
+              else {
+                if (!entry.svg.className.includes(`archmap-view-${baseView}`)) failures.push({ ...entry, stage: "wrong-svg-view" });
+                if (entry.svg.invalid) failures.push({ ...entry, stage: "invalid-svg-token" });
+                if (entry.svg.diagonalPaths) failures.push({ ...entry, stage: "diagonal-svg-path" });
+                if (entry.svg.paths !== entry.svg.startpoints) failures.push({ ...entry, stage: "startpoint-count" });
+                if (entry.svg.portFailures.length) failures.push({ ...entry, stage: "port-validation" });
+              }
+            } else {
+              if (!entry.canvas) failures.push({ ...entry, stage: "missing-canvas" });
+              else if (entry.canvas.width <= 0 || entry.canvas.height <= 0 || entry.canvas.cssWidth <= 0 || entry.canvas.cssHeight <= 0) {
+                failures.push({ ...entry, stage: "blank-canvas-size" });
+              }
+            }
+            window.__archmapPatternBrowserProgress = { sample, baseView, mode, stage: "destroy" };
+            result.destroy();
+          }
+        }
+      }
+      return {
+        samples: samples.length,
+        baseViews,
+        modes,
+        overlays,
+        renders: results.length,
+        svgRenders: results.filter((entry) => entry.svg).length,
+        canvasRenders: results.filter((entry) => entry.canvas).length,
+        failures,
+        results,
+      };
+    }
+
+    run()
+      .then((report) => {
+        window.__archmapPatternBrowserReport = report;
+        const pre = document.querySelector("#report");
+        pre.dataset.done = "true";
+        pre.textContent = JSON.stringify(report, null, 2);
+      })
+      .catch((error) => {
+        window.__archmapPatternBrowserReport = { failures: [{ stage: "exception", message: String(error?.stack || error) }] };
+        const pre = document.querySelector("#report");
+        pre.dataset.done = "true";
+        pre.textContent = JSON.stringify(window.__archmapPatternBrowserReport, null, 2);
+      });
+  </script>
+</body>
+</html>

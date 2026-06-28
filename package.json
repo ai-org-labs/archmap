@@ -1,0 +1,75 @@
+{
+  "name": "@archmap/core",
+  "version": "0.1.0",
+  "description": "Browser-only semantic architecture diagram rendering framework (ArchMap DSL)",
+  "license": "Apache-2.0",
+  "homepage": "https://ai-org-labs.github.io/archmap/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ai-org-labs/archmap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ai-org-labs/archmap/issues"
+  },
+  "type": "module",
+  "main": "./dist/archmap.umd.cjs",
+  "module": "./dist/archmap.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/archmap.js",
+      "require": "./dist/archmap.umd.cjs"
+    },
+    "./views3d/three-view": {
+      "types": "./dist/views3d/three-view.d.ts",
+      "import": "./dist/views3d/three-view.js"
+    },
+    "./packs/cloud-icons": {
+      "types": "./dist/packs/cloud-icons.d.ts",
+      "import": "./dist/packs/cloud-icons.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs/SYNTAX.md",
+    "docs/DELIVERY.md",
+    "docs/V0_1_ACCEPTANCE_MATRIX.md",
+    "docs/specs/v0.1",
+    "examples",
+    "README.md",
+    "SPEC.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify:pattern-samples": "node tools/verify-pattern-samples.mjs",
+    "test:watch": "vitest",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@archmap/icons": "^0.1.1",
+    "@types/js-yaml": "^4.0.9",
+    "@types/three": "^0.184.1",
+    "simple-icons": "^16.24.0",
+    "three": "^0.185.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.5"
+  }
+}
