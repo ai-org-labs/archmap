@@ -67,12 +67,18 @@ export interface Scene3DOptions {
   layerHeight?: number;
   /** World thickness of node boxes. */
   nodeThickness?: number;
+  /**
+   * Stack view already expresses layers through the 2D band layout. When this
+   * is true, avoid duplicating semantic layer depth as vertical displacement.
+   */
+  flattenLayerHeight?: boolean;
 }
 
 export function buildScene3D(layout: LayoutResult, options: Scene3DOptions = {}): Scene3D {
   const scale = options.scale ?? 0.02;
   const layerHeight = options.layerHeight ?? 1.5;
   const thickness = options.nodeThickness ?? 0.6;
+  const flattenLayerHeight = options.flattenLayerHeight ?? false;
 
   // Center the ground plane on the origin.
   const cx = layout.width / 2;
@@ -83,7 +89,7 @@ export function buildScene3D(layout: LayoutResult, options: Scene3DOptions = {})
   const center = new Map<string, { x: number; y: number; z: number }>();
   const nodes: Scene3DNode[] = layout.nodes.map((n) => {
     const x = X(n.x + n.w / 2);
-    const y = n.z * layerHeight;
+    const y = flattenLayerHeight ? 0 : n.z * layerHeight;
     const z = Z(n.y + n.h / 2);
     center.set(n.id, { x, y, z });
     return { id: n.id, label: n.label, x, y, z, w: n.w * scale, h: thickness, d: n.h * scale, layer: n.z };

@@ -27,6 +27,12 @@ describe("buildScene3D", () => {
     expect(byId.CloudSQL.layer).toBe(3);
   });
 
+  it("can flatten semantic layer height for stack-view 3D", () => {
+    const flat = buildScene3D(layout, { layerHeight: 1.5, flattenLayerHeight: true });
+    expect(new Set(flat.nodes.map((n) => n.y))).toEqual(new Set([0]));
+    expect(flat.nodes.find((n) => n.id === "CloudSQL")?.layer).toBe(3);
+  });
+
   it("centers the ground plane on the origin", () => {
     const xs = scene.nodes.map((n) => n.x);
     const avg = xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -70,6 +76,7 @@ describe("three-view mount behavior", () => {
     expect(source).toContain("stackZoneBaseY");
     expect(source).toContain("zoneTopY - stackZoneBaseY");
     expect(source).not.toContain("stackZoneH");
+    expect(source).toContain("flattenLayerHeight: ctx.options.baseView === \"layer\"");
   });
 
   it("renders a camera-synced 3-axis view cube without custom gizmo drag controls", () => {
