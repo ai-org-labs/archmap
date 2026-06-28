@@ -1,0 +1,18 @@
+{
+  "task_id": "TASK-015",
+  "title": "3D zone gating and passive ViewCube sync",
+  "description": "Keep 3D structure-only by default by rendering zone volumes only when the additive zone overlay is enabled. Add X/Y/Z axes to the ViewCube and make it passively mirror the OrbitControls camera orientation without installing custom gizmo drag controls.",
+  "status": "done",
+  "origin": "codex",
+  "parent_task_ref": ".aof/tasks/open/TASK-009.json",
+  "created_at": "2026-06-28T09:32:15+09:00",
+  "done_at": "2026-06-28T09:32:15+09:00",
+  "completion_notes": "Changed src/views3d/three-view.ts so scene3d zone volumes are gated by ctx.options.overlays including zone. The ViewCube now renders three passive X/Y/Z axes and updates its CSS transform from the inverse camera quaternion each animation frame. Removed the custom gizmo drag control after human feedback; camera movement remains normal OrbitControls on the canvas, with existing face-click snap behavior retained.",
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/scene3d.test.ts test/render.test.ts",
+    "npm run build",
+    "Browser check on http://127.0.0.1:4174/: with zone unchecked, 3D has one canvas, one ViewCube, three axes, zero zone SVG labels, cube transform changes when the main canvas is dragged, and no console errors."
+  ],
+  "handoff": "Continue TASK-009 with 3D overlay visual parity and camera/gizmo polish. Do not add custom drag behavior to the gizmo unless explicitly requested again; treat it as an orientation helper plus face-click snap."
+}

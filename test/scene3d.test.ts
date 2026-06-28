@@ -51,3 +51,23 @@ describe("buildScene3D", () => {
     expect(e.b).toEqual({ x: byId.APIGW.x, y: byId.APIGW.y, z: byId.APIGW.z });
   });
 });
+
+describe("three-view mount behavior", () => {
+  const source = readFileSync(
+    fileURLToPath(new URL("../src/views3d/three-view.ts", import.meta.url)),
+    "utf8",
+  );
+
+  it("keeps 3D zone volumes behind the additive zone overlay", () => {
+    expect(source).toContain('(ctx.options.overlays ?? []).includes("zone")');
+    expect(source).toContain("Zones are Add info in 3D too");
+  });
+
+  it("renders a camera-synced 3-axis view cube without custom gizmo drag controls", () => {
+    expect(source).toContain("archmap-view-axis");
+    expect(source).toContain("updateViewCube");
+    expect(source).toContain("cubeQuat.copy(camera.quaternion).invert()");
+    expect(source).not.toContain("setFromSpherical");
+    expect(source).not.toContain("setPointerCapture");
+  });
+});

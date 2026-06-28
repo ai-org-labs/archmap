@@ -8,7 +8,8 @@
  * Requires `three` as a peer dependency. Consumes the same LayoutResult as the
  * 2D views; `z` (layer depth) becomes height. Zones render as translucent
  * labeled volumes (non-overlapping, thanks to layout swimlanes); nodes carry
- * the same provider/kind icons as 2D; a corner gizmo snaps to top/front/side.
+ * the same provider/kind icons as 2D; a corner view cube mirrors rotation and
+ * snaps to top/front/side.
  * The returned handle owns the canvas + animation loop — call handle.dispose().
  */
 
@@ -237,30 +238,34 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
     }
   }
 
-  // Zones as translucent volumes enclosing their members, with wireframe edges
-  // and a label floating above. depthWrite:false so they never hide nodes.
-  scene3d.zones.forEach((z, i) => {
-    const color = ZONE_COLORS[i % ZONE_COLORS.length];
-    const geo = track(new THREE.BoxGeometry(z.w, z.h, z.d));
-    const mat = track(
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false, side: THREE.DoubleSide }),
-    );
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(z.x, z.y, z.z);
-    mesh.renderOrder = -1;
-    root.add(mesh);
+  // Zones are Add info in 3D too: structure-only 3D stays clean until the
+  // `zone` overlay is enabled.
+  if ((ctx.options.overlays ?? []).includes("zone")) {
+    // Zones as translucent volumes enclosing their members, with wireframe
+    // edges and a label floating above. depthWrite:false so they never hide nodes.
+    scene3d.zones.forEach((z, i) => {
+      const color = ZONE_COLORS[i % ZONE_COLORS.length];
+      const geo = track(new THREE.BoxGeometry(z.w, z.h, z.d));
+      const mat = track(
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(z.x, z.y, z.z);
+      mesh.renderOrder = -1;
+      root.add(mesh);
 
-    const eg = track(new THREE.EdgesGeometry(geo));
-    const line = new THREE.LineSegments(eg, track(new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 })));
-    line.position.copy(mesh.position);
-    root.add(line);
+      const eg = track(new THREE.EdgesGeometry(geo));
+      const line = new THREE.LineSegments(eg, track(new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.5 })));
+      line.position.copy(mesh.position);
+      root.add(line);
 
-    const hex = "#" + color.toString(16).padStart(6, "0");
-    const label = makeTextSprite(z.label ?? z.id, { fg: hex, bg: "rgba(255,255,255,0.82)", scaleY: 0.62, bold: true });
-    label.position.set(z.labelX, z.labelY, z.labelZ);
-    disposeSprite(label, disposables);
-    root.add(label);
-  });
+      const hex = "#" + color.toString(16).padStart(6, "0");
+      const label = makeTextSprite(z.label ?? z.id, { fg: hex, bg: "rgba(255,255,255,0.82)", scaleY: 0.62, bold: true });
+      label.position.set(z.labelX, z.labelY, z.labelZ);
+      disposeSprite(label, disposables);
+      root.add(label);
+    });
+  }
 
   const toWorldBox = (box: Box, yMin: number, yMax: number) => {
     const cx = ctx.layout.width / 2;
@@ -419,6 +424,22 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     });
     return btn;
   };
+  const axis = (label: string, color: string, transform: string) => {
+    const wrap = document.createElement("div");
+    wrap.className = `archmap-view-axis archmap-view-axis-${label.toLowerCase()}`;
+    wrap.style.cssText =
+      `position:absolute;left:28px;top:28px;width:46px;height:14px;transform-origin:left center;transform:${transform};` +
+      "transform-style:preserve-3d;pointer-events:none;";
+    const rod = document.createElement("div");
+    rod.style.cssText =
+      `position:absolute;left:0;top:6px;width:34px;height:2px;background:${color};box-shadow:0 0 0 1px rgba(255,255,255,0.72);`;
+    const tip = document.createElement("div");
+    tip.textContent = label;
+    tip.style.cssText =
+      `position:absolute;left:34px;top:0;color:${color};font:800 11px system-ui,sans-serif;text-shadow:0 1px 2px #fff;`;
+    wrap.append(rod, tip);
+    return wrap;
+  };
   cubeBody.addEventListener("pointerdown", (event) => {
     event.stopPropagation();
   });
@@ -432,6 +453,9 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     snapCamera(y < rect.height * 0.34 ? "top" : x > rect.width * 0.58 ? "right" : "front");
   });
   cubeBody.append(
+    axis("X", "#dc2626", "translate3d(24px,0,0)"),
+    axis("Y", "#16a34a", "rotateZ(-90deg) translate3d(24px,0,0)"),
+    axis("Z", "#2563eb", "rotateY(-90deg) translate3d(24px,0,0)"),
     face("正面", "front", "translateZ(28px)"),
     face("上面", "top", "rotateX(90deg) translateZ(28px)"),
     face("右側", "right", "rotateY(90deg) translateZ(28px)"),
@@ -440,6 +464,16 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   el.appendChild(cube);
 
   renderer.autoClear = false;
+  const cubeQuat = new THREE.Quaternion();
+  const cubeEuler = new THREE.Euler();
+  const updateViewCube = () => {
+    cubeQuat.copy(camera.quaternion).invert();
+    cubeEuler.setFromQuaternion(cubeQuat, "XYZ");
+    cubeBody.style.transform =
+      `rotateX(${THREE.MathUtils.radToDeg(cubeEuler.x)}deg) ` +
+      `rotateY(${THREE.MathUtils.radToDeg(cubeEuler.y)}deg) ` +
+      `rotateZ(${THREE.MathUtils.radToDeg(cubeEuler.z)}deg)`;
+  };
 
   let raf = 0;
   const tick = () => {
@@ -454,6 +488,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
       if (t >= 1) snap = undefined;
     }
     controls.update();
+    updateViewCube();
     renderer.clear();
     renderer.render(scene, camera);
   };
