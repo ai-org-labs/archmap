@@ -8,7 +8,7 @@
 Read `.aof` orientation/goals/tasks for current state. The notes below are a
 historical bridge from the early Claude/Codex alternation.
 
-- Frameworks: **AOF v6.4.0** (https://github.com/ai-org-labs/ai-organization-framework/tree/v6.4.0) · **QIF v0.3.0** (https://github.com/ai-org-labs/quality-intent-framework/tree/v0.3.0)
+- Frameworks: **AOF v6.5.0** (https://github.com/ai-org-labs/ai-organization-framework/tree/v6.5.0) · **QIF v0.3.0** (https://github.com/ai-org-labs/quality-intent-framework/tree/v0.3.0)
 - Authoritative specs (in repo): [`docs/specs/v0.1/`](../specs/v0.1/) — authority order: product-principles → model-validation → dsl-syntax → views-rendering → engine-api
 - Implemented-syntax reference: [`docs/SYNTAX.md`](../SYNTAX.md)
 
@@ -67,6 +67,7 @@ Later (not this epic's first pass): zone view per 03 §3.2 (nested zones), 3D pe
 
 ## Handoff log (update at end of every session)
 
+- 2026-06-28 — **Codex** — **AOF runtime upgraded to v6.5.0**. Installed local runtime cache at `/Users/mn/codex/.cache/aof-v6.5.0`, ran `aof upgrade --project .`, added `.aof/command-registry.json`, updated `.aof/project-bootstrap.json` / orientation routing to v6.5 command safety metadata, and switched current framework link to AOF v6.5.0. Verification: `aof --help --json`, `aof organization-verify --project .` (46/46 pass), `aof command-routing-audit --project .` (pass). Note: local Node is v25.5.0, so AOF emits its expected warning that CI validation is on Node 22.
 - 2026-06-26 — **Claude** — Vendored specs, created this AOF state doc, set Stage tasks (#10–#13), reconciled #8/#9. Tests: 55 passing.
 - 2026-06-26 — **Codex** — Stages 2–4 done (.aof TASK-001/002/003/004): canonical Record model (src/canonical.ts), 4-level diagnostics (src/diagnostics.ts), base-view+overlay render API, `<archmap-viewer>` element with `src` loading + diagnostics panel. Tests: 87.
 - 2026-06-26 — **Claude** — Now operating via the **.aof runtime** (CLI: `node /Users/mn/codex/.cache/aof-v3.1.0/src/cli.js <cmd> --project .`). Implemented next-value-slice item **configurable console diagnostics** (spec 02 §23): `reportDiagnosticsToConsole(model, opts)` in src/diagnostics.ts, `render(model,{console})` opt-in, viewer `console` attribute (default on), exported from index. Tests: **92** (5 new). TASK-005 → done (engine viewer/src/diagnostics-UI/console complete). **Next: TASK-006** — viewer controls + SVG interaction (controls=true UI: base-view selector, overlay checkboxes, fit/reset, diagnostics indicator; wheel zoom, drag pan, responsive). `RenderResult.fit()/reset()` are still no-ops — wire them in TASK-006.

@@ -1,7 +1,7 @@
 {
   "goal_type": "operating-goal",
   "content": "Migrate incrementally in AOF order: parse -> normalize -> diagnostics -> overview, keeping npm test/typecheck/build green at each step and preserving existing render compatibility.",
-  "updated_at": "2026-06-26T18:05:45.129Z",
+  "updated_at": "2026-06-28T01:51:30.665Z",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

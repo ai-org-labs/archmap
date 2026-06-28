@@ -1,0 +1,23 @@
+{
+  "task_id": "TASK-023",
+  "title": "Upgrade project AOF runtime metadata to v6.5.0",
+  "description": "Update the ArchMap project AOF runtime state from the prior v3/v6.4-era references to AOF v6.5.0, including command safety metadata and command-routing surfaces.",
+  "status": "done",
+  "origin": "human",
+  "created_at": "2026-06-28T10:51:00.000+09:00",
+  "done_at": "2026-06-28T10:55:00.000+09:00",
+  "decision_notes": [
+    "Fetched https://github.com/ai-org-labs/ai-organization-framework/tree/v6.5.0 into /private/tmp/aof-v6.5.0 and installed a local runtime cache at /Users/mn/codex/.cache/aof-v6.5.0.",
+    "Ran the v6.5.0 `upgrade --project .` command so .aof/project-bootstrap.json now declares aof_version 6.5.0 and .aof/command-registry.json is present.",
+    "Updated project orientation required AOF CLI command path from aof-v3.1.0 to aof-v6.5.0.",
+    "Updated docs/aof/STATUS.md current framework pointer to AOF v6.5.0. Historical v3.1.0 log entries were intentionally preserved as history."
+  ],
+  "verification": [
+    "node /Users/mn/codex/.cache/aof-v6.5.0/src/cli.js --help --json",
+    "node /Users/mn/codex/.cache/aof-v6.5.0/src/cli.js organization-verify --project . (46/46 pass)",
+    "node /Users/mn/codex/.cache/aof-v6.5.0/src/cli.js command-routing-audit --project . (pass)"
+  ],
+  "notes": [
+    "Local Node is v25.5.0; AOF v6.5.0 declares engines >=22 <25 and emits a warning recommending Node 22 LTS for CI-validated runtime behavior. Commands used here completed successfully despite the warning."
+  ]
+}

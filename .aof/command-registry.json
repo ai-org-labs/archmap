@@ -1,0 +1,2598 @@
+{
+  "artifact_type": "command-registry",
+  "registry_format_version": 1,
+  "generated_at": "2026-06-28T01:51:30.665Z",
+  "detail_ref": "docs/cli-reference.md",
+  "commands": [
+    {
+      "command": "actor-assignment-evaluation-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Evaluate an actor skill packet into selected, degraded, blocked, or escalated assignment state.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "actor-skill-packet-ref",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "actor assignment evaluation artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "actor-compose",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write a schema-valid actor composition artifact with selected actors and authority boundaries.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "payload-json",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "actor composition artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "actor-execution-gate-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Gate a selected actor assignment against required resource claims and policy evaluation evidence.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "actor-assignment-evaluation-ref",
+        "resource-claim-ref",
+        "policy-evaluation-ref",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "actor execution gate artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "actor-skill-packet-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write a schema-valid actor skill packet with assignment, skill, capability, resource, policy, review, blocker, HRI, and provenance evidence.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "objective",
+        "role-ref",
+        "skill-ref",
+        "capability-fit-json",
+        "source-task-id",
+        "source-parent-session-id",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "actor skill packet artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "adoption-proof-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Benchmark whether a fresh managed project can initialize AOF, produce a first governed work chain, pass Work Governance checks, and explain the work in plain language.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "benchmark report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "alignment-pulse",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through alignment pulse.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "allocation-plan-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical allocation plan record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "alternative-analysis-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical alternative analysis record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "anomaly-log-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical anomaly log record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "answer",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through answer.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "assumption-map-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical assumption map record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "breakthrough-library-register",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current breakthrough library register surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "breakthrough-pattern-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical breakthrough pattern record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "cadence-follow-through",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through cadence follow through.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "cadence-trigger-guide",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through cadence trigger guide.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "cli-help-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Benchmark whether every supported CLI command exposes compact AI-readable help with failure meaning and QIF boundaries.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "benchmark report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "command-register",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the command registry so operators and AI can route without loading the full CLI reference.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project"
+      ],
+      "outputs": [
+        "command routing summary"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "command-registry-refresh",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical command registry artifact from the CLI command catalog.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "command registry artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "command-routing-audit",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify that bootstrap, orientation, and command registry routing surfaces remain aligned.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "routing audit result"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "confirmation-window-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical confirmation window record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "context-pack",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write a bounded context pack with summaries and refs instead of raw artifact bodies.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "payload-json",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "context pack artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "contract-register",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current contract register surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "council",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current council surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "council-exec",
+      "category": "execute",
+      "safety_level": "external_write",
+      "approval_policy": {
+        "default_run_permission": "requires_approval",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Execute a council stage and optionally invoke model-backed seats.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "session",
+        "stage",
+        "project?"
+      ],
+      "outputs": [
+        "council execution packet"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "council-ready-output",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write a schema-valid council-ready output artifact for Go / No-Go judgment.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "payload-json",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "council-ready output artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "council-review-packet",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through council review packet.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "decision-register",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current decision register surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "decision-verify",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify decision verify integrity and governed correctness.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "dependency-graph",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current dependency graph surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "discovery-handoff-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify discovery handoff benchmark integrity and governed correctness.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "discovery-handoff-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical discovery handoff record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "discovery-judgment-packet",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through discovery judgment packet.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "discovery-question-set-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical discovery question set record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "escalation-resolve",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical escalation resolve artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "evidence-drill-down",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the bounded answer-to-proof packet below the operator brief.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "evidence drill-down packet"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "evidence-drill-down-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify that the evidence drill-down packet stays aligned to the live operator brief.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "benchmark report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "execution-lineage",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect execution lineage evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "experiment-proposal-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical experiment proposal record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "go-no-go-visualization",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write a schema-valid Go / No-Go visualization artifact.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "payload-json",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "go/no-go visualization artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "goal-project",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through goal project.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "init",
+      "category": "execute",
+      "safety_level": "project_write",
+      "approval_policy": {
+        "default_run_permission": "requires_approval",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Seed a project with the canonical AOF runtime skeleton and recognition packet.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "topology"
+      ],
+      "outputs": [
+        "bootstrap artifacts"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "learning-loop-snapshot",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect learning loop snapshot evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "live-verify",
+      "category": "execute",
+      "safety_level": "external_write",
+      "approval_policy": {
+        "default_run_permission": "requires_approval",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through live verify.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "metrics-snapshot",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect metrics snapshot evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "mission-control-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Benchmark whether Mission Control truthfully advances through runtime stage transitions.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "benchmark report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "need-validation-advance",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through need validation advance.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "need-validation-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Benchmark whether Need Validation rejects, reframes, and gates project creation correctly.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "benchmark report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "need-validation-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical need validation record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "operational-map-change-log",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write a schema-valid operational map change log for a work item.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "payload-json",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "operational map change log artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "operator-brief",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the compact operator-facing brief derived from current runtime situation assessment.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "operator briefing packet"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "operator-progress",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the bounded operator progress packet that explains what changed since the last checkpoint.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "operator progress packet"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "organization-analytics-snapshot",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect organization analytics snapshot evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "organization-audit",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify organization audit integrity and governed correctness.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "organization-status",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the operator-facing organization summary and active goals.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project"
+      ],
+      "outputs": [
+        "organization summary"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "organization-verify",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify bootstrap, organization, capability, and command-routing integrity.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project"
+      ],
+      "outputs": [
+        "verification report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "outcome-report",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical outcome report artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "packet",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current packet surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "policy-evaluation-report",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through policy evaluation report.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "problem-statement-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical problem statement record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "project-charter-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical project charter record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "provider-check",
+      "category": "read",
+      "safety_level": "external_write",
+      "approval_policy": {
+        "default_run_permission": "requires_approval",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current provider check surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "release-state-audit",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify that active release refs and governed release surfaces remain aligned.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project"
+      ],
+      "outputs": [
+        "release drift audit"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "release-state-refresh",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Repair the active release manifest and governed release refs.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "release-version",
+        "release-tag"
+      ],
+      "outputs": [
+        "active release manifest"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "resource-claim-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical resource claim record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "retire-candidate-review",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through retire candidate review.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "roadmap-status",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the current roadmap status surface.",
+      "operator_path": "state-inspection",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "role-join-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical role join record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "role-result-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical role result record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "run",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Start an AOF runtime session from a user request.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "request",
+        "project?"
+      ],
+      "outputs": [
+        "runtime session"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "runtime-discipline-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Verify runtime discipline benchmark integrity and governed correctness.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "runtime-loop-proof",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through runtime loop proof.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "self-audit-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical self audit record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "signal",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical signal artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "situation-assess",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Diagnose the current runtime situation, truth conflicts, and best next operating move.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "situation diagnosis"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "skillful-actor-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Run negative Skillful Actor benchmark checks for missing skills, weak assignments, resource gaps, policy bypass, stale release state, and output contract mismatch.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "skillful actor benchmark report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "skillful-actor-hri-projection",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Project Skillful Actor packet, assignment, gate, benchmark, council-review need, blockers, and next action into the Human Recognition Interface.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "actor-skill-packet-ref",
+        "actor-assignment-evaluation-ref",
+        "actor-execution-gate-ref",
+        "skillful-actor-benchmark-ref",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "skillful actor HRI projection artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "task-open",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through task open.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "task-update",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Advance the runtime through task update.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "team-output-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical team output record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "tree-position",
+      "category": "read",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Read the bounded trunk-and-branch position packet for the current frontier.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "tree position packet"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "upgrade",
+      "category": "execute",
+      "safety_level": "project_write",
+      "approval_policy": {
+        "default_run_permission": "requires_approval",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Upgrade an existing AOF installation to the current bootstrap shape.",
+      "operator_path": "top-level-routing",
+      "top_command": true,
+      "inputs": [
+        "project"
+      ],
+      "outputs": [
+        "upgraded bootstrap artifacts"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "value-hypothesis-record",
+      "category": "write",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write the canonical value hypothesis record artifact.",
+      "operator_path": "artifact-recording",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-archive",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify archive evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-archive-dashboard",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify archive dashboard evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-archive-log",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify archive log evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-dashboard",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify dashboard evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-dashboard-index",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify dashboard index evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-dashboard-log",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify dashboard log evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-history",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify history evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-lineage",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify lineage evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "verify-log",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect verify log evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "visibility-export",
+      "category": "observe",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect visibility export evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "visibility-serve",
+      "category": "observe",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export or inspect visibility serve evidence for operators.",
+      "operator_path": "visibility-and-analysis",
+      "top_command": false,
+      "inputs": [],
+      "outputs": [],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "visibility-session",
+      "category": "execute",
+      "safety_level": "project_write",
+      "approval_policy": {
+        "default_run_permission": "requires_approval",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Export the current visibility packet, start the viewer session, and optionally open the browser.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "artifact-dir?",
+        "host?",
+        "port?",
+        "open-browser?"
+      ],
+      "outputs": [
+        "viewer session"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "work-governance-benchmark",
+      "category": "verify",
+      "safety_level": "safe_read",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Benchmark Work Governance artifact chains for goal, actor, council, Go/No-Go, operational map, context pack, and external source-of-truth coverage.",
+      "operator_path": "integrity-and-benchmarking",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "benchmark report"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    },
+    {
+      "command": "work-item-goal",
+      "category": "execute",
+      "safety_level": "safe_local_write",
+      "approval_policy": {
+        "default_run_permission": "preapproved",
+        "requires_per_run_approval_for": [
+          "git push",
+          "npm publish",
+          "deploy",
+          "external service write",
+          "secrets access",
+          "billing operation",
+          "destructive operation",
+          "production mutation",
+          "irreversible operation"
+        ]
+      },
+      "purpose": "Write a schema-valid Work Governance work item goal artifact from a bounded payload.",
+      "operator_path": "runtime-execution",
+      "top_command": false,
+      "inputs": [
+        "project",
+        "payload-json",
+        "write-artifact?"
+      ],
+      "outputs": [
+        "work item goal artifact"
+      ],
+      "detail_ref": "docs/cli-reference.md"
+    }
+  ]
+}
