@@ -90,6 +90,8 @@ export interface LayoutOptions {
   rankBy?: "topo" | "layer" | "zone";
   /** How to assign the secondary swimlane axis. */
   laneBy?: "zone" | "layer";
+  /** Override gap between secondary-axis lanes. */
+  laneGap?: number;
   /** Stack-view zone overlay: move member nodes into non-overlapping zone blocks. */
   stackZoneBlocks?: boolean;
 }
@@ -231,6 +233,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   const horizontal = direction === "LR";
   const rankBy = options.rankBy ?? "topo";
   const laneBy = options.laneBy ?? "zone";
+  const laneGap = options.laneGap ?? LANE_GAP;
 
   const nodeIds = model.nodes.map((n) => n.id);
   const validEdges = model.edges.filter(
@@ -411,7 +414,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
     let cursor = MARGIN;
     for (const lane of laneOrder) {
       laneStart.set(lane, cursor);
-      cursor += (laneExtent.get(lane) ?? NODE_H) + (laneBy === "layer" ? LAYER_LANE_GAP : LANE_GAP);
+      cursor += (laneExtent.get(lane) ?? NODE_H) + (laneBy === "layer" ? LAYER_LANE_GAP : laneGap);
     }
   }
   const crossTotal = laneOrder.length

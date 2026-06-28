@@ -101,6 +101,31 @@ describe("render", () => {
     expect(svg).toContain(".archmap-node-shape-top-fill { fill: var(--archmap-node-fill");
   });
 
+  it("uses compact zone lane spacing in overview", () => {
+    const m = parse(`graph LR
+      A[A]
+      B[B]
+      C[C]
+      D[D]
+      E[E]
+      ---
+      nodes:
+        A: { zone: client }
+        B: { zone: gcp }
+        C: { zone: aws }
+        D: { zone: saas }
+        E: { zone: identity }
+      zones:
+        client: { contains: [A] }
+        gcp: { contains: [B] }
+        aws: { contains: [C] }
+        saas: { contains: [D] }
+        identity: { contains: [E] }
+    `);
+    const overview = render(m, { baseView: "overview" });
+    expect(overview.layout.height).toBeLessThan(650);
+  });
+
   it("collapses subgraphs into abstraction components and deduplicates external edges", () => {
     const m = parse(`graph LR
       subgraph Service

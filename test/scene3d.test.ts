@@ -76,7 +76,7 @@ describe("three-view mount behavior", () => {
     expect(source).toContain("stackZoneBaseY");
     expect(source).toContain("zoneTopY - stackZoneBaseY");
     expect(source).not.toContain("stackZoneH");
-    expect(source).toContain("flattenLayerHeight: ctx.options.baseView === \"layer\"");
+    expect(source).toContain('flattenLayerHeight: ctx.options.baseView === "overview" || ctx.options.baseView === "layer"');
   });
 
   it("renders a camera-synced 3-axis view cube without custom gizmo drag controls", () => {

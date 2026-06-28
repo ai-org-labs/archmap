@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-039",
+  "title": "Compact overview lane spacing and flatten 3D overview layers",
+  "description": "Overview rendering now avoids excessive zone/layer separation: 2D overview uses tighter zone lane spacing, and 3D overview no longer raises nodes by semantic layer depth.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T18:40:00.000+09:00",
+  "done_at": "2026-06-28T18:50:00.000+09:00",
+  "decision_notes": [
+    "The observed Wiz/FirebaseAuth distance was caused by overview using wide zone swimlane gaps, not by layer lane mode.",
+    "Added LayoutOptions.laneGap so overview can use compact spacing while Stack/layer views keep their larger layout separation.",
+    "3D overview now flattens semantic layer height, matching the expectation that overview should be a composition view rather than a layer-stack view."
+  ],
+  "verification": [
+    "npm test -- --run test/render.test.ts test/layout.test.ts test/scene3d.test.ts",
+    "npm run build",
+    "Demo seed check: overview layout height is now 718px for the CDN demo sample, with Wiz/FirebaseAuth pulled upward while Stack remains layer-separated."
+  ]
+}

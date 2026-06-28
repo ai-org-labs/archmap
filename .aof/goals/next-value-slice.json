@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-038 interrupt done: component/area expansion lock is available in <archmap-viewer>, index.html, and examples/demo.html. RenderOptions/RenderResult now expose abstractionLocked and setAbstractionLocked/isAbstractionLocked; locked state blocks click expansion/collapse and suppresses hover affordance. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T18:35:00.000+09:00",
+  "content": "TASK-039 interrupt done: overview no longer uses the wide zone/layer separation that made Wiz/FirebaseAuth look too far away. 2D overview uses compact zone lane spacing, and 3D overview flattens semantic layer height; Stack/layer views retain their layer-oriented spacing. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T18:50:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

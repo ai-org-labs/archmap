@@ -339,7 +339,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
 
   const scene3d = buildScene3D(ctx.layout, {
     scale: SCENE_SCALE,
-    flattenLayerHeight: ctx.options.baseView === "layer",
+    flattenLayerHeight: ctx.options.baseView === "overview" || ctx.options.baseView === "layer",
   });
   const iconMap = new Map([...resolveNodeIcons(ctx.model)].map(([id, r]) => [id, (Array.isArray(r) ? r[0] : r).icon]));
   const { root, disposables } = buildSceneGraph(ctx, scene3d, iconMap);

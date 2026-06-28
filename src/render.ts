@@ -363,6 +363,21 @@ const VIEW_LANE_BY: Record<string, LayoutOptions["laneBy"]> = {
   layer: "layer",
 };
 
+const OVERVIEW_LANE_GAP = 48;
+
+function layoutOptionsForState(
+  state: { requestedView: string; view: string },
+  options: RenderOptions,
+): LayoutOptions {
+  return {
+    direction: options.direction,
+    rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view],
+    laneBy: VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view],
+    laneGap: state.requestedView === "overview" ? OVERVIEW_LANE_GAP : undefined,
+    stackZoneBlocks: state.requestedView === "layer",
+  };
+}
+
 function validateOverlays(model: ArchMapModel, overlays: string[]): void {
   for (const overlay of overlays) {
     if (OVERLAY_NAMES.has(overlay)) continue;
@@ -492,14 +507,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
-    const rankBy = options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view];
-    const laneBy = VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view];
-    const layout = computeLayout(effectiveModel, {
-      direction: options.direction,
-      rankBy,
-      laneBy,
-      stackZoneBlocks: state.requestedView === "layer",
-    });
+    const layout = computeLayout(effectiveModel, layoutOptionsForState(state, options));
     const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget };
     const overlaidSvg = renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
@@ -560,10 +568,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   const result: RenderResult = {
     view: state.view,
     layout: computeLayout(initialModel, {
-      direction: options.direction,
-      rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view],
-      laneBy: VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view],
-      stackZoneBlocks: state.requestedView === "layer",
+      ...layoutOptionsForState(state, options),
     }),
     model: initialModel,
     svg: undefined,
