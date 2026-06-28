@@ -711,10 +711,15 @@ export function defineArchMapViewerElement(): void {
       const actionCss =
         "min-width:28px;min-height:26px;padding:3px 8px;border-radius:999px;background:#eef2f7;" +
         "color:#334155;border:1px solid #cbd5e1;cursor:pointer;";
-      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize") => {
-        button.innerHTML = icon === "expand"
-          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;display:block"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg>'
-          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;display:block"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg>';
+      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize" | "fit" | "reset" | "fullscreen") => {
+        const paths = {
+          expand: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
+          minimize: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/>',
+          fit: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/>',
+          reset: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/>',
+          fullscreen: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
+        } satisfies Record<typeof icon, string>;
+        button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;display:block">${paths[icon]}</svg>`;
       };
       const paintTag = (wrap: HTMLElement, checked: boolean) => {
         wrap.style.cssText = tagCss + (checked ? "background:#e6edf7;border-color:#7892bd;color:#213a63;" : "");
@@ -836,35 +841,46 @@ export function defineArchMapViewerElement(): void {
       }
       bar.appendChild(overlayGroup);
 
-      const fit = document.createElement("button");
-      fit.type = "button";
-      fit.textContent = "Fit";
-      fit.style.cssText = actionCss;
-      fit.addEventListener("click", () => result.fit());
-      const reset = document.createElement("button");
-      reset.type = "button";
-      reset.textContent = "Reset";
-      reset.style.cssText = actionCss;
-      reset.addEventListener("click", () => result.reset());
+      const zoomToggle = document.createElement("button");
+      zoomToggle.type = "button";
+      zoomToggle.title = "Fit diagram";
+      zoomToggle.ariaLabel = "Fit diagram";
+      zoomToggle.style.cssText = actionCss;
+      setActionIcon(zoomToggle, "fit");
+      let zoomFitted = false;
+      zoomToggle.addEventListener("click", () => {
+        if (zoomFitted) {
+          result.reset();
+          zoomFitted = false;
+          zoomToggle.title = "Fit diagram";
+          zoomToggle.ariaLabel = "Fit diagram";
+          setActionIcon(zoomToggle, "fit");
+        } else {
+          result.fit();
+          zoomFitted = true;
+          zoomToggle.title = "Reset zoom";
+          zoomToggle.ariaLabel = "Reset zoom";
+          setActionIcon(zoomToggle, "reset");
+        }
+      });
       const fullscreen = document.createElement("button");
       fullscreen.type = "button";
-      fullscreen.textContent = "Full";
       fullscreen.title = "Fullscreen";
+      fullscreen.ariaLabel = "Fullscreen";
       fullscreen.style.cssText = actionCss;
+      setActionIcon(fullscreen, "fullscreen");
       fullscreen.addEventListener("click", () => {
         if (document.fullscreenElement === this) {
           void document.exitFullscreen?.();
-          fullscreen.textContent = "Full";
         } else if (this.requestFullscreen) {
           void this.requestFullscreen();
-          fullscreen.textContent = "Exit";
         }
         requestAnimationFrame(() => result.fit());
       });
       const actionGroup = document.createElement("span");
       actionGroup.className = "archmap-controls-group";
       actionGroup.style.cssText = "display:inline-flex;align-items:center;gap:5px;";
-      actionGroup.append(fit, reset, fullscreen);
+      actionGroup.append(zoomToggle, fullscreen);
       panelElements.push(actionGroup);
       bar.append(actionGroup);
 

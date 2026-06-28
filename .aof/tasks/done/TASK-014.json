@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-014",
+  "title": "Toolbar zoom toggle and compact overlay hover details",
+  "description": "Polish the overlay UI after semantic badge consolidation: make toolbar zoom a single toggle button, keep only one primary element in each auth/dataflow/boundary/permission/validation badge label, show the remaining details immediately on hover, and style validation badges by diagnostic level.",
+  "status": "done",
+  "origin": "human",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-06-28T09:20:00.000+09:00",
+  "updated_at": "2026-06-28T09:20:00.000+09:00",
+  "assigned_at": "2026-06-28T09:20:00.000+09:00",
+  "done_at": "2026-06-28T09:20:00.000+09:00",
+  "retired_at": null,
+  "last_triaged_at": "2026-06-28T09:20:00.000+09:00",
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "DONE (Codex): replaced Fit/Reset toolbar controls with a single icon toggle in <archmap-viewer controls> and examples/demo.html. Compact semantic labels now expose only one primary item on the canvas (e.g. JWT, profile, public_boundary, 1 permission, 1 warning); issuer/validator/classification/roles/diagnostic messages remain in title metadata and an immediate SVG hover tooltip. Validation node/edge badges now carry archmap-validation-level-error/warning/suggestion/info classes with level-specific fill, stroke, text color, and weight. Verification: npm run typecheck, npm test -- --run test/render.test.ts test/scene3d.test.ts (38 passing), npm run build, dist comprehensive fixture check (33 edge badges, 53 immediate tooltips, no long auth label, validation levels error/warning/suggestion/info present)."
+}

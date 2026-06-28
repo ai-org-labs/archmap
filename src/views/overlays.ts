@@ -1,5 +1,5 @@
 import type { LayoutResult } from "../layout.js";
-import type { ArchMapModel, BoundaryCrossing, Permission } from "../types.js";
+import type { ArchMapModel, BoundaryCrossing, Diagnostic, Permission } from "../types.js";
 import type { Box } from "./base.js";
 
 export const OVERLAY_NAMES = new Set(["zone", "auth", "dataflow", "boundary", "permission", "validation"]);
@@ -8,6 +8,7 @@ export interface OverlayEdgeBadge {
   kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary";
   label: string;
   title?: string;
+  level?: "error" | "warning" | "suggestion" | "info";
 }
 
 export interface OverlayProjection {
@@ -89,6 +90,13 @@ function badgePayload(prefix: string, label: string, title?: string): string {
   return title ? `${prefix}${label}\n${title}` : `${prefix}${label}`;
 }
 
+function primaryLevel(items: Diagnostic[]): "error" | "warning" | "suggestion" | "info" {
+  if (items.some((diagnostic) => diagnostic.level === "error" || diagnostic.severity === "error")) return "error";
+  if (items.some((diagnostic) => (diagnostic.level ?? diagnostic.severity) === "warning")) return "warning";
+  if (items.some((diagnostic) => diagnostic.level === "suggestion")) return "suggestion";
+  return "info";
+}
+
 export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult, overlays: string[]): OverlayProjection {
   const active = overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
   const nodes = new Set<string>();
@@ -129,9 +137,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
         nodes.add(edge.from);
         nodes.add(edge.to);
         const crossesList = modelEdge?.boundaryCrossing?.crosses ?? [];
-        const label = crossesList.length
-          ? `crosses ${compactList(crossesList, "boundary")}`
-          : za && zb ? `zone ${za} -> ${zb}` : "boundary crossing";
+        const label = crossesList.length ? compactList(crossesList, "boundary", 1) : za && zb ? `${za} -> ${zb}` : "boundary";
         const title = [
           `edge: ${edge.from} -> ${edge.to}`,
           crossesList.length ? `boundaries: ${crossesList.join(", ")}` : undefined,
@@ -180,13 +186,13 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
           dataObjects.length ? `data: ${dataObjects.map((data) => data?.label ?? data?.id).join(", ")}` : undefined,
           classifications.some(Boolean) ? `classification: ${compactList(classifications, "", 4)}` : undefined,
         ].filter(Boolean).join("\n");
-        edgeBadges.set(edge.id, [{ kind: "data-summary", label: labelParts.join(" · "), title }]);
+        edgeBadges.set(edge.id, [{ kind: "data-summary", label: labelParts[0] ?? edge.flow ?? "data", title }]);
       }
     }
     for (const data of model.data) {
       for (const id of data.storedIn ?? []) {
         nodes.add(id);
-        const label = compactList([data.classification, data.label ?? data.id], data.label ?? data.id);
+        const label = data.classification ?? data.label ?? data.id;
         const title = [
           `data: ${data.label ?? data.id}`,
           data.classification ? `classification: ${data.classification}` : undefined,
@@ -226,16 +232,11 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
         edge.auth?.validatedBy ? `validator: ${edge.auth.validatedBy}` : undefined,
         edge.auth?.recipient ? `recipient: ${edge.auth.recipient}` : undefined,
       ].filter(Boolean).join("\n");
-      const labelParts = [
-        edge.auth?.token,
-        edge.auth?.issuer ? `issuer ${edge.auth.issuer}` : undefined,
-        edge.auth?.validatedBy ? `validator ${edge.auth.validatedBy}` : undefined,
-        edge.auth?.recipient ? `recipient ${edge.auth.recipient}` : undefined,
-      ].filter(Boolean);
+      const label = edge.auth?.token ?? edge.auth?.method ?? "auth";
       if (edge.auth?.token) {
         setBadge(badges, badgePriorities, edge.to, `auth:${edge.auth.token}`, BADGE_PRIORITY.auth);
       }
-      if (labelParts.length) edgeBadges.set(edge.id, [{ kind: "auth-summary", label: labelParts.join(" · "), title }]);
+      if (title) edgeBadges.set(edge.id, [{ kind: "auth-summary", label, title }]);
     }
   }
 
@@ -319,15 +320,16 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
       const errors = items.filter((diagnostic) => diagnostic.level === "error" || diagnostic.severity === "error").length;
       const warnings = items.filter((diagnostic) => (diagnostic.level ?? diagnostic.severity) === "warning").length;
       const suggestions = items.filter((diagnostic) => diagnostic.level === "suggestion").length;
+      const level = primaryLevel(items);
       const label = errors ? `${errors} error${errors > 1 ? "s" : ""}`
         : warnings ? `${warnings} warning${warnings > 1 ? "s" : ""}`
           : suggestions ? `${suggestions} suggestion${suggestions > 1 ? "s" : ""}`
             : `${items.length} info`;
       const title = items.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`).join("\n");
       if (type === "node") {
-        setBadge(badges, badgePriorities, id, badgePayload("validation:", label, title), BADGE_PRIORITY.validation);
+        setBadge(badges, badgePriorities, id, badgePayload(`validation:${level}:`, label, title), BADGE_PRIORITY.validation);
       } else if (type === "edge") {
-        edgeBadges.set(id, [{ kind: "validation-summary", label, title }]);
+        edgeBadges.set(id, [{ kind: "validation-summary", label, title, level }]);
       }
     }
   }

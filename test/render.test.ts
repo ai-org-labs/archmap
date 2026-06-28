@@ -193,8 +193,10 @@ describe("render", () => {
     expect(svg).toContain("archmap-auth-badge");
     expect(svg).toContain("archmap-auth-edge-badge");
     expect(svg).toContain("archmap-data-edge-badge");
-    expect(svg).toContain("JWT · issuer FirebaseAuth · validator APIGW");
-    expect(svg).toContain("customer_profile · personal");
+    expect(svg).not.toContain("JWT · issuer FirebaseAuth · validator APIGW");
+    expect(svg).toContain(">JWT</text>");
+    expect(svg).toContain(">customer_profile</text>");
+    expect(svg).toContain("archmap-badge-tooltip");
     expect(svg).toContain("issuer: FirebaseAuth");
     expect(svg).toContain("validator: APIGW");
     expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");
@@ -351,13 +353,15 @@ describe("render", () => {
     `);
     const svg = render(m, { baseView: "overview", overlays: ["boundary", "dataflow", "permission", "validation"] }).svg!;
     expect(svg).toContain("archmap-boundary-edge-badge");
-    expect(svg).toContain("crosses public_boundary");
+    expect(svg).toContain(">public_boundary</text>");
     expect(svg).toContain("archmap-data-edge-badge");
-    expect(svg).toContain("profile · confidential");
+    expect(svg).toContain(">profile</text>");
+    expect(svg).toContain("classification: confidential");
     expect(svg).toContain("archmap-permission-badge");
     expect(svg).toContain(">1 permission<");
     expect(svg).toContain("roles/db.writer");
     expect(svg).toContain("archmap-validation-badge");
+    expect(svg).toContain("archmap-validation-level-warning");
     expect(svg).toContain("zone_crossing_marked_false");
   });
 

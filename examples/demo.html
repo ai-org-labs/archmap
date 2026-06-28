@@ -61,7 +61,8 @@
         <div class="tag-panel" id="tag-panel">
           <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags" aria-label="Expand tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
           <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags" aria-label="Minimize tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg></button>
-          <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen">Full</button>
+          <button class="tag-action" id="zoom-toggle" type="button" title="Fit diagram" aria-label="Fit diagram"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
           <fieldset class="tag-group" id="base-view">
             <span class="tag-label">Views</span>
             <label class="tag"><input type="radio" name="base-view" value="overview" checked>Overview</label>
@@ -227,9 +228,25 @@ boundaries:
       $("tag-panel").classList.remove("is-expanded");
       $("tag-panel").classList.add("is-minimized");
     });
+    let zoomFitted = false;
+    $("zoom-toggle").addEventListener("click", () => {
+      if (!result) return;
+      if (zoomFitted) {
+        result.reset();
+        zoomFitted = false;
+        $("zoom-toggle").title = "Fit diagram";
+        $("zoom-toggle").ariaLabel = "Fit diagram";
+        $("zoom-toggle").innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/></svg>';
+      } else {
+        result.fit();
+        zoomFitted = true;
+        $("zoom-toggle").title = "Reset zoom";
+        $("zoom-toggle").ariaLabel = "Reset zoom";
+        $("zoom-toggle").innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>';
+      }
+    });
     $("fullscreen-toggle").addEventListener("click", () => {
       $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
-      $("fullscreen-toggle").textContent = $("diagram-tags").parentElement.classList.contains("is-fullscreen") ? "Exit" : "Full";
       requestAnimationFrame(() => result?.fit());
     });
     draw();
