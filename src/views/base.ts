@@ -64,6 +64,27 @@ export interface DiagramSpec {
   boxStyles?: Map<string, string>;
 }
 
+const BOX_GROUP_DEPTH_ORDER = new Map([
+  ["archmap-layer", 0],
+  ["archmap-zone", 1],
+  ["archmap-boundary", 2],
+  ["archmap-subgraph", 3],
+]);
+
+function orderedBoxGroups(groups: Array<{ boxes: Box[]; boxClass: string }>): Array<{ boxes: Box[]; boxClass: string }> {
+  return groups
+    .map((group, index) => ({ group, index }))
+    .sort((a, b) => {
+      const da = BOX_GROUP_DEPTH_ORDER.get(a.group.boxClass) ?? 10;
+      const db = BOX_GROUP_DEPTH_ORDER.get(b.group.boxClass) ?? 10;
+      return da - db || a.index - b.index;
+    })
+    .map(({ group }) => ({
+      ...group,
+      boxes: [...group.boxes].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0)),
+    }));
+}
+
 function channelClass(id: string, set: Set<string> | undefined): string {
   if (!set) return "";
   return set.has(id) ? " archmap-emphasis" : " archmap-faded";
@@ -429,7 +450,7 @@ export function renderDiagram(spec: DiagramSpec): string {
     edgeStyles,
     boxStyles,
   } = spec;
-  const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
+  const boxGroups = orderedBoxGroups(spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []));
   const boxExtent = boxGroups.flatMap((group) => group.boxes.map((box) => ({ x: box.x + box.w, y: box.y + box.h })));
   const svgWidth = Math.max(layout.width, ...boxExtent.map((p) => p.x + 24));
   const svgHeight = Math.max(layout.height, ...boxExtent.map((p) => p.y + 24));

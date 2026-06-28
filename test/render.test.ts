@@ -510,6 +510,31 @@ describe("render", () => {
     expect(collapsed).not.toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Runtime"');
   });
 
+  it("renders 2D area overlays from back to front as zone, boundary, then subgraph", () => {
+    const m = parse(`graph LR
+      subgraph Runtime
+        App[App]
+        DB[(DB)]
+      end
+      App --> DB
+      ---
+      nodes:
+        App: { zone: private, layer: runtime }
+        DB: { zone: private, layer: data }
+      zones:
+        private: { label: Private Zone, contains: [App, DB] }
+      boundaries:
+        data_boundary: { label: Data Boundary, contains: [App, DB] }
+    `);
+    const { svg } = render(m, { baseView: "overview", overlays: ["subgraph", "boundary", "zone"] });
+    const zoneIndex = svg!.indexOf('class="archmap-zone archmap-zone-depth-0"');
+    const boundaryIndex = svg!.indexOf('class="archmap-boundary archmap-boundary-depth-0"');
+    const subgraphIndex = svg!.indexOf('class="archmap-subgraph archmap-subgraph-depth-0"');
+    expect(zoneIndex).toBeGreaterThan(-1);
+    expect(boundaryIndex).toBeGreaterThan(zoneIndex);
+    expect(subgraphIndex).toBeGreaterThan(boundaryIndex);
+  });
+
   it("does not let graph subgraphs affect rendered geometry", () => {
     const m = parse(androidDriverStack);
     const overview = render(m, { baseView: "overview" }).svg!;

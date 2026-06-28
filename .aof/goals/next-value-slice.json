@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-031 interrupt done: subgraph is now an explicit Add info overlay, rendering as borderless translucent grouping backgrounds. Visible subgraph backgrounds can be clicked to collapse into abstraction representatives, and abstraction representatives can be clicked to expand again. Global SVG icons are about 1.8x larger, and abstraction node sizing grows for the larger member-icon grid. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T13:45:00.000+09:00",
+  "content": "TASK-032 interrupt done: 2D area overlays now render with stable back-to-front ordering independent of Add info toggle order: layer bands, then zone, then boundary, then subgraph. Parent/nested boxes within each area type are ordered by depth. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T14:16:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
