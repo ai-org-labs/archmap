@@ -71,6 +71,26 @@ const BOX_GROUP_DEPTH_ORDER = new Map([
   ["archmap-subgraph", 3],
 ]);
 
+const BOX_GROUP_VISUAL_OUTSET = new Map([
+  ["archmap-zone", 16],
+  ["archmap-boundary", 8],
+  ["archmap-subgraph", 0],
+]);
+
+function visualBox(groupClass: string, box: Box): Box {
+  const outset = BOX_GROUP_VISUAL_OUTSET.get(groupClass) ?? 0;
+  if (outset <= 0) return { ...box };
+  const x = Math.max(0, box.x - outset);
+  const y = Math.max(0, box.y - outset);
+  return {
+    ...box,
+    x,
+    y,
+    w: box.w + (box.x - x) + outset,
+    h: box.h + (box.y - y) + outset,
+  };
+}
+
 function orderedBoxGroups(groups: Array<{ boxes: Box[]; boxClass: string }>): Array<{ boxes: Box[]; boxClass: string }> {
   return groups
     .map((group, index) => ({ group, index }))
@@ -81,7 +101,9 @@ function orderedBoxGroups(groups: Array<{ boxes: Box[]; boxClass: string }>): Ar
     })
     .map(({ group }) => ({
       ...group,
-      boxes: [...group.boxes].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0)),
+      boxes: [...group.boxes]
+        .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0))
+        .map((box) => visualBox(group.boxClass, box)),
     }));
 }
 

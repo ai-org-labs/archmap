@@ -533,6 +533,13 @@ describe("render", () => {
     expect(zoneIndex).toBeGreaterThan(-1);
     expect(boundaryIndex).toBeGreaterThan(zoneIndex);
     expect(subgraphIndex).toBeGreaterThan(boundaryIndex);
+
+    const zone = areaBoxes(svg!, "archmap-zone", "archmap-zone-box").find((box) => box.id === "private")!;
+    const boundary = areaBoxes(svg!, "archmap-boundary", "archmap-boundary-box").find((box) => box.id === "data_boundary")!;
+    expect(zone.x0).toBeLessThan(boundary.x0);
+    expect(zone.y0).toBeLessThan(boundary.y0);
+    expect(zone.x1).toBeGreaterThan(boundary.x1);
+    expect(zone.y1).toBeGreaterThan(boundary.y1);
   });
 
   it("does not let graph subgraphs affect rendered geometry", () => {

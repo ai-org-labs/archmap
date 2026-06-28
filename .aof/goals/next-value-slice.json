@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-032 interrupt done: 2D area overlays now render with stable back-to-front ordering independent of Add info toggle order: layer bands, then zone, then boundary, then subgraph. Parent/nested boxes within each area type are ordered by depth. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T14:16:00.000+09:00",
+  "content": "TASK-033 interrupt done: 2D area overlays keep the stable back-to-front order layer, zone, boundary, subgraph, and now add SVG-only visual outsets so deeper areas stay visible as padding: zone is expanded more than boundary, while subgraph remains the front grouping surface. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T14:21:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
