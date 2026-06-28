@@ -4,6 +4,7 @@
  */
 
 import type { LayoutNode } from "../layout.js";
+import type { ResolvedIcon } from "../icons.js";
 import { iconDomId } from "../icons.js";
 
 export function escapeXml(s: string): string {
@@ -15,9 +16,9 @@ export function escapeXml(s: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function centeredLabel(n: LayoutNode, cls = "archmap-node-label"): string {
+function centeredLabel(n: LayoutNode, cls = "archmap-node-label", yOffset = 0): string {
   const cx = n.x + n.w / 2;
-  const cy = n.y + n.h / 2;
+  const cy = n.y + n.h / 2 + yOffset;
   return `<text class="${cls}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(n.label)}</text>`;
 }
 
@@ -29,8 +30,32 @@ function iconBadgeSvg(n: LayoutNode, iconKey: string): string {
   return `<use class="archmap-node-icon" href="#${iconDomId(iconKey)}" x="${x}" y="${y}" width="${size}" height="${size}" />`;
 }
 
+function abstractionIconsSvg(n: LayoutNode, icons: ResolvedIcon[]): string {
+  const visible = icons.slice(0, 24);
+  if (visible.length === 0) return "";
+  const size = 17;
+  const gap = 5;
+  const cols = Math.min(6, visible.length);
+  const rows = Math.ceil(visible.length / cols);
+  const gridW = cols * size + (cols - 1) * gap;
+  const startX = n.x + Math.max(8, (n.w - gridW) / 2);
+  const startY = n.y + 8;
+  const title = icons.map((icon) => icon.key).join(", ");
+  const uses = visible.map((icon, index) => {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    const x = startX + col * (size + gap);
+    const y = startY + row * (size + gap);
+    return `<use class="archmap-node-icon archmap-abstraction-icon" href="#${iconDomId(icon.key)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${size}" height="${size}" />`;
+  }).join("");
+  const more = icons.length > visible.length
+    ? `<text class="archmap-abstraction-icon-more" x="${(startX + gridW + 5).toFixed(1)}" y="${(startY + rows * (size + gap) - gap - 2).toFixed(1)}">+${icons.length - visible.length}</text>`
+    : "";
+  return `<g class="archmap-abstraction-icons"><title>${escapeXml(title)}</title>${uses}${more}</g>`;
+}
+
 /** Render a node's shape + label group. `extraClass` lets views fade/emphasize. */
-export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?: string): string {
+export function nodeSvg(n: LayoutNode, extraClass = "", icon?: string | ResolvedIcon | ResolvedIcon[], style?: string): string {
   const abstractionClass = n.abstraction ? " archmap-node-abstraction" : "";
   const cls = `archmap-node archmap-shape-${n.shape}${abstractionClass}${extraClass ? " " + extraClass : ""}`;
   const { x, y, w, h } = n;
@@ -64,7 +89,12 @@ export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?
       shape = `<rect class="archmap-node-shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="7" ry="7" />`;
       break;
   }
-  const icon = iconKey ? iconBadgeSvg(n, iconKey) : "";
+  const icons = Array.isArray(icon) ? icon : [];
+  const singleIconKey = typeof icon === "string" ? icon : !Array.isArray(icon) ? icon?.key : undefined;
+  const iconSvg = icons.length > 0
+    ? abstractionIconsSvg(n, icons)
+    : singleIconKey ? iconBadgeSvg(n, singleIconKey) : "";
+  const labelOffset = icons.length > 0 ? Math.min(22, Math.max(10, Math.ceil(icons.length / 6) * 9)) : 0;
   const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
   const abstractionAttrs = n.abstraction
     ? ` data-abstraction-target="${escapeXml(n.abstraction.target)}" data-abstraction-id="${escapeXml(n.abstraction.id)}" data-abstraction-key="${escapeXml(`${n.abstraction.target}:${n.abstraction.id}`)}"`
@@ -72,7 +102,7 @@ export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?
   return (
     `<g class="${cls}" data-id="${escapeXml(n.id)}"${abstractionAttrs}${styleAttr} ` +
     `data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-w="${w.toFixed(1)}" data-h="${h.toFixed(1)}">` +
-    `${shape}${centeredLabel(n)}${icon}</g>`
+    `${shape}${iconSvg}${centeredLabel(n, "archmap-node-label", labelOffset)}</g>`
   );
 }
 
@@ -485,6 +515,8 @@ export const DEFAULT_STYLE = `
 .archmap-node-abstraction { cursor: pointer; }
 .archmap-node-abstraction .archmap-node-shape, .archmap-node-abstraction .archmap-node-shape-top { stroke-width: 3.2; }
 .archmap-node-abstraction .archmap-node-label { font-weight: 700; }
+.archmap-abstraction-icon { opacity: 0.95; }
+.archmap-abstraction-icon-more { fill: var(--archmap-node-label, #1c2733); font: 700 10px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
 .archmap-edge-startpoint { fill: var(--archmap-edge-stroke, #5b6b86); stroke: none; }
 .archmap-arrowhead { fill: var(--archmap-edge-stroke, #5b6b86); }

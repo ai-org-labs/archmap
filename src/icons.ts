@@ -55,10 +55,20 @@ export function resolveIcon(provider?: string, kind?: string): ResolvedIcon | un
   return undefined;
 }
 
-/** Map of node id -> resolved icon for every node that has one. */
-export function resolveNodeIcons(model: ArchMapModel): Map<string, ResolvedIcon> {
-  const map = new Map<string, ResolvedIcon>();
+/** Map of node id -> resolved icon(s) for every node that has one. */
+export function resolveNodeIcons(model: ArchMapModel): Map<string, ResolvedIcon | ResolvedIcon[]> {
+  const map = new Map<string, ResolvedIcon | ResolvedIcon[]>();
   for (const n of model.nodes) {
+    const memberIconRefs = n.abstraction?.memberIconRefs ?? [];
+    if (memberIconRefs.length > 0) {
+      const icons = memberIconRefs
+        .map((ref) => resolveIcon(ref.provider, ref.kind))
+        .filter((entry): entry is ResolvedIcon => !!entry);
+      if (icons.length > 0) {
+        map.set(n.id, icons);
+        continue;
+      }
+    }
     const r = resolveIcon(n.provider, n.kind);
     if (r) map.set(n.id, r);
   }

@@ -54,8 +54,8 @@ export interface DiagramSpec {
   edgeBadges?: Map<string, Array<{ kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary"; label: string; title?: string }>>;
   /** Overlay-only edges, such as synthesized permission relationships. */
   overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
-  /** Node id -> resolved provider/kind icon (from the icon registry). */
-  nodeIcons?: Map<string, ResolvedIcon>;
+  /** Node id -> resolved provider/kind icon(s) from the icon registry. */
+  nodeIcons?: Map<string, ResolvedIcon | ResolvedIcon[]>;
   /** Optional inline CSS variables scoped to rendered node groups. */
   nodeStyles?: Map<string, string>;
   /** Optional inline CSS variables scoped to rendered edge groups. */
@@ -495,7 +495,8 @@ export function renderDiagram(spec: DiagramSpec): string {
 
   const nodesSvg = layout.nodes
     .map((n) => {
-      const node = nodeSvg(n, channelClass(n.id, emphasizeNodes).trim(), nodeIcons?.get(n.id)?.key, nodeStyles?.get(n.id));
+      const nodeIcon = nodeIcons?.get(n.id);
+      const node = nodeSvg(n, channelClass(n.id, emphasizeNodes).trim(), nodeIcon, nodeStyles?.get(n.id));
       const badge = nodeBadges?.get(n.id);
       return badge ? node + nodeBadgeSvg(n, badge) : node;
     })
@@ -503,7 +504,7 @@ export function renderDiagram(spec: DiagramSpec): string {
 
   // Symbol defs for every distinct icon used (deduped by key).
   const iconDefs = nodeIcons
-    ? [...new Map([...nodeIcons.values()].map((r) => [r.key, r])).values()]
+    ? [...new Map([...nodeIcons.values()].flatMap((r) => Array.isArray(r) ? r : [r]).map((r) => [r.key, r])).values()]
         .map(
           (r) =>
             `<symbol id="${iconDomId(r.key)}" viewBox="${r.icon.viewBox}">${r.icon.body}</symbol>`,

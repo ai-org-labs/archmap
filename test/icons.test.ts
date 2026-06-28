@@ -33,7 +33,8 @@ describe("icon registry", () => {
         A: { provider: gcp, kind: serverless_service }
     `);
     const icons = resolveNodeIcons(m);
-    expect(icons.get("A")?.key).toBe("gcp");
+    const icon = icons.get("A");
+    expect(Array.isArray(icon) ? icon[0]?.key : icon?.key).toBe("gcp");
   });
 
   it("sanitizes keys into DOM-safe ids", () => {
@@ -53,6 +54,37 @@ describe("icons in rendering", () => {
     const { svg } = render(m, { view: "overview" });
     expect(svg).toContain('<symbol id="archmap-icon-gcp"');
     expect(svg).toContain('href="#archmap-icon-gcp"');
+  });
+
+  it("renders every available member icon inside a collapsed abstraction node", () => {
+    registerIcon("gcp", dot);
+    registerIcon("aws", dot);
+    registerIcon("datadog", dot);
+    const m = parse(`graph LR
+      A[API] --> D[Database]
+      B[Worker] --> D
+      C[Metrics] --> D
+      E[Sidecar] --> D
+      ---
+      nodes:
+        A: { provider: gcp, kind: api_gateway }
+        B: { provider: aws, kind: runtime_service }
+        C: { provider: datadog, kind: monitoring }
+        E: { provider: gcp, kind: serverless_service }
+      zones:
+        service:
+          contains: [A, B, C, E]
+    `);
+    const { svg } = render(m, { baseView: "overview", overlays: ["zone"], collapsedAbstractions: ["zone:service"] });
+    expect(svg).toContain('data-abstraction-key="zone:service"');
+    expect(svg!.match(/class="archmap-node-icon archmap-abstraction-icon"/g)?.length).toBe(4);
+    expect(svg).toContain('href="#archmap-icon-gcp"');
+    expect(svg).toContain('href="#archmap-icon-aws"');
+    expect(svg).toContain('href="#archmap-icon-datadog"');
+    expect(svg!.match(/href="#archmap-icon-gcp"/g)?.length).toBe(2);
+    const match = svg!.match(/data-id="service"[^>]*data-w="([0-9.]+)" data-h="([0-9.]+)"/);
+    expect(Number(match?.[1])).toBeGreaterThan(96);
+    expect(Number(match?.[2])).toBeGreaterThan(48);
   });
 
   it("omits icons entirely when none are registered", () => {

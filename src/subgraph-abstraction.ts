@@ -226,7 +226,13 @@ function abstractionNode(
     provider: mostCommon(providers),
     ...(principals.length === 1 ? { principal: principals[0] } : {}),
     contains: members.map((node) => node.id),
-    abstraction: { target: kind, id },
+    abstraction: {
+      target: kind,
+      id,
+      memberIconRefs: members
+        .map((node) => ({ provider: node.provider, kind: node.kind }))
+        .filter((entry) => entry.provider || entry.kind),
+    },
     description: `${kind === "zone" ? "Zone" : "Subgraph"} abstraction for ${label ?? id}.`,
   };
 }

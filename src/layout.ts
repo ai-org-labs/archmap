@@ -138,11 +138,13 @@ function nodeWidth(label: string): number {
   return Math.max(NODE_MIN_W, Math.min(NODE_MAX_W, label.length * CHAR_W + NODE_PAD_X * 2));
 }
 
-function nodeSize(label: string, degree = 0): { w: number; h: number } {
+function nodeSize(label: string, degree = 0, abstractionMemberCount = 0): { w: number; h: number } {
   const extra = Math.max(0, degree - 4);
+  const iconRows = abstractionMemberCount > 0 ? Math.ceil(abstractionMemberCount / 6) : 0;
+  const iconWidth = abstractionMemberCount > 0 ? Math.min(6, abstractionMemberCount) * 22 + 28 : 0;
   return {
-    w: Math.min(HUB_NODE_MAX_W, nodeWidth(label) + extra * 18),
-    h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 10),
+    w: Math.min(HUB_NODE_MAX_W, Math.max(nodeWidth(label), iconWidth) + extra * 18),
+    h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 10 + iconRows * 22),
   };
 }
 
@@ -261,7 +263,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
       degree.set(resource, (degree.get(resource) ?? 0) + 1);
     }
   }
-  const sizeById = new Map(model.nodes.map((n) => [n.id, nodeSize(n.label, degree.get(n.id) ?? 0)]));
+  const sizeById = new Map(model.nodes.map((n) => [n.id, nodeSize(n.label, degree.get(n.id) ?? 0, n.abstraction ? n.contains?.length ?? 0 : 0)]));
 
   // --- Rank (flow axis) -----------------------------------------------------
   const allLayered = model.nodes.length > 0 && model.nodes.every((n) => n.layer);

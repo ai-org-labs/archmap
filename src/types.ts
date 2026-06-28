@@ -74,6 +74,7 @@ export interface ArchNode {
   abstraction?: {
     target: "subgraph" | "zone";
     id: string;
+    memberIconRefs?: Array<{ provider?: string; kind?: string }>;
   };
 }
 
