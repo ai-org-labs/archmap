@@ -125,6 +125,7 @@ const HUB_NODE_MAX_W = 560;
 const HUB_NODE_MAX_H = 240;
 const CHAR_W = 8;
 const NODE_PAD_X = 28;
+const ICON_RESERVED_W = 54;
 const RANK_GAP = 170; // gap between bands along the flow axis
 const NODE_GAP = 72; // gap between nodes within a band
 const LANE_GAP = 128; // gap between zone lanes on the cross axis (clears zone boxes)
@@ -138,13 +139,14 @@ function nodeWidth(label: string): number {
   return Math.max(NODE_MIN_W, Math.min(NODE_MAX_W, label.length * CHAR_W + NODE_PAD_X * 2));
 }
 
-function nodeSize(label: string, degree = 0, abstractionMemberCount = 0): { w: number; h: number } {
+function nodeSize(label: string, degree = 0, abstractionMemberCount = 0, iconReserved = false): { w: number; h: number } {
   const extra = Math.max(0, degree - 4);
   const iconRows = abstractionMemberCount > 0 ? Math.ceil(abstractionMemberCount / 6) : 0;
   const iconSlot = 38;
   const iconWidth = abstractionMemberCount > 0 ? Math.min(6, abstractionMemberCount) * iconSlot + 28 : 0;
+  const reservedIconWidth = iconReserved ? nodeWidth(label) + ICON_RESERVED_W : 0;
   return {
-    w: Math.min(HUB_NODE_MAX_W, Math.max(nodeWidth(label), iconWidth) + extra * 18),
+    w: Math.min(HUB_NODE_MAX_W, Math.max(nodeWidth(label), iconWidth, reservedIconWidth) + extra * 18),
     h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 10 + iconRows * iconSlot),
   };
 }
@@ -264,7 +266,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
       degree.set(resource, (degree.get(resource) ?? 0) + 1);
     }
   }
-  const sizeById = new Map(model.nodes.map((n) => [n.id, nodeSize(n.label, degree.get(n.id) ?? 0, n.abstraction ? n.contains?.length ?? 0 : 0)]));
+  const sizeById = new Map(model.nodes.map((n) => [n.id, nodeSize(n.label, degree.get(n.id) ?? 0, n.abstraction ? n.contains?.length ?? 0 : 0, !!(n.provider || n.kind))]));
 
   // --- Rank (flow axis) -----------------------------------------------------
   const allLayered = model.nodes.length > 0 && model.nodes.every((n) => n.layer);

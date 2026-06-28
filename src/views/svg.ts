@@ -22,6 +22,14 @@ function centeredLabel(n: LayoutNode, cls = "archmap-node-label", yOffset = 0): 
   return `<text class="${cls}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(n.label)}</text>`;
 }
 
+function leadingIconLabel(n: LayoutNode, cls = "archmap-node-label"): string {
+  const textX0 = n.x + 54;
+  const textX1 = n.x + n.w - 14;
+  const cx = textX0 + Math.max(1, textX1 - textX0) / 2;
+  const cy = n.y + n.h / 2;
+  return `<text class="${cls}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(n.label)}</text>`;
+}
+
 /** A small vendor/provider icon badge in the node's top-left corner. */
 function iconBadgeSvg(n: LayoutNode, iconKey: string): string {
   const size = 32;
@@ -99,10 +107,13 @@ export function nodeSvg(n: LayoutNode, extraClass = "", icon?: string | Resolved
   const abstractionAttrs = n.abstraction
     ? ` data-abstraction-target="${escapeXml(n.abstraction.target)}" data-abstraction-id="${escapeXml(n.abstraction.id)}" data-abstraction-key="${escapeXml(`${n.abstraction.target}:${n.abstraction.id}`)}"`
     : "";
+  const labelSvg = icons.length > 0
+    ? centeredLabel(n, "archmap-node-label", labelOffset)
+    : singleIconKey ? leadingIconLabel(n) : centeredLabel(n, "archmap-node-label");
   return (
     `<g class="${cls}" data-id="${escapeXml(n.id)}"${abstractionAttrs}${styleAttr} ` +
     `data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-w="${w.toFixed(1)}" data-h="${h.toFixed(1)}">` +
-    `${shape}${iconSvg}${centeredLabel(n, "archmap-node-label", labelOffset)}</g>`
+    `${shape}${iconSvg}${labelSvg}</g>`
   );
 }
 

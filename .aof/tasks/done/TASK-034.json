@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-034",
+  "title": "Reserve label space for larger node icons",
+  "description": "Icon-bearing 2D nodes now reserve horizontal space and place labels in the text area to the right of the icon.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T16:43:00.000+09:00",
+  "done_at": "2026-06-28T16:50:00.000+09:00",
+  "decision_notes": [
+    "Nodes with provider or kind metadata reserve extra width during layout because those nodes can receive provider/kind icons at render time.",
+    "Single-icon SVG node labels are centered within the remaining text area to the right of the icon instead of the full node body.",
+    "Abstraction icon grids keep their existing centered layout; this change targets normal component icons that were overlapping labels after icon scaling."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/icons.test.ts test/render.test.ts",
+    "npm run build"
+  ]
+}

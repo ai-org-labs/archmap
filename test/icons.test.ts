@@ -55,6 +55,11 @@ describe("icons in rendering", () => {
     expect(svg).toContain('<symbol id="archmap-icon-gcp"');
     expect(svg).toContain('href="#archmap-icon-gcp"');
     expect(svg).toContain('width="32" height="32"');
+    const nodeMatch = svg!.match(/data-id="A"[^>]*data-w="([0-9.]+)"/);
+    expect(Number(nodeMatch?.[1])).toBeGreaterThan(140);
+    const iconMatch = svg!.match(/href="#archmap-icon-gcp" x="([0-9.]+)"[^>]*width="32"/);
+    const labelMatch = svg!.match(/<text class="archmap-node-label" x="([0-9.]+)"[^>]*>a<\/text>/);
+    expect(Number(labelMatch?.[1])).toBeGreaterThan(Number(iconMatch?.[1]) + 40);
   });
 
   it("renders every available member icon inside a collapsed abstraction node", () => {
