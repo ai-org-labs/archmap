@@ -74,6 +74,7 @@
           <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags" aria-label="Expand tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
           <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags" aria-label="Minimize tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg></button>
           <button class="tag-action" id="abstraction-lock-toggle" type="button" title="Lock component expansion" aria-label="Lock component expansion"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg></button>
+          <button class="tag-action" id="export-png" type="button" title="Export PNG" aria-label="Export PNG"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
           <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen">Full</button>
           <fieldset class="tag-group" id="base-view">
             <span class="tag-label">Views</span>
@@ -353,6 +354,12 @@ boundaries:
       paintAbstractionLock();
     });
     paintAbstractionLock();
+    $("export-png").addEventListener("click", () => {
+      if (!result) return;
+      void result.downloadPng("archmap.png").catch((error) => {
+        console.error("ArchMap PNG export failed.", error);
+      });
+    });
     $("fullscreen-toggle").addEventListener("click", () => {
       $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
       $("fullscreen-toggle").textContent = $("diagram-tags").parentElement.classList.contains("is-fullscreen") ? "Exit" : "Full";

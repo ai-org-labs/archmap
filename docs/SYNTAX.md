@@ -298,13 +298,14 @@ const partlyExpanded = render(model, { baseView: "overview", abstractionLevel: 1
 overlaid.setOverlays(["permission", "validation"]);
 overlaid.toggleOverlay("boundary");
 abstracted.setAbstractionLevel(0);
+await overlaid.downloadPng("archmap.png");
 ```
 
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
 - **Render results** can update base view/overlays/abstraction without reparsing:
   `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`,
   `setAbstractionLevel(level)`, `setAbstractionTarget("subgraph" | "zone")`,
-  `destroy()`.
+  `exportPng({ scale, background })`, `downloadPng(filename)`, `destroy()`.
 - **Custom element (inline source):** `initialize()` defines
   `<archmap-viewer>` by default when `customElements` is available; call
   `defineArchMapViewerElement()` directly if you do not use `initialize()`.

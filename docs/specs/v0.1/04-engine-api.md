@@ -255,7 +255,16 @@ result.setOverlays(["auth", "boundary"]);
 result.toggleOverlay("dataflow");
 ```
 
-### 6.5 Base view updates
+### 6.5 PNG export
+
+Rendered diagrams may be exported as PNG from the current render result.
+
+```js
+await result.downloadPng("archmap.png");
+const blob = await result.exportPng({ scale: 2, background: "#ffffff" });
+```
+
+### 6.6 Base view updates
 
 Changing base view may recompute layout, but should not reparse source.
 
@@ -645,6 +654,8 @@ type RenderResult = {
   toggleOverlay(overlay: string): void;
   fit(): void;
   reset(): void;
+  exportPng(options?: { scale?: number; background?: string }): Promise<Blob>;
+  downloadPng(filename?: string, options?: { scale?: number; background?: string }): Promise<void>;
   destroy(): void;
 };
 ```

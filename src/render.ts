@@ -38,9 +38,17 @@ export interface ViewContext {
   options: RenderOptions;
 }
 
+export interface ExportPngOptions {
+  /** Output scale multiplier for SVG-backed 2D exports. Default: 2. */
+  scale?: number;
+  /** Canvas background painted behind the diagram. Default: white. */
+  background?: string;
+}
+
 /** Handle returned by an imperative (mounted) view, e.g. the WebGL 3D view. */
 export interface ViewHandle {
   dispose(): void;
+  exportPng?(options?: ExportPngOptions): Promise<Blob> | Blob;
 }
 
 /** A view that mounts imperatively into a DOM element instead of returning SVG. */
@@ -113,6 +121,8 @@ export interface RenderResult {
   toggleOverlay(overlay: string): void;
   fit(): void;
   reset(): void;
+  exportPng(options?: ExportPngOptions): Promise<Blob>;
+  downloadPng(filename?: string, options?: ExportPngOptions): Promise<void>;
   destroy(): void;
 }
 
@@ -128,6 +138,92 @@ export function getView(name: string): ViewRenderer | undefined {
 
 export function listViews(): string[] {
   return [...registry.keys()];
+}
+
+function currentTargetSvg(target: Element | null | undefined): string | undefined {
+  const svg = target?.querySelector?.("svg.archmap");
+  if (!svg) return undefined;
+  if ("outerHTML" in svg && typeof svg.outerHTML === "string") return svg.outerHTML;
+  if (typeof XMLSerializer !== "undefined") return new XMLSerializer().serializeToString(svg);
+  return undefined;
+}
+
+function svgDimensions(svg: string): { width: number; height: number } {
+  const numericAttr = (name: string): number | undefined => {
+    const match = svg.match(new RegExp(`\\s${name}="([^"]+)"`));
+    if (!match) return undefined;
+    const value = Number.parseFloat(match[1]);
+    return Number.isFinite(value) && value > 0 ? value : undefined;
+  };
+  const width = numericAttr("width");
+  const height = numericAttr("height");
+  if (width && height) return { width, height };
+
+  const viewBoxMatch = svg.match(/\sviewBox="([^"]+)"/);
+  if (viewBoxMatch) {
+    const parts = viewBoxMatch[1].trim().split(/\s+/).map(Number);
+    if (parts.length === 4 && Number.isFinite(parts[2]) && Number.isFinite(parts[3]) && parts[2] > 0 && parts[3] > 0) {
+      return { width: parts[2], height: parts[3] };
+    }
+  }
+  return { width: 1200, height: 800 };
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Failed to create PNG blob from canvas."));
+    }, "image/png");
+  });
+}
+
+async function svgToPngBlob(svg: string, options: ExportPngOptions = {}): Promise<Blob> {
+  if (typeof document === "undefined" || typeof Image === "undefined" || typeof Blob === "undefined" || typeof URL === "undefined") {
+    throw new Error("PNG export requires a browser DOM.");
+  }
+  const { width, height } = svgDimensions(svg);
+  const scale = Math.max(0.25, Math.min(6, options.scale ?? 2));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * scale);
+  canvas.height = Math.ceil(height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("PNG export could not create a 2D canvas context.");
+  ctx.fillStyle = options.background ?? "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.scale(scale, scale);
+
+  const image = new Image();
+  const objectUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("PNG export could not load the rendered SVG."));
+      image.src = objectUrl;
+    });
+    ctx.drawImage(image, 0, 0, width, height);
+    return await canvasToBlob(canvas);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  if (typeof document === "undefined" || typeof URL === "undefined") {
+    throw new Error("PNG download requires a browser DOM.");
+  }
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename.endsWith(".png") ? filename : `${filename}.png`;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
 }
 
 function diagnosticLabel(model: ArchMapModel): string {
@@ -649,6 +745,16 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     reset() {
       panZoom?.reset();
     },
+    async exportPng(exportOptions?: ExportPngOptions) {
+      if (result.handle?.exportPng) return await result.handle.exportPng(exportOptions);
+      const svg = result.svg ?? currentTargetSvg(options.target);
+      if (!svg) throw new Error("No exportable ArchMap render is available.");
+      return await svgToPngBlob(svg, exportOptions);
+    },
+    async downloadPng(filename = "archmap.png", exportOptions?: ExportPngOptions) {
+      const blob = await result.exportPng(exportOptions);
+      await downloadBlob(blob, filename);
+    },
     destroy() {
       panZoom?.dispose();
       panZoom = undefined;
@@ -942,12 +1048,13 @@ export function defineArchMapViewerElement(): void {
       const actionCss =
         "min-width:28px;min-height:26px;padding:3px 8px;border-radius:999px;background:#eef2f7;" +
         "color:#334155;border:1px solid #cbd5e1;cursor:pointer;";
-      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize" | "fit" | "reset" | "fullscreen" | "lock" | "unlock") => {
+      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize" | "fit" | "reset" | "download" | "fullscreen" | "lock" | "unlock") => {
         const paths = {
           expand: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
           minimize: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/>',
           fit: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/>',
           reset: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/>',
+          download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
           fullscreen: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
           lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
           unlock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/>',
@@ -1121,6 +1228,17 @@ export function defineArchMapViewerElement(): void {
         paintLockToggle();
       });
       paintLockToggle();
+      const exportPng = document.createElement("button");
+      exportPng.type = "button";
+      exportPng.title = "Export PNG";
+      exportPng.ariaLabel = "Export PNG";
+      exportPng.style.cssText = actionCss;
+      setActionIcon(exportPng, "download");
+      exportPng.addEventListener("click", () => {
+        void result.downloadPng("archmap.png").catch((error: unknown) => {
+          console.error("ArchMap PNG export failed.", error);
+        });
+      });
       const fullscreen = document.createElement("button");
       fullscreen.type = "button";
       fullscreen.title = "Fullscreen";
@@ -1138,7 +1256,7 @@ export function defineArchMapViewerElement(): void {
       const actionGroup = document.createElement("span");
       actionGroup.className = "archmap-controls-group";
       actionGroup.style.cssText = "display:inline-flex;align-items:center;gap:5px;";
-      actionGroup.append(zoomToggle, lockToggle, fullscreen);
+      actionGroup.append(zoomToggle, lockToggle, exportPng, fullscreen);
       panelElements.push(actionGroup);
       bar.append(actionGroup);
 

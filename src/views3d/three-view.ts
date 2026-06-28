@@ -323,7 +323,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const height = el.clientHeight || 520;
   const isIsometric = ctx.options.renderMode === "isometric";
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height);
   el.appendChild(renderer.domElement);
@@ -528,6 +528,16 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   observer.observe(el);
 
   return {
+    exportPng() {
+      renderer.clear();
+      renderer.render(scene, camera);
+      return new Promise<Blob>((resolve, reject) => {
+        renderer.domElement.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Failed to create PNG blob from the 3D canvas."));
+        }, "image/png");
+      });
+    },
     dispose() {
       cancelAnimationFrame(raf);
       observer.disconnect();

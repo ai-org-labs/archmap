@@ -81,6 +81,7 @@ export type {
   ViewContext,
   RenderOptions,
   RenderResult,
+  ExportPngOptions,
   InitializeOptions,
   ViewerAttributeOptions,
   ViewHandle,

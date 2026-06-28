@@ -536,6 +536,13 @@ describe("render", () => {
     expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");
   });
 
+  it("exposes PNG export methods on render results", () => {
+    const m = parse(example);
+    const result = render(m, { baseView: "overview" });
+    expect(typeof result.exportPng).toBe("function");
+    expect(typeof result.downloadPng).toBe("function");
+  });
+
   it("keeps overview structural until information layers are added", () => {
     const m = parse(example);
     const plain = render(m, { baseView: "overview" });

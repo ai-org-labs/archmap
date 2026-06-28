@@ -1,0 +1,25 @@
+{
+  "task_id": "TASK-048",
+  "title": "Add PNG export for rendered diagrams",
+  "description": "Added PNG export to the public render result API, custom element controls, local playground, static demo, and 3D canvas renderer.",
+  "status": "done",
+  "origin": "TASK-010-export-checkpoint",
+  "created_at": "2026-06-28T22:35:00.000+09:00",
+  "done_at": "2026-06-28T22:52:00.000+09:00",
+  "decision_notes": [
+    "2D exports render the current SVG result to a PNG canvas with a white background and configurable scale.",
+    "3D exports use the mounted WebGL canvas via preserveDrawingBuffer so the current camera view can be captured.",
+    "The toolbar export button is available in the custom element controls, localhost playground, and static demo."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts test/scene3d.test.ts",
+    "npm run build",
+    "git diff --check",
+    "Vite dev server restarted on http://127.0.0.1:4174/ (PID 90153)"
+  ],
+  "handoff": [
+    "Browser plugin tab discovery returned no in-app tab in this session, so click-to-download was not exercised through the browser automation surface.",
+    "If revisiting export, add a browser smoke test that stubs anchor downloads and verifies 2D SVG-to-PNG and 3D canvas-to-PNG produce non-empty blobs."
+  ]
+}
