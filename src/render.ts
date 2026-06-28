@@ -727,6 +727,7 @@ export function defineArchMapViewerElement(): void {
     private diagnosticsPanel?: HTMLDivElement;
     private inspectorPanel?: HTMLDivElement;
     private controlsBar?: HTMLDivElement;
+    private loadingPanel?: HTMLDivElement;
     private result?: RenderResult;
     private loadVersion = 0;
 
@@ -748,15 +749,15 @@ export function defineArchMapViewerElement(): void {
       }
       const options = viewerOptionsFromAttributes(this);
       if (name === "base-view" && options.baseView) {
-        this.result.setBaseView(options.baseView);
+        this.runWithLoading(() => this.result?.setBaseView(options.baseView!));
       } else if (name === "render-mode") {
-        this.result.setRenderMode(options.renderMode);
+        this.runWithLoading(() => this.result?.setRenderMode(options.renderMode));
       } else if (name === "overlays") {
-        this.result.setOverlays(options.overlays);
+        this.runWithLoading(() => this.result?.setOverlays(options.overlays));
       } else if (name === "abstraction-level") {
-        this.result.setAbstractionLevel(options.abstractionLevel);
+        this.runWithLoading(() => this.result?.setAbstractionLevel(options.abstractionLevel));
       } else if (name === "abstraction-target") {
-        this.result.setAbstractionTarget(options.abstractionTarget);
+        this.runWithLoading(() => this.result?.setAbstractionTarget(options.abstractionTarget));
       } else if (name === "width" || name === "height") {
         this.applyFrameStyle();
       } else {
@@ -772,6 +773,57 @@ export function defineArchMapViewerElement(): void {
       this.appendChild(container);
       this.container = container;
       return container;
+    }
+
+    private ensureLoadingPanel(): HTMLDivElement {
+      this.ensureContainer();
+      if (this.loadingPanel?.isConnected) return this.loadingPanel;
+      const panel = document.createElement("div");
+      panel.className = "archmap-viewer-loading";
+      panel.innerHTML = '<span class="archmap-loading-spinner" aria-hidden="true"></span><span>Rendering</span>';
+      panel.style.cssText =
+        "position:absolute;inset:0;display:none;align-items:center;justify-content:center;gap:10px;" +
+        "background:rgba(248,250,252,0.62);backdrop-filter:blur(1px);color:#334155;" +
+        "font:700 13px system-ui,sans-serif;z-index:20;pointer-events:none;";
+      const spinner = panel.querySelector(".archmap-loading-spinner") as HTMLElement | null;
+      if (spinner) {
+        spinner.style.cssText =
+          "width:22px;height:22px;border-radius:999px;border:3px solid rgba(100,116,139,0.25);" +
+          "border-top-color:#2563eb;animation:archmap-spin 0.75s linear infinite;";
+      }
+      this.appendChild(panel);
+      this.loadingPanel = panel;
+      return panel;
+    }
+
+    private ensureLoadingStyle(): void {
+      const doc = this.ownerDocument;
+      if (doc.getElementById("archmap-viewer-loading-style")) return;
+      const style = doc.createElement("style");
+      style.id = "archmap-viewer-loading-style";
+      style.textContent = "@keyframes archmap-spin{to{transform:rotate(360deg)}}";
+      doc.head.appendChild(style);
+    }
+
+    private showLoading(): void {
+      this.ensureLoadingStyle();
+      const panel = this.ensureLoadingPanel();
+      panel.style.display = "flex";
+    }
+
+    private hideLoading(): void {
+      if (this.loadingPanel) this.loadingPanel.style.display = "none";
+    }
+
+    private runWithLoading(action: () => void): void {
+      this.showLoading();
+      requestAnimationFrame(() => {
+        try {
+          action();
+        } finally {
+          requestAnimationFrame(() => this.hideLoading());
+        }
+      });
     }
 
     private ensureDiagnosticsPanel(): HTMLDivElement {
@@ -795,6 +847,7 @@ export function defineArchMapViewerElement(): void {
     private applyFrameStyle(): void {
       const options = viewerOptionsFromAttributes(this);
       this.style.display = this.style.display || "block";
+      this.style.position = this.style.position || "relative";
       this.style.width = options.width;
       this.style.height = options.height;
       const container = this.ensureContainer();
@@ -919,13 +972,15 @@ export function defineArchMapViewerElement(): void {
         input.style.margin = "0";
         input.addEventListener("change", () => {
           if (!input.checked) return;
-          result.setBaseView(view);
           active.base = view;
           baseGroup.querySelectorAll("label").forEach((label) => {
             const radio = label.querySelector("input");
             paintTag(label as HTMLElement, radio instanceof HTMLInputElement && radio.checked);
           });
-          updateDiagnostics();
+          this.runWithLoading(() => {
+            result.setBaseView(view);
+            updateDiagnostics();
+          });
         });
         wrap.append(input, document.createTextNode(BASE_VIEW_LABELS[view]));
         paintTag(wrap, input.checked);
@@ -945,13 +1000,15 @@ export function defineArchMapViewerElement(): void {
         input.style.margin = "0";
         input.addEventListener("change", () => {
           if (!input.checked) return;
-          result.setRenderMode(mode);
           active.renderMode = mode;
           modeGroup.querySelectorAll("label").forEach((label) => {
             const radio = label.querySelector("input");
             paintTag(label as HTMLElement, radio instanceof HTMLInputElement && radio.checked);
           });
-          updateDiagnostics();
+          this.runWithLoading(() => {
+            result.setRenderMode(mode);
+            updateDiagnostics();
+          });
         });
         wrap.append(input, document.createTextNode(mode === "3d" ? "3D" : mode.toUpperCase()));
         paintTag(wrap, input.checked);
@@ -971,13 +1028,15 @@ export function defineArchMapViewerElement(): void {
         cb.addEventListener("change", () => {
           if (cb.checked) {
             active.overlays.add(overlay);
-            result.addOverlay(overlay);
           } else {
             active.overlays.delete(overlay);
-            result.removeOverlay(overlay);
           }
           paintTag(wrap, cb.checked);
-          updateDiagnostics();
+          this.runWithLoading(() => {
+            if (cb.checked) result.addOverlay(overlay);
+            else result.removeOverlay(overlay);
+            updateDiagnostics();
+          });
         });
         wrap.append(cb, document.createTextNode(" " + overlay));
         overlayGroup.appendChild(wrap);
@@ -1055,18 +1114,21 @@ export function defineArchMapViewerElement(): void {
     private async renderSource(): Promise<void> {
       const version = ++this.loadVersion;
       const options = viewerOptionsFromAttributes(this);
+      this.showLoading();
       let source = this.source.trim();
-      if (options.src) {
-        try {
+      try {
+        if (options.src) {
           source = await fetchArchMapSource(options.src);
-        } catch (e) {
-          if (version === this.loadVersion) this.renderSourceFailure(options.src, e, options);
-          return;
         }
+        if (version !== this.loadVersion) return;
+        if (!source) return;
+        this.renderModel(parse(source), options);
+      } catch (e) {
+        if (version === this.loadVersion && options.src) this.renderSourceFailure(options.src, e, options);
+        else if (version === this.loadVersion) throw e;
+      } finally {
+        if (version === this.loadVersion) requestAnimationFrame(() => this.hideLoading());
       }
-      if (version !== this.loadVersion) return;
-      if (!source) return;
-      this.renderModel(parse(source), options);
     }
   }
 

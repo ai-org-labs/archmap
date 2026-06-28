@@ -30,6 +30,9 @@
     #diagram canvas { display: block; width: 100%; min-height: calc(100vh - 96px); }
     .diagram.is-fullscreen #diagram canvas { min-height: calc(100vh - 32px); }
     .diagram svg { background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: 100%; height: auto; }
+    .diagram-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; gap: 10px; background: rgba(248,250,252,0.62); backdrop-filter: blur(1px); color: #334155; font: 700 13px system-ui, sans-serif; pointer-events: none; }
+    .diagram-loading-spinner { width: 22px; height: 22px; border-radius: 999px; border: 3px solid rgba(100,116,139,0.25); border-top-color: #2563eb; animation: archmap-spin 0.75s linear infinite; }
+    @keyframes archmap-spin { to { transform: rotate(360deg); } }
     .diagram-tags { position: sticky; top: 12px; left: 12px; z-index: 5; width: min(740px, calc(100% - 24px)); margin-bottom: -42px; display: flex; align-items: flex-start; gap: 8px; pointer-events: none; }
     .tag-panel { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid rgba(148,163,184,0.45); border-radius: 8px; background: rgba(255,255,255,0.92); box-shadow: 0 10px 28px rgba(28,39,51,0.12); backdrop-filter: blur(8px); }
     .tag-panel.is-minimized .tag-group, .tag-panel.is-minimized .tag-action-min { display: none; }
@@ -77,6 +80,7 @@
           </fieldset>
         </div>
       </div>
+      <div class="diagram-loading" id="loading"><span class="diagram-loading-spinner" aria-hidden="true"></span><span>Rendering</span></div>
       <div id="diagram"></div>
     </div>
   </main>
@@ -235,6 +239,18 @@ boundaries:
     }
     let result = null;
     const selectedOverlays = () => [...$("overlays").querySelectorAll("input:checked")].map((input) => input.value);
+    const showLoading = () => { $("loading").style.display = "flex"; };
+    const hideLoading = () => { $("loading").style.display = "none"; };
+    const renderWithLoading = (action) => {
+      showLoading();
+      requestAnimationFrame(() => {
+        try {
+          action();
+        } finally {
+          requestAnimationFrame(hideLoading);
+        }
+      });
+    };
     const updateLog = (model) => {
       const log = [
         ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),
@@ -250,22 +266,28 @@ boundaries:
       updateLog(result.model);
     }
     function updateOverlay(input) {
-      if (!result) { draw(); return; }
-      if (input.checked) result.addOverlay(input.value);
-      else result.removeOverlay(input.value);
-      updateLog(result.model);
+      renderWithLoading(() => {
+        if (!result) { draw(); return; }
+        if (input.checked) result.addOverlay(input.value);
+        else result.removeOverlay(input.value);
+        updateLog(result.model);
+      });
     }
     function updateBaseView() {
-      if (!result) { draw(); return; }
-      result.setBaseView(selectedRadio("base-view"));
-      updateLog(result.model);
+      renderWithLoading(() => {
+        if (!result) { draw(); return; }
+        result.setBaseView(selectedRadio("base-view"));
+        updateLog(result.model);
+      });
     }
     function updateRenderMode() {
-      if (!result) { draw(); return; }
-      result.setRenderMode(selectedRadio("render-mode"));
-      updateLog(result.model);
+      renderWithLoading(() => {
+        if (!result) { draw(); return; }
+        result.setRenderMode(selectedRadio("render-mode"));
+        updateLog(result.model);
+      });
     }
-    $("run").addEventListener("click", draw);
+    $("run").addEventListener("click", () => renderWithLoading(draw));
     document.querySelectorAll('input[name="base-view"]').forEach((input) => input.addEventListener("change", updateBaseView));
     document.querySelectorAll('input[name="render-mode"]').forEach((input) => input.addEventListener("change", updateRenderMode));
     $("tags-max").addEventListener("click", () => {

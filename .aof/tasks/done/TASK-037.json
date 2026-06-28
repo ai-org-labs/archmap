@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-037",
+  "title": "Add hover affordance and render loading states",
+  "description": "Expandable area/component targets now advertise hover affordance, and viewer/playground render transitions show a short loading animation during view, render-mode, overlay, and explicit render changes.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T18:05:00.000+09:00",
+  "done_at": "2026-06-28T18:25:00.000+09:00",
+  "decision_notes": [
+    "Added SVG hover styles for collapsed abstraction nodes, zones, and subgraphs so clickable expansion/collapse targets show pointer, shadow, stronger stroke, and label underline.",
+    "Added a custom-element loading overlay for <archmap-viewer> and wrapped attribute/toolbox render transitions in a one-frame loading cycle.",
+    "Added matching loading overlays to index.html and examples/demo.html because the current playground/demo use direct render() calls rather than <archmap-viewer>."
+  ],
+  "verification": [
+    "npm test -- --run test/render.test.ts test/interaction.test.ts",
+    "npm run build",
+    "rg verified hover/loading implementation strings in src/views/svg.ts, src/render.ts, index.html, and examples/demo.html",
+    "In-app browser automation was attempted against examples/demo.html, but the click verification timed out twice before producing a stable result."
+  ]
+}

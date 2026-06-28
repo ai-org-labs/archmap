@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-036 interrupt done: single-icon 2D node labels now anchor at the component center while preserving icon clearance, fixing the visual imbalance in the CDN demo. Browser verification on examples/demo.html confirmed iconed labels have zero delta from node center. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T17:55:00.000+09:00",
+  "content": "TASK-037 interrupt done: expandable nodes/zones/subgraphs now expose hover affordance, and render transitions in <archmap-viewer>, index.html, and examples/demo.html show a short loading spinner for view/render-mode/overlay/render changes. Browser automation against examples/demo.html timed out during click verification, but tests/build/static checks passed. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T18:25:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

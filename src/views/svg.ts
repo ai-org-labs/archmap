@@ -526,9 +526,13 @@ export const DEFAULT_STYLE = `
 .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); stroke: none; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
-.archmap-node-abstraction { cursor: pointer; }
+.archmap-node-abstraction, .archmap-zone[data-id], .archmap-subgraph[data-id] { cursor: pointer; }
 .archmap-node-abstraction .archmap-node-shape, .archmap-node-abstraction .archmap-node-shape-top { stroke-width: 3.2; }
 .archmap-node-abstraction .archmap-node-label { font-weight: 700; }
+.archmap-node-abstraction:hover .archmap-node-shape, .archmap-node-abstraction:hover .archmap-node-shape-top { filter: drop-shadow(0 3px 7px rgba(37,99,235,0.22)); stroke-width: 4; }
+.archmap-node-abstraction:hover .archmap-node-label { text-decoration: underline; }
+.archmap-zone[data-id]:hover .archmap-zone-box, .archmap-subgraph[data-id]:hover .archmap-subgraph-box { filter: drop-shadow(0 3px 7px rgba(37,99,235,0.18)); stroke-width: 2.6; }
+.archmap-zone[data-id]:hover .archmap-zone-label, .archmap-subgraph[data-id]:hover .archmap-subgraph-label { text-decoration: underline; }
 .archmap-abstraction-icon { opacity: 0.95; }
 .archmap-abstraction-icon-more { fill: var(--archmap-node-label, #1c2733); font: 700 10px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
