@@ -1,0 +1,18 @@
+{
+  "task_id": "TASK-044",
+  "title": "Improve static demo editor ergonomics",
+  "description": "The static demo editor panel now has a draggable width handle, line numbers, a top-positioned Render button, and a simplified demo header label.",
+  "status": "done",
+  "origin": "human-browser-comment",
+  "created_at": "2026-06-28T20:45:00.000+09:00",
+  "done_at": "2026-06-28T20:52:00.000+09:00",
+  "decision_notes": [
+    "The demo page is an editing surface, so the source editor needs resizable width and line-number orientation.",
+    "Render was moved to a small top toolbar so the action remains reachable without scrolling to the bottom of the editor.",
+    "The header was simplified from the implementation-detail subtitle to a plain demo label."
+  ],
+  "verification": [
+    "npm run build",
+    "Browser DOM check on examples/demo.html: hasLineNumbers=true, hasResizeHandle=true, renderParentClass=panel-top, title=demo"
+  ]
+}
