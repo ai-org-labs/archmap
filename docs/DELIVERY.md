@@ -36,6 +36,9 @@ The npm package includes `dist`, `docs`, `examples`, `README.md`, and `SPEC.md`
 so consumers can inspect examples and the implemented feature surface without
 checking out the source repository.
 
+The package is licensed under Apache-2.0 and includes `LICENSE` plus
+`THIRD_PARTY_NOTICES.md`.
+
 ### Local Development
 
 Use the root playground during development:
@@ -111,6 +114,9 @@ Implemented safeguards:
   failure. It does not bypass browser CORS or filesystem restrictions.
 - Optional icon packs are explicit opt-ins through `registerIcon`; the core
   bundle ships no vendor icon assets.
+- Third-party logos, product names, and service marks remain the property of
+  their respective owners. Enabling external icon packs is an explicit consumer
+  choice; see `THIRD_PARTY_NOTICES.md`.
 
 Current constraints and follow-up items:
 

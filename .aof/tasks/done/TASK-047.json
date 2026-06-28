@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-047",
+  "title": "Add Apache-2.0 license and publication notices",
+  "description": "Set ArchMap's public license to Apache-2.0 and added third-party dependency/icon/trademark notices for publication readiness.",
+  "status": "done",
+  "origin": "TASK-010-license-checkpoint",
+  "created_at": "2026-06-28T21:40:00.000+09:00",
+  "done_at": "2026-06-28T21:48:00.000+09:00",
+  "decision_notes": [
+    "The human selected Apache-2.0 for public release.",
+    "The package previously had no license metadata or root LICENSE file, which would be a public-release blocker.",
+    "Third-party notices explicitly distinguish core no-icon behavior, optional icon packs, CC0 simple-icons paths, and trademark ownership."
+  ],
+  "verification": [
+    "npm run build",
+    "git diff --check",
+    "npm pack --dry-run: LICENSE and THIRD_PARTY_NOTICES.md included in tarball"
+  ]
+}

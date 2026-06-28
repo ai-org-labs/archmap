@@ -8,6 +8,8 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 - [docs/DELIVERY.md](./docs/DELIVERY.md) — npm/local/CDN delivery and security notes
 - [docs/V0_1_ACCEPTANCE_MATRIX.md](./docs/V0_1_ACCEPTANCE_MATRIX.md) —
   v0.1 acceptance status and remaining release decisions
+- [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) — third-party dependency,
+  icon, and trademark notes
 - [SPEC.md](./SPEC.md) — the v0.1 language design
 
 > **Status:** v0.1 developer-preview hardening. The current product surface is
@@ -86,6 +88,8 @@ through jsDelivr:
 
 The bundled `archmap/packs/cloud-icons` sample remains intentionally tiny; use
 `@archmap/icons` when you want broad provider/service icon coverage.
+Third-party logos, product names, and service marks remain the property of
+their respective owners; enabling external icon packs is an explicit opt-in.
 
 ### 3D view (opt-in)
 
@@ -168,3 +172,9 @@ index.html            dev playground (Vite, live source)
 | 11–12 | Runs without a server / from static files | ✅ (UMD bundle) |
 | — | 3D / Stack view (three.js, reuses `z`) | ✅ opt-in preview |
 ```
+
+## License
+
+ArchMap is licensed under the Apache License, Version 2.0. See
+[LICENSE](./LICENSE). Third-party dependency, icon, and trademark notes are in
+[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).

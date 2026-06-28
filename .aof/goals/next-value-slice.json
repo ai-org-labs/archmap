@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-046 checkpoint done under TASK-010: public delivery/security docs and v0.1 acceptance matrix added. README/SYNTAX updated to current delivery, zone-as-add-info, routing validation, 3D, and security constraints. package.json now packs dist plus public docs/specs/examples while excluding internal docs/aof. Verification: npm run build, git diff --check, npm pack --dry-run. Next: continue TASK-010 by either verifying the actual published CDN URL after release candidate or resolving the final spec wording/product decision for zone base view vs Add info overlay. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T21:34:00.000+09:00",
+  "content": "TASK-047 checkpoint done under TASK-010: ArchMap is now marked Apache-2.0 for publication. Added root LICENSE, package.json license metadata, THIRD_PARTY_NOTICES.md, and README/DELIVERY license + trademark notes. npm pack --dry-run confirms LICENSE and THIRD_PARTY_NOTICES.md are included alongside public docs/specs/examples and internal docs/aof remains excluded. Next: continue TASK-010 by either verifying the actual published CDN URL after release candidate or resolving final spec wording/product decision for zone base view vs Add info overlay. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T21:48:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
