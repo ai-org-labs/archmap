@@ -80,6 +80,29 @@ function expectInnerAreasStayInsideZones(svg: string): void {
   }
 }
 
+function expectRenderedZonesContainMembers(svg: string, model: ReturnType<typeof parse>): void {
+  const zonesById = new Map(areaBoxes(svg, "archmap-zone", "archmap-zone-box").map((box) => [box.id, box]));
+  const nodesById = new Map(nodeBoxes(svg).map((box) => [box.id, box]));
+  for (const node of model.nodes) {
+    const zoneId = node.resolvedZone === "unknown" ? undefined : node.resolvedZone ?? node.zone;
+    if (!zoneId) continue;
+    const zone = zonesById.get(zoneId);
+    const renderedNode = nodesById.get(node.id);
+    if (!zone || !renderedNode) continue;
+    expect(containsArea(zone, renderedNode), `zone:${zoneId} must contain node:${node.id}`).toBe(true);
+  }
+  for (const zoneDef of model.zones) {
+    const parent = zonesById.get(zoneDef.id);
+    if (!parent) continue;
+    for (const child of zoneDef.resolvedContains ?? []) {
+      if (child.type !== "zone") continue;
+      const renderedChild = zonesById.get(child.id);
+      if (!renderedChild) continue;
+      expect(containsArea(parent, renderedChild), `zone:${zoneDef.id} must contain child zone:${child.id}`).toBe(true);
+    }
+  }
+}
+
 describe("render", () => {
   it("registers the overview view by default", () => {
     expect(listViews()).toContain("overview");
@@ -151,6 +174,12 @@ describe("render", () => {
         expect(overlaps(zones[i], zones[j]), `${zones[i].id} overlaps ${zones[j].id}`).toBe(false);
       }
     }
+  });
+
+  it("keeps rendered zones aligned with their member components and child zones", () => {
+    const m = parse(comprehensive);
+    const svg = render(m, { baseView: "overview", overlays: ["zone", "boundary"] }).svg!;
+    expectRenderedZonesContainMembers(svg, m);
   });
 
   it("keeps subgraph and boundary areas inside their zone area", () => {

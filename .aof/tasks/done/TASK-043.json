@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-043",
+  "title": "Keep zone areas aligned with member components",
+  "description": "Zone, boundary, and subgraph rendering no longer relocates area boxes away from the components or child zones they describe. Zone nesting remains anchored to member geometry.",
+  "status": "done",
+  "origin": "human-browser-comment",
+  "created_at": "2026-06-28T20:32:00.000+09:00",
+  "done_at": "2026-06-28T20:40:00.000+09:00",
+  "decision_notes": [
+    "TASK-041/TASK-042 introduced render-time area packing to avoid overlap, but same-kind zone packing could move nested zone boxes away from their member components.",
+    "Removed render-time relocation of area boxes. Area boxes now stay anchored to layout-derived member geometry; visual separation is handled by draw order and class-specific outsets.",
+    "Added a comprehensive regression that rendered zone boxes contain their member nodes and child zone boxes."
+  ],
+  "verification": [
+    "npm test -- --run test/render.test.ts",
+    "npm run build",
+    "dist comprehensive fixture check: outsideNodes=[] and outsideChildZones=[]"
+  ]
+}
