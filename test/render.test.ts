@@ -661,6 +661,22 @@ ${permissions}
     expect(target.innerHTML).toBe("");
   });
 
+  it("marks abstraction interactions as locked when requested", () => {
+    const m = parse(`graph LR
+      subgraph Service
+        A[API]
+        B[Worker]
+      end
+      A --> D[Database]
+    `);
+    const result = render(m, { baseView: "overview", abstractionLevel: 1, abstractionLocked: true });
+    expect(result.isAbstractionLocked()).toBe(true);
+    expect(result.svg).toContain("archmap-abstraction-locked");
+    expect(result.svg).toContain("data-abstraction-key=\"subgraph:Service\"");
+    result.setAbstractionLocked(false);
+    expect(result.isAbstractionLocked()).toBe(false);
+  });
+
   it("uses spec-shaped metadata view defaults", () => {
     const m = parse(`graph LR
       A[a] -->|JWT| B[b]

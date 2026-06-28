@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-038",
+  "title": "Add abstraction expansion lock control",
+  "description": "Control bars now expose a lock button for component/area expansion. While locked, collapsed abstraction nodes, zones, and subgraphs cannot be opened or closed by click.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T18:25:00.000+09:00",
+  "done_at": "2026-06-28T18:35:00.000+09:00",
+  "decision_notes": [
+    "Added RenderOptions.abstractionLocked plus RenderResult setAbstractionLocked/isAbstractionLocked for programmatic and control-bar use.",
+    "The abstraction click handler now checks lock state before expanding/collapsing nodes, zones, or subgraphs.",
+    "Locked SVGs receive archmap-abstraction-locked so hover affordance/pointer styling is suppressed while expansion is locked.",
+    "Added lock buttons to <archmap-viewer>, index.html, and examples/demo.html; demo/playground preserve lock state across redraws."
+  ],
+  "verification": [
+    "npm test -- --run test/render.test.ts test/interaction.test.ts",
+    "npm run build",
+    "rg verified abstractionLocked/setAbstractionLocked/abstraction-lock-toggle/archmap-abstraction-locked integration points"
+  ]
+}

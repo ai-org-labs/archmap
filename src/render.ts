@@ -69,6 +69,8 @@ export interface RenderOptions {
   expandedAbstractions?: string[];
   /** Abstraction keys (`subgraph:X` / `zone:Y`) currently collapsed by interaction. */
   collapsedAbstractions?: string[];
+  /** When true, clickable abstraction/area expand-collapse interactions are disabled. */
+  abstractionLocked?: boolean;
   /** Legacy flat view selector. Kept for compatibility with existing callers. */
   view?: string;
   direction?: Direction;
@@ -104,6 +106,8 @@ export interface RenderResult {
   collapseAbstraction(key: string): void;
   expandAbstraction(key: string): void;
   toggleAbstraction(key: string): void;
+  setAbstractionLocked(locked: boolean): void;
+  isAbstractionLocked(): boolean;
   addOverlay(overlay: string): void;
   removeOverlay(overlay: string): void;
   toggleOverlay(overlay: string): void;
@@ -252,12 +256,19 @@ function attachDiagnosticSelection(
   return () => diagnosticsEl.removeEventListener("click", handler);
 }
 
-function attachAbstractionToggles(target: Element, collapse: (key: string) => void, expand: (key: string) => void): () => void {
+function setTargetAbstractionLocked(target: Element | null | undefined, locked: boolean): void {
+  const svg = target?.querySelector?.("svg.archmap");
+  svg?.classList.toggle("archmap-abstraction-locked", locked);
+  if (typeof HTMLElement !== "undefined" && target instanceof HTMLElement) target.classList.toggle("archmap-abstraction-locked", locked);
+}
+
+function attachAbstractionToggles(target: Element, collapse: (key: string) => void, expand: (key: string) => void, locked: () => boolean): () => void {
   const handler = (event: Event) => {
     const source = event.target instanceof Element ? event.target : null;
     const abstractionNode = source?.closest(".archmap-node[data-abstraction-key]");
     const abstractionKey = abstractionNode?.getAttribute("data-abstraction-key");
     if (abstractionKey) {
+      if (locked()) return;
       event.preventDefault();
       event.stopPropagation();
       if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
@@ -267,6 +278,7 @@ function attachAbstractionToggles(target: Element, collapse: (key: string) => vo
     const zone = source?.closest(".archmap-zone[data-id]");
     const zoneId = zone?.getAttribute("data-id");
     if (zoneId) {
+      if (locked()) return;
       event.preventDefault();
       event.stopPropagation();
       if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
@@ -276,6 +288,7 @@ function attachAbstractionToggles(target: Element, collapse: (key: string) => vo
     const subgraph = source?.closest(".archmap-subgraph[data-id]");
     const subgraphId = subgraph?.getAttribute("data-id");
     if (!subgraphId) return;
+    if (locked()) return;
     event.preventDefault();
     event.stopPropagation();
     if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
@@ -440,6 +453,14 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   });
 }
 
+function decorateSvgWithAbstractionLock(svg: string, locked: boolean): string {
+  if (!locked) return svg;
+  return svg.replace(/<svg([^>]*)class="([^"]*)"/, (_match, before: string, classes: string) => {
+    if (classes.includes("archmap-abstraction-locked")) return `<svg${before}class="${classes}"`;
+    return `<svg${before}class="${classes} archmap-abstraction-locked"`;
+  });
+}
+
 /** Render a model into an SVG string, optionally injecting it into a target. */
 export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
   const requestedView = options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview";
@@ -453,6 +474,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     abstractionTarget: options.abstractionTarget ?? "subgraph" as AbstractionTarget,
     expandedAbstractions: new Set(options.expandedAbstractions ?? []),
     collapsedAbstractions: new Set(options.collapsedAbstractions ?? []),
+    abstractionLocked: options.abstractionLocked === true,
   };
   let panZoom: PanZoomHandle | undefined;
   let preservePanZoomOnNextRender = false;
@@ -483,7 +505,10 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
 
     if (typeof out === "string") {
-      const svg = decorateSvgWithSelection(decorateSvgWithOverlays(out, knownOverlays), effectiveModel, options.selection);
+      const svg = decorateSvgWithAbstractionLock(
+        decorateSvgWithSelection(decorateSvgWithOverlays(out, knownOverlays), effectiveModel, options.selection),
+        state.abstractionLocked,
+      );
       syncDiagnostics(effectiveModel);
       renderDiagnostics(effectiveModel, options.diagnosticsTarget);
       renderInspector(effectiveModel, options.selection ?? null, options.inspectorTarget);
@@ -491,6 +516,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       if (options.target && "innerHTML" in options.target) {
         const preservedPanZoom = preservePanZoomOnNextRender ? panZoom?.get() : undefined;
         options.target.innerHTML = svg;
+        setTargetAbstractionLocked(options.target, state.abstractionLocked);
         panZoom?.dispose();
         panZoom = undefined;
         preservePanZoomOnNextRender = false;
@@ -508,6 +534,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
             options.target,
             (key) => result.collapseAbstraction(key),
             (key) => result.expandAbstraction(key),
+            () => state.abstractionLocked,
           );
         }
         if (options.inspectorTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
@@ -586,6 +613,13 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       } else {
         result.collapseAbstraction(key);
       }
+    },
+    setAbstractionLocked(locked: boolean) {
+      state.abstractionLocked = locked;
+      setTargetAbstractionLocked(options.target, locked);
+    },
+    isAbstractionLocked() {
+      return state.abstractionLocked;
     },
     addOverlay(overlay: string) {
       if (!state.overlays.includes(overlay)) state.overlays = [...state.overlays, overlay];
@@ -903,13 +937,15 @@ export function defineArchMapViewerElement(): void {
       const actionCss =
         "min-width:28px;min-height:26px;padding:3px 8px;border-radius:999px;background:#eef2f7;" +
         "color:#334155;border:1px solid #cbd5e1;cursor:pointer;";
-      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize" | "fit" | "reset" | "fullscreen") => {
+      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize" | "fit" | "reset" | "fullscreen" | "lock" | "unlock") => {
         const paths = {
           expand: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
           minimize: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/>',
           fit: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/>',
           reset: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/>',
           fullscreen: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
+          lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+          unlock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/>',
         } satisfies Record<typeof icon, string>;
         button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;display:block">${paths[icon]}</svg>`;
       };
@@ -1065,6 +1101,21 @@ export function defineArchMapViewerElement(): void {
           setActionIcon(zoomToggle, "reset");
         }
       });
+      const lockToggle = document.createElement("button");
+      lockToggle.type = "button";
+      lockToggle.style.cssText = actionCss;
+      const paintLockToggle = () => {
+        const locked = result.isAbstractionLocked();
+        lockToggle.title = locked ? "Unlock component expansion" : "Lock component expansion";
+        lockToggle.ariaLabel = lockToggle.title;
+        lockToggle.style.cssText = actionCss + (locked ? "background:#e6edf7;border-color:#7892bd;color:#213a63;" : "");
+        setActionIcon(lockToggle, locked ? "lock" : "unlock");
+      };
+      lockToggle.addEventListener("click", () => {
+        result.setAbstractionLocked(!result.isAbstractionLocked());
+        paintLockToggle();
+      });
+      paintLockToggle();
       const fullscreen = document.createElement("button");
       fullscreen.type = "button";
       fullscreen.title = "Fullscreen";
@@ -1082,7 +1133,7 @@ export function defineArchMapViewerElement(): void {
       const actionGroup = document.createElement("span");
       actionGroup.className = "archmap-controls-group";
       actionGroup.style.cssText = "display:inline-flex;align-items:center;gap:5px;";
-      actionGroup.append(zoomToggle, fullscreen);
+      actionGroup.append(zoomToggle, lockToggle, fullscreen);
       panelElements.push(actionGroup);
       bar.append(actionGroup);
 

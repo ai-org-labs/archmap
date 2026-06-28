@@ -43,6 +43,7 @@
     .tag input { margin: 0; accent-color: #34507a; }
     .tag:has(input:checked) { background: #e6edf7; border-color: #7892bd; color: #213a63; }
     .tag-action { min-width: 28px; min-height: 26px; padding: 3px 8px; border-radius: 999px; background: #eef2f7; color: #334155; border: 1px solid #cbd5e1; }
+    .tag-action.is-active { background: #e6edf7; border-color: #7892bd; color: #213a63; }
     .tag-action svg { width: 15px; height: 15px; display: block; stroke: currentColor; }
     .diag-log { max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; font: 11px ui-monospace, monospace; }
     .err { color: #b3261e; }
@@ -65,6 +66,7 @@
           <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags" aria-label="Expand tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
           <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags" aria-label="Minimize tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg></button>
           <button class="tag-action" id="zoom-toggle" type="button" title="Fit diagram" aria-label="Fit diagram"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="tag-action" id="abstraction-lock-toggle" type="button" title="Lock component expansion" aria-label="Lock component expansion"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg></button>
           <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
           <fieldset class="tag-group" id="base-view">
             <span class="tag-label">Views</span>
@@ -190,6 +192,7 @@ boundaries:
     }
 
     let result = null;
+    let abstractionLocked = false;
     const selectedOverlays = () => [...$("overlays").querySelectorAll("input:checked")].map((input) => input.value);
     const showLoading = () => { $("loading").style.display = "flex"; };
     const hideLoading = () => { $("loading").style.display = "none"; };
@@ -213,7 +216,7 @@ boundaries:
     function draw() {
       if (result) { result.destroy(); result = null; }
       const model = parse($("src").value);
-      result = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), target: $("diagram") });
+      result = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), abstractionLocked, target: $("diagram") });
       updateLog(result.model);
     }
     function updateOverlay(input) {
@@ -249,6 +252,20 @@ boundaries:
       $("tag-panel").classList.remove("is-expanded");
       $("tag-panel").classList.add("is-minimized");
     });
+    const paintAbstractionLock = () => {
+      $("abstraction-lock-toggle").title = abstractionLocked ? "Unlock component expansion" : "Lock component expansion";
+      $("abstraction-lock-toggle").ariaLabel = $("abstraction-lock-toggle").title;
+      $("abstraction-lock-toggle").classList.toggle("is-active", abstractionLocked);
+      $("abstraction-lock-toggle").innerHTML = abstractionLocked
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg>';
+    };
+    $("abstraction-lock-toggle").addEventListener("click", () => {
+      abstractionLocked = !abstractionLocked;
+      result?.setAbstractionLocked(abstractionLocked);
+      paintAbstractionLock();
+    });
+    paintAbstractionLock();
     let zoomFitted = false;
     $("zoom-toggle").addEventListener("click", () => {
       if (!result) return;
