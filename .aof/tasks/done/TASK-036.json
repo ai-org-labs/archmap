@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-036",
+  "title": "Center labels in single-icon 2D nodes",
+  "description": "Single-icon 2D nodes now keep the label centered on the component instead of centering it in the remaining text area to the right of the icon.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T17:45:00.000+09:00",
+  "done_at": "2026-06-28T17:55:00.000+09:00",
+  "decision_notes": [
+    "Kept the existing icon width reservation so labels still have clearance from 1.8x icons.",
+    "Changed only the single-icon label anchor; collapsed abstraction icon grids continue using their existing offset label behavior.",
+    "Added a regression assertion that iconed node labels are anchored at the node center."
+  ],
+  "verification": [
+    "npm test -- --run test/icons.test.ts test/render.test.ts",
+    "npm run build",
+    "Browser check at http://127.0.0.1:4174/examples/demo.html confirmed iconed node labels have zero delta from node center and at least roughly 20px clearance from icon right edges."
+  ]
+}

@@ -23,9 +23,7 @@ function centeredLabel(n: LayoutNode, cls = "archmap-node-label", yOffset = 0): 
 }
 
 function leadingIconLabel(n: LayoutNode, cls = "archmap-node-label"): string {
-  const textX0 = n.x + 54;
-  const textX1 = n.x + n.w - 14;
-  const cx = textX0 + Math.max(1, textX1 - textX0) / 2;
+  const cx = n.x + n.w / 2;
   const cy = n.y + n.h / 2;
   return `<text class="${cls}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(n.label)}</text>`;
 }
