@@ -295,7 +295,7 @@ function applyAbstractionProjection(
     ...model,
     nodes: [...visibleNodes, ...synthetic],
     edges,
-    zones: rewriteContains(model.zones.filter((zone) => !collapsedZones.has(zone.id)), replacements, collapsedZones),
+    zones: rewriteContains(model.zones, replacements, collapsedZones),
     boundaries: rewriteContains(model.boundaries, replacements, collapsedZones),
     identities: rewriteIdentities(model.identities, replacements),
     permissions: rewritePermissions(model.permissions, replacements),
@@ -395,7 +395,7 @@ export function projectZoneAbstraction(
       if (!replacements.has(id)) replacements.set(id, zone.id);
     }
     const members = memberIds.map((id) => nodeById.get(id)).filter((node): node is ArchNode => !!node);
-    synthetic.push(abstractionNode(zone.id, zone.label, "zone", members, zone.parent));
+    synthetic.push(abstractionNode(zone.id, zone.label, "zone", members, zone.id));
   }
   return applyAbstractionProjection(model, replacements, synthetic, collapsedZones);
 }

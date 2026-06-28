@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-028 interrupt done: visible zone areas now collapse on click and collapsed representative nodes expand on click; the visible abstraction slider was removed from playground/viewer controls while the compatibility API remains. Next: continue TASK-009/TASK-010 acceptance work unless the human chooses to extend the same visible click surface to an explicit subgraph display mode or polish collapse summaries. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T12:56:00.000+09:00",
+  "content": "TASK-029 interrupt done: collapsed zone representatives now retain the original zone palette on the representative node and outgoing edges while the closed zone box stays hidden. Next: continue TASK-009/TASK-010 acceptance work unless the human chooses to extend the same visible click surface to an explicit subgraph display mode or polish collapse summaries. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T13:04:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

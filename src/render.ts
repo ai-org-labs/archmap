@@ -21,6 +21,7 @@ import { dataflowView } from "./views/dataflow.js";
 import { boundaryView } from "./views/boundary.js";
 import { validationView } from "./views/validation.js";
 import { renderDiagram } from "./views/base.js";
+import type { Box } from "./views/base.js";
 import { escapeXml } from "./views/svg.js";
 import { buildOverlayProjection, OVERLAY_NAMES } from "./views/overlays.js";
 import { overviewZoneColorStyles } from "./views/zone-colors.js";
@@ -376,6 +377,12 @@ function metadataOverlays(model: ArchMapModel): string[] {
 function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[]): string | undefined {
   if (overlays.length === 0 || (view !== "overview" && view !== "zone" && view !== "layer")) return undefined;
   const projection = buildOverlayProjection(model, layout, overlays);
+  const collapsedZoneIds = new Set(model.nodes
+    .filter((node) => node.abstraction?.target === "zone")
+    .map((node) => node.abstraction!.id));
+  const visibleZoneBoxes = <T extends Box>(boxes: T[]): T[] => (
+    collapsedZoneIds.size === 0 ? boxes : boxes.filter((box) => !collapsedZoneIds.has(box.id))
+  );
   const baseEdges = new Set<string>();
   if (view === "zone") {
     const zoneOf = new Map(model.nodes.map((n) => [n.id, n.resolvedZone === "unknown" ? undefined : n.resolvedZone ?? n.zone]));
@@ -391,15 +398,20 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   const baseBoxGroups = view === "layer"
     ? [{ boxes: layerBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-layer" }]
     : view === "zone"
-      ? [{ boxes: layout.zones, boxClass: "archmap-zone" }]
+      ? [{ boxes: visibleZoneBoxes(layout.zones), boxClass: "archmap-zone" }]
       : [];
+  const projectionBoxGroups = projection.boxGroups?.map((group) => (
+    group.boxClass === "archmap-zone"
+      ? { ...group, boxes: visibleZoneBoxes(group.boxes) }
+      : group
+  ));
   const zoneStyles = view === "overview" ? overviewZoneColorStyles(model, layout) : undefined;
   return renderDiagram({
     layout,
     viewClass: view,
     boxGroups: [
       ...baseBoxGroups,
-      ...(projection.boxGroups ?? []),
+      ...(projectionBoxGroups ?? []),
     ],
     emphasizeNodes: projection.emphasizeNodes,
     emphasizeEdges,

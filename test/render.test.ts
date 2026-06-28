@@ -170,7 +170,7 @@ describe("render", () => {
     const { svg, model } = render(m, { baseView: "overview", abstractionTarget: "zone", abstractionLevel: 1 });
     expect(model.nodes.map((node) => node.id).sort()).toEqual(["D", "E", "service"]);
     expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["service->D", "service->E"]);
-    expect(model.zones.map((zone) => zone.id)).not.toContain("service");
+    expect(model.zones.map((zone) => zone.id)).toContain("service");
     expect(svg).toContain('data-id="service" data-abstraction-target="zone" data-abstraction-id="service" data-abstraction-key="zone:service"');
     expect(svg).not.toContain('data-id="A"');
     expect(svg).not.toContain('data-id="B"');
@@ -213,7 +213,16 @@ describe("render", () => {
       collapsedAbstractions: ["zone:service"],
     }).model;
     expect(collapsed.nodes.map((node) => node.id).sort()).toEqual(["D", "service"]);
-    expect(collapsed.zones.map((zone) => zone.id)).not.toContain("service");
+    expect(collapsed.zones.map((zone) => zone.id)).toContain("service");
+
+    const collapsedSvg = render(m, {
+      baseView: "overview",
+      overlays: ["zone"],
+      collapsedAbstractions: ["zone:service"],
+    }).svg!;
+    expect(collapsedSvg).toContain('data-id="service" data-abstraction-target="zone" data-abstraction-id="service" data-abstraction-key="zone:service" style="--archmap-node-fill:#eef5ff;--archmap-node-stroke:#4f7fc8;--archmap-node-label:#244b86"');
+    expect(collapsedSvg).toContain('data-id="service__D__abstract" data-from="service" data-to="D" style="--archmap-edge-stroke:#4f7fc8;--archmap-edge-label:#244b86"');
+    expect(collapsedSvg).not.toContain('class="archmap-zone archmap-zone-depth-0" data-id="service"');
 
     const reopened = render(m, {
       baseView: "overview",
