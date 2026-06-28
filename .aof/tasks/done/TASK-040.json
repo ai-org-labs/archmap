@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-040",
+  "title": "Prevent compact overview zone box overlap",
+  "description": "Overview zone overlay boxes no longer overlap after the compact lane-spacing change. The overview lane gap now respects zone header/padding needs while remaining smaller than the original wide swimlane spacing.",
+  "status": "done",
+  "origin": "human-browser-comment",
+  "created_at": "2026-06-28T19:00:00.000+09:00",
+  "done_at": "2026-06-28T19:08:00.000+09:00",
+  "decision_notes": [
+    "TASK-039 reduced overview lane gap too far: node lanes were compact, but additive zone boxes still extend upward for labels and downward for padding.",
+    "Raised the overview-only lane gap from 48px to 96px instead of restoring the old global lane gap, preserving a more compact overview while preventing same-depth zone boxes from overlapping.",
+    "Added a regression that renders overview with the zone overlay and asserts every zone box pair is disjoint."
+  ],
+  "verification": [
+    "npm test -- --run test/render.test.ts",
+    "npm run build",
+    "Browser verification on http://127.0.0.1:4174/examples/demo.html with zone overlay on: zoneBoxCount=3, overlaps=[]"
+  ]
+}

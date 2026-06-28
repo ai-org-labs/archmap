@@ -363,7 +363,7 @@ const VIEW_LANE_BY: Record<string, LayoutOptions["laneBy"]> = {
   layer: "layer",
 };
 
-const OVERVIEW_LANE_GAP = 48;
+const OVERVIEW_LANE_GAP = 96;
 
 function layoutOptionsForState(
   state: { requestedView: string; view: string },

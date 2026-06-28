@@ -123,7 +123,18 @@ describe("render", () => {
         identity: { contains: [E] }
     `);
     const overview = render(m, { baseView: "overview" });
-    expect(overview.layout.height).toBeLessThan(650);
+    expect(overview.layout.height).toBeLessThan(800);
+  });
+
+  it("keeps overview zone overlay boxes from overlapping after compact lane spacing", () => {
+    const m = parse(example);
+    const svg = render(m, { baseView: "overview", overlays: ["zone"] }).svg!;
+    const zones = areaBoxes(svg, "archmap-zone", "archmap-zone-box");
+    for (let i = 0; i < zones.length; i++) {
+      for (let j = i + 1; j < zones.length; j++) {
+        expect(overlaps(zones[i], zones[j]), `${zones[i].id} overlaps ${zones[j].id}`).toBe(false);
+      }
+    }
   });
 
   it("collapses subgraphs into abstraction components and deduplicates external edges", () => {
