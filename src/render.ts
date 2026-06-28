@@ -257,8 +257,8 @@ function attachAbstractionExpansion(target: Element, expand: (key: string) => vo
     if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
     expand(key);
   };
-  target.addEventListener("click", handler);
-  return () => target.removeEventListener("click", handler);
+  target.addEventListener("click", handler, { capture: true });
+  return () => target.removeEventListener("click", handler, { capture: true });
 }
 
 export function diagnosticsHtml(model: ArchMapModel): string {

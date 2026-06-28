@@ -100,6 +100,7 @@ export function attachPanZoom(container: HTMLElement, initial?: PanZoomTransform
   let lastX = 0;
   let lastY = 0;
   const onPointerDown = (e: PointerEvent) => {
+    if (e.target instanceof Element && e.target.closest(".archmap-node[data-abstraction-key]")) return;
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;

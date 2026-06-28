@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-027",
+  "title": "Fix abstraction node click expansion",
+  "description": "Make collapsed subgraph/zone abstraction nodes reliably expand on click in the playground and viewer.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T12:28:00.000+09:00",
+  "done_at": "2026-06-28T12:32:00.000+09:00",
+  "decision_notes": [
+    "Pan/zoom pointer drag no longer starts when the pointer begins on a collapsed abstraction node.",
+    "Abstraction expansion click handling now runs in the capture phase, before inspector selection and other bubble-phase handlers can consume the event.",
+    "Inspector selection remains a normal bubble-phase click handler."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts test/interaction.test.ts",
+    "npm run build",
+    "node /Users/mn/codex/.cache/aof-v6.5.0/src/cli.js organization-verify --project .",
+    "node /Users/mn/codex/.cache/aof-v6.5.0/src/cli.js command-routing-audit --project .",
+    "git diff --check"
+  ],
+  "notes": [
+    "Port 4174 remained served during the fix.",
+    "This is an interaction-only fix; no DSL or sample input changes were made."
+  ]
+}
