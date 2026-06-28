@@ -1,0 +1,18 @@
+{
+  "task_id": "TASK-017",
+  "title": "Keep Stack zone blocks containing their components",
+  "description": "Correct the Stack zone overlay so zones remain meaningful containment areas. When Stack+zone is active, move component placement by zone cluster instead of moving only the zone rectangle.",
+  "status": "done",
+  "origin": "codex",
+  "parent_task_ref": ".aof/tasks/open/TASK-009.json",
+  "created_at": "2026-06-28T09:58:15+09:00",
+  "done_at": "2026-06-28T09:58:15+09:00",
+  "completion_notes": "Added a stackZoneBlocks layout option. render() enables it only for Stack/layer base view when the additive zone overlay is active, including 3D because requested base view remains layer. This moves member components by zone cluster before zone boxes and routes are computed, so AWS Service and RDS remain inside the AWS zone while zones avoid overlapping each other. Removed the previous stackZoneBoxes renderer-only projection because it could leave zones empty. Reworked the ViewCube to render six cube faces plus passive X/Y/Z axes; only the front/top/right faces remain snap targets.",
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts test/scene3d.test.ts test/layout.test.ts",
+    "npm run build",
+    "Browser check on http://127.0.0.1:4174/: Stack+2D+zone has zero zone overlaps; AWS Service and RDS are inside AWS zone by data-x/y/w/h bounds; Stack+3D has one canvas, one six-face ViewCube, three axes, and no console errors."
+  ],
+  "handoff": "Continue TASK-009 visual polish. Do not move zone rectangles independently from their member components in Stack; zone overlay must still contain its components."
+}

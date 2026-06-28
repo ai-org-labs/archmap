@@ -89,6 +89,8 @@ export interface LayoutOptions {
   rankBy?: "topo" | "layer" | "zone";
   /** How to assign the secondary swimlane axis. */
   laneBy?: "zone" | "layer";
+  /** Stack-view zone overlay: move member nodes into non-overlapping zone blocks. */
+  stackZoneBlocks?: boolean;
 }
 
 /** §10 layer order, used for `z` depth and optional layer-based ranking. */
@@ -433,6 +435,31 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
         y = flow + (ext - h) / 2;
       }
       laid.set(n.id, { id: n.id, label: n.label, shape: n.shape, x, y, z: layerDepth(n.layer), w, h });
+    }
+  }
+
+  if (options.stackZoneBlocks && laneBy === "layer" && horizontal) {
+    const nodeZone = new Map(model.nodes.map((node) => [node.id, node.resolvedZone === "unknown" ? undefined : node.resolvedZone ?? node.zone]));
+    const zonesById = new Map<string, LayoutNode[]>();
+    for (const node of laid.values()) {
+      const zone = nodeZone.get(node.id);
+      if (!zone) continue;
+      zonesById.set(zone, [...(zonesById.get(zone) ?? []), node]);
+    }
+    const zoneRank = buildZoneRank([...zonesById.keys()]);
+    const entries = [...zonesById.entries()]
+      .map(([zone, nodes]) => {
+        const minX = Math.min(...nodes.map((node) => node.x));
+        const maxX = Math.max(...nodes.map((node) => node.x + node.w));
+        const minY = Math.min(...nodes.map((node) => node.y));
+        return { zone, nodes, minX, maxX, minY, width: maxX - minX };
+      })
+      .sort((a, b) => zoneRank(a.zone) - zoneRank(b.zone) || a.minY - b.minY || a.minX - b.minX || a.zone.localeCompare(b.zone));
+    let cursor = MARGIN;
+    for (const entry of entries) {
+      const dx = cursor - entry.minX;
+      for (const node of entry.nodes) node.x += dx;
+      cursor += entry.width + LANE_GAP;
     }
   }
   const crossMax = crossTotal;

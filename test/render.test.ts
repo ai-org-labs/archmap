@@ -45,16 +45,13 @@ function overlaps(a: { x0: number; x1: number; y0: number; y1: number }, b: { x0
 }
 
 function nodeBoxes(svg: string): Array<{ id: string; x0: number; x1: number; y0: number; y1: number }> {
-  return [...svg.matchAll(/<g class="archmap-node [^"]+" data-id="([^"]+)">([\s\S]*?)<\/g>/g)].flatMap((match) => {
-    const body = match[2];
-    const rect = body.match(/<rect class="archmap-node-shape" x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"/);
-    if (!rect) return [];
-    const x = Number(rect[1]);
-    const y = Number(rect[2]);
-    const w = Number(rect[3]);
-    const h = Number(rect[4]);
+  return [...svg.matchAll(/<g class="archmap-node [^"]+" data-id="([^"]+)"[^>]*data-x="([0-9.]+)" data-y="([0-9.]+)" data-w="([0-9.]+)" data-h="([0-9.]+)"/g)].map((match) => {
+    const x = Number(match[2]);
+    const y = Number(match[3]);
+    const w = Number(match[4]);
+    const h = Number(match[5]);
     return [{ id: match[1], x0: x, x1: x + w, y0: y, y1: y + h }];
-  });
+  }).flat();
 }
 
 function areaBoxes(svg: string, groupClass: string, boxClass: string): Array<{ id: string; x0: number; x1: number; y0: number; y1: number }> {
@@ -128,11 +125,23 @@ describe("render", () => {
     const m = parse(example);
     const svg = render(m, { baseView: "layer", overlays: ["zone"] }).svg!;
     const zones = areaBoxes(svg, "archmap-zone", "archmap-zone-box");
+    const zonesById = new Map(zones.map((zone) => [zone.id, zone]));
+    const nodesById = new Map(nodeBoxes(svg).map((node) => [node.id, node]));
     expect(zones.length).toBeGreaterThan(1);
     for (let i = 0; i < zones.length; i++) {
       for (let j = i + 1; j < zones.length; j++) {
         expect(overlaps(zones[i], zones[j])).toBe(false);
       }
+    }
+    for (const node of m.nodes) {
+      if (!node.zone) continue;
+      const zone = zonesById.get(node.zone);
+      const renderedNode = nodesById.get(node.id);
+      if (!zone || !renderedNode) continue;
+      expect(renderedNode.x0).toBeGreaterThanOrEqual(zone.x0);
+      expect(renderedNode.x1).toBeLessThanOrEqual(zone.x1);
+      expect(renderedNode.y0).toBeGreaterThanOrEqual(zone.y0);
+      expect(renderedNode.y1).toBeLessThanOrEqual(zone.y1);
     }
   });
 

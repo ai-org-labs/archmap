@@ -15,7 +15,6 @@ import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
 import { resolveNodeIcons } from "./icons.js";
 import { overviewView, layerBoxes, layerView } from "./views/overview.js";
-import { stackZoneBoxes } from "./views/stack-zones.js";
 import { zoneView } from "./views/zone.js";
 import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
@@ -349,11 +348,6 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   const emphasizeEdges = projection.emphasizeEdges || baseEdges.size
     ? new Set([...(projection.emphasizeEdges ?? []), ...baseEdges])
     : undefined;
-  const overlayBoxGroups = (projection.boxGroups ?? []).map((group) =>
-    view === "layer" && group.boxClass === "archmap-zone"
-      ? { ...group, boxes: stackZoneBoxes(layout) }
-      : group,
-  );
   const baseBoxGroups = view === "layer"
     ? [{ boxes: layerBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-layer" }]
     : view === "zone"
@@ -364,7 +358,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     viewClass: view,
     boxGroups: [
       ...baseBoxGroups,
-      ...overlayBoxGroups,
+      ...(projection.boxGroups ?? []),
     ],
     emphasizeNodes: projection.emphasizeNodes,
     emphasizeEdges,
@@ -398,10 +392,15 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       syncDiagnostics(model);
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
+    const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
     const rankBy = options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view];
     const laneBy = VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view];
-    const layout = computeLayout(model, { direction: options.direction, rankBy, laneBy });
-    const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
+    const layout = computeLayout(model, {
+      direction: options.direction,
+      rankBy,
+      laneBy,
+      stackZoneBlocks: state.requestedView === "layer" && knownOverlays.includes("zone"),
+    });
     const overlaidSvg = renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays } });
 
@@ -448,6 +447,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       direction: options.direction,
       rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view],
       laneBy: VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view],
+      stackZoneBlocks: state.requestedView === "layer" && state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay)).includes("zone"),
     }),
     model,
     svg: undefined,

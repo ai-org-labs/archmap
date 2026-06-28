@@ -64,14 +64,15 @@ describe("three-view mount behavior", () => {
   });
 
   it("uses packed zone blocks for stack-view 3D zones", () => {
-    expect(source).toContain('ctx.options.baseView === "layer"');
-    expect(source).toContain("stackZoneBoxes(ctx.layout)");
+    expect(source).not.toContain("stackZoneBoxes");
+    expect(source).toContain("scene3d.zones.forEach");
   });
 
   it("renders a camera-synced 3-axis view cube without custom gizmo drag controls", () => {
     expect(source).toContain("archmap-view-axis");
     expect(source).toContain("updateViewCube");
     expect(source).toContain("cubeQuat.copy(camera.quaternion).invert()");
+    expect(source).toContain("rotateY(180deg) translateZ(32px)");
     expect(source).not.toContain("setFromSpherical");
     expect(source).not.toContain("setPointerCapture");
   });

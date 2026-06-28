@@ -20,7 +20,6 @@ import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "arc
 import { buildScene3D } from "./scene.js";
 import type { Scene3D } from "./scene.js";
 import { buildOverlayProjection } from "../views/overlays.js";
-import { stackZoneBoxes } from "../views/stack-zones.js";
 import type { Box } from "../views/base.js";
 
 /** Per-layer color ramp (client → external), tuned to the soft station-map palette used by isometric SVG. */
@@ -242,30 +241,16 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
   // Zones are Add info in 3D too: structure-only 3D stays clean until the
   // `zone` overlay is enabled.
   if ((ctx.options.overlays ?? []).includes("zone")) {
-    const stackZones = ctx.options.baseView === "layer"
-      ? new Map(stackZoneBoxes(ctx.layout).map((box) => [box.id, box]))
-      : undefined;
-    const cx = ctx.layout.width / 2;
-    const cy = ctx.layout.height / 2;
-    const X = (px: number) => (px - cx) * SCENE_SCALE;
-    const Z = (py: number) => (py - cy) * SCENE_SCALE;
     // Zones as translucent volumes enclosing their members, with wireframe
     // edges and a label floating above. depthWrite:false so they never hide nodes.
     scene3d.zones.forEach((z, i) => {
-      const box = stackZones?.get(z.id);
-      const x = box ? X(box.x + box.w / 2) : z.x;
-      const zz = box ? Z(box.y + box.h / 2) : z.z;
-      const w = box ? box.w * SCENE_SCALE : z.w;
-      const d = box ? box.h * SCENE_SCALE : z.d;
-      const labelX = box ? X(box.x + 18 + (box.depth ?? 0) * 18) : z.labelX;
-      const labelZ = box ? Z(box.y + 18 + (box.depth ?? 0) * 18 + (i % 4) * 10) : z.labelZ;
       const color = ZONE_COLORS[i % ZONE_COLORS.length];
-      const geo = track(new THREE.BoxGeometry(w, z.h, d));
+      const geo = track(new THREE.BoxGeometry(z.w, z.h, z.d));
       const mat = track(
         new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false, side: THREE.DoubleSide }),
       );
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, z.y, zz);
+      mesh.position.set(z.x, z.y, z.z);
       mesh.renderOrder = -1;
       root.add(mesh);
 
@@ -276,7 +261,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
 
       const hex = "#" + color.toString(16).padStart(6, "0");
       const label = makeTextSprite(z.label ?? z.id, { fg: hex, bg: "rgba(255,255,255,0.82)", scaleY: 0.62, bold: true });
-      label.position.set(labelX, z.labelY, labelZ);
+      label.position.set(z.labelX, z.labelY, z.labelZ);
       disposeSprite(label, disposables);
       root.add(label);
     });
@@ -411,19 +396,20 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     "pointer-events:auto;";
   const cubeBody = document.createElement("div");
   cubeBody.style.cssText =
-    "position:absolute;left:22px;top:18px;width:56px;height:56px;transform-style:preserve-3d;" +
+    "position:absolute;left:16px;top:16px;width:64px;height:64px;transform-style:preserve-3d;" +
     "transform:rotateX(-26deg) rotateY(36deg);pointer-events:auto;";
   const faceCss =
-    "position:absolute;left:0;top:0;width:56px;height:56px;border:1px solid rgba(85,108,148,0.55);" +
-    "background:rgba(248,250,252,0.94);color:#334155;box-shadow:0 6px 18px rgba(28,39,51,0.14);" +
-    "font:700 12px system-ui,sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer;";
-  const face = (label: string, view: "top" | "front" | "right", transform: string) => {
+    "position:absolute;left:0;top:0;width:64px;height:64px;box-sizing:border-box;border:1px solid rgba(85,108,148,0.62);" +
+    "background:linear-gradient(135deg,rgba(255,255,255,0.96),rgba(218,231,248,0.88));color:#334155;" +
+    "box-shadow:inset 0 0 0 1px rgba(255,255,255,0.58),0 6px 18px rgba(28,39,51,0.14);" +
+    "font:700 12px system-ui,sans-serif;display:flex;align-items:center;justify-content:center;";
+  const face = (label: string, view: "top" | "front" | "right" | undefined, transform: string) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = label;
-    btn.title = `${label} view`;
-    btn.style.cssText = `${faceCss}transform:${transform};`;
-    btn.dataset.view = view;
+    btn.title = view ? `${label} view` : "";
+    btn.style.cssText = `${faceCss}transform:${transform};cursor:${view ? "pointer" : "default"};pointer-events:${view ? "auto" : "none"};`;
+    if (view) btn.dataset.view = view;
     btn.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -431,6 +417,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     btn.addEventListener("pointerup", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (!view) return;
       snapCamera(view);
     });
     btn.addEventListener("click", (event) => {
@@ -443,7 +430,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     const wrap = document.createElement("div");
     wrap.className = `archmap-view-axis archmap-view-axis-${label.toLowerCase()}`;
     wrap.style.cssText =
-      `position:absolute;left:28px;top:28px;width:46px;height:14px;transform-origin:left center;transform:${transform};` +
+      `position:absolute;left:32px;top:32px;width:50px;height:14px;transform-origin:left center;transform:${transform};` +
       "transform-style:preserve-3d;pointer-events:none;";
     const rod = document.createElement("div");
     rod.style.cssText =
@@ -468,12 +455,15 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     snapCamera(y < rect.height * 0.34 ? "top" : x > rect.width * 0.58 ? "right" : "front");
   });
   cubeBody.append(
-    axis("X", "#dc2626", "translate3d(24px,0,0)"),
-    axis("Y", "#16a34a", "rotateZ(-90deg) translate3d(24px,0,0)"),
-    axis("Z", "#2563eb", "rotateY(-90deg) translate3d(24px,0,0)"),
-    face("正面", "front", "translateZ(28px)"),
-    face("上面", "top", "rotateX(90deg) translateZ(28px)"),
-    face("右側", "right", "rotateY(90deg) translateZ(28px)"),
+    face("正面", "front", "translateZ(32px)"),
+    face("", undefined, "rotateY(180deg) translateZ(32px)"),
+    face("上面", "top", "rotateX(90deg) translateZ(32px)"),
+    face("", undefined, "rotateX(-90deg) translateZ(32px)"),
+    face("右側", "right", "rotateY(90deg) translateZ(32px)"),
+    face("", undefined, "rotateY(-90deg) translateZ(32px)"),
+    axis("X", "#dc2626", "translate3d(30px,0,0)"),
+    axis("Y", "#16a34a", "rotateZ(-90deg) translate3d(30px,0,0)"),
+    axis("Z", "#2563eb", "rotateY(-90deg) translate3d(30px,0,0)"),
   );
   cube.appendChild(cubeBody);
   el.appendChild(cube);
