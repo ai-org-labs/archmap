@@ -76,6 +76,7 @@ const BOX_GROUP_VISUAL_OUTSET = new Map([
   ["archmap-boundary", 8],
   ["archmap-subgraph", 0],
 ]);
+const PACKED_AREA_BOX_CLASSES = new Set(["archmap-zone", "archmap-boundary", "archmap-subgraph"]);
 
 function visualBox(groupClass: string, box: Box): Box {
   const outset = BOX_GROUP_VISUAL_OUTSET.get(groupClass) ?? 0;
@@ -92,7 +93,7 @@ function visualBox(groupClass: string, box: Box): Box {
 }
 
 function orderedBoxGroups(groups: Array<{ boxes: Box[]; boxClass: string }>): Array<{ boxes: Box[]; boxClass: string }> {
-  return groups
+  const ordered = groups
     .map((group, index) => ({ group, index }))
     .sort((a, b) => {
       const da = BOX_GROUP_DEPTH_ORDER.get(a.group.boxClass) ?? 10;
@@ -105,6 +106,53 @@ function orderedBoxGroups(groups: Array<{ boxes: Box[]; boxClass: string }>): Ar
         .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0))
         .map((box) => visualBox(group.boxClass, box)),
     }));
+  const packedClassCount = new Set(ordered.filter((group) => PACKED_AREA_BOX_CLASSES.has(group.boxClass)).map((group) => group.boxClass)).size;
+  if (packedClassCount < 2) return ordered;
+  return packAreaBoxes(ordered);
+}
+
+function packAreaBoxes(groups: Array<{ boxes: Box[]; boxClass: string }>): Array<{ boxes: Box[]; boxClass: string }> {
+  const items = groups.flatMap((group, groupIndex) =>
+    PACKED_AREA_BOX_CLASSES.has(group.boxClass)
+      ? group.boxes.map((box, boxIndex) => ({ groupIndex, boxIndex, box }))
+      : [],
+  );
+  const placed: Box[] = [];
+  const packed = groups.map((group) => ({ ...group, boxes: [...group.boxes] }));
+  for (const item of items) {
+    const box = nearestNonOverlappingBox(item.box, placed);
+    packed[item.groupIndex].boxes[item.boxIndex] = box;
+    placed.push(box);
+  }
+  return packed;
+}
+
+function nearestNonOverlappingBox(box: Box, placed: Box[]): Box {
+  const gap = 14;
+  const collides = (candidate: Box): boolean => placed.some((other) => boxesOverlap(candidate, other));
+  if (!collides(box)) return box;
+
+  const rightEdges = [...new Set([box.x, ...placed.map((other) => other.x + other.w + gap)])].sort((a, b) => a - b);
+  const bottomEdges = [...new Set([box.y, ...placed.map((other) => other.y + other.h + gap)])].sort((a, b) => a - b);
+  let best: Box | undefined;
+  let bestCost = Number.POSITIVE_INFINITY;
+  for (const x of rightEdges) {
+    for (const y of bottomEdges) {
+      const candidate = { ...box, x: Math.max(0, x), y: Math.max(0, y) };
+      if (collides(candidate)) continue;
+      const dx = candidate.x - box.x;
+      const dy = candidate.y - box.y;
+      const cost = Math.hypot(dx, dy) + Math.max(0, dx) * 0.1 + Math.max(0, dy) * 0.1;
+      if (cost < bestCost) {
+        best = candidate;
+        bestCost = cost;
+      }
+    }
+  }
+  if (best) return best;
+
+  const maxY = Math.max(box.y, ...placed.map((other) => other.y + other.h + gap));
+  return { ...box, y: maxY };
 }
 
 function channelClass(id: string, set: Set<string> | undefined): string {

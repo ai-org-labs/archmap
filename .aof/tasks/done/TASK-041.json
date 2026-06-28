@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-041",
+  "title": "Pack additive area overlays without overlap",
+  "description": "Subgraph, zone, and boundary area overlays are packed together at render time so their visual regions do not overlap, including after expandable zone/subgraph components are collapsed or reopened.",
+  "status": "done",
+  "origin": "human-request",
+  "created_at": "2026-06-28T19:18:00.000+09:00",
+  "done_at": "2026-06-28T19:28:00.000+09:00",
+  "decision_notes": [
+    "The prior fix only prevented same-overlay zone boxes from overlapping; boundary boxes could still sit directly on top of zone boxes.",
+    "Area packing now runs in the common 2D render path for subgraph/zone/boundary groups when multiple area overlay kinds are active. Layer background boxes are excluded so Stack view keeps its layer semantics.",
+    "Because render() recomputes the effective model and layout on every abstraction collapse/expand, the packed area positions are recalculated at each interaction."
+  ],
+  "verification": [
+    "npm test -- --run test/render.test.ts",
+    "npm run build",
+    "dist demo seed check: overview with subgraph+zone+boundary gives overlaps=[]",
+    "dist demo seed check: overview with subgraph+zone+boundary and collapsed zone:gcp gives overlaps=[]"
+  ]
+}

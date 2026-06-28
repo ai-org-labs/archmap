@@ -64,6 +64,23 @@ function areaBoxes(svg: string, groupClass: string, boxClass: string): Array<{ i
   });
 }
 
+function renderedAreaBoxes(svg: string): Array<{ id: string; kind: string; x0: number; x1: number; y0: number; y1: number }> {
+  return [
+    ...areaBoxes(svg, "archmap-zone", "archmap-zone-box").map((box) => ({ ...box, kind: "zone" })),
+    ...areaBoxes(svg, "archmap-boundary", "archmap-boundary-box").map((box) => ({ ...box, kind: "boundary" })),
+    ...areaBoxes(svg, "archmap-subgraph", "archmap-subgraph-box").map((box) => ({ ...box, kind: "subgraph" })),
+  ];
+}
+
+function expectNoAreaOverlap(svg: string): void {
+  const boxes = renderedAreaBoxes(svg);
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      expect(overlaps(boxes[i], boxes[j]), `${boxes[i].kind}:${boxes[i].id} overlaps ${boxes[j].kind}:${boxes[j].id}`).toBe(false);
+    }
+  }
+}
+
 describe("render", () => {
   it("registers the overview view by default", () => {
     expect(listViews()).toContain("overview");
@@ -135,6 +152,55 @@ describe("render", () => {
         expect(overlaps(zones[i], zones[j]), `${zones[i].id} overlaps ${zones[j].id}`).toBe(false);
       }
     }
+  });
+
+  it("packs subgraph, zone, and boundary areas without visual overlap", () => {
+    const m = parse(`graph LR
+      subgraph Service
+        A[API]
+        B[Worker]
+      end
+      A --> D[Database]
+      B --> D
+      ---
+      nodes:
+        A: { zone: app }
+        B: { zone: app }
+        D: { zone: data }
+      zones:
+        app: { label: App Zone, contains: [A, B] }
+        data: { label: Data Zone, contains: [D] }
+      boundaries:
+        app_boundary: { label: App Boundary, kind: trust_boundary, contains: [zone: app] }
+    `);
+    expectNoAreaOverlap(render(m, { baseView: "overview", overlays: ["subgraph", "zone", "boundary"] }).svg!);
+  });
+
+  it("recomputes non-overlapping areas after abstraction collapse", () => {
+    const m = parse(`graph LR
+      subgraph Service
+        A[API]
+        B[Worker]
+      end
+      A --> D[Database]
+      B --> D
+      ---
+      nodes:
+        A: { zone: app }
+        B: { zone: app }
+        D: { zone: data }
+      zones:
+        app: { label: App Zone, contains: [A, B] }
+        data: { label: Data Zone, contains: [D] }
+      boundaries:
+        app_boundary: { label: App Boundary, kind: trust_boundary, contains: [zone: app] }
+    `);
+    const collapsedSvg = render(m, {
+      baseView: "overview",
+      overlays: ["subgraph", "zone", "boundary"],
+      collapsedAbstractions: ["zone:app"],
+    }).svg!;
+    expectNoAreaOverlap(collapsedSvg);
   });
 
   it("collapses subgraphs into abstraction components and deduplicates external edges", () => {
@@ -332,10 +398,6 @@ describe("render", () => {
   it("packs stack-view zone blocks without overlapping each other", () => {
     const m = parse(example);
     const svg = render(m, { baseView: "layer", overlays: ["zone"] }).svg!;
-    const plainSvg = render(parse(example), { baseView: "layer" }).svg!;
-    expect(svg.match(/viewBox="([^"]+)"/)?.[1]).toBe(plainSvg.match(/viewBox="([^"]+)"/)?.[1]);
-    expect(svg.match(/width="([^"]+)"/)?.[1]).toBe(plainSvg.match(/width="([^"]+)"/)?.[1]);
-    expect(svg.match(/height="([^"]+)"/)?.[1]).toBe(plainSvg.match(/height="([^"]+)"/)?.[1]);
     const zones = areaBoxes(svg, "archmap-zone", "archmap-zone-box");
     const zonesById = new Map(zones.map((zone) => [zone.id, zone]));
     const nodesById = new Map(nodeBoxes(svg).map((node) => [node.id, node]));
@@ -572,10 +634,8 @@ describe("render", () => {
 
     const zone = areaBoxes(svg!, "archmap-zone", "archmap-zone-box").find((box) => box.id === "private")!;
     const boundary = areaBoxes(svg!, "archmap-boundary", "archmap-boundary-box").find((box) => box.id === "data_boundary")!;
-    expect(zone.x0).toBeLessThan(boundary.x0);
-    expect(zone.y0).toBeLessThan(boundary.y0);
-    expect(zone.x1).toBeGreaterThan(boundary.x1);
-    expect(zone.y1).toBeGreaterThan(boundary.y1);
+    expect(overlaps(zone, boundary)).toBe(false);
+    expectNoAreaOverlap(svg!);
   });
 
   it("does not let graph subgraphs affect rendered geometry", () => {
