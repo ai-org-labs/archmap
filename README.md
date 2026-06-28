@@ -5,15 +5,19 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 
 - [docs/SYNTAX.md](./docs/SYNTAX.md) — reference for every **currently
   implemented** syntax/feature (start here to author diagrams)
+- [docs/DELIVERY.md](./docs/DELIVERY.md) — npm/local/CDN delivery and security notes
+- [docs/V0_1_ACCEPTANCE_MATRIX.md](./docs/V0_1_ACCEPTANCE_MATRIX.md) —
+  v0.1 acceptance status and remaining release decisions
 - [SPEC.md](./SPEC.md) — the v0.1 language design
 
-> **Status:** Stage 4 complete — all six required v0.1 SVG views, an opt-in
-> vendor-icon registry, and an **opt-in three.js 3D view** that consumes the
-> same layout (`z` → height). The core bundle ships none of the optional
-> assets (no icons, no three.js). Edges use orthogonal routing with
-> distributed ports (per node face) and channels (per gap) plus crossing-jump
-> gaps, so parallel runs separate and overlaps read unambiguously. Next:
-> crossing minimization, true zone clustering, service-kind icons.
+> **Status:** v0.1 developer-preview hardening. The current product surface is
+> an overview/stack renderer with additive semantic overlays, optional
+> abstraction collapse/expand, an opt-in vendor-icon registry, and an opt-in
+> three.js 3D view. The core bundle ships none of the optional assets (no vendor
+> icons, no three.js). Edges use orthogonal component-safe routing with
+> distributed ports and rendered SVG validation for endpoint/overlap risks.
+> Next: release acceptance closure, CDN verification, and continued dense
+> diagram visual QA.
 
 ## Install / dev
 
@@ -37,7 +41,7 @@ const { svg } = render(model, { view: "overview" });
 
 Browser playground: `npm run dev` then open the dev server root (live source,
 no build). Or `npm run build` and open `examples/demo.html` directly from disk
-(no server — uses the UMD bundle).
+(no server — uses the built ESM bundle plus CDN-hosted optional dependencies).
 
 ### Vendor icons (opt-in)
 
@@ -86,11 +90,10 @@ The bundled `archmap/packs/cloud-icons` sample remains intentionally tiny; use
 ### 3D view (opt-in)
 
 The three.js view is opt-in too — `three` is a peer dependency, not in the
-core bundle. It reuses the same `LayoutResult`: the ground plane comes from
-(x, y) and the semantic layer depth `z` becomes height (a "layered cake").
-Zones render as translucent labeled volumes enclosing their members, and a
-corner orientation gizmo shows the current view and snaps to top/front/side on
-click.
+core bundle. It reuses the same `LayoutResult`: the semantic layer depth `z`
+becomes height, zones render as translucent labeled volumes enclosing their
+members, and a lower-right labeled ViewCube shows orientation and snaps to
+front/top/right on click.
 
 ```ts
 import { installThreeView } from "archmap/views3d/three-view"; // needs `three`
@@ -122,7 +125,7 @@ src/
   validate.ts         model validation (§23)
   layout.ts           layout engine: Model -> geometry {x, y, z, w, h};
                       zone swimlanes; orthogonal routing w/ ports + channels
-  render.ts           view registry + render() + initialize() (§27)
+  render.ts           view registry + render() + initialize() + custom element (§27)
   parser/
     sections.ts       split graph/metadata, extract markdown blocks (§4, §5)
     graph.ts          graph-section parser: nodes, edges, subgraphs (§6, §26)
@@ -132,7 +135,8 @@ src/
     svg.ts            SVG shape/edge helpers, default theme, crossing-jump gaps
     base.ts           shared diagram assembler (boxes, emphasis, badges)
     overview.ts       Overview view (§24.1)
-    zone.ts           Zone view — zone-banded layout (§24.2)
+    zone.ts           Legacy zone view compatibility; current UI exposes zone
+                      as an additive overlay
     auth.ts           Auth view — token paths (§24.3)
     dataflow.ts       Data Flow view — data movement (§24.5)
     boundary.ts       Boundary view — trust/network crossings (§24.6)
@@ -144,7 +148,8 @@ src/
   packs/
     cloud-icons.ts    opt-in sample icon pack (not in core bundle)
   icons.ts            icon registry mechanism (core; ships no assets)
-test/                 45 tests: parse, merge, inference, validation, layout, render, views, icons, scene3d
+test/                 parser, model, validation, layout, render, icons,
+                      interaction, scene3d, and pattern fixture tests
 examples/             sample .archmap + demo.html (static, UMD)
 index.html            dev playground (Vite, live source)
 ```
@@ -155,11 +160,11 @@ index.html            dev playground (Vite, live source)
 |---|-----------|-------|
 | 1–4 | Parse archmap, extract nodes/edges, merge YAML, full internal model | ✅ done |
 | 5 | Overview View renders a basic diagram | ✅ done |
-| 6 | Zone View groups nodes by zone | ✅ done |
+| 6 | Zone information groups nodes by zone | ✅ via Add info overlay; legacy view compatible |
 | 7 | Auth View highlights JWT/token paths | ✅ done |
 | 8 | Data Flow View highlights declared data movement | ✅ done |
 | 9 | Boundary View highlights zone/trust crossings | ✅ done |
 | 10 | Validation warnings available + Validation View | ✅ done |
 | 11–12 | Runs without a server / from static files | ✅ (UMD bundle) |
-| — | 3D / Layer Stack view (three.js, reuses `z`) | ✅ opt-in preview |
+| — | 3D / Stack view (three.js, reuses `z`) | ✅ opt-in preview |
 ```

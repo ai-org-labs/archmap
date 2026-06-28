@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-045 interrupt done: root localhost playground now mirrors the static demo editor ergonomics. index.html has a top Render action, line-number gutter synced with textarea scrolling, and a draggable editor width handle. Browser DOM check on http://127.0.0.1:4174/ confirmed line numbers, resize handle, and panel-top Render placement. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T21:12:00.000+09:00",
+  "content": "TASK-046 checkpoint done under TASK-010: public delivery/security docs and v0.1 acceptance matrix added. README/SYNTAX updated to current delivery, zone-as-add-info, routing validation, 3D, and security constraints. package.json now packs dist plus public docs/specs/examples while excluding internal docs/aof. Verification: npm run build, git diff --check, npm pack --dry-run. Next: continue TASK-010 by either verifying the actual published CDN URL after release candidate or resolving the final spec wording/product decision for zone base view vs Add info overlay. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T21:34:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

@@ -22,7 +22,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "docs/SYNTAX.md",
+    "docs/DELIVERY.md",
+    "docs/V0_1_ACCEPTANCE_MATRIX.md",
+    "docs/specs/v0.1",
+    "examples",
+    "README.md",
+    "SPEC.md"
   ],
   "scripts": {
     "dev": "vite",

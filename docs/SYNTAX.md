@@ -271,10 +271,11 @@ leaving sibling abstractions collapsed.
 | `validation` | components/connectors referenced by diagnostics, with error/warning labels |
 | `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
 
-**Layout behavior:** zones are laid out as swimlanes (so zone boxes don't
-overlap); edges route orthogonally — same-lane left/right, adjacent-lane direct
-top/bottom drops, 2+ lanes apart via a column-gap trunk; crossing horizontal
-lines get a small jump gap.
+**Layout behavior:** overview and stack views use automatic placement plus
+component-safe orthogonal routing. Endpoints are distributed across component
+sides, parallel lanes are offset, component intersections are repaired when
+possible, and rendered SVG validation checks endpoint overlap, port spacing,
+long segment overlap, component intersections, and perpendicular incidence.
 
 ---
 
@@ -311,10 +312,11 @@ abstracted.setAbstractionLevel(0);
   `abstraction-level`, `abstraction-target`, `width`, `height`, `src`,
   `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`, and
   `controls`.
-- **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows a
-  toolbar (base-view selector, overlay checkboxes, Fit/Reset, diagnostics
-  indicator). 2D views support wheel zoom and drag pan; `render(model,{target})`
-  attaches this automatically (`interactive: false` to disable), and
+- **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows
+  tag-style controls (View radio buttons, Render mode radio buttons, Add info
+  checkboxes, fit/reset, full screen, abstraction lock, diagnostics indicator).
+  2D views support wheel zoom and drag pan; `render(model,{target})` attaches
+  this automatically (`interactive: false` to disable), and
   `RenderResult.fit()/reset()` control the view.
   External `src` takes priority; failed loads emit `src_fetch_failed` and show
   diagnostics. Inline fallback is used only when `fallback-to-inline` is present.
@@ -335,8 +337,11 @@ abstracted.setAbstractionLevel(0);
 
 ---
 
-## 7. Not yet supported
+## 7. Not yet supported / intentionally constrained
 
 Parsed/modeled but **not rendered**: node `contains` nesting, manual `layout`
-positions, `view.enabled` / `view.filters`. SVG pan/zoom controls and richer
-diagnostics/inspector UI are still engine API follow-up work.
+positions, `view.enabled` / `view.filters`.
+
+Security constraints: user-authored Markdown/HTML labels are not supported; URL
+fields are not rendered as clickable links. If either is added later, it needs a
+documented sanitizer/protocol allowlist first.

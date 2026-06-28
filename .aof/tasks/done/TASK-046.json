@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-046",
+  "title": "Document delivery, security, and v0.1 acceptance status",
+  "description": "Added public delivery/security documentation, a v0.1 acceptance matrix, and package file scope updates for release-oriented distribution evidence.",
+  "status": "done",
+  "origin": "TASK-010-checkpoint",
+  "created_at": "2026-06-28T21:22:00.000+09:00",
+  "done_at": "2026-06-28T21:34:00.000+09:00",
+  "decision_notes": [
+    "TASK-010 is broad, so this slice focuses on making release readiness visible before further code changes.",
+    "npm package contents should include public docs/specs/examples but not internal AOF handoff history.",
+    "The acceptance matrix records current product decisions, including zone as Add info in the UI while retaining compatibility."
+  ],
+  "verification": [
+    "npm run build",
+    "git diff --check",
+    "npm pack --dry-run: public docs/specs/examples included; docs/aof excluded"
+  ]
+}
