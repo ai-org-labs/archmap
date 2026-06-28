@@ -49,7 +49,8 @@ by `provider`/`kind` (most specific first: `provider/kind` → `provider` →
 **Recommended icon source: [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons).**
 It registers AWS/GCP/Azure service-kind icons (keyed `provider/kind`) plus a
 famous-services pack through ArchMap's `registerIcon` — a verified drop-in (same
-`RegisterIcon`/`RenderableIcon` types; 2293 icons register against this API):
+`RegisterIcon`/`RenderableIcon` types; `@archmap/icons` v0.1.1 ships 1,271
+cloud icon entries plus 32 famous-service entries):
 
 ```ts
 import { registerIcon } from "archmap";
@@ -66,10 +67,21 @@ installCloudIcons();
 registerIcon("aws", { viewBox: "0 0 24 24", body: '<path .../>' });
 ```
 
-> Note: `@archmap/icons` v0.1.0 is not yet on npm and its GitHub tag ships no
-> build output — publish it (or add a `prepare`/`dist`) before depending on it.
-> The bundled sample uses CC0 logos for GCP/Datadog/Firebase and lettered-badge
-> stand-ins for AWS/Azure/Wiz (AWS/Azure/Wiz aren't in CC0 simple-icons).
+For a browser-only sample, `examples/demo.html` imports the published icon pack
+through jsDelivr:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
+  }
+}
+</script>
+```
+
+The bundled `archmap/packs/cloud-icons` sample remains intentionally tiny; use
+`@archmap/icons` when you want broad provider/service icon coverage.
 
 ### 3D view (opt-in)
 

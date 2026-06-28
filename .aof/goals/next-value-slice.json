@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-034 interrupt done: larger 2D icons no longer share the same horizontal center as labels. Nodes with provider/kind metadata reserve extra width during layout, and single-icon SVG labels are centered in the text area to the right of the icon. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T16:50:00.000+09:00",
+  "content": "TASK-035 interrupt done: @archmap/icons v0.1.1 CDN usage was verified and examples/demo.html now imports https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm. Local devDependency/lockfile are aligned to ^0.1.1, README guidance was updated, and browser verification confirmed GCP/AWS/Datadog/Wiz icon symbols render from the package. Next: continue TASK-009/TASK-010 acceptance work; consider 3D full icon-grid parity and subgraph overlay parity in 3D if the human asks. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T17:30:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

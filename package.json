@@ -45,7 +45,7 @@
     }
   },
   "devDependencies": {
-    "@archmap/icons": "^0.1.0",
+    "@archmap/icons": "^0.1.1",
     "@types/js-yaml": "^4.0.9",
     "@types/three": "^0.184.1",
     "simple-icons": "^16.24.0",

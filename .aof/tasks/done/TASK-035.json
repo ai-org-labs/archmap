@@ -1,0 +1,25 @@
+{
+  "task_id": "TASK-035",
+  "title": "Verify @archmap/icons 0.1.1 CDN sample",
+  "description": "The static browser demo now imports @archmap/icons v0.1.1 through jsDelivr, and the local dev dependency is aligned to the same package version.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T17:20:00.000+09:00",
+  "done_at": "2026-06-28T17:30:00.000+09:00",
+  "decision_notes": [
+    "Confirmed @archmap/icons@0.1.1 is published on npm with an ESM export at ./dist/index.js.",
+    "Confirmed jsDelivr serves https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm with HTTP 200.",
+    "Updated examples/demo.html importmap to use the 0.1.1 CDN module.",
+    "Updated the local devDependency and lockfile to @archmap/icons ^0.1.1 for parity with the CDN sample.",
+    "Updated README icon guidance now that @archmap/icons v0.1.1 is available on npm/CDN."
+  ],
+  "verification": [
+    "npm view @archmap/icons@0.1.1 name version exports main module types --json",
+    "curl -I https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm",
+    "node --input-type=module import of @archmap/icons confirmed cloudIconCounts and famousServiceIconEntries",
+    "npm run typecheck",
+    "npm test -- --run test/icons.test.ts test/render.test.ts",
+    "npm run build",
+    "Browser check at http://127.0.0.1:4174/examples/demo.html confirmed importmap uses @archmap/icons@0.1.1/+esm and rendered GCP/AWS/Datadog/Wiz icon symbols from the icon pack."
+  ]
+}
