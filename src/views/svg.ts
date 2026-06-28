@@ -31,7 +31,8 @@ function iconBadgeSvg(n: LayoutNode, iconKey: string): string {
 
 /** Render a node's shape + label group. `extraClass` lets views fade/emphasize. */
 export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?: string): string {
-  const cls = `archmap-node archmap-shape-${n.shape}${extraClass ? " " + extraClass : ""}`;
+  const abstractionClass = n.abstraction ? " archmap-node-abstraction" : "";
+  const cls = `archmap-node archmap-shape-${n.shape}${abstractionClass}${extraClass ? " " + extraClass : ""}`;
   const { x, y, w, h } = n;
   let shape: string;
   switch (n.shape) {
@@ -65,8 +66,11 @@ export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?
   }
   const icon = iconKey ? iconBadgeSvg(n, iconKey) : "";
   const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
+  const abstractionAttrs = n.abstraction
+    ? ` data-abstraction-target="${escapeXml(n.abstraction.target)}" data-abstraction-id="${escapeXml(n.abstraction.id)}" data-abstraction-key="${escapeXml(`${n.abstraction.target}:${n.abstraction.id}`)}"`
+    : "";
   return (
-    `<g class="${cls}" data-id="${escapeXml(n.id)}"${styleAttr} ` +
+    `<g class="${cls}" data-id="${escapeXml(n.id)}"${abstractionAttrs}${styleAttr} ` +
     `data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-w="${w.toFixed(1)}" data-h="${h.toFixed(1)}">` +
     `${shape}${centeredLabel(n)}${icon}</g>`
   );
@@ -477,6 +481,9 @@ export const DEFAULT_STYLE = `
 .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); stroke: none; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
+.archmap-node-abstraction { cursor: pointer; }
+.archmap-node-abstraction .archmap-node-shape, .archmap-node-abstraction .archmap-node-shape-top { stroke-width: 3.2; }
+.archmap-node-abstraction .archmap-node-label { font-weight: 700; }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
 .archmap-edge-startpoint { fill: var(--archmap-edge-stroke, #5b6b86); stroke: none; }
 .archmap-arrowhead { fill: var(--archmap-edge-stroke, #5b6b86); }

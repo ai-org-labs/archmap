@@ -114,9 +114,26 @@ describe("render", () => {
     const { svg, model } = render(m, { baseView: "overview", abstractionLevel: 1 });
     expect(model.nodes.map((node) => node.id).sort()).toEqual(["D", "E", "Service"]);
     expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["Service->D", "Service->E"]);
-    expect(svg).toContain('data-id="Service"');
+    expect(svg).toContain('class="archmap-node archmap-shape-rectangle archmap-node-abstraction');
+    expect(svg).toContain('data-id="Service" data-abstraction-target="subgraph" data-abstraction-id="Service" data-abstraction-key="subgraph:Service"');
     expect(svg).not.toContain('data-id="A"');
     expect(svg).not.toContain('data-id="B"');
+  });
+
+  it("can expand one collapsed subgraph while keeping sibling abstractions collapsed", () => {
+    const m = parse(`graph LR
+      subgraph ServiceA
+        A[API]
+      end
+      subgraph ServiceB
+        B[Worker]
+      end
+      A --> D[Database]
+      B --> D
+    `);
+    const model = render(m, { baseView: "overview", abstractionLevel: 1, expandedAbstractions: ["subgraph:ServiceA"] }).model;
+    expect(model.nodes.map((node) => node.id).sort()).toEqual(["A", "D", "ServiceB"]);
+    expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["A->D", "ServiceB->D"]);
   });
 
   it("uses subgraph depth as the abstraction slider level", () => {
@@ -154,9 +171,30 @@ describe("render", () => {
     expect(model.nodes.map((node) => node.id).sort()).toEqual(["D", "E", "service"]);
     expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["service->D", "service->E"]);
     expect(model.zones.map((zone) => zone.id)).not.toContain("service");
-    expect(svg).toContain('data-id="service"');
+    expect(svg).toContain('data-id="service" data-abstraction-target="zone" data-abstraction-id="service" data-abstraction-key="zone:service"');
     expect(svg).not.toContain('data-id="A"');
     expect(svg).not.toContain('data-id="B"');
+  });
+
+  it("can expand one collapsed zone while keeping sibling zones collapsed", () => {
+    const m = parse(`graph LR
+      A[API] --> D[Database]
+      B[Worker] --> D
+      ---
+      zones:
+        service_a:
+          contains: [A]
+        service_b:
+          contains: [B]
+    `);
+    const model = render(m, {
+      baseView: "overview",
+      abstractionTarget: "zone",
+      abstractionLevel: 1,
+      expandedAbstractions: ["zone:service_a"],
+    }).model;
+    expect(model.nodes.map((node) => node.id).sort()).toEqual(["A", "D", "service_b"]);
+    expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["A->D", "service_b->D"]);
   });
 
   it("uses nested zone depth for zone abstraction", () => {

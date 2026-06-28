@@ -24,6 +24,7 @@ export interface LayoutNode {
   z: number;
   w: number;
   h: number;
+  abstraction?: ArchNode["abstraction"];
 }
 
 export interface LayoutZone {
@@ -434,7 +435,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
         x = cur;
         y = flow + (ext - h) / 2;
       }
-      laid.set(n.id, { id: n.id, label: n.label, shape: n.shape, x, y, z: layerDepth(n.layer), w, h });
+      laid.set(n.id, { id: n.id, label: n.label, shape: n.shape, x, y, z: layerDepth(n.layer), w, h, abstraction: n.abstraction });
     }
   }
 

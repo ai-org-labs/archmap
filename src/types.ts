@@ -70,6 +70,11 @@ export interface ArchNode {
   androidLayer?: string;
   /** Fields populated by inference rather than explicit metadata. */
   inferred?: string[];
+  /** Renderer-only projection metadata for collapsed subgraph/zone components. */
+  abstraction?: {
+    target: "subgraph" | "zone";
+    id: string;
+  };
 }
 
 export interface BoundaryCrossing {

@@ -255,6 +255,9 @@ from the group component, duplicate external edges collapse to one edge, and Add
 info overlays use the same projected model. Level `1` collapses top-level
 subgraphs/zones; level `2` collapses their child groups, and so on. The default
 target is `subgraph`; use `abstractionTarget: "zone"` to collapse zones.
+Collapsed abstraction components render with a heavier outline, and in an
+interactive target they can be clicked to expand just that component/zone while
+leaving sibling abstractions collapsed.
 
 | View | Shows |
 | --- | --- |
@@ -290,6 +293,7 @@ const { svg } = render(model, { view: "overview", target: el });
 const overlaid = render(model, { baseView: "overview", overlays: ["auth", "dataflow"] });
 const abstracted = render(model, { baseView: "overview", abstractionLevel: 1 });
 const zoneAbstracted = render(model, { baseView: "overview", abstractionTarget: "zone", abstractionLevel: 1 });
+const partlyExpanded = render(model, { baseView: "overview", abstractionLevel: 1, expandedAbstractions: ["subgraph:Runtime"] });
 overlaid.setOverlays(["permission", "validation"]);
 overlaid.toggleOverlay("boundary");
 abstracted.setAbstractionLevel(0);

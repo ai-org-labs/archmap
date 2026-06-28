@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-026",
+  "title": "Show and expand collapsed abstraction components",
+  "description": "Make collapsed subgraph/zone abstraction components visually distinct and allow clicking one abstraction component to expand only that component while siblings remain collapsed.",
+  "status": "done",
+  "origin": "human",
+  "created_at": "2026-06-28T12:05:00.000+09:00",
+  "done_at": "2026-06-28T12:13:00.000+09:00",
+  "decision_notes": [
+    "Collapsed abstraction nodes now carry renderer metadata (`abstraction.target/id`) through layout and SVG.",
+    "SVG abstraction nodes render with `archmap-node-abstraction`, a heavier outline, bold label, pointer cursor, and `data-abstraction-key` such as `subgraph:Runtime` or `zone:service`.",
+    "Interactive renders attach a click handler for abstraction nodes. Clicking adds that key to the render state's expanded set and rerenders, leaving sibling abstractions collapsed.",
+    "Programmatic callers can pre-expand specific abstractions through `expandedAbstractions`."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts",
+    "npm run build",
+    "node /Users/mn/codex/.cache/aof-v6.5.0/src/cli.js organization-verify --project . (46/46 pass)",
+    "git diff --check"
+  ],
+  "notes": [
+    "Browser automation was not retried deeply because the in-app browser connection had timed out in the prior turn. Port 4174 listeners remained present.",
+    "A future UX pass could add a visible collapse/reset control for already-expanded abstraction nodes."
+  ]
+}

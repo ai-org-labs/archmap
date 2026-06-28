@@ -64,6 +64,8 @@ export interface RenderOptions {
   abstractionLevel?: number;
   /** Which authoring hierarchy the abstraction slider collapses. */
   abstractionTarget?: AbstractionTarget;
+  /** Abstraction keys (`subgraph:X` / `zone:Y`) to leave expanded. */
+  expandedAbstractions?: string[];
   /** Legacy flat view selector. Kept for compatibility with existing callers. */
   view?: string;
   direction?: Direction;
@@ -96,6 +98,7 @@ export interface RenderResult {
   setOverlays(overlays: string[]): void;
   setAbstractionLevel(level: number): void;
   setAbstractionTarget(target: AbstractionTarget): void;
+  expandAbstraction(key: string): void;
   addOverlay(overlay: string): void;
   removeOverlay(overlay: string): void;
   toggleOverlay(overlay: string): void;
@@ -242,6 +245,20 @@ function attachDiagnosticSelection(
   };
   diagnosticsEl.addEventListener("click", handler);
   return () => diagnosticsEl.removeEventListener("click", handler);
+}
+
+function attachAbstractionExpansion(target: Element, expand: (key: string) => void): () => void {
+  const handler = (event: Event) => {
+    const source = event.target instanceof Element ? event.target.closest(".archmap-node[data-abstraction-key]") : null;
+    const key = source?.getAttribute("data-abstraction-key");
+    if (!key) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
+    expand(key);
+  };
+  target.addEventListener("click", handler);
+  return () => target.removeEventListener("click", handler);
 }
 
 export function diagnosticsHtml(model: ArchMapModel): string {
@@ -391,14 +408,16 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     overlays: [...(options.overlays ?? metadataOverlays(model))],
     abstractionLevel: Math.max(0, Math.floor(options.abstractionLevel ?? 0)),
     abstractionTarget: options.abstractionTarget ?? "subgraph" as AbstractionTarget,
+    expandedAbstractions: new Set(options.expandedAbstractions ?? []),
   };
   let panZoom: PanZoomHandle | undefined;
   let preservePanZoomOnNextRender = false;
   let detachInspector: (() => void) | undefined;
   let detachDiagnostics: (() => void) | undefined;
+  let detachAbstractionExpansion: (() => void) | undefined;
 
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
-    const effectiveModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget);
+    const effectiveModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions);
     validateOverlays(effectiveModel, state.overlays);
     const renderer = registry.get(state.view);
     if (!renderer) {
@@ -435,8 +454,13 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
         detachInspector = undefined;
         detachDiagnostics?.();
         detachDiagnostics = undefined;
+        detachAbstractionExpansion?.();
+        detachAbstractionExpansion = undefined;
         if (options.interactive !== false && isInteractiveTarget(options.target)) {
           panZoom = attachPanZoom(options.target, preservedPanZoom);
+        }
+        if ("addEventListener" in options.target && "dispatchEvent" in options.target) {
+          detachAbstractionExpansion = attachAbstractionExpansion(options.target, (key) => result.expandAbstraction(key));
         }
         if (options.inspectorTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
           detachInspector = attachInspectorSelection(options.target, effectiveModel, options.inspectorTarget);
@@ -456,7 +480,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     return { view: state.view, layout, model: effectiveModel, handle, svg: undefined };
   };
 
-  const initialModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget);
+  const initialModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions);
 
   const result: RenderResult = {
     view: state.view,
@@ -491,6 +515,12 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     },
     setAbstractionTarget(target: AbstractionTarget) {
       state.abstractionTarget = target;
+      state.expandedAbstractions.clear();
+      preservePanZoomOnNextRender = true;
+      apply(snapshot());
+    },
+    expandAbstraction(key: string) {
+      state.expandedAbstractions.add(key);
       preservePanZoomOnNextRender = true;
       apply(snapshot());
     },
@@ -524,6 +554,8 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       detachInspector = undefined;
       detachDiagnostics?.();
       detachDiagnostics = undefined;
+      detachAbstractionExpansion?.();
+      detachAbstractionExpansion = undefined;
       result.handle?.dispose();
       result.handle = undefined;
       result.svg = undefined;

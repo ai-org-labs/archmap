@@ -12,6 +12,7 @@ import type {
 } from "./types.js";
 
 export type AbstractionTarget = "subgraph" | "zone";
+export type ExpandedAbstractions = ReadonlySet<string>;
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
@@ -224,6 +225,7 @@ function abstractionNode(
     provider: mostCommon(providers),
     ...(principals.length === 1 ? { principal: principals[0] } : {}),
     contains: members.map((node) => node.id),
+    abstraction: { target: kind, id },
     description: `${kind === "zone" ? "Zone" : "Subgraph"} abstraction for ${label ?? id}.`,
   };
 }
@@ -305,7 +307,7 @@ function applyAbstractionProjection(
   };
 }
 
-export function projectSubgraphAbstraction(model: ArchMapModel, level = 0): ArchMapModel {
+export function projectSubgraphAbstraction(model: ArchMapModel, level = 0, expanded: ExpandedAbstractions = new Set()): ArchMapModel {
   const requested = Math.max(0, Math.floor(level));
   if (requested === 0) return model;
   const subgraphs = Object.values(model.graph.subgraphs);
@@ -313,7 +315,7 @@ export function projectSubgraphAbstraction(model: ArchMapModel, level = 0): Arch
 
   const depths = subgraphDepths(subgraphs);
   const targetDepth = requested - 1;
-  const selected = subgraphs.filter((sg) => depths.get(sg.id) === targetDepth);
+  const selected = subgraphs.filter((sg) => depths.get(sg.id) === targetDepth && !expanded.has(`subgraph:${sg.id}`));
   if (selected.length === 0) return model;
 
   const nodeIds = new Set(model.nodes.map((node) => node.id));
@@ -351,12 +353,12 @@ function effectiveZoneMembers(zone: Zone, childrenByParent: Map<string | undefin
   return out;
 }
 
-export function projectZoneAbstraction(model: ArchMapModel, level = 0): ArchMapModel {
+export function projectZoneAbstraction(model: ArchMapModel, level = 0, expanded: ExpandedAbstractions = new Set()): ArchMapModel {
   const requested = Math.max(0, Math.floor(level));
   if (requested === 0 || model.zones.length === 0) return model;
   const depths = zoneDepths(model.zones);
   const targetDepth = requested - 1;
-  const selected = model.zones.filter((zone) => depths.get(zone.id) === targetDepth);
+  const selected = model.zones.filter((zone) => depths.get(zone.id) === targetDepth && !expanded.has(`zone:${zone.id}`));
   if (selected.length === 0) return model;
 
   const nodeIds = new Set(model.nodes.map((node) => node.id));
@@ -379,8 +381,13 @@ export function projectZoneAbstraction(model: ArchMapModel, level = 0): ArchMapM
   return applyAbstractionProjection(model, replacements, synthetic, collapsedZones);
 }
 
-export function projectAbstraction(model: ArchMapModel, level = 0, target: AbstractionTarget = "subgraph"): ArchMapModel {
+export function projectAbstraction(
+  model: ArchMapModel,
+  level = 0,
+  target: AbstractionTarget = "subgraph",
+  expanded: ExpandedAbstractions = new Set(),
+): ArchMapModel {
   return target === "zone"
-    ? projectZoneAbstraction(model, level)
-    : projectSubgraphAbstraction(model, level);
+    ? projectZoneAbstraction(model, level, expanded)
+    : projectSubgraphAbstraction(model, level, expanded);
 }
