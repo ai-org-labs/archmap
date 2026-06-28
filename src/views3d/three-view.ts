@@ -241,16 +241,23 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
   // Zones are Add info in 3D too: structure-only 3D stays clean until the
   // `zone` overlay is enabled.
   if ((ctx.options.overlays ?? []).includes("zone")) {
+    const alignStackZoneBases = ctx.options.baseView === "layer";
+    const stackZoneBaseY = alignStackZoneBases
+      ? Math.min(...scene3d.zones.map((z) => z.y - z.h / 2))
+      : 0;
     // Zones as translucent volumes enclosing their members, with wireframe
     // edges and a label floating above. depthWrite:false so they never hide nodes.
     scene3d.zones.forEach((z, i) => {
+      const zoneTopY = z.y + z.h / 2;
+      const zoneY = alignStackZoneBases ? (stackZoneBaseY + zoneTopY) / 2 : z.y;
+      const zoneH = alignStackZoneBases ? Math.max(0.5, zoneTopY - stackZoneBaseY) : z.h;
       const color = ZONE_COLORS[i % ZONE_COLORS.length];
-      const geo = track(new THREE.BoxGeometry(z.w, z.h, z.d));
+      const geo = track(new THREE.BoxGeometry(z.w, zoneH, z.d));
       const mat = track(
         new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false, side: THREE.DoubleSide }),
       );
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(z.x, z.y, z.z);
+      mesh.position.set(z.x, zoneY, z.z);
       mesh.renderOrder = -1;
       root.add(mesh);
 
@@ -261,7 +268,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
 
       const hex = "#" + color.toString(16).padStart(6, "0");
       const label = makeTextSprite(z.label ?? z.id, { fg: hex, bg: "rgba(255,255,255,0.82)", scaleY: 0.62, bold: true });
-      label.position.set(z.labelX, z.labelY, z.labelZ);
+      label.position.set(z.labelX, alignStackZoneBases ? zoneTopY + 0.55 + i * 0.025 : z.labelY, z.labelZ);
       disposeSprite(label, disposables);
       root.add(label);
     });

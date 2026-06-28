@@ -63,9 +63,13 @@ describe("three-view mount behavior", () => {
     expect(source).toContain("Zones are Add info in 3D too");
   });
 
-  it("uses packed zone blocks for stack-view 3D zones", () => {
+  it("keeps stack-view 3D zones as enclosing volumes with aligned bases", () => {
     expect(source).not.toContain("stackZoneBoxes");
     expect(source).toContain("scene3d.zones.forEach");
+    expect(source).toContain('const alignStackZoneBases = ctx.options.baseView === "layer"');
+    expect(source).toContain("stackZoneBaseY");
+    expect(source).toContain("zoneTopY - stackZoneBaseY");
+    expect(source).not.toContain("stackZoneH");
   });
 
   it("renders a camera-synced 3-axis view cube without custom gizmo drag controls", () => {
