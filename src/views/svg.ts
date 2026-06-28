@@ -24,17 +24,17 @@ function centeredLabel(n: LayoutNode, cls = "archmap-node-label", yOffset = 0): 
 
 /** A small vendor/provider icon badge in the node's top-left corner. */
 function iconBadgeSvg(n: LayoutNode, iconKey: string): string {
-  const size = 18;
-  const x = n.x + 7;
-  const y = n.y + 7;
+  const size = 32;
+  const x = n.x + 8;
+  const y = n.y + 8;
   return `<use class="archmap-node-icon" href="#${iconDomId(iconKey)}" x="${x}" y="${y}" width="${size}" height="${size}" />`;
 }
 
 function abstractionIconsSvg(n: LayoutNode, icons: ResolvedIcon[]): string {
   const visible = icons.slice(0, 24);
   if (visible.length === 0) return "";
-  const size = 17;
-  const gap = 5;
+  const size = 31;
+  const gap = 7;
   const cols = Math.min(6, visible.length);
   const rows = Math.ceil(visible.length / cols);
   const gridW = cols * size + (cols - 1) * gap;
@@ -49,7 +49,7 @@ function abstractionIconsSvg(n: LayoutNode, icons: ResolvedIcon[]): string {
     return `<use class="archmap-node-icon archmap-abstraction-icon" href="#${iconDomId(icon.key)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${size}" height="${size}" />`;
   }).join("");
   const more = icons.length > visible.length
-    ? `<text class="archmap-abstraction-icon-more" x="${(startX + gridW + 5).toFixed(1)}" y="${(startY + rows * (size + gap) - gap - 2).toFixed(1)}">+${icons.length - visible.length}</text>`
+    ? `<text class="archmap-abstraction-icon-more" x="${(startX + gridW + 7).toFixed(1)}" y="${(startY + rows * (size + gap) - gap - 3).toFixed(1)}">+${icons.length - visible.length}</text>`
     : "";
   return `<g class="archmap-abstraction-icons"><title>${escapeXml(title)}</title>${uses}${more}</g>`;
 }
@@ -94,7 +94,7 @@ export function nodeSvg(n: LayoutNode, extraClass = "", icon?: string | Resolved
   const iconSvg = icons.length > 0
     ? abstractionIconsSvg(n, icons)
     : singleIconKey ? iconBadgeSvg(n, singleIconKey) : "";
-  const labelOffset = icons.length > 0 ? Math.min(22, Math.max(10, Math.ceil(icons.length / 6) * 9)) : 0;
+  const labelOffset = icons.length > 0 ? Math.min(42, Math.max(14, Math.ceil(icons.length / 6) * 15)) : 0;
   const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
   const abstractionAttrs = n.abstraction
     ? ` data-abstraction-target="${escapeXml(n.abstraction.target)}" data-abstraction-id="${escapeXml(n.abstraction.id)}" data-abstraction-key="${escapeXml(`${n.abstraction.target}:${n.abstraction.id}`)}"`
@@ -502,6 +502,11 @@ export const DEFAULT_STYLE = `
 .archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); stroke: var(--archmap-zone-stroke-depth-3, #8fbf9c); }
 .archmap-zone-label { fill: var(--archmap-zone-label, #687486); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-zone { cursor: pointer; }
+.archmap-subgraph-box { fill: var(--archmap-subgraph-fill, rgba(100,116,139,0.11)); stroke: none; }
+.archmap-subgraph-depth-1 .archmap-subgraph-box { fill: var(--archmap-subgraph-fill-depth-1, rgba(148,163,184,0.11)); }
+.archmap-subgraph-depth-2 .archmap-subgraph-box { fill: var(--archmap-subgraph-fill-depth-2, rgba(71,85,105,0.08)); }
+.archmap-subgraph-label { fill: var(--archmap-subgraph-label, #64748b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
+.archmap-subgraph { cursor: pointer; }
 .archmap-layer-box { fill: var(--archmap-layer-fill, rgba(236,241,248,0.72)); stroke: var(--archmap-layer-stroke, #b8c5d6); stroke-width: 1.1; }
 .archmap-layer-depth-1 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-1, rgba(247,239,222,0.68)); }
 .archmap-layer-depth-2 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-2, rgba(232,243,232,0.66)); }
@@ -527,7 +532,7 @@ export const DEFAULT_STYLE = `
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-selected .archmap-node-shape, .archmap-selected .archmap-node-shape-top { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); }
-.archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box, .archmap-selected .archmap-layer-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
+.archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box, .archmap-selected .archmap-layer-box, .archmap-selected .archmap-subgraph-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-path { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-startpoint { fill: var(--archmap-selected, #2563eb); }
 .archmap-emphasis .archmap-node-shape, .archmap-emphasis .archmap-node-shape-top { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }

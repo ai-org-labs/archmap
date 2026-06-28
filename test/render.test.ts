@@ -487,6 +487,29 @@ describe("render", () => {
     expect(svg).toContain("Private Boundary");
   });
 
+  it("shows subgraph area overlays as borderless translucent backgrounds when requested", () => {
+    const m = parse(`graph LR
+      subgraph Runtime
+        App[App]
+        DB[(DB)]
+      end
+      App --> DB
+    `);
+    const plain = render(m, { baseView: "overview" }).svg!;
+    expect(plain).not.toContain('class="archmap-subgraph archmap-subgraph-depth-');
+
+    const withSubgraph = render(m, { baseView: "overview", overlays: ["subgraph"] }).svg!;
+    expect(withSubgraph).toContain("archmap-overlay-subgraph");
+    expect(withSubgraph).toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Runtime"');
+    expect(withSubgraph).toContain('class="archmap-subgraph-box"');
+    expect(withSubgraph).toContain(".archmap-subgraph-box { fill:");
+    expect(withSubgraph.match(/\.archmap-subgraph-box \{[^}]*stroke: none/)).toBeTruthy();
+
+    const collapsed = render(m, { baseView: "overview", overlays: ["subgraph"], collapsedAbstractions: ["subgraph:Runtime"] }).svg!;
+    expect(collapsed).toContain('data-abstraction-key="subgraph:Runtime"');
+    expect(collapsed).not.toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Runtime"');
+  });
+
   it("does not let graph subgraphs affect rendered geometry", () => {
     const m = parse(androidDriverStack);
     const overview = render(m, { baseView: "overview" }).svg!;

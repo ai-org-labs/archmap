@@ -1,0 +1,23 @@
+{
+  "task_id": "TASK-031",
+  "title": "Add visible subgraph overlay controls",
+  "description": "Subgraphs can now be toggled as Add info backgrounds and collapsed/expanded by clicking, while overall SVG icons are scaled up for readability.",
+  "status": "done",
+  "origin": "human-interrupt",
+  "created_at": "2026-06-28T13:28:00.000+09:00",
+  "done_at": "2026-06-28T13:45:00.000+09:00",
+  "decision_notes": [
+    "Reintroduced subgraph as an explicit Add info overlay without changing the default overview geometry.",
+    "Subgraph areas render as borderless translucent backgrounds with their own labels, separate from zone and boundary semantics.",
+    "Clicking a visible subgraph background collapses it into the existing abstraction representative; clicking that representative expands it again.",
+    "Collapsed subgraph representatives reuse the member-icon grid introduced for zones, and icon sizes were increased to roughly 1.8x globally.",
+    "Abstraction node sizing was expanded so larger member icons fit by growing the component instead of clipping."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts test/icons.test.ts",
+    "npm run build",
+    "git diff --check",
+    "Local generated SVG check confirmed subgraph overlay and collapsed subgraph representative output; port 4174 server is still listening."
+  ]
+}

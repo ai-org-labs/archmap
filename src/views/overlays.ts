@@ -1,8 +1,8 @@
 import type { LayoutResult } from "../layout.js";
-import type { ArchMapModel, BoundaryCrossing, Diagnostic, Permission } from "../types.js";
+import type { ArchMapModel, BoundaryCrossing, Diagnostic, GraphSubgraph, Permission } from "../types.js";
 import type { Box } from "./base.js";
 
-export const OVERLAY_NAMES = new Set(["zone", "auth", "dataflow", "boundary", "permission", "validation"]);
+export const OVERLAY_NAMES = new Set(["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"]);
 
 export interface OverlayEdgeBadge {
   kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary";
@@ -97,6 +97,75 @@ function primaryLevel(items: Diagnostic[]): "error" | "warning" | "suggestion" |
   return "info";
 }
 
+function subgraphChildren(subgraphs: GraphSubgraph[]): Map<string | undefined, GraphSubgraph[]> {
+  const out = new Map<string | undefined, GraphSubgraph[]>();
+  for (const sg of subgraphs) {
+    out.set(sg.parent, [...(out.get(sg.parent) ?? []), sg]);
+  }
+  return out;
+}
+
+function subgraphDepths(subgraphs: GraphSubgraph[]): Map<string, number> {
+  const byId = new Map(subgraphs.map((sg) => [sg.id, sg]));
+  const depths = new Map<string, number>();
+  const depthOf = (sg: GraphSubgraph, seen = new Set<string>()): number => {
+    if (depths.has(sg.id)) return depths.get(sg.id)!;
+    if (!sg.parent || seen.has(sg.id) || !byId.has(sg.parent)) {
+      depths.set(sg.id, 0);
+      return 0;
+    }
+    seen.add(sg.id);
+    const depth = depthOf(byId.get(sg.parent)!, seen) + 1;
+    seen.delete(sg.id);
+    depths.set(sg.id, depth);
+    return depth;
+  };
+  for (const sg of subgraphs) depthOf(sg);
+  return depths;
+}
+
+function subgraphMembers(sg: GraphSubgraph, childrenByParent: Map<string | undefined, GraphSubgraph[]>, nodeIds: Set<string>, seen = new Set<string>()): Set<string> {
+  if (seen.has(sg.id)) return new Set();
+  seen.add(sg.id);
+  const out = new Set(sg.members.filter((id) => nodeIds.has(id)));
+  for (const child of childrenByParent.get(sg.id) ?? []) {
+    for (const id of subgraphMembers(child, childrenByParent, nodeIds, seen)) out.add(id);
+  }
+  seen.delete(sg.id);
+  return out;
+}
+
+function subgraphBoxes(model: ArchMapModel, layout: LayoutResult): Box[] {
+  const subgraphs = Object.values(model.graph.subgraphs);
+  if (subgraphs.length === 0) return [];
+  const nodesById = new Map(layout.nodes.map((node) => [node.id, node]));
+  const nodeIds = new Set(layout.nodes.map((node) => node.id));
+  const childrenByParent = subgraphChildren(subgraphs);
+  const depths = subgraphDepths(subgraphs);
+  const pad = 20;
+  const labelPad = 34;
+  return subgraphs
+    .map((sg): Box | undefined => {
+      const members = [...subgraphMembers(sg, childrenByParent, nodeIds)].map((id) => nodesById.get(id)).filter((node): node is NonNullable<typeof node> => !!node);
+      if (members.length === 0) return undefined;
+      const minX = Math.min(...members.map((node) => node.x));
+      const minY = Math.min(...members.map((node) => node.y));
+      const maxX = Math.max(...members.map((node) => node.x + node.w));
+      const maxY = Math.max(...members.map((node) => node.y + node.h));
+      return {
+        id: sg.id,
+        label: sg.label ?? sg.id,
+        depth: depths.get(sg.id) ?? 0,
+        x: minX - pad,
+        y: minY - labelPad,
+        w: maxX - minX + pad * 2,
+        h: maxY - minY + labelPad + pad,
+      };
+    })
+    .filter((box): box is Box => !!box)
+    .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0));
+}
+
 export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult, overlays: string[]): OverlayProjection {
   const active = overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
   const nodes = new Set<string>();
@@ -119,6 +188,10 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
     nodeByPrincipal.set(node.principal, [...(nodeByPrincipal.get(node.principal) ?? []), node.id]);
   }
   const identityAttachment = new Map(model.identities.map((identity) => [identity.id, attachedNodeIds(identity.attachedTo)]));
+
+  if (active.includes("subgraph")) {
+    boxGroups.push({ boxes: subgraphBoxes(model, layout), boxClass: "archmap-subgraph" });
+  }
 
   if (active.includes("zone")) {
     boxGroups.push({ boxes: layout.zones, boxClass: "archmap-zone" });

@@ -121,8 +121,8 @@ const ANDROID_LAYER_INDEX = new Map(ANDROID_LAYER_ORDER.map((l, i) => [l, i]));
 const NODE_H = 48;
 const NODE_MIN_W = 96;
 const NODE_MAX_W = 260;
-const HUB_NODE_MAX_W = 420;
-const HUB_NODE_MAX_H = 128;
+const HUB_NODE_MAX_W = 560;
+const HUB_NODE_MAX_H = 240;
 const CHAR_W = 8;
 const NODE_PAD_X = 28;
 const RANK_GAP = 170; // gap between bands along the flow axis
@@ -141,10 +141,11 @@ function nodeWidth(label: string): number {
 function nodeSize(label: string, degree = 0, abstractionMemberCount = 0): { w: number; h: number } {
   const extra = Math.max(0, degree - 4);
   const iconRows = abstractionMemberCount > 0 ? Math.ceil(abstractionMemberCount / 6) : 0;
-  const iconWidth = abstractionMemberCount > 0 ? Math.min(6, abstractionMemberCount) * 22 + 28 : 0;
+  const iconSlot = 38;
+  const iconWidth = abstractionMemberCount > 0 ? Math.min(6, abstractionMemberCount) * iconSlot + 28 : 0;
   return {
     w: Math.min(HUB_NODE_MAX_W, Math.max(nodeWidth(label), iconWidth) + extra * 18),
-    h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 10 + iconRows * 22),
+    h: Math.min(HUB_NODE_MAX_H, NODE_H + extra * 10 + iconRows * iconSlot),
   };
 }
 

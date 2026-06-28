@@ -442,14 +442,17 @@ export function renderDiagram(spec: DiagramSpec): string {
 
   const boxesSvg = boxGroups
     .map((group) => {
-      const boxLabelClass = group.boxClass === "archmap-boundary" ? "archmap-boundary-label" : "archmap-zone-label";
+      const boxLabelClass = group.boxClass === "archmap-boundary"
+        ? "archmap-boundary-label"
+        : group.boxClass === "archmap-subgraph" ? "archmap-subgraph-label" : "archmap-zone-label";
       const resolvedLabelClass = group.boxClass === "archmap-layer"
         ? "archmap-layer-label"
         : boxLabelClass;
       const boxBoxClass = group.boxClass === "archmap-boundary"
         ? "archmap-boundary-box"
         : group.boxClass === "archmap-layer" ? "archmap-layer-box"
-          : "archmap-zone-box";
+          : group.boxClass === "archmap-subgraph" ? "archmap-subgraph-box"
+            : "archmap-zone-box";
       return group.boxes
         .map((b) => {
           const label = b.label ?? b.id;

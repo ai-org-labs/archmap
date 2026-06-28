@@ -54,6 +54,7 @@ describe("icons in rendering", () => {
     const { svg } = render(m, { view: "overview" });
     expect(svg).toContain('<symbol id="archmap-icon-gcp"');
     expect(svg).toContain('href="#archmap-icon-gcp"');
+    expect(svg).toContain('width="32" height="32"');
   });
 
   it("renders every available member icon inside a collapsed abstraction node", () => {
@@ -78,6 +79,7 @@ describe("icons in rendering", () => {
     const { svg } = render(m, { baseView: "overview", overlays: ["zone"], collapsedAbstractions: ["zone:service"] });
     expect(svg).toContain('data-abstraction-key="zone:service"');
     expect(svg!.match(/class="archmap-node-icon archmap-abstraction-icon"/g)?.length).toBe(4);
+    expect(svg).toContain('width="31" height="31"');
     expect(svg).toContain('href="#archmap-icon-gcp"');
     expect(svg).toContain('href="#archmap-icon-aws"');
     expect(svg).toContain('href="#archmap-icon-datadog"');

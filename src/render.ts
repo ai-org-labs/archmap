@@ -266,11 +266,20 @@ function attachAbstractionToggles(target: Element, collapse: (key: string) => vo
     }
     const zone = source?.closest(".archmap-zone[data-id]");
     const zoneId = zone?.getAttribute("data-id");
-    if (!zoneId) return;
+    if (zoneId) {
+      event.preventDefault();
+      event.stopPropagation();
+      if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
+      collapse(`zone:${zoneId}`);
+      return;
+    }
+    const subgraph = source?.closest(".archmap-subgraph[data-id]");
+    const subgraphId = subgraph?.getAttribute("data-id");
+    if (!subgraphId) return;
     event.preventDefault();
     event.stopPropagation();
     if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
-    collapse(`zone:${zoneId}`);
+    collapse(`subgraph:${subgraphId}`);
   };
   target.addEventListener("click", handler, { capture: true });
   return () => target.removeEventListener("click", handler, { capture: true });
@@ -380,8 +389,14 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   const collapsedZoneIds = new Set(model.nodes
     .filter((node) => node.abstraction?.target === "zone")
     .map((node) => node.abstraction!.id));
+  const collapsedSubgraphIds = new Set(model.nodes
+    .filter((node) => node.abstraction?.target === "subgraph")
+    .map((node) => node.abstraction!.id));
   const visibleZoneBoxes = <T extends Box>(boxes: T[]): T[] => (
     collapsedZoneIds.size === 0 ? boxes : boxes.filter((box) => !collapsedZoneIds.has(box.id))
+  );
+  const visibleSubgraphBoxes = <T extends Box>(boxes: T[]): T[] => (
+    collapsedSubgraphIds.size === 0 ? boxes : boxes.filter((box) => !collapsedSubgraphIds.has(box.id))
   );
   const baseEdges = new Set<string>();
   if (view === "zone") {
@@ -403,6 +418,8 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   const projectionBoxGroups = projection.boxGroups?.map((group) => (
     group.boxClass === "archmap-zone"
       ? { ...group, boxes: visibleZoneBoxes(group.boxes) }
+      : group.boxClass === "archmap-subgraph"
+        ? { ...group, boxes: visibleSubgraphBoxes(group.boxes) }
       : group
   ));
   const zoneStyles = view === "overview" ? overviewZoneColorStyles(model, layout) : undefined;
