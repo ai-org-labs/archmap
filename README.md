@@ -24,6 +24,12 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 ## Install / dev
 
 ```bash
+npm install @archmap/core
+```
+
+Development:
+
+```bash
 npm install
 npm test          # vitest
 npm run typecheck # tsc --noEmit
@@ -33,7 +39,7 @@ npm run build     # ESM + UMD bundle into dist/
 ## Usage
 
 ```ts
-import { parse, render, computeLayout, registerView } from "archmap";
+import { parse, render, computeLayout, registerView } from "@archmap/core";
 
 const model = parse(source);            // ArchMapModel (spec §28)
 const { svg } = render(model, { view: "overview" });
@@ -44,6 +50,9 @@ const { svg } = render(model, { view: "overview" });
 Browser playground: `npm run dev` then open the dev server root (live source,
 no build). Or `npm run build` and open `examples/demo.html` directly from disk
 (no server — uses the built ESM bundle plus CDN-hosted optional dependencies).
+
+Published viewer page: `https://ai-org-labs.github.io/archmap/` after the
+GitHub Pages workflow has run on `main`.
 
 ### Vendor icons (opt-in)
 
@@ -59,7 +68,7 @@ famous-services pack through ArchMap's `registerIcon` — a verified drop-in (sa
 cloud icon entries plus 32 famous-service entries):
 
 ```ts
-import { registerIcon } from "archmap";
+import { registerIcon } from "@archmap/core";
 import { installAwsIcons, installFamousServiceIcons } from "@archmap/icons";
 installAwsIcons(registerIcon);
 installFamousServiceIcons(registerIcon);
@@ -68,7 +77,7 @@ installFamousServiceIcons(registerIcon);
 Or register your own / use the bundled minimal sample:
 
 ```ts
-import { installCloudIcons } from "archmap/packs/cloud-icons"; // tiny sample
+import { installCloudIcons } from "@archmap/core/packs/cloud-icons"; // tiny sample
 installCloudIcons();
 registerIcon("aws", { viewBox: "0 0 24 24", body: '<path .../>' });
 ```
@@ -86,7 +95,7 @@ through jsDelivr:
 </script>
 ```
 
-The bundled `archmap/packs/cloud-icons` sample remains intentionally tiny; use
+The bundled `@archmap/core/packs/cloud-icons` sample remains intentionally tiny; use
 `@archmap/icons` when you want broad provider/service icon coverage.
 Third-party logos, product names, and service marks remain the property of
 their respective owners; enabling external icon packs is an explicit opt-in.
@@ -100,7 +109,7 @@ members, and a lower-right labeled ViewCube shows orientation and snaps to
 front/top/right on click.
 
 ```ts
-import { installThreeView } from "archmap/views3d/three-view"; // needs `three`
+import { installThreeView } from "@archmap/core/views3d/three-view"; // needs `three`
 installThreeView();
 const { handle } = render(model, { view: "3d", target: el });
 // handle.dispose() tears down the canvas + animation loop

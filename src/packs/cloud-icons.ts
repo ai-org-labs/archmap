@@ -2,7 +2,7 @@
  * SAMPLE icon pack — NOT part of the core bundle (the core entry never imports
  * this). Import it explicitly to opt in:
  *
- *   import { installCloudIcons } from "archmap/packs/cloud-icons";
+ *   import { installCloudIcons } from "@archmap/core/packs/cloud-icons";
  *   installCloudIcons();
  *
  * It demonstrates two sourcing strategies:
@@ -15,8 +15,8 @@
 
 import { siDatadog, siFirebase, siGooglecloud } from "simple-icons";
 import type { SimpleIcon } from "simple-icons";
-import { registerIcon } from "archmap";
-import type { RenderableIcon } from "archmap";
+import { registerIcon } from "@archmap/core";
+import type { RenderableIcon } from "@archmap/core";
 
 function fromSimpleIcon(si: SimpleIcon): RenderableIcon {
   return { viewBox: "0 0 24 24", body: `<path fill="#${si.hex}" d="${si.path}" />` };

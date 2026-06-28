@@ -57,11 +57,11 @@ CDN usage should support:
 ArchMap can be installed as an npm package.
 
 ```bash
-npm install archmap
+npm install @archmap/core
 ```
 
 ```js
-import { parse, render, initialize } from "archmap";
+import { parse, render, initialize } from "@archmap/core";
 ```
 
 ### 2.3 Local standalone usage
@@ -155,7 +155,7 @@ The engine should support explicit rendering into a target element.
 ```
 
 ```js
-import { parse, render } from "archmap";
+import { parse, render } from "@archmap/core";
 
 const model = parse(source);
 
@@ -609,7 +609,7 @@ import {
   registerIcon,
   resolveIcon,
   version,
-} from "archmap";
+} from "@archmap/core";
 ```
 
 ### 13.2 initialize

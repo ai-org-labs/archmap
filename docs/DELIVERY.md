@@ -11,11 +11,11 @@ and the authoritative engine spec in [specs/v0.1/04-engine-api.md](./specs/v0.1/
 Install the package and import the core API:
 
 ```bash
-npm install archmap
+npm install @archmap/core
 ```
 
 ```ts
-import { initialize, parse, render } from "archmap";
+import { initialize, parse, render } from "@archmap/core";
 
 initialize();
 const model = parse(source);
@@ -28,9 +28,9 @@ const result = render(model, {
 
 The package exports:
 
-- `archmap` core parser/model/SVG renderer/custom element API.
-- `archmap/views3d/three-view` optional 3D installer; requires the `three` peer dependency.
-- `archmap/packs/cloud-icons` small bundled sample icon pack.
+- `@archmap/core` core parser/model/SVG renderer/custom element API.
+- `@archmap/core/views3d/three-view` optional 3D installer; requires the `three` peer dependency.
+- `@archmap/core/packs/cloud-icons` small bundled sample icon pack.
 
 The npm package includes `dist`, `docs`, `examples`, `README.md`, and `SPEC.md`
 so consumers can inspect examples and the implemented feature surface without
@@ -70,15 +70,15 @@ The static demo imports the built local ArchMap bundle and uses jsDelivr for
 ### CDN Pattern
 
 For browser-only pages, use an import map. During local verification,
-`examples/demo.html` maps `archmap` to `../dist/archmap.js`; a published package
+`examples/demo.html` maps `@archmap/core` to `../dist/archmap.js`; a published package
 can use an npm CDN URL instead.
 
 ```html
 <script type="importmap">
 {
   "imports": {
-    "archmap": "https://cdn.jsdelivr.net/npm/archmap@0.1.0/dist/archmap.js",
-    "archmap/views3d/three-view": "https://cdn.jsdelivr.net/npm/archmap@0.1.0/dist/views3d/three-view.js",
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js",
     "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
     "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
@@ -86,14 +86,61 @@ can use an npm CDN URL instead.
 }
 </script>
 <script type="module">
-  import { initialize, registerIcon } from "archmap";
-  import { installThreeView } from "archmap/views3d/three-view";
+  import { initialize, registerIcon } from "@archmap/core";
+  import { installThreeView } from "@archmap/core/views3d/three-view";
   import { installCloudProviderIcons } from "@archmap/icons";
 
   installCloudProviderIcons(registerIcon);
   installThreeView();
   initialize();
 </script>
+```
+
+### GitHub Pages viewer
+
+This repository includes a GitHub Actions workflow at
+`.github/workflows/pages.yml`. On pushes to `main` or manual
+`workflow_dispatch`, it:
+
+1. installs dependencies with `npm ci`,
+2. runs `npm run build`,
+3. assembles `_site` with `dist`, `examples`, `docs`, and public notices,
+4. publishes `_site` through GitHub Pages.
+
+The Pages root is a copy of `examples/demo.html` rewritten to load `./dist/*`.
+The original demo remains available at `/examples/demo.html`.
+
+Repository setup required in GitHub:
+
+- Settings → Pages → Source: **GitHub Actions**.
+- The `main` branch must be pushed to the GitHub repository.
+- Optional: add a release tag after npm publish so the Pages version and npm
+  package version can be traced together.
+
+### npm publish checklist
+
+Before publishing:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+npm pack --dry-run
+npm whoami
+npm publish --access public
+```
+
+After publishing, verify the package and CDN paths:
+
+```bash
+npm view @archmap/core@0.1.0 version license files
+```
+
+Then open:
+
+```text
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js
 ```
 
 ## Security Posture

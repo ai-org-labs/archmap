@@ -433,13 +433,13 @@ registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
 registerView("validation", validationView);
 registerView("3d", ({ model }) => {
-  model.warnings.push(diagnostic("view_3d_unavailable", "3D renderer is not installed. Import archmap/views3d/three-view and call installThreeView() to enable it.", { type: "view", id: "3d" }));
+  model.warnings.push(diagnostic("view_3d_unavailable", "3D renderer is not installed. Import @archmap/core/views3d/three-view and call installThreeView() to enable it.", { type: "view", id: "3d" }));
   return (
     `<svg class="archmap archmap-view-3d archmap-view-unavailable" viewBox="0 0 640 220" width="640" height="220" xmlns="http://www.w3.org/2000/svg">` +
     `<style>.archmap-view-unavailable text{font:500 14px system-ui,sans-serif;fill:#3a4a63}.archmap-view-unavailable rect{fill:#fff7ed;stroke:#c85a46;stroke-width:1.5}</style>` +
     `<rect x="16" y="16" width="608" height="188" rx="8" ry="8" />` +
     `<text x="40" y="86">${escapeXml("3D view is not installed in the core bundle.")}</text>` +
-    `<text x="40" y="116">${escapeXml("Import archmap/views3d/three-view and call installThreeView().")}</text>` +
+    `<text x="40" y="116">${escapeXml("Import @archmap/core/views3d/three-view and call installThreeView().")}</text>` +
     `</svg>`
   );
 });

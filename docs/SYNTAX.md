@@ -22,6 +22,65 @@ nodes:
 
 ---
 
+## Quick start
+
+Use the graph section for the visible topology, then add YAML only when you
+need semantic views, overlays, validation, routing metadata, or icon matching.
+
+```archmap
+graph LR
+  User[User] -->|HTTPS + JWT| API[API Gateway]
+  API -->|SQL| DB[(Cloud SQL)]
+---
+nodes:
+  User: { zone: client, kind: user }
+  API:  { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
+  DB:   { zone: gcp, layer: data, kind: relational_database, provider: gcp }
+edges:
+  User->API:
+    flow: request
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: API }
+  API->DB:
+    flow: data_access
+    protocol: SQL
+zones:
+  client: { label: Client, kind: org_boundary, contains: [User] }
+  gcp: { label: GCP, kind: cloud, provider: gcp, contains: [API, DB] }
+```
+
+Authoring rule of thumb:
+
+- Start with `overview` and no Add info overlays; it should be a plain
+  component diagram.
+- Add `zone`, `boundary`, `auth`, `dataflow`, `permission`, and `validation`
+  overlays only when you want those extra facts visible.
+- Use `layer` only for Stack view. It is a stack partition, not a zone.
+- Use `subgraph` for authoring hierarchy and abstraction. It does not imply a
+  physical or logical area unless you also define a zone or boundary.
+- Prefer explicit edge ids when multiple edges connect the same pair.
+
+---
+
+## Concepts
+
+| Concept | Defined by | Purpose | Render behavior |
+| --- | --- | --- | --- |
+| Component / node | Graph node plus `nodes.*` metadata | A thing in the architecture | Always rendered unless collapsed into an abstraction component |
+| Connector / edge | Graph arrow plus `edges.*` metadata | A relationship or flow between components | Rendered as component-safe orthogonal routes |
+| Subgraph | `subgraph ... end` in graph section | Authoring hierarchy and optional abstraction | Add info `subgraph` shows a translucent grouping; collapsed subgraphs become one component |
+| Zone | `zones.*` metadata | Physical or ownership area, such as client, GCP, AWS, on-prem | Add info `zone` shows nested areas; collapsed zones become one component |
+| Boundary | `boundaries.*` metadata | Logical/trust/policy boundary | Add info `boundary` shows nested boundary areas and crossing context |
+| Layer | `nodes.*.layer` | Stack view partition, such as application/framework/kernel | Used only by Stack view; it does not affect zone or boundary meaning |
+| Add info overlay | `render(..., { overlays })` or viewer checkboxes | Adds semantic information to the base diagram | Additive; it should not replace the base component diagram |
+
+`subgraph`, `zone`, and `boundary` are all user-authored. Overlay names,
+render modes, diagnostic levels, and the standard validation vocabularies are
+fixed by ArchMap, while `label`, `description`, `tags`, ids, zones,
+boundaries, permissions, identities, data objects, and custom icon registrations
+are user-controlled.
+
+---
+
 ## 1. Graph section
 
 | Feature | Syntax | Notes |
@@ -34,7 +93,7 @@ nodes:
 | Bare reference | `A` | reuses a node defined elsewhere |
 | Plain edge | `A --> B` | |
 | Labeled edge | `A -->\|Label\| B` | |
-| Subgraph | `subgraph Name … end` | authoring-only grouping; preserved in the model but does not render by itself |
+| Subgraph | `subgraph Name … end` | authoring hierarchy; can be shown by the `subgraph` overlay or collapsed as an abstraction |
 | Comment | `%% …` | stripped |
 
 **Node IDs**: start with an ASCII letter; then letters, digits, `_`, `-`.
@@ -62,7 +121,7 @@ nodes:
     kind: serverless_service
     provider: gcp
     principal: app-sa
-    contains: [Child1]    # parsed, but NOT yet rendered as nesting (backlog)
+    contains: [Child1]    # parsed/modelled; prefer zones/subgraphs for visual grouping
     tags: [public, prod]
     description: "…"
 ```
@@ -159,14 +218,15 @@ data:
 
 ### 2.8 `layout` and `view` (parsed, partially applied)
 ```yaml
-layout: { mode: auto, direction: LR, nodes: { … } }   # parsed but renderer
-                                                       # ignores manual positions
+layout:
+  mode: auto
+  direction: LR       # LR or TD; manual node positions are parsed but ignored
 view:
   default:
-    base: overview      # overview or layer (shown as Stack in the UI)
-    overlays: [zone]    # additive information layers
-  enabled: [...]        # parsed, NOT yet applied
-  filters: { zones: [...], layers: [...] }  # parsed, NOT yet applied
+    base: overview    # overview or layer (shown as Stack in the UI)
+    overlays: [zone]  # additive information layers
+  enabled: [...]      # parsed, not applied yet
+  filters: { zones: [...], layers: [...] }  # parsed, not applied yet
 ```
 
 ---
@@ -259,6 +319,10 @@ Collapsed abstraction components render with a heavier outline, and in an
 interactive target they can be clicked to expand just that component/zone while
 leaving sibling abstractions collapsed.
 
+In the interactive viewer, zone and subgraph abstraction can also be managed by
+clicking visible areas/components. The abstraction lock control disables those
+open/close clicks when a read-only view is desired.
+
 | View | Shows |
 | --- | --- |
 | `overview` | structural nodes/edges only until Add info overlays are enabled |
@@ -277,6 +341,10 @@ sides, parallel lanes are offset, component intersections are repaired when
 possible, and rendered SVG validation checks endpoint overlap, port spacing,
 long segment overlap, component intersections, and perpendicular incidence.
 
+**2D rendering order:** when multiple area overlays are enabled, areas are
+drawn from back to front as zone → boundary → subgraph so more specific
+grouping remains visible. Nested zones/boundaries are allowed.
+
 ---
 
 ## 6. JavaScript API
@@ -287,7 +355,7 @@ import {
   registerView, getView, listViews, initialize, defineArchMapViewerElement,
   registerIcon, getIcon, listIcons, clearIcons, resolveIcon, resolveNodeIcons,
   extractArchMapBlocks, version,
-} from "archmap";
+} from "@archmap/core";
 
 const model = parse(source);                 // Text -> Model (+ errors/warnings)
 const { svg } = render(model, { view: "overview", target: el });
@@ -315,7 +383,8 @@ await overlaid.downloadPng("archmap.png");
   `controls`.
 - **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows
   tag-style controls (View radio buttons, Render mode radio buttons, Add info
-  checkboxes, fit/reset, full screen, abstraction lock, diagnostics indicator).
+  checkboxes, fit/reset, PNG export, full screen, abstraction lock, diagnostics
+  indicator).
   2D views support wheel zoom and drag pan; `render(model,{target})` attaches
   this automatically (`interactive: false` to disable), and
   `RenderResult.fit()/reset()` control the view.
@@ -329,12 +398,82 @@ await overlaid.downloadPng("archmap.png");
   resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
   [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified
   drop-in (`installAwsIcons(registerIcon)`, etc.; AWS/GCP/Azure `provider/kind`
-  icons + famous services). The bundled `archmap/packs/cloud-icons` is a tiny sample.
+  icons + famous services). The bundled `@archmap/core/packs/cloud-icons` is a tiny sample.
 - **3D / icon packs** live outside the core bundle:
-  `import { installThreeView } from "archmap/views3d/three-view"` (needs `three`),
-  `import { installCloudIcons } from "archmap/packs/cloud-icons"`.
+  `import { installThreeView } from "@archmap/core/views3d/three-view"` (needs `three`),
+  `import { installCloudIcons } from "@archmap/core/packs/cloud-icons"`.
 - **`initialize({ selector })`** scans the page and renders matching elements in
   place (also reads ```archmap``` fences via `extractArchMapBlocks`).
+
+### 6.1 Browser viewer
+
+`<archmap-viewer>` is the easiest browser embedding surface:
+
+```html
+<archmap-viewer
+  base-view="overview"
+  render-mode="2d"
+  overlays="zone,auth,validation"
+  controls
+  diagnostics
+  style="display:block;min-height:640px"
+>
+graph LR
+  Web[Web App] -->|HTTPS + JWT| API[API Gateway]
+---
+nodes:
+  Web: { zone: client, kind: web_app }
+  API: { zone: gcp, kind: api_gateway, provider: gcp }
+</archmap-viewer>
+<script type="module">
+  import { initialize } from "@archmap/core";
+  initialize();
+</script>
+```
+
+For external source files, use `src="diagram.archmap"`. Inline text is used as
+fallback only when `fallback-to-inline` is present.
+
+### 6.2 PNG export
+
+All render results expose PNG export:
+
+```ts
+const result = render(model, { baseView: "overview", target: el });
+const png = await result.exportPng({ scale: 2, background: "#ffffff" });
+await result.downloadPng("architecture.png");
+```
+
+2D export converts the rendered SVG into a PNG canvas. 3D export captures the
+current WebGL canvas view, including the current camera angle.
+
+### 6.3 CDN / GitHub Pages viewer
+
+For a static viewer page, use an import map. After npm publication, replace
+`0.1.0` with the published version you want to pin:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js",
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
+    "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
+    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
+  }
+}
+</script>
+<script type="module">
+  import { initialize, registerIcon } from "@archmap/core";
+  import { installCloudProviderIcons } from "@archmap/icons";
+  import { installThreeView } from "@archmap/core/views3d/three-view";
+
+  installCloudProviderIcons(registerIcon);
+  installThreeView();
+  initialize();
+</script>
+```
 
 ---
 

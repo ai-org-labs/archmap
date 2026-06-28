@@ -1,7 +1,7 @@
 /**
  * SAMPLE 3D view — NOT part of the core bundle. Opt in:
  *
- *   import { installThreeView } from "archmap/views3d/three-view";
+ *   import { installThreeView } from "@archmap/core/views3d/three-view";
  *   installThreeView();
  *   ArchMap.render(model, { view: "3d", target: el });  // returns { handle }
  *
@@ -15,8 +15,8 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { registerView, resolveNodeIcons } from "archmap";
-import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "archmap";
+import { registerView, resolveNodeIcons } from "@archmap/core";
+import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "@archmap/core";
 import { buildScene3D } from "./scene.js";
 import type { Scene3D } from "./scene.js";
 import { buildOverlayProjection } from "../views/overlays.js";

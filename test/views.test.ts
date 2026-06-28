@@ -51,7 +51,7 @@ describe("dataflow view", () => {
     const { svg } = render(model, { view: "dataflow" });
     expect(svg).toContain('archmap-emphasis" data-id="CloudSQL"');
     expect(svg).toContain('class="archmap-edge archmap-emphasis" data-id="gcp_db"');
-    expect(svg).toContain('class="archmap-badge"');
+    expect(svg).toContain('class="archmap-badge archmap-data-badge"');
     expect(svg).toContain(">personal<");
   });
 });

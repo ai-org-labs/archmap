@@ -1,0 +1,29 @@
+{
+  "task_id": "TASK-049",
+  "title": "Prepare release documentation and publication wiring",
+  "description": "Expanded release-facing syntax/delivery documentation, renamed the npm package to @archmap/core because archmap is already occupied, and added GitHub Pages deployment wiring for the viewer page.",
+  "status": "done",
+  "origin": "TASK-010-release-prep",
+  "created_at": "2026-06-28T23:05:00.000+09:00",
+  "done_at": "2026-06-28T23:24:00.000+09:00",
+  "decision_notes": [
+    "npm view archmap shows an existing unrelated archmap@1.5.0 package, so the public package cannot be published as unscoped archmap.",
+    "The authenticated npm account has read-write access to the @archmap scope, and @archmap/core is currently unpublished.",
+    "SYNTAX.md now includes quick start, concept definitions, overlay/add-info semantics, viewer embedding, PNG export, and CDN/GitHub Pages examples.",
+    "GitHub Pages will deploy the built demo from .github/workflows/pages.yml by assembling dist, examples, docs, and notices into _site."
+  ],
+  "verification": [
+    "npm view archmap name version license --json: existing archmap@1.5.0",
+    "npm view @archmap/core name version license --json: E404 / unpublished",
+    "npm access list packages @archmap --json: @archmap/icons read-write",
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts test/scene3d.test.ts test/icons.test.ts",
+    "npm run build",
+    "npm pack --dry-run: @archmap/core@0.1.0 tarball includes dist, docs, examples, LICENSE, and THIRD_PARTY_NOTICES.md",
+    "git diff --check"
+  ],
+  "handoff": [
+    "Next external side effects: create/push GitHub repository, publish @archmap/core@0.1.0 to npm, and let GitHub Pages deploy from the pushed workflow.",
+    "If npm publish requires OTP/MFA, pause and request the OTP from the human."
+  ]
+}

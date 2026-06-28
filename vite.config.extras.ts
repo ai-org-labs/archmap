@@ -18,7 +18,7 @@ export default defineConfig({
     rollupOptions: {
       // Externalize three (peer) and the core (shared singleton registries),
       // so these entries don't re-bundle either.
-      external: [/^three($|\/)/, "archmap"],
+      external: [/^three($|\/)/, "@archmap/core"],
     },
   },
 });

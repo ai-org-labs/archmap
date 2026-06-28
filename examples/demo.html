@@ -163,13 +163,13 @@ boundaries:
   <!--
     Static, no-build demo. Core + 3D load from the local build (run
     `npm run build` first); icons and three.js load from CDN. For a pure-CDN
-    page, map "archmap" to https://cdn.jsdelivr.net/npm/archmap@<ver>/dist/archmap.js
+    page, map "@archmap/core" to https://cdn.jsdelivr.net/npm/@archmap/core@<ver>/dist/archmap.js
     and three-view to .../dist/views3d/three-view.js (needs a complete publish).
   -->
   <script type="importmap">
   {
     "imports": {
-      "archmap": "../dist/archmap.js",
+      "@archmap/core": "../dist/archmap.js",
       "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
       "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
       "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
@@ -177,7 +177,7 @@ boundaries:
   }
   </script>
   <script type="module">
-    import { parse, render, registerIcon } from "archmap";
+    import { parse, render, registerIcon } from "@archmap/core";
     import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "../dist/views3d/three-view.js";
 

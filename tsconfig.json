@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "paths": { "archmap": ["./src/index.ts"] },
+    "paths": { "@archmap/core": ["./src/index.ts"] },
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "declaration": true,
     "declarationDir": "dist",
