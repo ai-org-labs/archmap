@@ -13,6 +13,7 @@ import type {
 
 export type AbstractionTarget = "subgraph" | "zone";
 export type ExpandedAbstractions = ReadonlySet<string>;
+export type CollapsedAbstractions = ReadonlySet<string>;
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
@@ -307,15 +308,24 @@ function applyAbstractionProjection(
   };
 }
 
-export function projectSubgraphAbstraction(model: ArchMapModel, level = 0, expanded: ExpandedAbstractions = new Set()): ArchMapModel {
+export function projectSubgraphAbstraction(
+  model: ArchMapModel,
+  level = 0,
+  expanded: ExpandedAbstractions = new Set(),
+  collapsed: CollapsedAbstractions = new Set(),
+): ArchMapModel {
   const requested = Math.max(0, Math.floor(level));
-  if (requested === 0) return model;
+  const hasExplicitCollapsed = [...collapsed].some((key) => key.startsWith("subgraph:"));
+  if (requested === 0 && !hasExplicitCollapsed) return model;
   const subgraphs = Object.values(model.graph.subgraphs);
   if (subgraphs.length === 0) return model;
 
   const depths = subgraphDepths(subgraphs);
   const targetDepth = requested - 1;
-  const selected = subgraphs.filter((sg) => depths.get(sg.id) === targetDepth && !expanded.has(`subgraph:${sg.id}`));
+  const selected = subgraphs.filter((sg) => {
+    const key = `subgraph:${sg.id}`;
+    return !expanded.has(key) && (collapsed.has(key) || depths.get(sg.id) === targetDepth);
+  });
   if (selected.length === 0) return model;
 
   const nodeIds = new Set(model.nodes.map((node) => node.id));
@@ -353,12 +363,21 @@ function effectiveZoneMembers(zone: Zone, childrenByParent: Map<string | undefin
   return out;
 }
 
-export function projectZoneAbstraction(model: ArchMapModel, level = 0, expanded: ExpandedAbstractions = new Set()): ArchMapModel {
+export function projectZoneAbstraction(
+  model: ArchMapModel,
+  level = 0,
+  expanded: ExpandedAbstractions = new Set(),
+  collapsed: CollapsedAbstractions = new Set(),
+): ArchMapModel {
   const requested = Math.max(0, Math.floor(level));
-  if (requested === 0 || model.zones.length === 0) return model;
+  const hasExplicitCollapsed = [...collapsed].some((key) => key.startsWith("zone:"));
+  if ((requested === 0 && !hasExplicitCollapsed) || model.zones.length === 0) return model;
   const depths = zoneDepths(model.zones);
   const targetDepth = requested - 1;
-  const selected = model.zones.filter((zone) => depths.get(zone.id) === targetDepth && !expanded.has(`zone:${zone.id}`));
+  const selected = model.zones.filter((zone) => {
+    const key = `zone:${zone.id}`;
+    return !expanded.has(key) && (collapsed.has(key) || depths.get(zone.id) === targetDepth);
+  });
   if (selected.length === 0) return model;
 
   const nodeIds = new Set(model.nodes.map((node) => node.id));
@@ -386,8 +405,16 @@ export function projectAbstraction(
   level = 0,
   target: AbstractionTarget = "subgraph",
   expanded: ExpandedAbstractions = new Set(),
+  collapsed: CollapsedAbstractions = new Set(),
 ): ArchMapModel {
-  return target === "zone"
-    ? projectZoneAbstraction(model, level, expanded)
-    : projectSubgraphAbstraction(model, level, expanded);
+  let out = model;
+  const hasCollapsedSubgraph = [...collapsed].some((key) => key.startsWith("subgraph:"));
+  const hasCollapsedZone = [...collapsed].some((key) => key.startsWith("zone:"));
+  if (target === "subgraph" || hasCollapsedSubgraph) {
+    out = projectSubgraphAbstraction(out, target === "subgraph" ? level : 0, expanded, collapsed);
+  }
+  if (target === "zone" || hasCollapsedZone) {
+    out = projectZoneAbstraction(out, target === "zone" ? level : 0, expanded, collapsed);
+  }
+  return out;
 }

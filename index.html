@@ -75,15 +75,6 @@
           <fieldset class="tag-group" id="overlays">
             <span class="tag-label">Add info</span>
           </fieldset>
-          <fieldset class="tag-group" id="abstraction">
-            <span class="tag-label">Abstraction</span>
-            <select id="abstraction-target" title="Abstraction target">
-              <option value="subgraph">Subgraph</option>
-              <option value="zone">Zone</option>
-            </select>
-            <input id="abstraction-level" type="range" min="0" max="0" value="0" step="1" style="width:120px;accent-color:#4f6f9f;">
-            <span id="abstraction-value" style="min-width:16px;text-align:right;font-weight:700;">0</span>
-          </fieldset>
         </div>
       </div>
       <div id="diagram"></div>
@@ -222,7 +213,7 @@ boundaries:
   </script>
 
   <script type="module">
-    import { maxAbstractionDepth, parse, render, registerIcon } from "/src/index.ts";
+    import { parse, render, registerIcon } from "/src/index.ts";
     import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "/src/views3d/three-view.ts";
     installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons (opt-in)
@@ -244,21 +235,6 @@ boundaries:
     }
     let result = null;
     const selectedOverlays = () => [...$("overlays").querySelectorAll("input:checked")].map((input) => input.value);
-    const selectedAbstractionLevel = () => Number($("abstraction-level").value) || 0;
-    const selectedAbstractionTarget = () => $("abstraction-target").value === "zone" ? "zone" : "subgraph";
-    const updateAbstractionControls = (model) => {
-      const hasSubgraphs = Object.keys(model.graph.subgraphs).length > 0;
-      const hasZones = model.zones.length > 0;
-      $("abstraction-target").querySelector('option[value="subgraph"]').disabled = !hasSubgraphs;
-      $("abstraction-target").querySelector('option[value="zone"]').disabled = !hasZones;
-      if (selectedAbstractionTarget() === "subgraph" && !hasSubgraphs && hasZones) $("abstraction-target").value = "zone";
-      if (selectedAbstractionTarget() === "zone" && !hasZones && hasSubgraphs) $("abstraction-target").value = "subgraph";
-      const max = maxAbstractionDepth(model, selectedAbstractionTarget()) + 1;
-      $("abstraction-level").max = String(max);
-      if (selectedAbstractionLevel() > max) $("abstraction-level").value = String(max);
-      $("abstraction-value").textContent = String(selectedAbstractionLevel());
-      $("abstraction").style.display = hasSubgraphs || hasZones ? "" : "none";
-    };
     const updateLog = (model) => {
       const log = [
         ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),
@@ -269,9 +245,8 @@ boundaries:
     function draw() {
       if (result) { result.destroy(); result = null; }
       const model = parse($("src").value);
-      updateAbstractionControls(model);
       // Passing target lets render() inject SVG (2D) or mount WebGL (3D).
-      result = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), abstractionLevel: selectedAbstractionLevel(), abstractionTarget: selectedAbstractionTarget(), target: $("diagram") });
+      result = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), target: $("diagram") });
       updateLog(result.model);
     }
     function updateOverlay(input) {
@@ -290,25 +265,9 @@ boundaries:
       result.setRenderMode(selectedRadio("render-mode"));
       updateLog(result.model);
     }
-    function updateAbstractionLevel() {
-      $("abstraction-value").textContent = String(selectedAbstractionLevel());
-      if (!result) { draw(); return; }
-      result.setAbstractionLevel(selectedAbstractionLevel());
-      updateLog(result.model);
-    }
-    function updateAbstractionTarget() {
-      if (!result) { draw(); return; }
-      const model = parse($("src").value);
-      updateAbstractionControls(model);
-      result.setAbstractionTarget(selectedAbstractionTarget());
-      result.setAbstractionLevel(selectedAbstractionLevel());
-      updateLog(result.model);
-    }
     $("run").addEventListener("click", draw);
     document.querySelectorAll('input[name="base-view"]').forEach((input) => input.addEventListener("change", updateBaseView));
     document.querySelectorAll('input[name="render-mode"]').forEach((input) => input.addEventListener("change", updateRenderMode));
-    $("abstraction-level").addEventListener("input", updateAbstractionLevel);
-    $("abstraction-target").addEventListener("change", updateAbstractionTarget);
     $("tags-max").addEventListener("click", () => {
       $("tag-panel").classList.remove("is-minimized");
       $("tag-panel").classList.add("is-expanded");

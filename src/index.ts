@@ -52,7 +52,7 @@ export {
   projectSubgraphAbstraction,
   projectZoneAbstraction,
 } from "./subgraph-abstraction.js";
-export type { AbstractionTarget } from "./subgraph-abstraction.js";
+export type { AbstractionTarget, CollapsedAbstractions, ExpandedAbstractions } from "./subgraph-abstraction.js";
 export { extractArchMapBlocks } from "./parser/sections.js";
 export {
   render,

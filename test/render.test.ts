@@ -197,6 +197,34 @@ describe("render", () => {
     expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["A->D", "service_b->D"]);
   });
 
+  it("collapses and reopens zones by explicit interaction keys without the abstraction slider", () => {
+    const m = parse(`graph LR
+      A[API] --> D[Database]
+      B[Worker] --> D
+      ---
+      zones:
+        service:
+          label: Service Zone
+          contains: [A, B]
+    `);
+    const collapsed = render(m, {
+      baseView: "overview",
+      overlays: ["zone"],
+      collapsedAbstractions: ["zone:service"],
+    }).model;
+    expect(collapsed.nodes.map((node) => node.id).sort()).toEqual(["D", "service"]);
+    expect(collapsed.zones.map((zone) => zone.id)).not.toContain("service");
+
+    const reopened = render(m, {
+      baseView: "overview",
+      overlays: ["zone"],
+      collapsedAbstractions: ["zone:service"],
+      expandedAbstractions: ["zone:service"],
+    }).model;
+    expect(reopened.nodes.map((node) => node.id).sort()).toEqual(["A", "B", "D"]);
+    expect(reopened.zones.map((zone) => zone.id)).toContain("service");
+  });
+
   it("uses nested zone depth for zone abstraction", () => {
     const m = parse(`graph LR
       A[API] --> D[Database]
