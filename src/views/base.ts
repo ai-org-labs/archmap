@@ -56,6 +56,12 @@ export interface DiagramSpec {
   overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   /** Node id -> resolved provider/kind icon (from the icon registry). */
   nodeIcons?: Map<string, ResolvedIcon>;
+  /** Optional inline CSS variables scoped to rendered node groups. */
+  nodeStyles?: Map<string, string>;
+  /** Optional inline CSS variables scoped to rendered edge groups. */
+  edgeStyles?: Map<string, string>;
+  /** Optional inline CSS variables scoped to rendered area box groups. */
+  boxStyles?: Map<string, string>;
 }
 
 function channelClass(id: string, set: Set<string> | undefined): string {
@@ -408,7 +414,21 @@ function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, d
 }
 
 export function renderDiagram(spec: DiagramSpec): string {
-  const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, edgeBadges, overlayEdges, nodeIcons } = spec;
+  const {
+    layout,
+    viewClass,
+    boxes,
+    boxClass = "archmap-zone",
+    emphasizeNodes,
+    emphasizeEdges,
+    nodeBadges,
+    edgeBadges,
+    overlayEdges,
+    nodeIcons,
+    nodeStyles,
+    edgeStyles,
+    boxStyles,
+  } = spec;
   const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
   const boxExtent = boxGroups.flatMap((group) => group.boxes.map((box) => ({ x: box.x + box.w, y: box.y + box.h })));
   const svgWidth = Math.max(layout.width, ...boxExtent.map((p) => p.x + 24));
@@ -436,8 +456,10 @@ export function renderDiagram(spec: DiagramSpec): string {
           const placedLabel = placeBoxLabel(label, b, reservedBoxLabels, boxLabelBlockers, boxLabelSegments);
           reservedBoxLabels.push(placedLabel.box);
           const depth = Math.max(0, Math.min(9, Math.floor(b.depth ?? 0)));
+          const style = boxStyles?.get(b.id);
+          const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
           return (
-            `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}" data-id="${escapeXml(b.id)}" data-depth="${depth}">` +
+            `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}" data-id="${escapeXml(b.id)}" data-depth="${depth}"${styleAttr}>` +
             `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14" ry="14" />` +
             `<text class="${resolvedLabelClass}" x="${placedLabel.x}" y="${placedLabel.y}">${escapeXml(label)}</text>` +
             `</g>`
@@ -456,6 +478,8 @@ export function renderDiagram(spec: DiagramSpec): string {
     .map((e) => {
       const emph = emphasizeEdges?.has(e.id) ?? false;
       const cls = `archmap-edge${channelClass(e.id, emphasizeEdges)}`;
+      const style = edgeStyles?.get(e.id);
+      const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
       const path = edgePathFromD(edgePaths.get(e.id) ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
       const startpoint = edgeStartpointSvg(e.points[0]);
       const label = e.label ? edgeLabelSvg(e.label, e.labelAt, e.labelOrient) : "";
@@ -463,7 +487,7 @@ export function renderDiagram(spec: DiagramSpec): string {
       const placedBadges = badges ? placeEdgeBadges(badges, e.labelAt, reservedEdgeBadges) : undefined;
       if (placedBadges) reservedEdgeBadges.push(placedBadges.box);
       const badgeSvg = badges && placedBadges ? edgeBadgesSvg(badges, placedBadges) : "";
-      return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}">${path}${startpoint}${label}${badgeSvg}</g>`;
+      return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}"${styleAttr}>${path}${startpoint}${label}${badgeSvg}</g>`;
     })
     .join("");
 
@@ -471,7 +495,7 @@ export function renderDiagram(spec: DiagramSpec): string {
 
   const nodesSvg = layout.nodes
     .map((n) => {
-      const node = nodeSvg(n, channelClass(n.id, emphasizeNodes).trim(), nodeIcons?.get(n.id)?.key);
+      const node = nodeSvg(n, channelClass(n.id, emphasizeNodes).trim(), nodeIcons?.get(n.id)?.key, nodeStyles?.get(n.id));
       const badge = nodeBadges?.get(n.id);
       return badge ? node + nodeBadgeSvg(n, badge) : node;
     })

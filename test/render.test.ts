@@ -84,6 +84,16 @@ describe("render", () => {
     expect(svg).not.toContain('class="archmap-zone archmap-zone-depth-');
   });
 
+  it("tints overview nodes and outgoing edges by zone", () => {
+    const m = parse(example);
+    const { svg } = render(m, { view: "overview" });
+    expect(svg).toContain('data-id="GCPApp" style="--archmap-node-fill:#fff4e8;--archmap-node-stroke:#d17732;--archmap-node-label:#7a3f12"');
+    expect(svg).toContain('data-id="gcp_db" data-from="GCPApp" data-to="CloudSQL" style="--archmap-edge-stroke:#d17732;--archmap-edge-label:#7a3f12"');
+
+    const overlaid = render(m, { baseView: "overview", overlays: ["zone"] }).svg!;
+    expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:#fff4e8;--archmap-zone-stroke:#d17732;--archmap-zone-label:#7a3f12"');
+  });
+
   it("marks edge startpoints with small dots", () => {
     const m = parse(`graph LR
       A[A] --> B[B]

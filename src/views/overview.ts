@@ -8,6 +8,7 @@ import { resolveNodeIcons } from "../icons.js";
 import type { ArchNode } from "../types.js";
 import type { Box } from "./base.js";
 import { renderDiagram } from "./base.js";
+import { overviewZoneColorStyles } from "./zone-colors.js";
 
 const ANDROID_LAYER_LABELS: Record<string, string> = {
   applications: "Applications",
@@ -69,10 +70,12 @@ export function layerBoxes(ctx: ViewContext): Box[] {
 }
 
 export function overviewView(ctx: ViewContext): string {
+  const zoneStyles = overviewZoneColorStyles(ctx.model, ctx.layout);
   return renderDiagram({
     layout: ctx.layout,
     viewClass: "overview",
     nodeIcons: resolveNodeIcons(ctx.model),
+    ...zoneStyles,
   });
 }
 

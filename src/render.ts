@@ -23,6 +23,7 @@ import { validationView } from "./views/validation.js";
 import { renderDiagram } from "./views/base.js";
 import { escapeXml } from "./views/svg.js";
 import { buildOverlayProjection, OVERLAY_NAMES } from "./views/overlays.js";
+import { overviewZoneColorStyles } from "./views/zone-colors.js";
 import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
 import type { PanZoomHandle } from "./views/interaction.js";
 import { renderInspector } from "./inspector.js";
@@ -353,6 +354,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     : view === "zone"
       ? [{ boxes: layout.zones, boxClass: "archmap-zone" }]
       : [];
+  const zoneStyles = view === "overview" ? overviewZoneColorStyles(model, layout) : undefined;
   return renderDiagram({
     layout,
     viewClass: view,
@@ -366,6 +368,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     edgeBadges: projection.edgeBadges,
     overlayEdges: projection.overlayEdges,
     nodeIcons: resolveNodeIcons(model),
+    ...(zoneStyles ?? {}),
   });
 }
 

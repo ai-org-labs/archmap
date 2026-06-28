@@ -30,7 +30,7 @@ function iconBadgeSvg(n: LayoutNode, iconKey: string): string {
 }
 
 /** Render a node's shape + label group. `extraClass` lets views fade/emphasize. */
-export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string): string {
+export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?: string): string {
   const cls = `archmap-node archmap-shape-${n.shape}${extraClass ? " " + extraClass : ""}`;
   const { x, y, w, h } = n;
   let shape: string;
@@ -63,8 +63,9 @@ export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string): strin
       break;
   }
   const icon = iconKey ? iconBadgeSvg(n, iconKey) : "";
+  const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
   return (
-    `<g class="${cls}" data-id="${escapeXml(n.id)}" ` +
+    `<g class="${cls}" data-id="${escapeXml(n.id)}"${styleAttr} ` +
     `data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-w="${w.toFixed(1)}" data-h="${h.toFixed(1)}">` +
     `${shape}${centeredLabel(n)}${icon}</g>`
   );
