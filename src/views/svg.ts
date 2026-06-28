@@ -37,7 +37,7 @@ export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?
   switch (n.shape) {
     case "database": {
       const ry = Math.min(10, h / 6);
-      // Cylinder: body rect + top/bottom ellipses approximated with a path.
+      // Cylinder: body rect + top/bottom ellipses approximated with paths.
       shape =
         `<path class="archmap-node-shape" d="` +
         `M ${x} ${y + ry} ` +
@@ -45,6 +45,7 @@ export function nodeSvg(n: LayoutNode, extraClass = "", iconKey?: string, style?
         `L ${x + w} ${y + h - ry} ` +
         `A ${w / 2} ${ry} 0 0 1 ${x} ${y + h - ry} ` +
         `Z" />` +
+        `<ellipse class="archmap-node-shape-top-fill" cx="${x + w / 2}" cy="${y + ry}" rx="${w / 2}" ry="${ry}" />` +
         `<path class="archmap-node-shape-top" d="M ${x} ${y + ry} A ${w / 2} ${ry} 0 0 1 ${x + w} ${y + ry}" fill="none" />`;
       break;
     }
@@ -473,6 +474,7 @@ export const DEFAULT_STYLE = `
 .archmap-layer-depth-4 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-4, rgba(248,235,235,0.62)); }
 .archmap-layer-label { fill: var(--archmap-layer-label, #5f6d7b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-node-shape { fill: var(--archmap-node-fill, #ffffff); stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
+.archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); stroke: none; }
 .archmap-node-shape-top { stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-label { fill: var(--archmap-node-label, #1c2733); font: 500 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-path { stroke: var(--archmap-edge-stroke, #5b6b86); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
@@ -484,10 +486,12 @@ export const DEFAULT_STYLE = `
 .archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(247,240,220,0.48)); stroke: var(--archmap-boundary-stroke, #c0a044); stroke-width: 1.8; }
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-selected .archmap-node-shape, .archmap-selected .archmap-node-shape-top { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
+.archmap-selected .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); }
 .archmap-selected .archmap-zone-box, .archmap-selected .archmap-boundary-box, .archmap-selected .archmap-layer-box { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-path { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }
 .archmap-selected .archmap-edge-startpoint { fill: var(--archmap-selected, #2563eb); }
 .archmap-emphasis .archmap-node-shape, .archmap-emphasis .archmap-node-shape-top { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 2.5; }
+.archmap-emphasis .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); }
 .archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }
 .archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis, #b3261e); }
 .archmap-arrowhead-emph { fill: var(--archmap-emphasis, #b3261e); }

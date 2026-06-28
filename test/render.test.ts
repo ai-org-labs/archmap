@@ -94,6 +94,13 @@ describe("render", () => {
     expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:#fff4e8;--archmap-zone-stroke:#d17732;--archmap-zone-label:#7a3f12"');
   });
 
+  it("fills database cylinder tops with the node fill color", () => {
+    const m = parse(example);
+    const { svg } = render(m, { view: "overview" });
+    expect(svg).toContain('class="archmap-node-shape-top-fill"');
+    expect(svg).toContain(".archmap-node-shape-top-fill { fill: var(--archmap-node-fill");
+  });
+
   it("marks edge startpoints with small dots", () => {
     const m = parse(`graph LR
       A[A] --> B[B]

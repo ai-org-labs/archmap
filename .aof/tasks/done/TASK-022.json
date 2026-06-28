@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-022",
+  "title": "Adopt zone tinting and fill database tops",
+  "description": "Adopt the zone-tinted Overview experiment and fix database cylinder rendering so the top ellipse uses the same node fill color instead of remaining white.",
+  "status": "done",
+  "origin": "human",
+  "parent_task_id": "TASK-021",
+  "created_at": "2026-06-28T10:39:00.000+09:00",
+  "done_at": "2026-06-28T10:43:00.000+09:00",
+  "decision_notes": [
+    "Zone-tinted overview rendering is accepted as the intended direction.",
+    "Database nodes now render an explicit top-fill ellipse using --archmap-node-fill so zone-colored database components are visually consistent.",
+    "The top outline remains separate so selected/emphasized stroke styling still works."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts",
+    "npm run build"
+  ]
+}
