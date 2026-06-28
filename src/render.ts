@@ -15,6 +15,7 @@ import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
 import { resolveNodeIcons } from "./icons.js";
 import { overviewView, layerBoxes, layerView } from "./views/overview.js";
+import { stackZoneBoxes } from "./views/stack-zones.js";
 import { zoneView } from "./views/zone.js";
 import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
@@ -348,6 +349,11 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   const emphasizeEdges = projection.emphasizeEdges || baseEdges.size
     ? new Set([...(projection.emphasizeEdges ?? []), ...baseEdges])
     : undefined;
+  const overlayBoxGroups = (projection.boxGroups ?? []).map((group) =>
+    view === "layer" && group.boxClass === "archmap-zone"
+      ? { ...group, boxes: stackZoneBoxes(layout) }
+      : group,
+  );
   const baseBoxGroups = view === "layer"
     ? [{ boxes: layerBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-layer" }]
     : view === "zone"
@@ -358,7 +364,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     viewClass: view,
     boxGroups: [
       ...baseBoxGroups,
-      ...(projection.boxGroups ?? []),
+      ...overlayBoxGroups,
     ],
     emphasizeNodes: projection.emphasizeNodes,
     emphasizeEdges,

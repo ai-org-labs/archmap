@@ -410,6 +410,9 @@ function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, d
 export function renderDiagram(spec: DiagramSpec): string {
   const { layout, viewClass, boxes, boxClass = "archmap-zone", emphasizeNodes, emphasizeEdges, nodeBadges, edgeBadges, overlayEdges, nodeIcons } = spec;
   const boxGroups = spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []);
+  const boxExtent = boxGroups.flatMap((group) => group.boxes.map((box) => ({ x: box.x + box.w, y: box.y + box.h })));
+  const svgWidth = Math.max(layout.width, ...boxExtent.map((p) => p.x + 24));
+  const svgHeight = Math.max(layout.height, ...boxExtent.map((p) => p.y + 24));
   const reservedBoxLabels: Box[] = [];
   const boxLabelBlockers: Box[] = [
     ...layout.nodes.map((n) => ({ id: n.id, x: n.x - 4, y: n.y - 4, w: n.w + 8, h: n.h + 8 })),
@@ -485,8 +488,8 @@ export function renderDiagram(spec: DiagramSpec): string {
     : "";
 
   return (
-    `<svg class="archmap archmap-view-${viewClass}" viewBox="0 0 ${layout.width.toFixed(0)} ${layout.height.toFixed(0)}" ` +
-    `width="${layout.width.toFixed(0)}" height="${layout.height.toFixed(0)}" xmlns="http://www.w3.org/2000/svg">` +
+    `<svg class="archmap archmap-view-${viewClass}" viewBox="0 0 ${svgWidth.toFixed(0)} ${svgHeight.toFixed(0)}" ` +
+    `width="${svgWidth.toFixed(0)}" height="${svgHeight.toFixed(0)}" xmlns="http://www.w3.org/2000/svg">` +
     `<defs>${MARKERS}${iconDefs}</defs>` +
     `<style>${DEFAULT_STYLE}</style>` +
     `<g class="archmap-boxes">${boxesSvg}</g>` +

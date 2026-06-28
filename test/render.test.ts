@@ -57,6 +57,16 @@ function nodeBoxes(svg: string): Array<{ id: string; x0: number; x1: number; y0:
   });
 }
 
+function areaBoxes(svg: string, groupClass: string, boxClass: string): Array<{ id: string; x0: number; x1: number; y0: number; y1: number }> {
+  return [...svg.matchAll(new RegExp(`<g class="${groupClass} [^"]+" data-id="([^"]+)"[\\s\\S]*?<rect class="${boxClass}" x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"`, "g"))].map((match) => {
+    const x = Number(match[2]);
+    const y = Number(match[3]);
+    const w = Number(match[4]);
+    const h = Number(match[5]);
+    return { id: match[1], x0: x, x1: x + w, y0: y, y1: y + h };
+  });
+}
+
 describe("render", () => {
   it("registers the overview view by default", () => {
     expect(listViews()).toContain("overview");
@@ -110,6 +120,18 @@ describe("render", () => {
     for (const label of labels) {
       for (const node of nodes) {
         expect(overlaps(label, node)).toBe(false);
+      }
+    }
+  });
+
+  it("packs stack-view zone blocks without overlapping each other", () => {
+    const m = parse(example);
+    const svg = render(m, { baseView: "layer", overlays: ["zone"] }).svg!;
+    const zones = areaBoxes(svg, "archmap-zone", "archmap-zone-box");
+    expect(zones.length).toBeGreaterThan(1);
+    for (let i = 0; i < zones.length; i++) {
+      for (let j = i + 1; j < zones.length; j++) {
+        expect(overlaps(zones[i], zones[j])).toBe(false);
       }
     }
   });

@@ -20,6 +20,7 @@ import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "arc
 import { buildScene3D } from "./scene.js";
 import type { Scene3D } from "./scene.js";
 import { buildOverlayProjection } from "../views/overlays.js";
+import { stackZoneBoxes } from "../views/stack-zones.js";
 import type { Box } from "../views/base.js";
 
 /** Per-layer color ramp (client → external), tuned to the soft station-map palette used by isometric SVG. */
@@ -241,16 +242,30 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
   // Zones are Add info in 3D too: structure-only 3D stays clean until the
   // `zone` overlay is enabled.
   if ((ctx.options.overlays ?? []).includes("zone")) {
+    const stackZones = ctx.options.baseView === "layer"
+      ? new Map(stackZoneBoxes(ctx.layout).map((box) => [box.id, box]))
+      : undefined;
+    const cx = ctx.layout.width / 2;
+    const cy = ctx.layout.height / 2;
+    const X = (px: number) => (px - cx) * SCENE_SCALE;
+    const Z = (py: number) => (py - cy) * SCENE_SCALE;
     // Zones as translucent volumes enclosing their members, with wireframe
     // edges and a label floating above. depthWrite:false so they never hide nodes.
     scene3d.zones.forEach((z, i) => {
+      const box = stackZones?.get(z.id);
+      const x = box ? X(box.x + box.w / 2) : z.x;
+      const zz = box ? Z(box.y + box.h / 2) : z.z;
+      const w = box ? box.w * SCENE_SCALE : z.w;
+      const d = box ? box.h * SCENE_SCALE : z.d;
+      const labelX = box ? X(box.x + 18 + (box.depth ?? 0) * 18) : z.labelX;
+      const labelZ = box ? Z(box.y + 18 + (box.depth ?? 0) * 18 + (i % 4) * 10) : z.labelZ;
       const color = ZONE_COLORS[i % ZONE_COLORS.length];
-      const geo = track(new THREE.BoxGeometry(z.w, z.h, z.d));
+      const geo = track(new THREE.BoxGeometry(w, z.h, d));
       const mat = track(
         new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.11, depthWrite: false, side: THREE.DoubleSide }),
       );
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(z.x, z.y, z.z);
+      mesh.position.set(x, z.y, zz);
       mesh.renderOrder = -1;
       root.add(mesh);
 
@@ -261,7 +276,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
 
       const hex = "#" + color.toString(16).padStart(6, "0");
       const label = makeTextSprite(z.label ?? z.id, { fg: hex, bg: "rgba(255,255,255,0.82)", scaleY: 0.62, bold: true });
-      label.position.set(z.labelX, z.labelY, z.labelZ);
+      label.position.set(labelX, z.labelY, labelZ);
       disposeSprite(label, disposables);
       root.add(label);
     });

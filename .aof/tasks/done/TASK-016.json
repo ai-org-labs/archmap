@@ -1,0 +1,18 @@
+{
+  "task_id": "TASK-016",
+  "title": "Pack stack-view zone blocks",
+  "description": "Prevent zone overlays from overlapping in Stack view by rendering zones as block annotations that move right or below when they would collide, and reuse that projection for Stack+3D zone volumes.",
+  "status": "done",
+  "origin": "codex",
+  "parent_task_ref": ".aof/tasks/open/TASK-009.json",
+  "created_at": "2026-06-28T09:43:21+09:00",
+  "done_at": "2026-06-28T09:43:21+09:00",
+  "completion_notes": "Added stackZoneBoxes() for Stack-specific zone projection. renderBaseViewWithOverlays now replaces zone overlay boxes with packed Stack blocks when baseView is layer/Stack. SVG output expands its viewBox/width/height to include shifted blocks. The optional 3D view uses the same packed Stack blocks for zone volumes when baseView is layer and the zone overlay is enabled.",
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts test/scene3d.test.ts",
+    "npm run build",
+    "Browser check on http://127.0.0.1:4174/: Stack+2D+zone rendered five zone blocks with overlaps=[], expanded viewBox 0 0 1888 1047, and Stack+3D+zone rendered one canvas, one ViewCube, three axes, and no console errors."
+  ],
+  "handoff": "Continue TASK-009 visual polish. Stack zone blocks are intentionally additive annotations, not enclosing containers; overview zone overlay remains the enclosing container view."
+}
