@@ -1,0 +1,18 @@
+{
+  "task_id": "TASK-018",
+  "title": "Left-pack Stack zone clusters without canvas resize",
+  "description": "Keep Stack zone clusters as far left as possible and keep Stack canvas dimensions stable when the zone overlay is toggled.",
+  "status": "done",
+  "origin": "codex",
+  "parent_task_ref": ".aof/tasks/open/TASK-009.json",
+  "created_at": "2026-06-28T10:05:47+09:00",
+  "done_at": "2026-06-28T10:05:47+09:00",
+  "completion_notes": "Updated stackZoneBlocks packing to reuse the leftmost column for zone clusters whose vertical ranges do not overlap, instead of appending every zone to the far right. Stack/layer now enables stackZoneBlocks regardless of whether the zone overlay is currently active, so toggling zone only adds/removes boxes and does not change component placement or canvas dimensions.",
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts test/layout.test.ts",
+    "npm run build",
+    "Browser check on http://127.0.0.1:4174/: Stack+2D zone OFF and ON both used viewBox 0 0 1734 981 / width 1734 / height 981; zone ON had minZoneX=40, overlaps=[], AWS Service and RDS inside AWS zone, and no console errors."
+  ],
+  "handoff": "Continue TASK-009 visual polish. Stack layout should stay stable across Add info toggles; zone overlay must not trigger canvas resizing or rightward drift."
+}

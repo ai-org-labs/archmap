@@ -399,7 +399,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       direction: options.direction,
       rankBy,
       laneBy,
-      stackZoneBlocks: state.requestedView === "layer" && knownOverlays.includes("zone"),
+      stackZoneBlocks: state.requestedView === "layer",
     });
     const overlaidSvg = renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays } });
@@ -447,7 +447,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       direction: options.direction,
       rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view],
       laneBy: VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view],
-      stackZoneBlocks: state.requestedView === "layer" && state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay)).includes("zone"),
+      stackZoneBlocks: state.requestedView === "layer",
     }),
     model,
     svg: undefined,

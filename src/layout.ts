@@ -452,14 +452,31 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
         const minX = Math.min(...nodes.map((node) => node.x));
         const maxX = Math.max(...nodes.map((node) => node.x + node.w));
         const minY = Math.min(...nodes.map((node) => node.y));
-        return { zone, nodes, minX, maxX, minY, width: maxX - minX };
+        const maxY = Math.max(...nodes.map((node) => node.y + node.h));
+        return { zone, nodes, minX, maxX, minY, maxY, width: maxX - minX };
       })
       .sort((a, b) => zoneRank(a.zone) - zoneRank(b.zone) || a.minY - b.minY || a.minX - b.minX || a.zone.localeCompare(b.zone));
-    let cursor = MARGIN;
+    const placed: Array<{ x: number; y0: number; y1: number; width: number }> = [];
     for (const entry of entries) {
-      const dx = cursor - entry.minX;
+      const candidates = [MARGIN, ...placed.map((box) => box.x + box.width + LANE_GAP)]
+        .filter((x, index, xs) => xs.indexOf(x) === index)
+        .sort((a, b) => a - b);
+      let targetX = candidates[0];
+      for (const x of candidates) {
+        const x1 = x + entry.width;
+        const collides = placed.some((box) => {
+          const overlapsX = Math.min(x1, box.x + box.width) > Math.max(x, box.x);
+          const overlapsY = Math.min(entry.maxY, box.y1) > Math.max(entry.minY, box.y0);
+          return overlapsX && overlapsY;
+        });
+        if (!collides) {
+          targetX = x;
+          break;
+        }
+      }
+      const dx = targetX - entry.minX;
       for (const node of entry.nodes) node.x += dx;
-      cursor += entry.width + LANE_GAP;
+      placed.push({ x: targetX, y0: entry.minY, y1: entry.maxY, width: entry.width });
     }
   }
   const crossMax = crossTotal;

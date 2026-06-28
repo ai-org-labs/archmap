@@ -124,10 +124,15 @@ describe("render", () => {
   it("packs stack-view zone blocks without overlapping each other", () => {
     const m = parse(example);
     const svg = render(m, { baseView: "layer", overlays: ["zone"] }).svg!;
+    const plainSvg = render(parse(example), { baseView: "layer" }).svg!;
+    expect(svg.match(/viewBox="([^"]+)"/)?.[1]).toBe(plainSvg.match(/viewBox="([^"]+)"/)?.[1]);
+    expect(svg.match(/width="([^"]+)"/)?.[1]).toBe(plainSvg.match(/width="([^"]+)"/)?.[1]);
+    expect(svg.match(/height="([^"]+)"/)?.[1]).toBe(plainSvg.match(/height="([^"]+)"/)?.[1]);
     const zones = areaBoxes(svg, "archmap-zone", "archmap-zone-box");
     const zonesById = new Map(zones.map((zone) => [zone.id, zone]));
     const nodesById = new Map(nodeBoxes(svg).map((node) => [node.id, node]));
     expect(zones.length).toBeGreaterThan(1);
+    expect(Math.min(...zones.map((zone) => zone.x0))).toBeLessThanOrEqual(50);
     for (let i = 0; i < zones.length; i++) {
       for (let j = i + 1; j < zones.length; j++) {
         expect(overlaps(zones[i], zones[j])).toBe(false);
