@@ -28,6 +28,7 @@ import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
 import type { PanZoomHandle } from "./views/interaction.js";
 import { renderInspector } from "./inspector.js";
 import type { InspectorSelection } from "./inspector.js";
+import { maxSubgraphDepth, projectSubgraphAbstraction } from "./subgraph-abstraction.js";
 
 export interface ViewContext {
   model: ArchMapModel;
@@ -58,6 +59,8 @@ export interface RenderOptions {
   renderMode?: "2d" | "isometric" | "3d" | string;
   /** Additive information layers rendered on top of the selected base view. */
   overlays?: string[];
+  /** Collapse graph subgraphs into abstraction components up to the selected depth. */
+  abstractionLevel?: number;
   /** Legacy flat view selector. Kept for compatibility with existing callers. */
   view?: string;
   direction?: Direction;
@@ -88,6 +91,7 @@ export interface RenderResult {
   setBaseView(view: string): void;
   setRenderMode(mode: string): void;
   setOverlays(overlays: string[]): void;
+  setAbstractionLevel(level: number): void;
   addOverlay(overlay: string): void;
   removeOverlay(overlay: string): void;
   toggleOverlay(overlay: string): void;
@@ -381,6 +385,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     requestedView,
     renderMode,
     overlays: [...(options.overlays ?? metadataOverlays(model))],
+    abstractionLevel: Math.max(0, Math.floor(options.abstractionLevel ?? 0)),
   };
   let panZoom: PanZoomHandle | undefined;
   let preservePanZoomOnNextRender = false;
@@ -388,31 +393,33 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   let detachDiagnostics: (() => void) | undefined;
 
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
-    validateOverlays(model, state.overlays);
+    const effectiveModel = projectSubgraphAbstraction(model, state.abstractionLevel);
+    validateOverlays(effectiveModel, state.overlays);
     const renderer = registry.get(state.view);
     if (!renderer) {
-      model.warnings.push(diagnostic("unknown_base_view", `Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`, { type: "view", id: state.view }));
-      syncDiagnostics(model);
+      effectiveModel.warnings.push(diagnostic("unknown_base_view", `Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`, { type: "view", id: state.view }));
+      syncDiagnostics(effectiveModel);
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
     const rankBy = options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view];
     const laneBy = VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view];
-    const layout = computeLayout(model, {
+    const layout = computeLayout(effectiveModel, {
       direction: options.direction,
       rankBy,
       laneBy,
       stackZoneBlocks: state.requestedView === "layer",
     });
-    const overlaidSvg = renderBaseViewWithOverlays(model, layout, state.view, knownOverlays);
-    const out = overlaidSvg ?? renderer({ model, layout, options: { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays } });
+    const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel };
+    const overlaidSvg = renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
+    const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
 
     if (typeof out === "string") {
-      const svg = decorateSvgWithSelection(decorateSvgWithOverlays(out, knownOverlays), model, options.selection);
-      syncDiagnostics(model);
-      renderDiagnostics(model, options.diagnosticsTarget);
-      renderInspector(model, options.selection ?? null, options.inspectorTarget);
-      if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
+      const svg = decorateSvgWithSelection(decorateSvgWithOverlays(out, knownOverlays), effectiveModel, options.selection);
+      syncDiagnostics(effectiveModel);
+      renderDiagnostics(effectiveModel, options.diagnosticsTarget);
+      renderInspector(effectiveModel, options.selection ?? null, options.inspectorTarget);
+      if (options.console !== undefined) reportDiagnosticsToConsole(effectiveModel, options.console);
       if (options.target && "innerHTML" in options.target) {
         const preservedPanZoom = preservePanZoomOnNextRender ? panZoom?.get() : undefined;
         options.target.innerHTML = svg;
@@ -427,32 +434,34 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
           panZoom = attachPanZoom(options.target, preservedPanZoom);
         }
         if (options.inspectorTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
-          detachInspector = attachInspectorSelection(options.target, model, options.inspectorTarget);
+          detachInspector = attachInspectorSelection(options.target, effectiveModel, options.inspectorTarget);
         }
         if (options.diagnosticsTarget && "addEventListener" in options.target && "dispatchEvent" in options.target) {
-          detachDiagnostics = attachDiagnosticSelection(options.target, model, options.diagnosticsTarget, options.inspectorTarget);
+          detachDiagnostics = attachDiagnosticSelection(options.target, effectiveModel, options.diagnosticsTarget, options.inspectorTarget);
         }
       }
-      return { view: state.view, layout, model, svg, handle: undefined };
+      return { view: state.view, layout, model: effectiveModel, svg, handle: undefined };
     }
     const handle = options.target ? out.mount(options.target) : undefined;
     preservePanZoomOnNextRender = false;
-    syncDiagnostics(model);
-    renderDiagnostics(model, options.diagnosticsTarget);
-    renderInspector(model, options.selection ?? null, options.inspectorTarget);
-    if (options.console !== undefined) reportDiagnosticsToConsole(model, options.console);
-    return { view: state.view, layout, model, handle, svg: undefined };
+    syncDiagnostics(effectiveModel);
+    renderDiagnostics(effectiveModel, options.diagnosticsTarget);
+    renderInspector(effectiveModel, options.selection ?? null, options.inspectorTarget);
+    if (options.console !== undefined) reportDiagnosticsToConsole(effectiveModel, options.console);
+    return { view: state.view, layout, model: effectiveModel, handle, svg: undefined };
   };
+
+  const initialModel = projectSubgraphAbstraction(model, state.abstractionLevel);
 
   const result: RenderResult = {
     view: state.view,
-    layout: computeLayout(model, {
+    layout: computeLayout(initialModel, {
       direction: options.direction,
       rankBy: options.rankBy ?? VIEW_RANK_BY[state.requestedView] ?? VIEW_RANK_BY[state.view],
       laneBy: VIEW_LANE_BY[state.requestedView] ?? VIEW_LANE_BY[state.view],
       stackZoneBlocks: state.requestedView === "layer",
     }),
-    model,
+    model: initialModel,
     svg: undefined,
     handle: undefined,
     setBaseView(view: string) {
@@ -467,6 +476,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     },
     setOverlays(overlays: string[]) {
       state.overlays = [...overlays];
+      preservePanZoomOnNextRender = true;
+      apply(snapshot());
+    },
+    setAbstractionLevel(level: number) {
+      state.abstractionLevel = Math.max(0, Math.floor(level));
       preservePanZoomOnNextRender = true;
       apply(snapshot());
     },
@@ -513,6 +527,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     result.handle?.dispose();
     result.view = next.view;
     result.layout = next.layout;
+    result.model = next.model;
     result.svg = next.svg;
     result.handle = next.handle;
   };
@@ -534,6 +549,7 @@ export interface ViewerAttributeOptions {
   baseView?: string;
   renderMode: string;
   overlays: string[];
+  abstractionLevel: number;
   width: string;
   height: string;
   src?: string;
@@ -560,6 +576,7 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     baseView: attrs.getAttribute("base-view") ?? undefined,
     renderMode: attrs.getAttribute("render-mode") ?? "2d",
     overlays: parseOverlaysAttribute(attrs.getAttribute("overlays")),
+    abstractionLevel: Number(attrs.getAttribute("abstraction-level") ?? 0) || 0,
     width: attrs.getAttribute("width") ?? "100%",
     height: attrs.getAttribute("height") ?? "600px",
     src: attrs.getAttribute("src") ?? undefined,
@@ -595,7 +612,7 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "render-mode", "overlays", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
+      return ["base-view", "render-mode", "overlays", "abstraction-level", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
     }
 
     private source = "";
@@ -629,6 +646,8 @@ export function defineArchMapViewerElement(): void {
         this.result.setRenderMode(options.renderMode);
       } else if (name === "overlays") {
         this.result.setOverlays(options.overlays);
+      } else if (name === "abstraction-level") {
+        this.result.setAbstractionLevel(options.abstractionLevel);
       } else if (name === "width" || name === "height") {
         this.applyFrameStyle();
       } else {
@@ -692,18 +711,19 @@ export function defineArchMapViewerElement(): void {
         baseView: options.baseView,
         renderMode: options.renderMode,
         overlays: options.overlays,
+        abstractionLevel: options.abstractionLevel,
         target: this.ensureContainer(),
         diagnosticsTarget: this.diagnosticsTarget(options),
         inspectorTarget: this.inspectorTarget(options),
         console: options.consoleReport,
       });
-      if (options.controls) this.renderControls(options);
+      if (options.controls) this.renderControls(options, model);
       else this.controlsBar?.remove(), (this.controlsBar = undefined);
     }
 
     /** Controls toolbar: exclusive view/mode radios, additive overlay tags, fit/reset,
      * diagnostics indicator (spec 03 §7). */
-    private renderControls(options: ViewerAttributeOptions): void {
+    private renderControls(options: ViewerAttributeOptions, sourceModel: ArchMapModel): void {
       const result = this.result;
       if (!result) return;
       const bar = document.createElement("div");
@@ -747,7 +767,7 @@ export function defineArchMapViewerElement(): void {
         return g;
       };
 
-      const active = { base: options.baseView ?? "overview", renderMode: options.renderMode, overlays: new Set(options.overlays) };
+      const active = { base: options.baseView ?? "overview", renderMode: options.renderMode, overlays: new Set(options.overlays), abstractionLevel: options.abstractionLevel };
 
       const expand = document.createElement("button");
       expand.type = "button";
@@ -849,6 +869,31 @@ export function defineArchMapViewerElement(): void {
         overlayGroup.appendChild(wrap);
       }
       bar.appendChild(overlayGroup);
+
+      const maxDepth = maxSubgraphDepth(sourceModel) + (Object.keys(sourceModel.graph.subgraphs).length ? 1 : 0);
+      if (maxDepth > 0) {
+        const abstractionGroup = group("Abstraction:");
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "0";
+        slider.max = String(maxDepth);
+        slider.step = "1";
+        slider.value = String(Math.min(active.abstractionLevel, maxDepth));
+        slider.title = "Subgraph abstraction depth";
+        slider.style.cssText = "width:120px;accent-color:#4f6f9f;";
+        const value = document.createElement("span");
+        value.textContent = slider.value;
+        value.style.cssText = "min-width:16px;text-align:right;font-weight:700;color:#334155;";
+        slider.addEventListener("input", () => {
+          const level = Number(slider.value);
+          active.abstractionLevel = level;
+          value.textContent = String(level);
+          result.setAbstractionLevel(level);
+          updateDiagnostics();
+        });
+        abstractionGroup.append(slider, value);
+        bar.appendChild(abstractionGroup);
+      }
 
       const zoomToggle = document.createElement("button");
       zoomToggle.type = "button";

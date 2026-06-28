@@ -101,6 +101,44 @@ describe("render", () => {
     expect(svg).toContain(".archmap-node-shape-top-fill { fill: var(--archmap-node-fill");
   });
 
+  it("collapses subgraphs into abstraction components and deduplicates external edges", () => {
+    const m = parse(`graph LR
+      subgraph Service
+        A[API]
+        B[Worker]
+      end
+      A --> D[Database]
+      B --> D
+      A --> E[Queue]
+    `);
+    const { svg, model } = render(m, { baseView: "overview", abstractionLevel: 1 });
+    expect(model.nodes.map((node) => node.id).sort()).toEqual(["D", "E", "Service"]);
+    expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["Service->D", "Service->E"]);
+    expect(svg).toContain('data-id="Service"');
+    expect(svg).not.toContain('data-id="A"');
+    expect(svg).not.toContain('data-id="B"');
+  });
+
+  it("uses subgraph depth as the abstraction slider level", () => {
+    const m = parse(`graph LR
+      subgraph System
+        subgraph Runtime
+          A[API]
+        end
+        B[CLI]
+      end
+      A --> D[Database]
+      B --> E[Queue]
+    `);
+    const levelOne = render(m, { baseView: "overview", abstractionLevel: 1 }).model;
+    expect(levelOne.nodes.map((node) => node.id).sort()).toEqual(["D", "E", "System"]);
+    expect(levelOne.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["System->D", "System->E"]);
+
+    const levelTwo = render(m, { baseView: "overview", abstractionLevel: 2 }).model;
+    expect(levelTwo.nodes.map((node) => node.id).sort()).toEqual(["B", "D", "E", "Runtime"]);
+    expect(levelTwo.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["B->E", "Runtime->D"]);
+  });
+
   it("marks edge startpoints with small dots", () => {
     const m = parse(`graph LR
       A[A] --> B[B]
@@ -564,6 +602,7 @@ describe("archmap-viewer attributes", () => {
       baseView: "zone",
       renderMode: "isometric",
       overlays: ["auth", "validation"],
+      abstractionLevel: 0,
       width: "100%",
       height: "600px",
       src: "./arch.archmap",

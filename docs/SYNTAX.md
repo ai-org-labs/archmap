@@ -247,6 +247,14 @@ nodes/edges, synthesize permission overlay edges, add compact badges, or draw
 zone/boundary boxes. Unknown overlays emit `unknown_overlay` warnings and do not
 block rendering.
 
+`subgraph` is authoring hierarchy by default. When
+`render(model, { abstractionLevel })` or the viewer Abstraction slider is set
+above `0`, subgraphs at the selected depth become abstraction components:
+contained nodes are hidden, external edges are rewired from the subgraph
+component, duplicate external edges collapse to one edge, and Add info overlays
+use the same projected model. Level `1` collapses top-level subgraphs; level `2`
+collapses their child subgraphs, and so on.
+
 | View | Shows |
 | --- | --- |
 | `overview` | structural nodes/edges only until Add info overlays are enabled |
@@ -279,19 +287,22 @@ import {
 const model = parse(source);                 // Text -> Model (+ errors/warnings)
 const { svg } = render(model, { view: "overview", target: el });
 const overlaid = render(model, { baseView: "overview", overlays: ["auth", "dataflow"] });
+const abstracted = render(model, { baseView: "overview", abstractionLevel: 1 });
 overlaid.setOverlays(["permission", "validation"]);
 overlaid.toggleOverlay("boundary");
+abstracted.setAbstractionLevel(0);
 ```
 
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
-- **Render results** can update base view/overlays without reparsing:
-  `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`, `destroy()`.
+- **Render results** can update base view/overlays/abstraction without reparsing:
+  `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`,
+  `setAbstractionLevel(level)`, `destroy()`.
 - **Custom element (inline source):** `initialize()` defines
   `<archmap-viewer>` by default when `customElements` is available; call
   `defineArchMapViewerElement()` directly if you do not use `initialize()`.
-  Supported first-pass attributes: `base-view`, `overlays`, `width`, `height`,
-  `src`, `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`,
-  and `controls`.
+  Supported first-pass attributes: `base-view`, `overlays`,
+  `abstraction-level`, `width`, `height`, `src`, `fallback-to-inline`,
+  `diagnostics`, `diagnostics-target`, `console`, and `controls`.
 - **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows a
   toolbar (base-view selector, overlay checkboxes, Fit/Reset, diagnostics
   indicator). 2D views support wheel zoom and drag pan; `render(model,{target})`

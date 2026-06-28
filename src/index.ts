@@ -44,6 +44,7 @@ export type {
 } from "./inspector.js";
 export { attachPanZoom, computeFitTransform, isInteractiveTarget } from "./views/interaction.js";
 export type { PanZoomHandle, PanZoomTransform } from "./views/interaction.js";
+export { maxSubgraphDepth, projectSubgraphAbstraction } from "./subgraph-abstraction.js";
 export { extractArchMapBlocks } from "./parser/sections.js";
 export {
   render,

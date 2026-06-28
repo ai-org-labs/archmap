@@ -27,6 +27,7 @@ export interface RawSubgraph {
   id: string;
   label?: string;
   members: string[];
+  parent?: string;
 }
 
 export interface GraphParseResult {
@@ -133,9 +134,10 @@ export function parseGraph(graphSource: string): GraphParseResult {
     if (sgMatch) {
       const spec = sgMatch[1].trim();
       const idm = /^([A-Za-z][A-Za-z0-9_-]*)(?:\s*\[(.*)\])?$/.exec(spec);
+      const parent = subgraphStack[subgraphStack.length - 1]?.id;
       const sg: RawSubgraph = idm
-        ? { id: idm[1], label: idm[2], members: [] }
-        : { id: spec, label: spec, members: [] };
+        ? { id: idm[1], label: idm[2], members: [], ...(parent ? { parent } : {}) }
+        : { id: spec, label: spec, members: [], ...(parent ? { parent } : {}) };
       subgraphs.push(sg);
       subgraphStack.push(sg);
       continue;

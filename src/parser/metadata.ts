@@ -348,7 +348,10 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     description: asString(meta.description),
     graph: {
       direction: graph.direction,
-      subgraphs: Object.fromEntries(graph.subgraphs.map((sg) => [sg.id, { id: sg.id, label: sg.label, members: [...sg.members] }])),
+      subgraphs: Object.fromEntries(graph.subgraphs.map((sg) => [
+        sg.id,
+        { id: sg.id, label: sg.label, members: [...sg.members], ...(sg.parent ? { parent: sg.parent } : {}) },
+      ])),
     },
     nodes,
     edges,

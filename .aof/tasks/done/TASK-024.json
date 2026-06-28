@@ -1,0 +1,25 @@
+{
+  "task_id": "TASK-024",
+  "title": "Prototype subgraph abstraction slider",
+  "description": "Treat graph subgraphs as adjustable abstraction components at render time: hiding contained nodes, rewiring external edges from the subgraph component, deduplicating repeated external edges, and applying the same projected model to Add info overlays and 3D.",
+  "status": "done",
+  "origin": "human",
+  "created_at": "2026-06-28T11:05:00.000+09:00",
+  "done_at": "2026-06-28T11:20:00.000+09:00",
+  "decision_notes": [
+    "Kept `subgraph` authoring-only by default; abstraction is opt-in via `render(model, { abstractionLevel })`, `RenderResult.setAbstractionLevel(level)`, `<archmap-viewer abstraction-level>`, and the playground/viewer slider.",
+    "Saved nested subgraph `parent` relationships in the parsed model so abstraction level can map to subgraph depth: level 1 collapses top-level subgraphs, level 2 collapses child subgraphs, and so on.",
+    "Implemented abstraction as a pre-layout model projection. This keeps 2D, 3D, and Add info overlays aligned because they all render from the same projected nodes, edges, diagnostics, data, identity, permission, zone, and boundary references.",
+    "Collapsed duplicate external edges by projected source/target pair. Internal edges inside a collapsed subgraph disappear with the hidden contained nodes."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/parser.test.ts test/render.test.ts",
+    "npm run build",
+    "Browser check on http://127.0.0.1:4174/: small subgraph sample showed Abstraction slider max=1; level 1 rendered nodes Service/D/E and edges Service->D, Service->E."
+  ],
+  "notes": [
+    "The initial playground seed has no subgraph, so the Abstraction control hides itself until the parsed source contains at least one subgraph.",
+    "This is intentionally a prototype trial. A future polish pass may add richer visual styling for abstraction nodes or finer edge-merge summaries."
+  ]
+}

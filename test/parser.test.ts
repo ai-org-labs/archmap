@@ -87,6 +87,18 @@ describe("metadata merge", () => {
     expect(m.graph.subgraphs.Runtime).toEqual({ id: "Runtime", label: undefined, members: ["App"] });
     expect(m.zones).toEqual([]);
   });
+
+  it("preserves nested subgraph parents", () => {
+    const m = parse(`graph LR
+      subgraph System
+        subgraph Runtime
+          App[App]
+        end
+      end
+    `);
+    expect(m.graph.subgraphs.System).toEqual({ id: "System", label: undefined, members: [] });
+    expect(m.graph.subgraphs.Runtime).toEqual({ id: "Runtime", label: undefined, members: ["App"], parent: "System" });
+  });
 });
 
 describe("pair-key edges (Stage 1, spec 01 §7 / 02 §6)", () => {
