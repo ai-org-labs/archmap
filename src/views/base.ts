@@ -120,9 +120,11 @@ function packAreaBoxes(groups: Array<{ boxes: Box[]; boxClass: string }>): Array
   const placed: Box[] = [];
   const packed = groups.map((group) => ({ ...group, boxes: [...group.boxes] }));
   for (const item of items) {
-    const box = nearestNonOverlappingBox(item.box, placed);
+    const groupClass = groups[item.groupIndex].boxClass;
+    const blockers = placed.filter((other) => other.id.startsWith(`${groupClass}:`)).map((other) => ({ ...other, id: other.id.slice(groupClass.length + 1) }));
+    const box = nearestNonOverlappingBox(item.box, blockers);
     packed[item.groupIndex].boxes[item.boxIndex] = box;
-    placed.push(box);
+    placed.push({ ...box, id: `${groupClass}:${box.id}` });
   }
   return packed;
 }

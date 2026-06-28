@@ -64,20 +64,19 @@ function areaBoxes(svg: string, groupClass: string, boxClass: string): Array<{ i
   });
 }
 
-function renderedAreaBoxes(svg: string): Array<{ id: string; kind: string; x0: number; x1: number; y0: number; y1: number }> {
-  return [
-    ...areaBoxes(svg, "archmap-zone", "archmap-zone-box").map((box) => ({ ...box, kind: "zone" })),
+function containsArea(outer: { x0: number; x1: number; y0: number; y1: number }, inner: { x0: number; x1: number; y0: number; y1: number }): boolean {
+  return inner.x0 >= outer.x0 && inner.x1 <= outer.x1 && inner.y0 >= outer.y0 && inner.y1 <= outer.y1;
+}
+
+function expectInnerAreasStayInsideZones(svg: string): void {
+  const zones = areaBoxes(svg, "archmap-zone", "archmap-zone-box");
+  const innerAreas = [
     ...areaBoxes(svg, "archmap-boundary", "archmap-boundary-box").map((box) => ({ ...box, kind: "boundary" })),
     ...areaBoxes(svg, "archmap-subgraph", "archmap-subgraph-box").map((box) => ({ ...box, kind: "subgraph" })),
   ];
-}
-
-function expectNoAreaOverlap(svg: string): void {
-  const boxes = renderedAreaBoxes(svg);
-  for (let i = 0; i < boxes.length; i++) {
-    for (let j = i + 1; j < boxes.length; j++) {
-      expect(overlaps(boxes[i], boxes[j]), `${boxes[i].kind}:${boxes[i].id} overlaps ${boxes[j].kind}:${boxes[j].id}`).toBe(false);
-    }
+  for (const inner of innerAreas) {
+    const owner = zones.find((zone) => containsArea(zone, inner));
+    expect(owner, `${inner.kind}:${inner.id} must stay inside a zone`).toBeDefined();
   }
 }
 
@@ -154,7 +153,7 @@ describe("render", () => {
     }
   });
 
-  it("packs subgraph, zone, and boundary areas without visual overlap", () => {
+  it("keeps subgraph and boundary areas inside their zone area", () => {
     const m = parse(`graph LR
       subgraph Service
         A[API]
@@ -173,10 +172,10 @@ describe("render", () => {
       boundaries:
         app_boundary: { label: App Boundary, kind: trust_boundary, contains: [zone: app] }
     `);
-    expectNoAreaOverlap(render(m, { baseView: "overview", overlays: ["subgraph", "zone", "boundary"] }).svg!);
+    expectInnerAreasStayInsideZones(render(m, { baseView: "overview", overlays: ["subgraph", "zone", "boundary"] }).svg!);
   });
 
-  it("recomputes non-overlapping areas after abstraction collapse", () => {
+  it("recomputes contained areas after abstraction collapse", () => {
     const m = parse(`graph LR
       subgraph Service
         A[API]
@@ -200,7 +199,7 @@ describe("render", () => {
       overlays: ["subgraph", "zone", "boundary"],
       collapsedAbstractions: ["zone:app"],
     }).svg!;
-    expectNoAreaOverlap(collapsedSvg);
+    expectInnerAreasStayInsideZones(collapsedSvg);
   });
 
   it("collapses subgraphs into abstraction components and deduplicates external edges", () => {
@@ -634,8 +633,7 @@ describe("render", () => {
 
     const zone = areaBoxes(svg!, "archmap-zone", "archmap-zone-box").find((box) => box.id === "private")!;
     const boundary = areaBoxes(svg!, "archmap-boundary", "archmap-boundary-box").find((box) => box.id === "data_boundary")!;
-    expect(overlaps(zone, boundary)).toBe(false);
-    expectNoAreaOverlap(svg!);
+    expect(containsArea(zone, boundary)).toBe(true);
   });
 
   it("does not let graph subgraphs affect rendered geometry", () => {

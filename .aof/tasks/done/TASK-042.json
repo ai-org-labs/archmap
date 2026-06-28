@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-042",
+  "title": "Keep inner area overlays inside zone areas",
+  "description": "Boundary and subgraph areas are no longer pushed outside zone areas by cross-kind area packing. Zone remains the physical outer grouping, while same-kind area boxes can still be separated from each other.",
+  "status": "done",
+  "origin": "human-browser-comment",
+  "created_at": "2026-06-28T19:32:00.000+09:00",
+  "done_at": "2026-06-28T19:38:00.000+09:00",
+  "decision_notes": [
+    "TASK-041 packed all area overlay kinds against each other, which prevented overlap but incorrectly moved boundary/subgraph boxes outside the zone they describe.",
+    "Adjusted packing so only same-kind area boxes block each other. Cross-kind nesting is preserved: zone is the outer physical region, and boundary/subgraph can remain inside it.",
+    "Updated regression expectations from cross-kind non-overlap to containment: boundary/subgraph areas must stay inside a zone in the combined overlay and after abstraction collapse."
+  ],
+  "verification": [
+    "npm test -- --run test/render.test.ts",
+    "npm run build",
+    "dist demo seed check: overview with subgraph+zone+boundary reports outside=[] for boundary/subgraph containment within zones"
+  ]
+}
