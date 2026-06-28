@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-025",
+  "title": "Extend abstraction projection to zones",
+  "description": "Allow the existing abstraction slider/projection to collapse zone hierarchies as well as subgraphs, so physical areas can be viewed as representative components with rewired and deduplicated external edges.",
+  "status": "done",
+  "origin": "human",
+  "created_at": "2026-06-28T11:50:00.000+09:00",
+  "done_at": "2026-06-28T12:03:00.000+09:00",
+  "decision_notes": [
+    "Added `abstractionTarget: \"subgraph\" | \"zone\"` while preserving `subgraph` as the default for compatibility.",
+    "Zone abstraction removes the selected zone's area box and replaces it with a representative component. Parent zones/boundaries then refer to that representative as a node.",
+    "The same projection path rewires external edges, deduplicates repeated source/target pairs, and rewrites data, identity, permission, diagnostic, zone, and boundary references before layout/render.",
+    "Playground/static demo and `<archmap-viewer controls>` now expose an Abstraction target selector plus depth slider."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/render.test.ts",
+    "npm run build",
+    "node /Users/mn/codex/.cache/aof-v6.5.0/src/cli.js organization-verify --project . (46/46 pass)",
+    "git diff --check"
+  ],
+  "notes": [
+    "Browser automation connection timed out while reconnecting after this change, so visual browser confirmation was not completed in this turn. Local dev server listeners on port 4174 remained present.",
+    "Future polish: decide whether zone abstraction nodes should have a distinct visual style from ordinary components."
+  ]
+}

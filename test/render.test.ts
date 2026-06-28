@@ -139,6 +139,48 @@ describe("render", () => {
     expect(levelTwo.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["B->E", "Runtime->D"]);
   });
 
+  it("collapses zones into abstraction components and deduplicates external edges", () => {
+    const m = parse(`graph LR
+      A[API] --> D[Database]
+      B[Worker] --> D
+      A --> E[Queue]
+      ---
+      zones:
+        service:
+          label: Service Zone
+          contains: [A, B]
+    `);
+    const { svg, model } = render(m, { baseView: "overview", abstractionTarget: "zone", abstractionLevel: 1 });
+    expect(model.nodes.map((node) => node.id).sort()).toEqual(["D", "E", "service"]);
+    expect(model.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["service->D", "service->E"]);
+    expect(model.zones.map((zone) => zone.id)).not.toContain("service");
+    expect(svg).toContain('data-id="service"');
+    expect(svg).not.toContain('data-id="A"');
+    expect(svg).not.toContain('data-id="B"');
+  });
+
+  it("uses nested zone depth for zone abstraction", () => {
+    const m = parse(`graph LR
+      A[API] --> D[Database]
+      B[Worker] --> E[Queue]
+      ---
+      zones:
+        platform:
+          contains: [zone:service, B]
+        service:
+          parent: platform
+          contains: [A]
+    `);
+    const levelOne = render(m, { baseView: "overview", abstractionTarget: "zone", abstractionLevel: 1 }).model;
+    expect(levelOne.nodes.map((node) => node.id).sort()).toEqual(["D", "E", "platform"]);
+    expect(levelOne.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["platform->D", "platform->E"]);
+
+    const levelTwo = render(m, { baseView: "overview", abstractionTarget: "zone", abstractionLevel: 2 }).model;
+    expect(levelTwo.nodes.map((node) => node.id).sort()).toEqual(["B", "D", "E", "service"]);
+    expect(levelTwo.edges.map((edge) => `${edge.from}->${edge.to}`).sort()).toEqual(["B->E", "service->D"]);
+    expect(levelTwo.zones.find((zone) => zone.id === "platform")?.resolvedContains).toContainEqual({ type: "node", id: "service" });
+  });
+
   it("marks edge startpoints with small dots", () => {
     const m = parse(`graph LR
       A[A] --> B[B]
@@ -603,6 +645,7 @@ describe("archmap-viewer attributes", () => {
       renderMode: "isometric",
       overlays: ["auth", "validation"],
       abstractionLevel: 0,
+      abstractionTarget: "subgraph",
       width: "100%",
       height: "600px",
       src: "./arch.archmap",

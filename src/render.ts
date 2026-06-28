@@ -28,7 +28,8 @@ import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
 import type { PanZoomHandle } from "./views/interaction.js";
 import { renderInspector } from "./inspector.js";
 import type { InspectorSelection } from "./inspector.js";
-import { maxSubgraphDepth, projectSubgraphAbstraction } from "./subgraph-abstraction.js";
+import { maxAbstractionDepth, projectAbstraction } from "./subgraph-abstraction.js";
+import type { AbstractionTarget } from "./subgraph-abstraction.js";
 
 export interface ViewContext {
   model: ArchMapModel;
@@ -61,6 +62,8 @@ export interface RenderOptions {
   overlays?: string[];
   /** Collapse graph subgraphs into abstraction components up to the selected depth. */
   abstractionLevel?: number;
+  /** Which authoring hierarchy the abstraction slider collapses. */
+  abstractionTarget?: AbstractionTarget;
   /** Legacy flat view selector. Kept for compatibility with existing callers. */
   view?: string;
   direction?: Direction;
@@ -92,6 +95,7 @@ export interface RenderResult {
   setRenderMode(mode: string): void;
   setOverlays(overlays: string[]): void;
   setAbstractionLevel(level: number): void;
+  setAbstractionTarget(target: AbstractionTarget): void;
   addOverlay(overlay: string): void;
   removeOverlay(overlay: string): void;
   toggleOverlay(overlay: string): void;
@@ -386,6 +390,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     renderMode,
     overlays: [...(options.overlays ?? metadataOverlays(model))],
     abstractionLevel: Math.max(0, Math.floor(options.abstractionLevel ?? 0)),
+    abstractionTarget: options.abstractionTarget ?? "subgraph" as AbstractionTarget,
   };
   let panZoom: PanZoomHandle | undefined;
   let preservePanZoomOnNextRender = false;
@@ -393,7 +398,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   let detachDiagnostics: (() => void) | undefined;
 
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
-    const effectiveModel = projectSubgraphAbstraction(model, state.abstractionLevel);
+    const effectiveModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget);
     validateOverlays(effectiveModel, state.overlays);
     const renderer = registry.get(state.view);
     if (!renderer) {
@@ -410,7 +415,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       laneBy,
       stackZoneBlocks: state.requestedView === "layer",
     });
-    const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel };
+    const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget };
     const overlaidSvg = renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
 
@@ -451,7 +456,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     return { view: state.view, layout, model: effectiveModel, handle, svg: undefined };
   };
 
-  const initialModel = projectSubgraphAbstraction(model, state.abstractionLevel);
+  const initialModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget);
 
   const result: RenderResult = {
     view: state.view,
@@ -481,6 +486,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     },
     setAbstractionLevel(level: number) {
       state.abstractionLevel = Math.max(0, Math.floor(level));
+      preservePanZoomOnNextRender = true;
+      apply(snapshot());
+    },
+    setAbstractionTarget(target: AbstractionTarget) {
+      state.abstractionTarget = target;
       preservePanZoomOnNextRender = true;
       apply(snapshot());
     },
@@ -550,6 +560,7 @@ export interface ViewerAttributeOptions {
   renderMode: string;
   overlays: string[];
   abstractionLevel: number;
+  abstractionTarget: AbstractionTarget;
   width: string;
   height: string;
   src?: string;
@@ -577,6 +588,7 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     renderMode: attrs.getAttribute("render-mode") ?? "2d",
     overlays: parseOverlaysAttribute(attrs.getAttribute("overlays")),
     abstractionLevel: Number(attrs.getAttribute("abstraction-level") ?? 0) || 0,
+    abstractionTarget: attrs.getAttribute("abstraction-target") === "zone" ? "zone" : "subgraph",
     width: attrs.getAttribute("width") ?? "100%",
     height: attrs.getAttribute("height") ?? "600px",
     src: attrs.getAttribute("src") ?? undefined,
@@ -612,7 +624,7 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "render-mode", "overlays", "abstraction-level", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
+      return ["base-view", "render-mode", "overlays", "abstraction-level", "abstraction-target", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
     }
 
     private source = "";
@@ -648,6 +660,8 @@ export function defineArchMapViewerElement(): void {
         this.result.setOverlays(options.overlays);
       } else if (name === "abstraction-level") {
         this.result.setAbstractionLevel(options.abstractionLevel);
+      } else if (name === "abstraction-target") {
+        this.result.setAbstractionTarget(options.abstractionTarget);
       } else if (name === "width" || name === "height") {
         this.applyFrameStyle();
       } else {
@@ -712,6 +726,7 @@ export function defineArchMapViewerElement(): void {
         renderMode: options.renderMode,
         overlays: options.overlays,
         abstractionLevel: options.abstractionLevel,
+        abstractionTarget: options.abstractionTarget,
         target: this.ensureContainer(),
         diagnosticsTarget: this.diagnosticsTarget(options),
         inspectorTarget: this.inspectorTarget(options),
@@ -767,7 +782,13 @@ export function defineArchMapViewerElement(): void {
         return g;
       };
 
-      const active = { base: options.baseView ?? "overview", renderMode: options.renderMode, overlays: new Set(options.overlays), abstractionLevel: options.abstractionLevel };
+      const active = {
+        base: options.baseView ?? "overview",
+        renderMode: options.renderMode,
+        overlays: new Set(options.overlays),
+        abstractionLevel: options.abstractionLevel,
+        abstractionTarget: options.abstractionTarget,
+      };
 
       const expand = document.createElement("button");
       expand.type = "button";
@@ -870,20 +891,43 @@ export function defineArchMapViewerElement(): void {
       }
       bar.appendChild(overlayGroup);
 
-      const maxDepth = maxSubgraphDepth(sourceModel) + (Object.keys(sourceModel.graph.subgraphs).length ? 1 : 0);
-      if (maxDepth > 0) {
+      const hasAbstractionTargets = Object.keys(sourceModel.graph.subgraphs).length > 0 || sourceModel.zones.length > 0;
+      if (hasAbstractionTargets) {
         const abstractionGroup = group("Abstraction:");
+        const targetSelect = document.createElement("select");
+        targetSelect.title = "Abstraction target";
+        targetSelect.style.cssText = "min-height:24px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;font:600 12px system-ui,sans-serif;";
+        for (const [value, label] of [["subgraph", "Subgraph"], ["zone", "Zone"]] as const) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = active.abstractionTarget === value;
+          option.disabled = value === "subgraph" ? Object.keys(sourceModel.graph.subgraphs).length === 0 : sourceModel.zones.length === 0;
+          targetSelect.appendChild(option);
+        }
         const slider = document.createElement("input");
         slider.type = "range";
         slider.min = "0";
-        slider.max = String(maxDepth);
         slider.step = "1";
-        slider.value = String(Math.min(active.abstractionLevel, maxDepth));
-        slider.title = "Subgraph abstraction depth";
+        slider.title = "Abstraction depth";
         slider.style.cssText = "width:120px;accent-color:#4f6f9f;";
         const value = document.createElement("span");
-        value.textContent = slider.value;
         value.style.cssText = "min-width:16px;text-align:right;font-weight:700;color:#334155;";
+        const refreshSlider = () => {
+          const maxDepth = maxAbstractionDepth(sourceModel, active.abstractionTarget) + 1;
+          slider.max = String(maxDepth);
+          if (active.abstractionLevel > maxDepth) active.abstractionLevel = maxDepth;
+          slider.value = String(active.abstractionLevel);
+          value.textContent = slider.value;
+          slider.disabled = maxDepth === 0;
+        };
+        targetSelect.addEventListener("change", () => {
+          active.abstractionTarget = targetSelect.value === "zone" ? "zone" : "subgraph";
+          refreshSlider();
+          result.setAbstractionTarget(active.abstractionTarget);
+          result.setAbstractionLevel(active.abstractionLevel);
+          updateDiagnostics();
+        });
         slider.addEventListener("input", () => {
           const level = Number(slider.value);
           active.abstractionLevel = level;
@@ -891,7 +935,8 @@ export function defineArchMapViewerElement(): void {
           result.setAbstractionLevel(level);
           updateDiagnostics();
         });
-        abstractionGroup.append(slider, value);
+        refreshSlider();
+        abstractionGroup.append(targetSelect, slider, value);
         bar.appendChild(abstractionGroup);
       }
 

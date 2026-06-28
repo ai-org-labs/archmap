@@ -249,7 +249,7 @@ export interface CanonicalArchMapModel {
 export const STANDARD_KINDS: ReadonlySet<string> = new Set([
   // actor / client
   "user", "external_user", "client_app", "web_app", "mobile_app",
-  "android_app", "ios_app", "desktop_app", "admin_console", "external_partner", "subgraph",
+  "android_app", "ios_app", "desktop_app", "admin_console", "external_partner", "subgraph", "zone",
   // edge / gateway
   "cdn", "waf", "load_balancer", "api_gateway", "ingress", "reverse_proxy", "firewall",
   // runtime

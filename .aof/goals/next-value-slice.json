@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-024 interrupt done: subgraph abstraction prototype is available via render(model,{abstractionLevel}), RenderResult.setAbstractionLevel(level), <archmap-viewer abstraction-level>, and the playground/viewer Abstraction slider. Next: continue TASK-009/TASK-010 acceptance work unless the human chooses to polish abstraction node visuals or edge-merge summaries. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
-  "updated_at": "2026-06-28T11:20:00.000+09:00",
+  "content": "TASK-025 interrupt done: abstraction now supports both subgraph and zone targets via render(model,{abstractionTarget,abstractionLevel}), RenderResult.setAbstractionTarget(...), <archmap-viewer abstraction-target>, and the playground/viewer Abstraction target selector. Next: continue TASK-009/TASK-010 acceptance work unless the human chooses to polish abstraction-node visuals or edge-merge summaries. Keep TASK-011 QIF audit active and run full pattern verification only for routing/overlay/verifier changes or periodic audit.",
+  "updated_at": "2026-06-28T12:03:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

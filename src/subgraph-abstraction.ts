@@ -11,6 +11,8 @@ import type {
   Zone,
 } from "./types.js";
 
+export type AbstractionTarget = "subgraph" | "zone";
+
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
@@ -52,6 +54,49 @@ export function maxSubgraphDepth(model: ArchMapModel): number {
   const subgraphs = Object.values(model.graph.subgraphs);
   if (subgraphs.length === 0) return 0;
   return Math.max(0, ...subgraphDepths(subgraphs).values());
+}
+
+function zoneChildren(zones: Zone[]): Map<string | undefined, Zone[]> {
+  const out = new Map<string | undefined, Zone[]>();
+  for (const zone of zones) {
+    const parent = zone.parent;
+    out.set(parent, [...(out.get(parent) ?? []), zone]);
+  }
+  for (const zone of zones) {
+    for (const child of zone.resolvedContains ?? []) {
+      if (child.type !== "zone") continue;
+      const existing = out.get(zone.id) ?? [];
+      if (!existing.some((entry) => entry.id === child.id)) {
+        const found = zones.find((entry) => entry.id === child.id);
+        if (found) out.set(zone.id, [...existing, found]);
+      }
+    }
+  }
+  return out;
+}
+
+function zoneDepths(zones: Zone[]): Map<string, number> {
+  const byId = new Map(zones.map((zone) => [zone.id, zone]));
+  const cache = new Map<string, number>();
+  const depthOf = (zone: Zone): number => {
+    const cached = cache.get(zone.id);
+    if (cached !== undefined) return cached;
+    const parent = zone.parent ? byId.get(zone.parent) : undefined;
+    const depth = parent ? depthOf(parent) + 1 : 0;
+    cache.set(zone.id, depth);
+    return depth;
+  };
+  for (const zone of zones) depthOf(zone);
+  return cache;
+}
+
+export function maxZoneDepth(model: ArchMapModel): number {
+  if (model.zones.length === 0) return 0;
+  return Math.max(0, ...zoneDepths(model.zones).values());
+}
+
+export function maxAbstractionDepth(model: ArchMapModel, target: AbstractionTarget = "subgraph"): number {
+  return target === "zone" ? maxZoneDepth(model) : maxSubgraphDepth(model);
 }
 
 function effectiveMembers(
@@ -101,14 +146,18 @@ function cloneDiagnostic(diagnostic: Diagnostic, replacements: Map<string, strin
   return { ...diagnostic, ...(target ? { target } : {}), ...(ref ? { ref } : {}) };
 }
 
-function rewriteContains<T extends Zone | Boundary>(items: T[], replacements: Map<string, string>): T[] {
+function rewriteContains<T extends Zone | Boundary>(items: T[], replacements: Map<string, string>, collapsedZones = new Set<string>()): T[] {
   return items.map((item) => {
     const contains = item.contains
       ? unique(item.contains.map((id) => replacementFor(id, replacements)))
       : item.contains;
     const resolvedContains = item.resolvedContains
       ? unique(item.resolvedContains.map((entry) => (
-        entry.type === "node" ? `${entry.type}:${replacementFor(entry.id, replacements)}` : `${entry.type}:${entry.id}`
+        entry.type === "node"
+          ? `${entry.type}:${replacementFor(entry.id, replacements)}`
+          : entry.type === "zone" && collapsedZones.has(entry.id)
+            ? `node:${entry.id}`
+            : `${entry.type}:${entry.id}`
       ))).map((key) => {
         const [type, id] = key.split(":");
         return { type: type as T["resolvedContains"] extends Array<infer U> ? U extends { type: infer K } ? K : never : never, id };
@@ -153,23 +202,29 @@ function rewritePermissions(permissions: Permission[], replacements: Map<string,
   }));
 }
 
-function abstractionNode(sg: GraphSubgraph, members: ArchNode[]): ArchNode {
+function abstractionNode(
+  id: string,
+  label: string | undefined,
+  kind: "subgraph" | "zone",
+  members: ArchNode[],
+  zone?: string,
+): ArchNode {
   const principals = unique(members.map((node) => node.principal).filter((value): value is string => !!value));
   const layers = members.map((node) => node.layer);
   const zones = members.map((node) => node.resolvedZone ?? node.zone);
   const providers = members.map((node) => node.provider);
   return {
-    id: sg.id,
-    label: sg.label ?? sg.id,
+    id,
+    label: label ?? id,
     shape: "rectangle",
-    kind: "subgraph",
+    kind,
     layer: mostCommon(layers),
-    zone: mostCommon(zones),
-    resolvedZone: mostCommon(zones),
+    zone: zone ?? mostCommon(zones),
+    resolvedZone: zone ?? mostCommon(zones),
     provider: mostCommon(providers),
     ...(principals.length === 1 ? { principal: principals[0] } : {}),
     contains: members.map((node) => node.id),
-    description: `Subgraph abstraction for ${sg.label ?? sg.id}.`,
+    description: `${kind === "zone" ? "Zone" : "Subgraph"} abstraction for ${label ?? id}.`,
   };
 }
 
@@ -216,6 +271,40 @@ function mergeEdges(edges: ArchEdge[], replacements: Map<string, string>): { edg
   return { edges: [...byPair.values()], edgeIds };
 }
 
+function applyAbstractionProjection(
+  model: ArchMapModel,
+  replacements: Map<string, string>,
+  synthetic: ArchNode[],
+  collapsedZones = new Set<string>(),
+): ArchMapModel {
+  if (replacements.size === 0) return model;
+  const hidden = new Set(replacements.keys());
+  const visibleNodes = model.nodes.filter((node) => !hidden.has(node.id) && !synthetic.some((entry) => entry.id === node.id));
+  const { edges, edgeIds } = mergeEdges(model.edges, replacements);
+
+  const diagnostics = model.diagnostics.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
+  const errors = model.errors.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
+  const warnings = model.warnings.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
+  const suggestions = model.suggestions.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
+  const infos = model.infos.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
+
+  return {
+    ...model,
+    nodes: [...visibleNodes, ...synthetic],
+    edges,
+    zones: rewriteContains(model.zones.filter((zone) => !collapsedZones.has(zone.id)), replacements, collapsedZones),
+    boundaries: rewriteContains(model.boundaries, replacements, collapsedZones),
+    identities: rewriteIdentities(model.identities, replacements),
+    permissions: rewritePermissions(model.permissions, replacements),
+    data: rewriteData(model.data, replacements, edgeIds),
+    diagnostics,
+    errors,
+    warnings,
+    suggestions,
+    infos,
+  };
+}
+
 export function projectSubgraphAbstraction(model: ArchMapModel, level = 0): ArchMapModel {
   const requested = Math.max(0, Math.floor(level));
   if (requested === 0) return model;
@@ -240,33 +329,58 @@ export function projectSubgraphAbstraction(model: ArchMapModel, level = 0): Arch
       if (!replacements.has(id)) replacements.set(id, sg.id);
     }
     const members = memberIds.map((id) => nodeById.get(id)).filter((node): node is ArchNode => !!node);
-    synthetic.push(abstractionNode(sg, members));
+    synthetic.push(abstractionNode(sg.id, sg.label, "subgraph", members));
   }
-  if (replacements.size === 0) return model;
+  return applyAbstractionProjection(model, replacements, synthetic);
+}
 
-  const hidden = new Set(replacements.keys());
-  const visibleNodes = model.nodes.filter((node) => !hidden.has(node.id) && !synthetic.some((sg) => sg.id === node.id));
-  const { edges, edgeIds } = mergeEdges(model.edges, replacements);
+function effectiveZoneMembers(zone: Zone, childrenByParent: Map<string | undefined, Zone[]>, nodeIds: Set<string>, seen = new Set<string>()): Set<string> {
+  if (seen.has(zone.id)) return new Set();
+  seen.add(zone.id);
+  const out = new Set<string>();
+  for (const entry of zone.resolvedContains ?? []) {
+    if (entry.type === "node" && nodeIds.has(entry.id)) out.add(entry.id);
+  }
+  for (const id of zone.contains ?? []) {
+    if (nodeIds.has(id)) out.add(id);
+  }
+  for (const child of childrenByParent.get(zone.id) ?? []) {
+    for (const member of effectiveZoneMembers(child, childrenByParent, nodeIds, seen)) out.add(member);
+  }
+  seen.delete(zone.id);
+  return out;
+}
 
-  const diagnostics = model.diagnostics.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
-  const errors = model.errors.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
-  const warnings = model.warnings.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
-  const suggestions = model.suggestions.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
-  const infos = model.infos.map((entry) => cloneDiagnostic(entry, replacements, edgeIds));
+export function projectZoneAbstraction(model: ArchMapModel, level = 0): ArchMapModel {
+  const requested = Math.max(0, Math.floor(level));
+  if (requested === 0 || model.zones.length === 0) return model;
+  const depths = zoneDepths(model.zones);
+  const targetDepth = requested - 1;
+  const selected = model.zones.filter((zone) => depths.get(zone.id) === targetDepth);
+  if (selected.length === 0) return model;
 
-  return {
-    ...model,
-    nodes: [...visibleNodes, ...synthetic],
-    edges,
-    zones: rewriteContains(model.zones, replacements),
-    boundaries: rewriteContains(model.boundaries, replacements),
-    identities: rewriteIdentities(model.identities, replacements),
-    permissions: rewritePermissions(model.permissions, replacements),
-    data: rewriteData(model.data, replacements, edgeIds),
-    diagnostics,
-    errors,
-    warnings,
-    suggestions,
-    infos,
-  };
+  const nodeIds = new Set(model.nodes.map((node) => node.id));
+  const nodeById = new Map(model.nodes.map((node) => [node.id, node]));
+  const childrenByParent = zoneChildren(model.zones);
+  const replacements = new Map<string, string>();
+  const synthetic: ArchNode[] = [];
+  const collapsedZones = new Set<string>();
+
+  for (const zone of selected) {
+    const memberIds = [...effectiveZoneMembers(zone, childrenByParent, nodeIds)];
+    if (memberIds.length === 0) continue;
+    collapsedZones.add(zone.id);
+    for (const id of memberIds) {
+      if (!replacements.has(id)) replacements.set(id, zone.id);
+    }
+    const members = memberIds.map((id) => nodeById.get(id)).filter((node): node is ArchNode => !!node);
+    synthetic.push(abstractionNode(zone.id, zone.label, "zone", members, zone.parent));
+  }
+  return applyAbstractionProjection(model, replacements, synthetic, collapsedZones);
+}
+
+export function projectAbstraction(model: ArchMapModel, level = 0, target: AbstractionTarget = "subgraph"): ArchMapModel {
+  return target === "zone"
+    ? projectZoneAbstraction(model, level)
+    : projectSubgraphAbstraction(model, level);
 }
