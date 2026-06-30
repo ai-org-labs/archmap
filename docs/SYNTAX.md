@@ -261,7 +261,8 @@ Attached to the model as `diagnostics`, with derived `errors`, `warnings`,
 **Errors:** `invalid_node_id`, `duplicate_node`, `invalid_yaml`,
 `metadata_not_object`, `edge_missing_endpoint`, `edge_unknown_source`,
 `edge_unknown_target`, `zone_parent_conflict`, `zone_cycle`,
-`boundary_cycle`.
+`boundary_cycle`, `scenario_unknown_start`, `scenario_unknown_step`,
+`image_url_disallowed`.
 
 **Warnings:** `unparsed_line`, `metadata_node_not_in_graph`,
 `unknown_node_kind`, `unknown_layer`, `unknown_flow`,
@@ -278,12 +279,15 @@ Attached to the model as `diagnostics`, with derived `errors`, `warnings`,
 `zone_unknown_node`, `zone_unknown_child_zone`, `zone_parent_unknown`,
 `boundary_unknown_node`, `boundary_unknown_zone`,
 `boundary_unknown_boundary`, `boundary_unknown_related_zone`,
-`unknown_base_view`, `unknown_overlay`, `view_3d_unavailable`.
+`unknown_base_view`, `unknown_overlay`, `view_3d_unavailable`,
+`hotspot_out_of_bounds`, `external_transition_without_boundary`.
 
 **Suggestions:** `node_without_metadata`, `node_zone_unknown`,
 `data_without_classification`, `dataflow_missing_storage`,
 `telemetry_without_data_classification`, `placement_ref_unknown`,
-`auth_token_without_recipient`.
+`auth_token_without_recipient`, `scenario_incomplete`,
+`screen_node_without_image`, `transition_without_trigger`,
+`unreachable_screen`, `ambiguous_transition`.
 
 **Infos:** `missing_direction`, `inferred_protocol`, `inferred_auth_token`,
 `inferred_flow`, `inferred_zone`.
@@ -333,6 +337,7 @@ open/close clicks when a read-only view is desired.
 | `dataflow` | data-related components/connectors and data/classification labels |
 | `permission` | permission-related components/connectors and role/action labels or summaries |
 | `validation` | components/connectors referenced by diagnostics, with error/warning labels |
+| `prototype` | ScreenFlow current screen, transitions, hotspots, scenario playback, and overlay summaries |
 | `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
 
 **Layout behavior:** overview and stack views use automatic placement plus
@@ -379,8 +384,8 @@ await overlaid.downloadPng("archmap.png");
   `defineArchMapViewerElement()` directly if you do not use `initialize()`.
   Supported first-pass attributes: `base-view`, `overlays`,
   `abstraction-level`, `abstraction-target`, `width`, `height`, `src`,
-  `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`, and
-  `controls`.
+  `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`,
+  `controls`, `scenario`, and `show-hotspots`.
 - **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows
   tag-style controls (View radio buttons, Render mode radio buttons, Add info
   checkboxes, fit/reset, PNG export, full screen, abstraction lock, diagnostics
@@ -447,7 +452,94 @@ await result.downloadPng("architecture.png");
 2D export converts the rendered SVG into a PNG canvas. 3D export captures the
 current WebGL canvas view, including the current camera angle.
 
-### 6.3 CDN / GitHub Pages viewer
+### 6.3 Prototype View / ScreenFlow
+
+ScreenFlow is enabled with top-level `mode: screenflow` or
+`profile: screenflow` metadata. It reuses the normal graph: screen-like nodes
+are screens, and edges are transitions.
+
+```archmap
+graph LR
+  Home[Home] --> Product[Product Detail]
+  Product --> Cart[Cart]
+---
+mode: screenflow
+nodes:
+  Home:
+    kind: screen
+    image: ./screens/home.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  Product:
+    kind: screen
+    image: ./screens/product-detail.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  Cart:
+    kind: screen
+edges:
+  Home->Product:
+    flow: navigate
+    trigger: tap
+    hotspot: { x: 36, y: 190, width: 318, height: 190 }
+    transition: { type: fade, duration: 180 }
+  Product->Cart:
+    flow: submit
+    trigger: tap
+scenarios:
+  happy_path:
+    label: Purchase happy path
+    start: Home
+    steps: [Home->Product, Product->Cart]
+view:
+  default:
+    base: prototype
+    overlays: [dataflow, boundary, validation]
+```
+
+ScreenFlow node fields:
+
+- `image`: screen capture, wireframe, or mock image URL.
+- `frame.device`: optional device label.
+- `frame.width` / `frame.height`: image-space size used for hotspot scaling
+  and bounds validation.
+
+ScreenFlow edge fields:
+
+- `trigger`: `tap`, `click`, `submit`, `auto`, `redirect`, `back`, etc.
+- `hotspot`: image-space rectangle `{ x, y, width, height }` on the source
+  screen.
+- `transition.type` / `transition.duration`: transition metadata retained in
+  the model.
+
+Scenarios define paper-prototype playback:
+
+- `start`: starting screen node id.
+- `steps`: edge explicit ids or pair keys such as `Home->Product`. Ambiguous
+  pair keys emit `edge_pair_ambiguous`; use explicit edge ids when a pair has
+  multiple transitions.
+
+Additional standard node kinds: `screen`, `page`, `tab`, `modal`, `dialog`,
+`drawer`, `form`, `webview`, `external_page`, `auth_guard`, `error_screen`,
+`completion_screen`, `activity`, `decision`, `start`, `end`.
+
+Additional standard flows: `navigate`, `submit`, `back`, `redirect`,
+`deep_link`, `open_modal`, `close_modal`, `switch_tab`, `auth_check`,
+`api_call`, `success`, `error`, `auto`.
+
+```ts
+const result = render(model, {
+  baseView: "prototype",
+  overlays: ["dataflow", "boundary", "validation"],
+  scenario: "happy_path",
+  showHotspots: true,
+  target: el,
+});
+
+result.next?.();
+result.back?.();
+result.goToScreen?.("Cart");
+```
+
+### 6.4 CDN / GitHub Pages viewer
 
 For a static viewer page, use an import map. After npm publication, replace
 `0.1.0` with the published version you want to pin:

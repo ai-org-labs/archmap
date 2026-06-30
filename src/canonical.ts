@@ -15,6 +15,8 @@ export function toCanonicalModel(model: ArchMapModel): CanonicalArchMapModel {
     version: model.version,
     title: model.title,
     description: model.description,
+    mode: model.mode,
+    profile: model.profile,
     source: model.source,
     graph: {
       direction: model.direction,
@@ -27,6 +29,7 @@ export function toCanonicalModel(model: ArchMapModel): CanonicalArchMapModel {
     identities: byId(model.identities),
     permissions: byId(model.permissions),
     data: byId(model.data),
+    scenarios: byId(model.scenarios),
     layout: model.layout,
     view: model.view,
     diagnostics,

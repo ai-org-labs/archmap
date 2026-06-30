@@ -2,7 +2,7 @@
 
 This folder contains the consolidated ArchMap v0.1 specification set.
 
-There are five normative specification documents:
+There are six normative specification documents:
 
 1. `00-product-principles.md`  
    Product intent, Mermaid-inspired positioning, required 3D value, visual quality principles.
@@ -18,6 +18,9 @@ There are five normative specification documents:
 
 5. `04-engine-api.md`  
    Browser runtime, custom element, JavaScript API, lifecycle, diagnostics, security, delivery modes.
+
+6. `05-screenflow-prototype.md`
+   ScreenFlow DSL/profile additions, scenarios, Prototype View behavior, diagnostics, and security.
 
 ## Authority order
 
@@ -38,6 +41,7 @@ The goal is to avoid multiple documents redefining the same concept.
 - ArchMap adds layers, zones, boundaries, auth, permissions, dataflow, and validation metadata.
 - One canonical model powers all base views and overlays.
 - `overview`, `zone`, and `3d` are required built-in base views.
+- `prototype` extends the same model/render engine for ScreenFlow playback.
 - 3D is required because it provides spatial understanding of zone × layer architecture.
 - Rendering quality is a first-class requirement.
 - Edge overlap, crossing confusion, and unreadable labels must be actively avoided.

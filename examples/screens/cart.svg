@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#f8fafc"/>
+  <text x="32" y="88" font-family="system-ui" font-size="30" font-weight="700" fill="#172033">Cart</text>
+  <rect x="30" y="136" width="330" height="110" rx="16" fill="#fff" stroke="#cbd5e1"/>
+  <text x="58" y="202" font-family="system-ui" font-size="22" fill="#172033">1 item</text>
+  <rect x="46" y="694" width="298" height="56" rx="18" fill="#2563eb"/>
+  <text x="132" y="730" font-family="system-ui" font-size="22" font-weight="700" fill="#fff">Checkout</text>
+</svg>

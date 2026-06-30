@@ -14,6 +14,9 @@ const REGISTRY_LEVELS: Record<string, DiagnosticLevel> = {
   edge_missing_endpoint: "error",
   edge_unknown_source: "error",
   edge_unknown_target: "error",
+  scenario_unknown_start: "error",
+  scenario_unknown_step: "error",
+  image_url_disallowed: "error",
   zone_parent_conflict: "error",
   zone_cycle: "error",
   src_fetch_failed: "error",
@@ -21,6 +24,8 @@ const REGISTRY_LEVELS: Record<string, DiagnosticLevel> = {
   unknown_base_view: "warning",
   unknown_overlay: "warning",
   view_3d_unavailable: "warning",
+  hotspot_out_of_bounds: "warning",
+  external_transition_without_boundary: "warning",
 
   missing_direction: "info",
   inferred_protocol: "info",
@@ -35,6 +40,11 @@ const REGISTRY_LEVELS: Record<string, DiagnosticLevel> = {
   dataflow_missing_storage: "suggestion",
   telemetry_without_data_classification: "suggestion",
   placement_ref_unknown: "suggestion",
+  scenario_incomplete: "suggestion",
+  screen_node_without_image: "suggestion",
+  transition_without_trigger: "suggestion",
+  unreachable_screen: "suggestion",
+  ambiguous_transition: "suggestion",
 };
 
 function levelFor(diagnostic: Diagnostic): DiagnosticLevel {

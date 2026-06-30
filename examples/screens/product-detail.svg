@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#f8fafc"/>
+  <rect x="28" y="48" width="334" height="320" rx="22" fill="#e0f2fe"/>
+  <text x="52" y="214" font-family="system-ui" font-size="28" font-weight="700" fill="#075985">Product</text>
+  <rect x="34" y="430" width="322" height="70" rx="18" fill="#fff" stroke="#cbd5e1"/>
+  <text x="60" y="474" font-family="system-ui" font-size="24" fill="#172033">Add to cart</text>
+  <rect x="34" y="530" width="322" height="70" rx="18" fill="#2563eb"/>
+  <text x="148" y="574" font-family="system-ui" font-size="24" font-weight="700" fill="#fff">Buy</text>
+</svg>

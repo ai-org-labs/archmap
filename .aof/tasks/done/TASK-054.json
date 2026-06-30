@@ -1,0 +1,24 @@
+{
+  "task_id": "TASK-054",
+  "title": "Add ScreenFlow Prototype View to @archmap/core",
+  "description": "Added ScreenFlow model/parser/validation support and a built-in prototype base view on top of the existing @archmap/core render/custom-element architecture.",
+  "status": "done",
+  "origin": "human-screenflow-prototype-view",
+  "created_at": "2026-07-01T00:01:00.000+09:00",
+  "done_at": "2026-07-01T00:04:00.000+09:00",
+  "decision_notes": [
+    "This is not a new engine. It extends existing @archmap/core types, metadata parser, validation, registerView/render, RenderResult optional methods, custom element attributes, controls, docs, and examples.",
+    "Prototype View is implemented as a DOM MountableView so images, hotspot clicks, scenario selector, and transition controls can be managed without reparsing.",
+    "Image URLs are assigned through DOM attributes and validated with a protocol allowlist; javascript:/data: URLs are rejected by image_url_disallowed.",
+    "The Node/Vitest test environment has no browser backend or DOM implementation, so click-level browser smoke remains a follow-up. Parser, validation, render registry, custom attribute parsing, full tests, build, and local HTTP asset serving were verified."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/prototype.test.ts test/render.test.ts test/parser.test.ts",
+    "npm test",
+    "npm run build",
+    "curl -I http://127.0.0.1:4174/",
+    "curl -I http://127.0.0.1:4174/examples/screenflow.archmap",
+    "curl -I http://127.0.0.1:4174/examples/screens/home.svg"
+  ]
+}

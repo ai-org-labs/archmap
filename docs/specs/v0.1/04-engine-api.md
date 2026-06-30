@@ -868,7 +868,82 @@ If Markdown or HTML labels are supported in the future, they must be sanitized b
 
 ---
 
-## 20. Minimal acceptance criteria
+## 20. Prototype View API
+
+`prototype` is a built-in base view for ScreenFlow models. It is mounted through
+the existing view registry and render lifecycle:
+
+```ts
+const result = render(model, {
+  baseView: "prototype",
+  overlays: ["dataflow", "boundary", "validation"],
+  scenario: "happy_path",
+  showHotspots: true,
+  target: element,
+});
+```
+
+The view consumes the same parsed model as overview/stack views. Overlay
+changes must not require reparsing.
+
+### 20.1 Custom element attributes
+
+`<archmap-viewer>` supports these Prototype-specific attributes:
+
+- `scenario`: initial scenario id.
+- `show-hotspots`: when present or `"true"`, hotspot rectangles are visible.
+
+Example:
+
+```html
+<archmap-viewer
+  base-view="prototype"
+  overlays="dataflow,boundary,validation"
+  scenario="happy_path"
+  show-hotspots="true"
+  controls
+></archmap-viewer>
+```
+
+### 20.2 RenderResult optional methods
+
+Prototype-capable render handles may expose these optional methods:
+
+```ts
+setScenario?(id: string): void;
+getScenario?(): string | null;
+goToScreen?(id: string): void;
+getCurrentScreen?(): string | null;
+next?(): void;
+back?(): void;
+toggleHotspots?(enabled?: boolean): void;
+```
+
+Callers must treat them as optional so existing SVG/3D views remain compatible.
+
+### 20.3 Events
+
+Prototype View emits:
+
+- `archmap:prototype-screen-change`
+- `archmap:prototype-transition`
+- `archmap:prototype-scenario-change`
+- `archmap:prototype-hotspot-click`
+
+Event `detail` contains model references, not DOM nodes:
+
+```json
+{
+  "from": "Home",
+  "to": "ProductDetail",
+  "edgeId": "Home__ProductDetail__0",
+  "scenario": "happy_path"
+}
+```
+
+---
+
+## 21. Minimal acceptance criteria
 
 The rendering engine is acceptable when:
 
@@ -889,3 +964,5 @@ The rendering engine is acceptable when:
 15. Overlay changes do not require reparsing.
 16. The renderer works without a backend server.
 17. Labels and edges are rendered with enough quality to avoid user confusion.
+18. `prototype` base view can display a ScreenFlow current screen and transition controls.
+19. Prototype scenario, hotspot visibility, and navigation methods are available through optional APIs without breaking other views.

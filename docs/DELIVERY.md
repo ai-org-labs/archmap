@@ -67,6 +67,38 @@ examples/demo.html
 The static demo imports the built local ArchMap bundle and uses jsDelivr for
 `three` and `@archmap/icons`.
 
+### Prototype View / ScreenFlow
+
+Prototype View is part of `@archmap/core` and uses the existing
+`<archmap-viewer>` element:
+
+```html
+<archmap-viewer
+  src="./examples/screenflow.archmap"
+  base-view="prototype"
+  overlays="dataflow,boundary,validation"
+  scenario="happy_path"
+  show-hotspots="true"
+  controls
+  diagnostics
+  style="display:block;min-height:720px"
+></archmap-viewer>
+```
+
+The same view is available through JavaScript:
+
+```ts
+const result = render(model, {
+  baseView: "prototype",
+  scenario: "happy_path",
+  showHotspots: true,
+  target: document.querySelector("#diagram"),
+});
+
+result.next?.();
+result.back?.();
+```
+
 ### CDN Pattern
 
 For browser-only pages, use an import map. During local verification,
@@ -161,6 +193,10 @@ Implemented safeguards:
   that contains unrelated app state.
 - External `src` loading uses browser `fetch` and emits `src_fetch_failed` on
   failure. It does not bypass browser CORS or filesystem restrictions.
+- Prototype View image URLs are assigned through DOM attributes and are not
+  interpolated as HTML. Unsafe protocols such as `javascript:` and `data:` are
+  rejected with `image_url_disallowed`; relative, `http:`, `https:`, and `blob:`
+  URLs are allowed.
 - Optional icon packs are explicit opt-ins through `registerIcon`; the core
   bundle ships no vendor icon assets.
 - Third-party logos, product names, and service marks remain the property of

@@ -20,6 +20,7 @@ import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
 import { boundaryView } from "./views/boundary.js";
 import { validationView } from "./views/validation.js";
+import { prototypeView } from "./views/prototype.js";
 import { renderDiagram } from "./views/base.js";
 import type { Box } from "./views/base.js";
 import { escapeXml } from "./views/svg.js";
@@ -49,6 +50,13 @@ export interface ExportPngOptions {
 export interface ViewHandle {
   dispose(): void;
   exportPng?(options?: ExportPngOptions): Promise<Blob> | Blob;
+  setScenario?(id: string): void;
+  getScenario?(): string | null;
+  goToScreen?(id: string): void;
+  getCurrentScreen?(): string | null;
+  next?(): void;
+  back?(): void;
+  toggleHotspots?(enabled?: boolean): void;
 }
 
 /** A view that mounts imperatively into a DOM element instead of returning SVG. */
@@ -91,6 +99,10 @@ export interface RenderOptions {
   inspectorTarget?: Element | string | null;
   /** Initial inspector selection. */
   selection?: InspectorSelection | null;
+  /** Prototype View scenario id. */
+  scenario?: string;
+  /** Prototype View hotspot visibility. */
+  showHotspots?: boolean;
   /** Report diagnostics to the console (spec 02 §23). Default: off for the
    * programmatic API; engines (viewer/initialize) default it on. */
   console?: boolean | ConsoleReportOptions;
@@ -123,6 +135,13 @@ export interface RenderResult {
   reset(): void;
   exportPng(options?: ExportPngOptions): Promise<Blob>;
   downloadPng(filename?: string, options?: ExportPngOptions): Promise<void>;
+  setScenario?(id: string): void;
+  getScenario?(): string | null;
+  goToScreen?(id: string): void;
+  getCurrentScreen?(): string | null;
+  next?(): void;
+  back?(): void;
+  toggleHotspots?(enabled?: boolean): void;
   destroy(): void;
 }
 
@@ -432,6 +451,7 @@ registerView("auth", authView);
 registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
 registerView("validation", validationView);
+registerView("prototype", prototypeView);
 registerView("3d", ({ model }) => {
   model.warnings.push(diagnostic("view_3d_unavailable", "3D renderer is not installed. Import @archmap/core/views3d/three-view and call installThreeView() to enable it.", { type: "view", id: "3d" }));
   return (
@@ -605,7 +625,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
     const layout = computeLayout(effectiveModel, layoutOptionsForState(state, options));
     const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget };
-    const overlaidSvg = renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
+    const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
 
     if (typeof out === "string") {
@@ -755,6 +775,27 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       const blob = await result.exportPng(exportOptions);
       await downloadBlob(blob, filename);
     },
+    setScenario(id: string) {
+      result.handle?.setScenario?.(id);
+    },
+    getScenario() {
+      return result.handle?.getScenario?.() ?? null;
+    },
+    goToScreen(id: string) {
+      result.handle?.goToScreen?.(id);
+    },
+    getCurrentScreen() {
+      return result.handle?.getCurrentScreen?.() ?? null;
+    },
+    next() {
+      result.handle?.next?.();
+    },
+    back() {
+      result.handle?.back?.();
+    },
+    toggleHotspots(enabled?: boolean) {
+      result.handle?.toggleHotspots?.(enabled);
+    },
     destroy() {
       panZoom?.dispose();
       panZoom = undefined;
@@ -813,6 +854,8 @@ export interface ViewerAttributeOptions {
   consoleReport: boolean;
   /** Show the controls toolbar (view selector, render mode, additive overlays, fit/reset). */
   controls: boolean;
+  scenario?: string;
+  showHotspots: boolean;
 }
 
 export function parseOverlaysAttribute(value: string | null): string[] {
@@ -839,14 +882,17 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     fallbackToInline: attrs.hasAttribute?.("fallback-to-inline") === true,
     consoleReport: attrs.getAttribute("console") !== "false",
     controls: attrs.getAttribute("controls") === "true" || attrs.hasAttribute?.("controls") === true,
+    scenario: attrs.getAttribute("scenario") ?? undefined,
+    showHotspots: attrs.getAttribute("show-hotspots") === "true" || attrs.hasAttribute?.("show-hotspots") === true,
   };
 }
 
 /** Semantic views offered by the controls toolbar: what the user wants to inspect. */
-export const BASE_VIEWS = ["overview", "layer"] as const;
+export const BASE_VIEWS = ["overview", "layer", "prototype"] as const;
 const BASE_VIEW_LABELS: Record<(typeof BASE_VIEWS)[number], string> = {
   overview: "Overview",
   layer: "Stack",
+  prototype: "Prototype",
 };
 /** Render modes offered by the controls toolbar: how to display the selected view. */
 export const RENDER_MODES = ["2d", "3d"] as const;
@@ -864,7 +910,7 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "render-mode", "overlays", "abstraction-level", "abstraction-target", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
+      return ["base-view", "render-mode", "overlays", "abstraction-level", "abstraction-target", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls", "scenario", "show-hotspots"];
     }
 
     private source = "";
@@ -903,6 +949,10 @@ export function defineArchMapViewerElement(): void {
         this.runWithLoading(() => this.result?.setAbstractionLevel(options.abstractionLevel));
       } else if (name === "abstraction-target") {
         this.runWithLoading(() => this.result?.setAbstractionTarget(options.abstractionTarget));
+      } else if (name === "scenario" && options.scenario) {
+        this.runWithLoading(() => this.result?.setScenario?.(options.scenario!));
+      } else if (name === "show-hotspots") {
+        this.runWithLoading(() => this.result?.toggleHotspots?.(options.showHotspots));
       } else if (name === "width" || name === "height") {
         this.applyFrameStyle();
       } else {
@@ -1024,6 +1074,8 @@ export function defineArchMapViewerElement(): void {
         diagnosticsTarget: this.diagnosticsTarget(options),
         inspectorTarget: this.inspectorTarget(options),
         console: options.consoleReport,
+        scenario: options.scenario,
+        showHotspots: options.showHotspots,
       });
       if (options.controls) this.renderControls(options);
       else this.controlsBar?.remove(), (this.controlsBar = undefined);

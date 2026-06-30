@@ -932,6 +932,8 @@ describe("archmap-viewer attributes", () => {
       fallbackToInline: true,
       consoleReport: true,
       controls: false,
+      scenario: undefined,
+      showHotspots: false,
     });
   });
 
