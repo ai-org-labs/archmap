@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-056 opened: rendering performance is a real risk. Initial ad-hoc benchmark shows parse is cheap, while layout/render dominate; large sample hit layout >1s, overview render >2s, stack+zone >8s. Added npm run bench:render via tools/bench-render.mjs for repeatable baseline. Next: profile routeEdges/buildEdgePaths/label placement and reduce unnecessary layout recomputation on overlay/view changes.",
-  "updated_at": "2026-07-01T01:20:00.000+09:00",
+  "content": "TASK-057 checkpoint done: ScreenFlow prototype map is now fit-centered instead of top-left, supports pointer drag pan, mouse wheel and +/-/Fit zoom controls, and separates branch labels near outgoing branches. Browser smoke on localhost:5173 confirmed centered transform, zoom transform change, drag transform change, and submit/back/redirect labels no longer share the same coordinate. TASK-056 performance remains open; next optimization target is layout/render recomputation and dense edge path costs.",
+  "updated_at": "2026-07-01T03:00:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

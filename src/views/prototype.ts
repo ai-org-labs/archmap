@@ -175,6 +175,23 @@ function setAttrs(el: Element, attrs: Record<string, string | number>): void {
   for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, String(value));
 }
 
+function outgoingCounts(model: ArchMapModel): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const edge of model.edges) counts.set(edge.from, (counts.get(edge.from) ?? 0) + 1);
+  return counts;
+}
+
+function outgoingOrdinals(model: ArchMapModel): Map<string, number> {
+  const seen = new Map<string, number>();
+  const ordinals = new Map<string, number>();
+  for (const edge of model.edges) {
+    const next = seen.get(edge.from) ?? 0;
+    ordinals.set(edge.id, next);
+    seen.set(edge.from, next + 1);
+  }
+  return ordinals;
+}
+
 export function prototypeView({ model, options }: ViewContext): MountableView {
   return {
     mount(target: Element): ViewHandle {
@@ -204,8 +221,9 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-card-panel{border:1px solid #d7dee9;border-radius:8px;background:#fff;padding:10px}",
         ".archmap-prototype-card-panel h3{margin:0 0 8px;font-size:13px}",
         ".archmap-prototype-card-panel ul{margin:0;padding-left:18px}",
-        ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:auto;border:1px solid #cbd5e1;border-radius:8px;background:#fff;position:relative}",
-        ".archmap-prototype-flow-canvas{position:relative}",
+        ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:1px solid #cbd5e1;border-radius:8px;background:#fff;position:relative;touch-action:none;cursor:grab}",
+        ".archmap-prototype-flow.is-dragging{cursor:grabbing}",
+        ".archmap-prototype-flow-canvas{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}",
         ".archmap-prototype-flow-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}",
         ".archmap-prototype-flow-card{position:absolute;display:flex;flex-direction:column;border:2px solid #315b92;border-radius:10px;background:#f8fbff;box-shadow:0 2px 7px rgba(15,23,42,.10);overflow:hidden;cursor:pointer}",
         ".archmap-prototype-flow-card.is-current{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.18)}",
@@ -214,6 +232,8 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-flow-label{padding:8px 10px;font-weight:800;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
         ".archmap-prototype-flow-kind{padding:0 10px 9px;text-align:center;color:#64748b;font-size:11px;font-weight:700}",
         ".archmap-prototype-flow-edge-label{font:700 12px system-ui,sans-serif;fill:#334155;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}",
+        ".archmap-prototype-flow-controls{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;z-index:3}",
+        ".archmap-prototype-flow-controls button{padding:6px 8px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(15,23,42,.14)}",
       ].join("");
       root.appendChild(style);
 
@@ -231,6 +251,9 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       let scenarioIndex = 0;
       let showHotspots = options.showHotspots === true;
       let displayMode: "map" | "play" = "map";
+      let mapPan = { x: 0, y: 0 };
+      let mapZoom = 1;
+      let mapInitialized = false;
       const history: string[] = [];
 
       const currentNode = (): ArchNode | undefined => model.nodes.find((node) => node.id === current);
@@ -259,6 +282,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         scenarioIndex = 0;
         history.length = 0;
         current = initialScreen(model, scenario?.id);
+        mapInitialized = false;
         renderUi();
         emit(target, "archmap:prototype-scenario-change", { scenario: scenario?.id ?? null, start: current ?? null });
       };
@@ -315,10 +339,37 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         screenPane.className = "archmap-prototype-flow";
         const map = flowMapLayout(model, scenario);
         const byId = new Map(map.nodes.map((entry) => [entry.node.id, entry]));
+        const branchCounts = outgoingCounts(model);
+        const branchOrdinals = outgoingOrdinals(model);
         const canvas = document.createElement("div");
         canvas.className = "archmap-prototype-flow-canvas";
         canvas.style.width = `${map.width}px`;
         canvas.style.height = `${map.height}px`;
+        const applyMapTransform = (): void => {
+          canvas.style.transform = `translate(${mapPan.x.toFixed(1)}px, ${mapPan.y.toFixed(1)}px) scale(${mapZoom.toFixed(3)})`;
+        };
+        const fitMap = (): void => {
+          const bounds = screenPane.getBoundingClientRect();
+          const viewportW = Math.max(1, bounds.width);
+          const viewportH = Math.max(1, bounds.height);
+          mapZoom = Math.min(1, Math.max(0.25, Math.min((viewportW - 56) / map.width, (viewportH - 56) / map.height)));
+          mapPan = {
+            x: (viewportW - map.width * mapZoom) / 2,
+            y: (viewportH - map.height * mapZoom) / 2,
+          };
+          applyMapTransform();
+        };
+        const zoomAt = (factor: number, clientX?: number, clientY?: number): void => {
+          const bounds = screenPane.getBoundingClientRect();
+          const anchorX = clientX === undefined ? bounds.left + bounds.width / 2 : clientX;
+          const anchorY = clientY === undefined ? bounds.top + bounds.height / 2 : clientY;
+          const localX = anchorX - bounds.left;
+          const localY = anchorY - bounds.top;
+          const before = { x: (localX - mapPan.x) / mapZoom, y: (localY - mapPan.y) / mapZoom };
+          mapZoom = Math.min(2.5, Math.max(0.25, mapZoom * factor));
+          mapPan = { x: localX - before.x * mapZoom, y: localY - before.y * mapZoom };
+          applyMapTransform();
+        };
 
         const svg = svgEl("svg");
         svg.classList.add("archmap-prototype-flow-svg");
@@ -355,10 +406,45 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const label = svgEl("text");
           label.classList.add("archmap-prototype-flow-edge-label");
           label.textContent = edge.trigger ?? edge.label ?? edge.flow ?? "";
-          setAttrs(label, { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 - 8, "text-anchor": "middle" });
+          const isBranch = (branchCounts.get(edge.from) ?? 0) > 1;
+          const branchOrdinal = branchOrdinals.get(edge.id) ?? 0;
+          const labelX = isBranch
+            ? (end.x >= start.x ? Math.min(start.x + 70, end.x - 42) : start.x + 38)
+            : (start.x + end.x) / 2;
+          const labelY = isBranch ? start.y - 18 + branchOrdinal * 18 : (start.y + end.y) / 2 - 8;
+          setAttrs(label, { x: labelX, y: labelY, "text-anchor": "middle" });
           if (label.textContent) svg.appendChild(label);
         }
         canvas.appendChild(svg);
+
+        let dragStart: { pointerId: number; x: number; y: number; panX: number; panY: number } | undefined;
+        let didDrag = false;
+        screenPane.addEventListener("pointerdown", (event) => {
+          dragStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, panX: mapPan.x, panY: mapPan.y };
+          didDrag = false;
+          screenPane.classList.add("is-dragging");
+          screenPane.setPointerCapture?.(event.pointerId);
+        });
+        screenPane.addEventListener("pointermove", (event) => {
+          if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+          const dx = event.clientX - dragStart.x;
+          const dy = event.clientY - dragStart.y;
+          if (Math.abs(dx) + Math.abs(dy) > 4) didDrag = true;
+          mapPan = { x: dragStart.panX + dx, y: dragStart.panY + dy };
+          applyMapTransform();
+        });
+        const endDrag = (event: PointerEvent): void => {
+          if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+          dragStart = undefined;
+          screenPane.classList.remove("is-dragging");
+          screenPane.releasePointerCapture?.(event.pointerId);
+        };
+        screenPane.addEventListener("pointerup", endDrag);
+        screenPane.addEventListener("pointercancel", endDrag);
+        screenPane.addEventListener("wheel", (event) => {
+          event.preventDefault();
+          zoomAt(event.deltaY < 0 ? 1.1 : 0.9, event.clientX, event.clientY);
+        }, { passive: false });
 
         for (const item of map.nodes) {
           const card = document.createElement("button");
@@ -388,6 +474,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           kind.textContent = [item.node.kind, item.node.zone].filter(Boolean).join(" / ") || item.node.id;
           card.append(label, kind);
           card.addEventListener("click", () => {
+            if (didDrag) return;
             current = item.node.id;
             displayMode = "play";
             renderUi();
@@ -395,7 +482,32 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           canvas.appendChild(card);
         }
 
+        const controls = document.createElement("div");
+        controls.className = "archmap-prototype-flow-controls";
+        const zoomOut = button("−", "archmap-prototype-flow-zoom-out");
+        zoomOut.title = "Zoom out";
+        zoomOut.addEventListener("click", () => zoomAt(0.85));
+        const fit = button("Fit", "archmap-prototype-flow-fit");
+        fit.title = "Fit map";
+        fit.addEventListener("click", () => {
+          mapInitialized = false;
+          fitMap();
+          mapInitialized = true;
+        });
+        const zoomIn = button("+", "archmap-prototype-flow-zoom-in");
+        zoomIn.title = "Zoom in";
+        zoomIn.addEventListener("click", () => zoomAt(1.18));
+        controls.append(zoomOut, fit, zoomIn);
         screenPane.appendChild(canvas);
+        screenPane.appendChild(controls);
+        if (!mapInitialized) {
+          requestAnimationFrame(() => {
+            fitMap();
+            mapInitialized = true;
+          });
+        } else {
+          applyMapTransform();
+        }
       };
 
       const renderUi = (): void => {

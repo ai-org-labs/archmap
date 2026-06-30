@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-057",
+  "title": "Improve ScreenFlow map pan zoom and branch labels",
+  "description": "Centered the ScreenFlow prototype map, added drag pan and zoom controls, and moved branch labels near outgoing branches with per-edge separation.",
+  "status": "done",
+  "origin": "human-browser-comment-screenflow-map-ux",
+  "created_at": "2026-07-01T02:50:00.000+09:00",
+  "done_at": "2026-07-01T03:00:00.000+09:00",
+  "decision_notes": [
+    "Map mode now behaves like a viewport over a canvas: initial fit-center, wheel/button zoom, and pointer drag pan.",
+    "Map pan/zoom is stateful while remaining in map mode and is reset when scenario selection changes.",
+    "Branch labels are placed near the branch source and offset per outgoing edge so submit/back/redirect labels do not collapse onto the same coordinate."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/prototype.test.ts test/render.test.ts",
+    "npm run build",
+    "Browser smoke on http://localhost:5173/: map centered, zoom changes transform, drag changes transform, branch labels have separated coordinates"
+  ]
+}
