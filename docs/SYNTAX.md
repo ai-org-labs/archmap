@@ -517,6 +517,13 @@ Scenarios define paper-prototype playback:
   pair keys emit `edge_pair_ambiguous`; use explicit edge ids when a pair has
   multiple transitions.
 
+Prototype View has two modes:
+
+- `Map`: the default view. Screen nodes are shown as image/fallback cards and
+  transitions are drawn as arrowed lines from screen to screen.
+- `Play`: paper-prototype playback. The current screen is shown large with
+  hotspot navigation, outgoing transition buttons, and scenario controls.
+
 Additional standard node kinds: `screen`, `page`, `tab`, `modal`, `dialog`,
 `drawer`, `form`, `webview`, `external_page`, `auth_guard`, `error_screen`,
 `completion_screen`, `activity`, `decision`, `start`, `end`.

@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-054 checkpoint done: ScreenFlow / Prototype View has been added to the existing @archmap/core architecture, not as a new engine. Added mode/profile screenflow parsing, node image/frame fields, edge trigger/hotspot/transition fields, scenarios, screenflow vocabulary, screenflow diagnostics, built-in registerView('prototype') DOM MountableView, RenderResult optional prototype methods, custom element scenario/show-hotspots attributes, controls Prototype option, examples/screenflow.archmap with mock SVG screens, docs/SYNTAX.md, docs/DELIVERY.md, docs/specs/v0.1/04-engine-api.md, and docs/specs/v0.1/05-screenflow-prototype.md. Verification: npm run typecheck; npm test -- --run test/prototype.test.ts test/render.test.ts test/parser.test.ts; npm test; npm run build; local dev server on http://127.0.0.1:4174/ with screenflow example/assets HTTP 200. Browser backend was unavailable in this session, so click-level hotspot/browser smoke is the main follow-up.",
-  "updated_at": "2026-07-01T00:04:00.000+09:00",
+  "content": "TASK-055 checkpoint done: Prototype View now defaults to a ScreenFlow Map mode that shows screen image/fallback cards connected by arrowed transitions, with a Play mode for paper-prototype playback. Clicking a map card opens that screen in Play. Docs now describe Map vs Play. Verification: npm run typecheck; npm test -- --run test/prototype.test.ts test/render.test.ts; npm run build; browser smoke on http://localhost:5173/ confirmed .archmap-prototype-flow=1, cards=8, arrows=8, and card click switches to Play. Next: refine visual layout of transition maps under denser screenflows, and keep QIF/spec drift checks before publication.",
+  "updated_at": "2026-07-01T01:08:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

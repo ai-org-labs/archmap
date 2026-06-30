@@ -75,6 +75,106 @@ function emit(target: Element, name: string, detail: Record<string, unknown>): v
   target.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
 }
 
+interface FlowMapNode {
+  node: ArchNode;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function screenNodes(model: ArchMapModel): ArchNode[] {
+  const screens = model.nodes.filter(isScreenNode);
+  return screens.length > 0 ? screens : model.nodes;
+}
+
+function scenarioOrder(model: ArchMapModel, scenario: Scenario | undefined): Map<string, number> {
+  const order = new Map<string, number>();
+  if (scenario) {
+    order.set(scenario.start, 0);
+    const resolve = edgeResolver(model);
+    scenario.steps.forEach((ref, index) => {
+      const edge = resolve(ref);
+      if (edge) order.set(edge.to, index + 1);
+    });
+  }
+  model.nodes.forEach((node, index) => {
+    if (!order.has(node.id)) order.set(node.id, index + 1000);
+  });
+  return order;
+}
+
+function flowMapLayout(model: ArchMapModel, scenario: Scenario | undefined): { nodes: FlowMapNode[]; width: number; height: number } {
+  const screens = screenNodes(model);
+  const screenIds = new Set(screens.map((node) => node.id));
+  const transitions = model.edges.filter((edge) => screenIds.has(edge.from) && screenIds.has(edge.to));
+  const incoming = new Set(transitions.map((edge) => edge.to));
+  const roots = scenario?.start && screenIds.has(scenario.start)
+    ? [scenario.start]
+    : screens.filter((node) => !incoming.has(node.id)).map((node) => node.id);
+  if (roots.length === 0 && screens[0]) roots.push(screens[0].id);
+
+  const depth = new Map<string, number>();
+  const queue = [...roots];
+  for (const root of roots) depth.set(root, 0);
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const nextDepth = (depth.get(current) ?? 0) + 1;
+    for (const edge of transitions.filter((entry) => entry.from === current)) {
+      const existing = depth.get(edge.to);
+      if (existing === undefined || nextDepth < existing) {
+        depth.set(edge.to, nextDepth);
+        queue.push(edge.to);
+      }
+    }
+  }
+  for (const node of screens) {
+    if (!depth.has(node.id)) depth.set(node.id, Math.max(0, depth.size));
+  }
+
+  const order = scenarioOrder(model, scenario);
+  const columns = new Map<number, ArchNode[]>();
+  for (const node of screens) {
+    const d = depth.get(node.id) ?? 0;
+    columns.set(d, [...(columns.get(d) ?? []), node]);
+  }
+
+  const cardW = 210;
+  const cardH = 260;
+  const xGap = 108;
+  const yGap = 44;
+  const margin = 32;
+  const placed: FlowMapNode[] = [];
+  const sortedDepths = [...columns.keys()].sort((a, b) => a - b);
+  for (const d of sortedDepths) {
+    const nodes = [...(columns.get(d) ?? [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) || a.label.localeCompare(b.label));
+    nodes.forEach((node, index) => {
+      placed.push({
+        node,
+        x: margin + d * (cardW + xGap),
+        y: margin + index * (cardH + yGap),
+        w: cardW,
+        h: cardH,
+      });
+    });
+  }
+  const maxDepth = Math.max(0, ...sortedDepths);
+  const maxRows = Math.max(1, ...[...columns.values()].map((nodes) => nodes.length));
+  return {
+    nodes: placed,
+    width: margin * 2 + (maxDepth + 1) * cardW + maxDepth * xGap,
+    height: margin * 2 + maxRows * cardH + (maxRows - 1) * yGap,
+  };
+}
+
+function svgEl<K extends keyof SVGElementTagNameMap>(name: K): SVGElementTagNameMap[K] {
+  return document.createElementNS("http://www.w3.org/2000/svg", name);
+}
+
+function setAttrs(el: Element, attrs: Record<string, string | number>): void {
+  for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, String(value));
+}
+
 export function prototypeView({ model, options }: ViewContext): MountableView {
   return {
     mount(target: Element): ViewHandle {
@@ -96,6 +196,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
         ".archmap-prototype button,.archmap-prototype select{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#172033;padding:7px 9px;font:600 12px system-ui,sans-serif}",
         ".archmap-prototype button{cursor:pointer}",
+        ".archmap-prototype button[aria-pressed='true']{background:#dbeafe;border-color:#6b93ca;color:#163b68}",
         ".archmap-prototype-transition{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left}",
         ".archmap-prototype-badge{display:inline-flex;border-radius:999px;background:#e2e8f0;color:#334155;padding:2px 7px;font-size:11px;font-weight:700}",
         ".archmap-prototype-warning{color:#92400e;font-weight:700}",
@@ -103,6 +204,16 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-card-panel{border:1px solid #d7dee9;border-radius:8px;background:#fff;padding:10px}",
         ".archmap-prototype-card-panel h3{margin:0 0 8px;font-size:13px}",
         ".archmap-prototype-card-panel ul{margin:0;padding-left:18px}",
+        ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:auto;border:1px solid #cbd5e1;border-radius:8px;background:#fff;position:relative}",
+        ".archmap-prototype-flow-canvas{position:relative}",
+        ".archmap-prototype-flow-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}",
+        ".archmap-prototype-flow-card{position:absolute;display:flex;flex-direction:column;border:2px solid #315b92;border-radius:10px;background:#f8fbff;box-shadow:0 2px 7px rgba(15,23,42,.10);overflow:hidden;cursor:pointer}",
+        ".archmap-prototype-flow-card.is-current{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.18)}",
+        ".archmap-prototype-flow-card img{width:100%;height:202px;object-fit:contain;background:#fff;border-bottom:1px solid #d7dee9}",
+        ".archmap-prototype-flow-fallback{height:202px;display:flex;align-items:center;justify-content:center;padding:16px;background:#eef6ff;color:#315b92;font-size:20px;font-weight:800;text-align:center;border-bottom:1px solid #d7dee9}",
+        ".archmap-prototype-flow-label{padding:8px 10px;font-weight:800;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+        ".archmap-prototype-flow-kind{padding:0 10px 9px;text-align:center;color:#64748b;font-size:11px;font-weight:700}",
+        ".archmap-prototype-flow-edge-label{font:700 12px system-ui,sans-serif;fill:#334155;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}",
       ].join("");
       root.appendChild(style);
 
@@ -119,6 +230,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       let current = initialScreen(model, scenario?.id);
       let scenarioIndex = 0;
       let showHotspots = options.showHotspots === true;
+      let displayMode: "map" | "play" = "map";
       const history: string[] = [];
 
       const currentNode = (): ArchNode | undefined => model.nodes.find((node) => node.id === current);
@@ -198,11 +310,121 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         }
       };
 
+      const renderMap = (): void => {
+        screenPane.textContent = "";
+        screenPane.className = "archmap-prototype-flow";
+        const map = flowMapLayout(model, scenario);
+        const byId = new Map(map.nodes.map((entry) => [entry.node.id, entry]));
+        const canvas = document.createElement("div");
+        canvas.className = "archmap-prototype-flow-canvas";
+        canvas.style.width = `${map.width}px`;
+        canvas.style.height = `${map.height}px`;
+
+        const svg = svgEl("svg");
+        svg.classList.add("archmap-prototype-flow-svg");
+        setAttrs(svg, { width: map.width, height: map.height, viewBox: `0 0 ${map.width} ${map.height}` });
+        const defs = svgEl("defs");
+        const marker = svgEl("marker");
+        setAttrs(marker, { id: "archmap-prototype-arrow", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+        const arrow = svgEl("path");
+        setAttrs(arrow, { d: "M 0 0 L 10 5 L 0 10 z", fill: "#4f6f9d" });
+        marker.appendChild(arrow);
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+
+        const screenIds = new Set(map.nodes.map((entry) => entry.node.id));
+        for (const edge of model.edges.filter((entry) => screenIds.has(entry.from) && screenIds.has(entry.to))) {
+          const from = byId.get(edge.from);
+          const to = byId.get(edge.to);
+          if (!from || !to) continue;
+          const start = { x: from.x + from.w, y: from.y + from.h / 2 };
+          const end = { x: to.x, y: to.y + to.h / 2 };
+          const midX = start.x + Math.max(42, (end.x - start.x) / 2);
+          const points = end.x >= start.x
+            ? `${start.x},${start.y} ${midX},${start.y} ${midX},${end.y} ${end.x},${end.y}`
+            : `${start.x},${start.y} ${start.x + 32},${start.y} ${start.x + 32},${end.y} ${end.x},${end.y}`;
+          const polyline = svgEl("polyline");
+          setAttrs(polyline, {
+            points,
+            fill: "none",
+            stroke: edge.boundaryCrossing ? "#d97706" : "#4f6f9d",
+            "stroke-width": 2,
+            "marker-end": "url(#archmap-prototype-arrow)",
+          });
+          svg.appendChild(polyline);
+          const label = svgEl("text");
+          label.classList.add("archmap-prototype-flow-edge-label");
+          label.textContent = edge.trigger ?? edge.label ?? edge.flow ?? "";
+          setAttrs(label, { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 - 8, "text-anchor": "middle" });
+          if (label.textContent) svg.appendChild(label);
+        }
+        canvas.appendChild(svg);
+
+        for (const item of map.nodes) {
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = `archmap-prototype-flow-card${item.node.id === current ? " is-current" : ""}`;
+          card.style.left = `${item.x}px`;
+          card.style.top = `${item.y}px`;
+          card.style.width = `${item.w}px`;
+          card.style.height = `${item.h}px`;
+          card.title = `Open ${item.node.label}`;
+          if (item.node.image && isSafeImageUrl(item.node.image)) {
+            const img = document.createElement("img");
+            img.src = item.node.image;
+            img.alt = item.node.label;
+            card.appendChild(img);
+          } else {
+            const fallback = document.createElement("div");
+            fallback.className = "archmap-prototype-flow-fallback";
+            fallback.textContent = item.node.label;
+            card.appendChild(fallback);
+          }
+          const label = document.createElement("div");
+          label.className = "archmap-prototype-flow-label";
+          label.textContent = item.node.label;
+          const kind = document.createElement("div");
+          kind.className = "archmap-prototype-flow-kind";
+          kind.textContent = [item.node.kind, item.node.zone].filter(Boolean).join(" / ") || item.node.id;
+          card.append(label, kind);
+          card.addEventListener("click", () => {
+            current = item.node.id;
+            displayMode = "play";
+            renderUi();
+          });
+          canvas.appendChild(card);
+        }
+
+        screenPane.appendChild(canvas);
+      };
+
       const renderUi = (): void => {
         const node = currentNode();
         const edges = outgoing();
-        renderScreen(node, edges);
+        if (displayMode === "map") {
+          renderMap();
+        } else {
+          screenPane.className = "archmap-prototype-screen";
+          renderScreen(node, edges);
+        }
         panel.textContent = "";
+
+        const modeRow = document.createElement("div");
+        modeRow.className = "archmap-prototype-row";
+        const mapButton = button("Map", "archmap-prototype-mode-map");
+        mapButton.setAttribute("aria-pressed", String(displayMode === "map"));
+        mapButton.addEventListener("click", () => {
+          displayMode = "map";
+          renderUi();
+        });
+        const playButton = button("Play", "archmap-prototype-mode-play");
+        playButton.setAttribute("aria-pressed", String(displayMode === "play"));
+        playButton.addEventListener("click", () => {
+          displayMode = "play";
+          renderUi();
+        });
+        modeRow.append(mapButton, playButton);
+        panel.appendChild(modeRow);
 
         const nav = document.createElement("div");
         nav.className = "archmap-prototype-row";

@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-055",
+  "title": "Add ScreenFlow transition map mode",
+  "description": "Extended Prototype View so ScreenFlow can render a screen transition map: screen images/cards connected by arrowed transitions, with click-through into paper-prototype playback.",
+  "status": "done",
+  "origin": "human-screenflow-map-feedback",
+  "created_at": "2026-07-01T01:02:00.000+09:00",
+  "done_at": "2026-07-01T01:08:00.000+09:00",
+  "decision_notes": [
+    "Prototype View now has Map and Play modes. Map is the default because the user expects a screen transition diagram, not only paper-prototype playback.",
+    "Map mode uses the existing ScreenFlow graph and scenario order; it does not introduce a new engine or separate model.",
+    "Screen cards show image or fallback content, transition edges are SVG arrows, and clicking a card opens that screen in Play mode."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test -- --run test/prototype.test.ts test/render.test.ts",
+    "npm run build",
+    "browser smoke on http://localhost:5173/: .archmap-prototype-flow=1, cards=8, arrows=8; card click switches to Play mode"
+  ]
+}

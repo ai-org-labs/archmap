@@ -141,6 +141,9 @@ Initial screen resolution order:
 
 The view must show:
 
+- a default Map mode where screen images/cards are connected by arrowed
+  transition lines
+- a Play mode for paper-prototype playback of one current screen
 - current screen image or fallback card
 - outgoing transition buttons
 - Back / Next / Reset controls
@@ -148,6 +151,9 @@ The view must show:
 - hotspot visibility toggle
 - overlay summary
 - related validation diagnostics
+
+Clicking a screen card in Map mode opens that screen in Play mode. Map mode
+uses the same ScreenFlow graph; it does not introduce a separate flow model.
 
 ## 7. Overlays
 
