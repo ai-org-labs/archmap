@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-055 checkpoint done: Prototype View now defaults to a ScreenFlow Map mode that shows screen image/fallback cards connected by arrowed transitions, with a Play mode for paper-prototype playback. Clicking a map card opens that screen in Play. Docs now describe Map vs Play. Verification: npm run typecheck; npm test -- --run test/prototype.test.ts test/render.test.ts; npm run build; browser smoke on http://localhost:5173/ confirmed .archmap-prototype-flow=1, cards=8, arrows=8, and card click switches to Play. Next: refine visual layout of transition maps under denser screenflows, and keep QIF/spec drift checks before publication.",
-  "updated_at": "2026-07-01T01:08:00.000+09:00",
+  "content": "TASK-056 opened: rendering performance is a real risk. Initial ad-hoc benchmark shows parse is cheap, while layout/render dominate; large sample hit layout >1s, overview render >2s, stack+zone >8s. Added npm run bench:render via tools/bench-render.mjs for repeatable baseline. Next: profile routeEdges/buildEdgePaths/label placement and reduce unnecessary layout recomputation on overlay/view changes.",
+  "updated_at": "2026-07-01T01:20:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

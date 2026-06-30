@@ -45,6 +45,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json",
+    "bench:render": "node tools/bench-render.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify:pattern-samples": "node tools/verify-pattern-samples.mjs",

@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-056",
+  "title": "Renderer performance profiling and optimization",
+  "description": "Measure and optimize ArchMap rendering latency across parse, layout, SVG generation, edge routing, overlays, abstraction, and DOM mount paths.",
+  "status": "open",
+  "origin": "human-rendering-performance-concern",
+  "orchestrator_session_id": null,
+  "assigned_session_ids": [],
+  "related_decision_record_id": null,
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "created_at": "2026-07-01T01:20:00.000+09:00",
+  "updated_at": "2026-07-01T01:20:00.000+09:00",
+  "assigned_at": null,
+  "done_at": null,
+  "retired_at": null,
+  "last_triaged_at": "2026-07-01T01:20:00.000+09:00",
+  "stale_candidate_at": null,
+  "retire_candidate_at": null,
+  "triage_notes": "Initial benchmark shows parse is not the bottleneck. Medium sample: layout/render in hundreds of ms. Large sample: layout exceeds 1s, overview render exceeds 2s, stack+zone reached 8s+ in one measured run. Suspected hotspots: repeated full layout recomputation on overlay/view changes, O(edgeSegments^2) buildEdgePaths crossing/parallel offset work, label/box collision placement, routeEdges/resolveLabelCollisions dense scans, and DOM innerHTML replacement. Added tools/bench-render.mjs and npm script bench:render for repeatable baseline.",
+  "completion_criteria": [
+    "Benchmarks report parse/layout/render times for representative small, medium, large, comprehensive, and screenflow cases.",
+    "At least one clear hotspot is optimized with before/after numbers.",
+    "Overlay toggles avoid unnecessary parse/layout work where semantics and geometry are unchanged.",
+    "Dense render validation remains green after optimization."
+  ]
+}
