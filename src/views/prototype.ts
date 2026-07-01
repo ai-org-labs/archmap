@@ -495,14 +495,15 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-card-panel{border:1px solid #d7dee9;border-radius:8px;background:#fff;padding:10px}",
         ".archmap-prototype-card-panel h3{margin:0 0 8px;font-size:13px}",
         ".archmap-prototype-card-panel ul{margin:0;padding-left:18px}",
-        ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:0;border-radius:0;background:#fff;position:relative;touch-action:none;cursor:grab}",
+        ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:0;border-radius:0;background:#fff;position:relative;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}",
         ".archmap-prototype.is-map .archmap-prototype-flow{min-height:100%}",
         ".archmap-prototype-flow.is-dragging{cursor:grabbing}",
         ".archmap-prototype-flow-loading{display:flex;align-items:center;justify-content:center;color:#476283;font-weight:800}",
         ".archmap-prototype-flow-loading::after{content:'Rendering map...';padding:10px 14px;border:1px solid #cbd5e1;border-radius:999px;background:rgba(255,255,255,.9);box-shadow:0 4px 12px rgba(15,23,42,.10)}",
         ".archmap-prototype-flow-canvas{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;border:0;outline:0}",
         ".archmap-prototype-flow-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}",
-        ".archmap-prototype-flow-card{position:absolute;display:flex;flex-direction:column;border:2px solid #315b92;border-radius:10px;background:#f8fbff;box-shadow:0 2px 7px rgba(15,23,42,.10);overflow:hidden;cursor:pointer}",
+        ".archmap-prototype-flow-card{position:absolute;display:flex;flex-direction:column;border:2px solid #315b92;border-radius:10px;background:#f8fbff;box-shadow:0 2px 7px rgba(15,23,42,.10);overflow:hidden;cursor:pointer;-webkit-user-drag:none}",
+        ".archmap-prototype-flow-card *{-webkit-user-drag:none}",
         ".archmap-prototype-flow-card.is-current{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.18)}",
         ".archmap-prototype-flow-card img{width:100%;height:202px;object-fit:contain;background:#fff;border-bottom:1px solid #d7dee9}",
         ".archmap-prototype-flow-fallback{height:202px;display:flex;align-items:center;justify-content:center;padding:16px;background:#eef6ff;color:#315b92;font-size:20px;font-weight:800;text-align:center;border-bottom:1px solid #d7dee9}",
@@ -800,7 +801,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
 
         let dragStart: { pointerId: number; x: number; y: number; panX: number; panY: number } | undefined;
         let didDrag = false;
-        screenPane.addEventListener("pointerdown", (event) => {
+        const beginDrag = (event: PointerEvent): void => {
           if (event.button !== 0) return;
           const targetEl = event.target instanceof Element ? event.target : null;
           if (targetEl?.closest("select,input,textarea,a,.archmap-prototype-panel,.archmap-prototype-flow-controls")) return;
@@ -810,8 +811,8 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           screenPane.classList.add("is-dragging");
           screenPane.setPointerCapture?.(event.pointerId);
           event.preventDefault();
-        }, { signal: mapInteractionController.signal });
-        screenPane.addEventListener("pointermove", (event) => {
+        };
+        const moveDrag = (event: PointerEvent): void => {
           if (!dragStart || event.pointerId !== dragStart.pointerId) return;
           const dx = event.clientX - dragStart.x;
           const dy = event.clientY - dragStart.y;
@@ -819,7 +820,10 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           mapPan = { x: dragStart.panX + dx, y: dragStart.panY + dy };
           applyMapTransform();
           event.preventDefault();
-        }, { signal: mapInteractionController.signal });
+        };
+        screenPane.addEventListener("pointerdown", beginDrag, { signal: mapInteractionController.signal, capture: true });
+        screenPane.addEventListener("pointermove", moveDrag, { signal: mapInteractionController.signal });
+        window.addEventListener("pointermove", moveDrag, { signal: mapInteractionController.signal });
         const endDrag = (event: PointerEvent): void => {
           if (!dragStart || event.pointerId !== dragStart.pointerId) return;
           dragStart = undefined;
@@ -835,6 +839,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         screenPane.addEventListener("pointercancel", endDrag, { signal: mapInteractionController.signal });
         screenPane.addEventListener("lostpointercapture", endDrag, { signal: mapInteractionController.signal });
         window.addEventListener("pointerup", endDrag, { signal: mapInteractionController.signal });
+        window.addEventListener("pointercancel", endDrag, { signal: mapInteractionController.signal });
         window.addEventListener("blur", () => cleanupMapInteractions?.(), { signal: mapInteractionController.signal });
         screenPane.addEventListener("wheel", (event) => {
           event.preventDefault();
