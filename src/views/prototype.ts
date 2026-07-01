@@ -29,6 +29,40 @@ function edgeLabel(edge: ArchEdge): string {
   return edge.label || edge.trigger || edge.flow || `${edge.from} -> ${edge.to}`;
 }
 
+const FLOW_MAP_DEFAULT_EDGE_COLOR = "#4f6f9d";
+const FLOW_MAP_BRANCH_COLORS = [
+  "#2563eb",
+  "#16a34a",
+  "#dc2626",
+  "#d97706",
+  "#7c3aed",
+  "#0891b2",
+  "#be123c",
+  "#4f46e5",
+];
+
+function flowMapSemanticColor(edge: ArchEdge): string | undefined {
+  const key = `${edge.flow ?? ""} ${edge.trigger ?? ""}`.toLowerCase();
+  if (/\berror\b|failure|fail/.test(key)) return "#dc2626";
+  if (/\bsuccess\b|complete/.test(key)) return "#16a34a";
+  if (/\bback\b|close/.test(key)) return "#64748b";
+  if (/\bredirect\b|external/.test(key)) return "#d97706";
+  if (/\bsubmit\b/.test(key)) return "#2563eb";
+  return undefined;
+}
+
+function flowMapEdgeColor(edge: ArchEdge, outgoingIndex: number, outgoingCount: number): string {
+  if (edge.boundaryCrossing) return "#d97706";
+  const semantic = flowMapSemanticColor(edge);
+  if (semantic) return semantic;
+  if (outgoingCount <= 1) return FLOW_MAP_DEFAULT_EDGE_COLOR;
+  return FLOW_MAP_BRANCH_COLORS[outgoingIndex % FLOW_MAP_BRANCH_COLORS.length];
+}
+
+function markerIdForColor(color: string): string {
+  return `archmap-prototype-arrow-${color.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+}
+
 function scenarioById(model: ArchMapModel, id: string | undefined): Scenario | undefined {
   return id ? model.scenarios.find((scenario) => scenario.id === id) : undefined;
 }
@@ -625,16 +659,26 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         svg.classList.add("archmap-prototype-flow-svg");
         setAttrs(svg, { width: map.width, height: map.height, viewBox: `0 0 ${map.width} ${map.height}` });
         const defs = svgEl("defs");
-        const marker = svgEl("marker");
-        setAttrs(marker, { id: "archmap-prototype-arrow", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
-        const arrow = svgEl("path");
-        setAttrs(arrow, { d: "M 0 0 L 10 5 L 0 10 z", fill: "#4f6f9d" });
-        marker.appendChild(arrow);
-        defs.appendChild(marker);
         svg.appendChild(defs);
 
         const screenIds = new Set(map.nodes.map((entry) => entry.node.id));
         const mapEdges = model.edges.filter((entry) => screenIds.has(entry.from) && screenIds.has(entry.to));
+        const outgoingBySource = new Map<string, ArchEdge[]>();
+        for (const edge of mapEdges) outgoingBySource.set(edge.from, [...(outgoingBySource.get(edge.from) ?? []), edge]);
+        const markerByColor = new Map<string, string>();
+        const ensureMarker = (color: string): string => {
+          const existing = markerByColor.get(color);
+          if (existing) return existing;
+          const id = markerIdForColor(color);
+          const marker = svgEl("marker");
+          setAttrs(marker, { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+          const arrow = svgEl("path");
+          setAttrs(arrow, { d: "M 0 0 L 10 5 L 0 10 z", fill: color });
+          marker.appendChild(arrow);
+          defs.appendChild(marker);
+          markerByColor.set(color, id);
+          return id;
+        };
         const endpointGroups = new Map<string, FlowMapEndpointPlan[]>();
         const plans: FlowMapEndpointPlan[] = [];
         for (const edge of mapEdges) {
@@ -688,13 +732,15 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         }
         const pathByEdge = buildEdgePaths(edgeRoutes.map(({ edge, points }) => ({ id: edge.id, points })));
         for (const { edge, points } of edgeRoutes) {
+          const outgoing = outgoingBySource.get(edge.from) ?? [edge];
+          const color = flowMapEdgeColor(edge, Math.max(0, outgoing.indexOf(edge)), outgoing.length);
           const path = svgEl("path");
           setAttrs(path, {
             d: pathByEdge.get(edge.id) ?? pathD(points),
             fill: "none",
-            stroke: edge.boundaryCrossing ? "#d97706" : "#4f6f9d",
+            stroke: color,
             "stroke-width": 2,
-            "marker-end": "url(#archmap-prototype-arrow)",
+            "marker-end": `url(#${ensureMarker(color)})`,
           });
           svg.appendChild(path);
           const label = svgEl("text");
@@ -704,7 +750,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const firstBend = points[1] ?? labelStart;
           const labelX = (labelStart.x + firstBend.x) / 2;
           const labelY = (labelStart.y + firstBend.y) / 2 - 8;
-          setAttrs(label, { x: labelX, y: labelY, "text-anchor": "middle" });
+          setAttrs(label, { x: labelX, y: labelY, "text-anchor": "middle", fill: color });
           if (label.textContent) svg.appendChild(label);
         }
         canvas.appendChild(svg);
