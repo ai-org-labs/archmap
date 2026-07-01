@@ -491,7 +491,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:0;border-radius:0;background:#fff;position:relative;touch-action:none;cursor:grab}",
         ".archmap-prototype.is-map .archmap-prototype-flow{min-height:100%}",
         ".archmap-prototype-flow.is-dragging{cursor:grabbing}",
-        ".archmap-prototype-flow-canvas{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}",
+        ".archmap-prototype-flow-canvas{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;border:0;outline:0}",
         ".archmap-prototype-flow-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}",
         ".archmap-prototype-flow-card{position:absolute;display:flex;flex-direction:column;border:2px solid #315b92;border-radius:10px;background:#f8fbff;box-shadow:0 2px 7px rgba(15,23,42,.10);overflow:hidden;cursor:pointer}",
         ".archmap-prototype-flow-card.is-current{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.18)}",

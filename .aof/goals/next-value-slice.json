@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-070 checkpoint done: Prototype map edges now use branch-aware color assignment. Single-outgoing transitions keep the default blue, while sources with multiple outgoing transitions get distinct colors; semantic flows/triggers still take precedence for error/success/back/redirect/submit. Arrow markers are generated per color so arrowheads match their line, and edge labels use the same color for easier branch matching. This is intentionally separate from zone coloring: zone remains ownership/area color, while Prototype edge color is a local readability aid for screenflow branching. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, and npm run build passed. TASK-056 performance remains open.",
-  "updated_at": "2026-07-02T00:24:00.000+09:00",
+  "content": "TASK-071 checkpoint done: Prototype map canvas is explicitly frame-free. The flow canvas now declares border:0 and outline:0 so the map itself does not draw an extra frame around the routed screenflow content. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, and npm run build passed. TASK-056 performance remains open.",
+  "updated_at": "2026-07-02T00:29:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
