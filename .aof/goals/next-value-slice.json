@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-073 checkpoint done: Prototype loading is now explicit and held long enough to be visible. Prototype map rendering emits archmap:prototype-render-state loading/ready events, waits two animation frames before heavy map construction, and only signals ready after fit/transform has applied. The dev playground and <archmap-viewer> loading overlays now use a minimum visible duration and stay up while the prototype map reports loading. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and npm test passed. TASK-056 broader performance remains open.",
-  "updated_at": "2026-07-02T00:57:00.000+09:00",
+  "content": "TASK-074 checkpoint done: Prototype Play controls are clarified. Play screen content can now be zoomed with +/-/Fit controls, fallback screen cards are larger by default, hotspots are only offered when the current screen has frame metadata and outgoing hotspot definitions, and Back/Next/Reset disable when they have no action. Product guidance: hotspots are for image-based clickable prototype regions; Back/Next are for scenario playback/history, not required for pure map reading. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, and npm run build passed. TASK-056 broader performance remains open.",
+  "updated_at": "2026-07-02T01:42:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

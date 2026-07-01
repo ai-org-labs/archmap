@@ -474,11 +474,14 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       style.textContent = [
         ".archmap-prototype *{box-sizing:border-box}",
         ".archmap-prototype-screen{min-height:360px;display:flex;align-items:center;justify-content:center;border:1px solid #cbd5e1;border-radius:8px;background:#fff;position:relative;overflow:hidden}",
-        ".archmap-prototype-screen img{max-width:100%;max-height:100%;object-fit:contain;display:block}",
-        ".archmap-prototype-card{min-width:240px;max-width:520px;border:2px solid #315b92;border-radius:8px;padding:28px;background:#eef6ff;text-align:center}",
+        ".archmap-prototype-screen-content{position:relative;max-width:100%;max-height:100%;transition:transform .16s ease;transform-origin:center center}",
+        ".archmap-prototype-screen-content img{max-width:100%;max-height:100%;object-fit:contain;display:block}",
+        ".archmap-prototype-card{min-width:320px;max-width:720px;border:2px solid #315b92;border-radius:8px;padding:44px;background:#eef6ff;text-align:center}",
         ".archmap-prototype-title{font-size:22px;font-weight:800;margin-bottom:8px}",
         ".archmap-prototype-meta{color:#55657d}",
         ".archmap-prototype-hotspot{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.14);border-radius:6px;cursor:pointer}",
+        ".archmap-prototype-screen-controls{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;z-index:3}",
+        ".archmap-prototype-screen-controls button{padding:6px 8px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(15,23,42,.14)}",
         ".archmap-prototype-panel{display:flex;flex-direction:column;gap:12px}",
         ".archmap-prototype.is-map .archmap-prototype-panel{position:absolute;right:28px;top:28px;width:280px;max-height:calc(100% - 56px);overflow:auto;z-index:6;padding:10px;border:1px solid rgba(148,163,184,.65);border-radius:10px;background:rgba(248,250,252,.90);box-shadow:0 12px 28px rgba(15,23,42,.16);backdrop-filter:blur(5px)}",
         ".archmap-prototype-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
@@ -527,6 +530,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       let displayMode: "map" | "play" = "map";
       let mapPan = { x: 0, y: 0 };
       let mapZoom = 1;
+      let playZoom = 1;
       let mapInitialized = false;
       let cleanupMapInteractions: (() => void) | undefined;
       let activeMapPointerId: number | undefined;
@@ -566,11 +570,15 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
 
       const renderScreen = (node: ArchNode | undefined, edges: ArchEdge[]): void => {
         screenPane.textContent = "";
+        const content = document.createElement("div");
+        content.className = "archmap-prototype-screen-content";
+        content.style.transform = `scale(${playZoom.toFixed(2)})`;
         if (!node) {
           const card = document.createElement("div");
           card.className = "archmap-prototype-card";
           card.textContent = "No screen selected.";
-          screenPane.appendChild(card);
+          content.appendChild(card);
+          screenPane.appendChild(content);
           return;
         }
         if (node.image && isSafeImageUrl(node.image)) {
@@ -579,7 +587,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           img.alt = node.label;
           img.loading = "lazy";
           img.decoding = "async";
-          screenPane.appendChild(img);
+          content.appendChild(img);
         } else {
           const card = document.createElement("div");
           card.className = "archmap-prototype-card";
@@ -590,8 +598,31 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           meta.className = "archmap-prototype-meta";
           meta.textContent = [node.kind, node.zone].filter(Boolean).join(" · ") || node.id;
           card.append(title, meta);
-          screenPane.appendChild(card);
+          content.appendChild(card);
         }
+        screenPane.appendChild(content);
+        const controls = document.createElement("div");
+        controls.className = "archmap-prototype-screen-controls";
+        const zoomOut = button("−", "archmap-prototype-screen-zoom-out");
+        zoomOut.title = "Zoom out";
+        zoomOut.addEventListener("click", () => {
+          playZoom = Math.max(0.5, playZoom * 0.86);
+          renderUi();
+        });
+        const fit = button("Fit", "archmap-prototype-screen-fit");
+        fit.title = "Fit screen";
+        fit.addEventListener("click", () => {
+          playZoom = 1;
+          renderUi();
+        });
+        const zoomIn = button("+", "archmap-prototype-screen-zoom-in");
+        zoomIn.title = "Zoom in";
+        zoomIn.addEventListener("click", () => {
+          playZoom = Math.min(2.5, playZoom * 1.18);
+          renderUi();
+        });
+        controls.append(zoomOut, fit, zoomIn);
+        screenPane.appendChild(controls);
         if (!showHotspots || !node.frame?.width || !node.frame.height) return;
         const scaleX = 100 / node.frame.width;
         const scaleY = 100 / node.frame.height;
@@ -609,7 +640,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
             emit(target, "archmap:prototype-hotspot-click", { from: edge.from, to: edge.to, edgeId: edge.id, scenario: scenario?.id ?? null });
             goTo(edge.to, edge);
           });
-          screenPane.appendChild(hotspot);
+          content.appendChild(hotspot);
         }
       };
 
@@ -943,11 +974,13 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           emit(target, "archmap:prototype-screen-change", { from: node?.id, to: previous, edgeId: null, scenario: scenario?.id ?? null });
         });
         const nextButton = button("Next", "archmap-prototype-next");
+        nextButton.disabled = !transitionByScenarioStep() && edges.length === 0;
         nextButton.addEventListener("click", () => {
           const edge = transitionByScenarioStep() ?? edges[0];
           if (edge) goTo(edge.to, edge);
         });
         const resetButton = button("Reset", "archmap-prototype-reset");
+        resetButton.disabled = !scenario && history.length === 0;
         resetButton.addEventListener("click", () => {
           scenarioIndex = 0;
           history.length = 0;
@@ -971,12 +1004,15 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           panel.appendChild(select);
         }
 
-        const hotspotToggle = button(showHotspots ? "Hide hotspots" : "Show hotspots", "archmap-prototype-hotspots");
-        hotspotToggle.addEventListener("click", () => {
-          showHotspots = !showHotspots;
-          renderUi();
-        });
-        panel.appendChild(hotspotToggle);
+        const hasHotspots = !!node?.frame?.width && !!node.frame.height && edges.some((edge) => edge.hotspot);
+        if (hasHotspots) {
+          const hotspotToggle = button(showHotspots ? "Hide hotspots" : "Show hotspots", "archmap-prototype-hotspots");
+          hotspotToggle.addEventListener("click", () => {
+            showHotspots = !showHotspots;
+            renderUi();
+          });
+          panel.appendChild(hotspotToggle);
+        }
 
         const transitions = document.createElement("div");
         transitions.className = "archmap-prototype-card-panel";
