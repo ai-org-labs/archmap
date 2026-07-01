@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-066 checkpoint done: Prototype map routing now uses the same SVG edge path machinery as Overview. Prototype edges are rendered as paths through buildEdgePaths(), so overlapping horizontal/vertical segments receive parallel offsets and crossing gaps instead of piling into shared lanes. The Prototype map viewport border was removed. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and browser smoke on http://localhost:5173/ confirmed pathCount=15, polylineCount=0, flow border=0px none, and Play still works. TASK-056 performance remains open; next optimization target is broader layout/render recomputation and dense edge path costs.",
-  "updated_at": "2026-07-01T23:13:00.000+09:00",
+  "content": "TASK-067 checkpoint done: Prototype map routing now preserves perpendicular incidence at source and target component sides. Each edge leaves its source side through a short outward orthogonal stub, routes between the outside stubs, and enters the target side through a matching perpendicular stub before buildEdgePaths() applies overlap offsets/gaps. This brings Prototype map endpoint behavior closer to Overview's side-safe routing while keeping previous parallel-line deconfliction and the borderless map viewport. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, and npm run build passed. TASK-056 performance remains open; browser reload remains noticeably heavy on dense Prototype maps.",
+  "updated_at": "2026-07-01T23:23:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

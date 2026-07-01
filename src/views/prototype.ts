@@ -227,19 +227,61 @@ function endpointKey(nodeId: string, side: FlowMapSide): string {
   return `${nodeId}:${side}`;
 }
 
-function routeFlowMapEdge(start: { x: number; y: number }, end: { x: number; y: number }, laneOrdinal: number): Array<{ x: number; y: number }> {
-  const forward = end.x >= start.x;
+function sideNormal(side: FlowMapSide): { x: number; y: number } {
+  if (side === "left") return { x: -1, y: 0 };
+  if (side === "right") return { x: 1, y: 0 };
+  if (side === "top") return { x: 0, y: -1 };
+  return { x: 0, y: 1 };
+}
+
+function addPoint(points: Array<{ x: number; y: number }>, point: { x: number; y: number }): void {
+  const last = points[points.length - 1];
+  if (last && Math.abs(last.x - point.x) < 0.5 && Math.abs(last.y - point.y) < 0.5) return;
+  points.push(point);
+}
+
+function routeFlowMapEdge(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  sourceSide: FlowMapSide,
+  targetSide: FlowMapSide,
+  laneOrdinal: number,
+): Array<{ x: number; y: number }> {
   const laneGap = 22;
-  const minStub = 34;
-  if (Math.abs(start.y - end.y) < 0.5 && forward) return [start, end];
-  if (Math.abs(start.x - end.x) < 0.5) return [start, end];
-  if (forward) {
-    const baseMid = start.x + Math.max(52, (end.x - start.x) / 2);
-    const midX = baseMid + laneOrdinal * laneGap;
-    return [start, { x: midX, y: start.y }, { x: midX, y: end.y }, end];
+  const stub = 42;
+  const detour = 70;
+  const source = sideNormal(sourceSide);
+  const target = sideNormal(targetSide);
+  const startOuter = { x: start.x + source.x * stub, y: start.y + source.y * stub };
+  const endOuter = { x: end.x + target.x * stub, y: end.y + target.y * stub };
+  const sourceHorizontal = sourceSide === "left" || sourceSide === "right";
+  const targetHorizontal = targetSide === "left" || targetSide === "right";
+  const route: Array<{ x: number; y: number }> = [];
+  addPoint(route, start);
+  addPoint(route, startOuter);
+
+  if (Math.abs(startOuter.x - endOuter.x) < 0.5 || Math.abs(startOuter.y - endOuter.y) < 0.5) {
+    addPoint(route, endOuter);
+  } else if (sourceHorizontal !== targetHorizontal) {
+    addPoint(route, sourceHorizontal ? { x: endOuter.x, y: startOuter.y } : { x: startOuter.x, y: endOuter.y });
+    addPoint(route, endOuter);
+  } else if (sourceHorizontal) {
+    let midX = (startOuter.x + endOuter.x) / 2 + laneOrdinal * laneGap;
+    if (sourceSide === "right" && endOuter.x < startOuter.x) midX = Math.max(startOuter.x, endOuter.x) + detour + laneOrdinal * laneGap;
+    if (sourceSide === "left" && endOuter.x > startOuter.x) midX = Math.min(startOuter.x, endOuter.x) - detour + laneOrdinal * laneGap;
+    addPoint(route, { x: midX, y: startOuter.y });
+    addPoint(route, { x: midX, y: endOuter.y });
+    addPoint(route, endOuter);
+  } else {
+    let midY = (startOuter.y + endOuter.y) / 2 + laneOrdinal * laneGap;
+    if (sourceSide === "bottom" && endOuter.y < startOuter.y) midY = Math.max(startOuter.y, endOuter.y) + detour + laneOrdinal * laneGap;
+    if (sourceSide === "top" && endOuter.y > startOuter.y) midY = Math.min(startOuter.y, endOuter.y) - detour + laneOrdinal * laneGap;
+    addPoint(route, { x: startOuter.x, y: midY });
+    addPoint(route, { x: endOuter.x, y: midY });
+    addPoint(route, endOuter);
   }
-  const detourX = Math.max(start.x, end.x) + minStub + laneOrdinal * laneGap;
-  return [start, { x: detourX, y: start.y }, { x: detourX, y: end.y }, end];
+  addPoint(route, end);
+  return route;
 }
 
 function pathD(points: Array<{ x: number; y: number }>): string {
@@ -486,7 +528,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const start = sidePoint(from, plan.sourceSide, sourceOrdinal, sourceGroup.length);
           const end = sidePoint(to, plan.targetSide, targetOrdinal, targetGroup.length);
           const laneOrdinal = sourceOrdinal - (sourceGroup.length - 1) / 2;
-          const points = routeFlowMapEdge(start, end, laneOrdinal);
+          const points = routeFlowMapEdge(start, end, plan.sourceSide, plan.targetSide, laneOrdinal);
           edgeRoutes.push({ edge, points });
         }
         const pathByEdge = buildEdgePaths(edgeRoutes.map(({ edge, points }) => ({ id: edge.id, points })));
