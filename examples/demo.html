@@ -223,18 +223,36 @@ boundaries:
     let abstractionLocked = false;
     let zoomFitted = false;
     const selectedOverlays = () => [...document.querySelectorAll('input[name="overlay"]:checked')].map((input) => input.value);
-    const showLoading = () => { $("loading").style.display = "flex"; };
-    const hideLoading = () => { $("loading").style.display = "none"; };
+    const MIN_LOADING_MS = 220;
+    let loadingSince = 0;
+    let loadingHideTimer = 0;
+    const showLoading = () => {
+      window.clearTimeout(loadingHideTimer);
+      loadingSince = performance.now();
+      $("loading").style.display = "flex";
+    };
+    const hideLoading = () => {
+      const remaining = Math.max(0, MIN_LOADING_MS - (performance.now() - loadingSince));
+      window.clearTimeout(loadingHideTimer);
+      loadingHideTimer = window.setTimeout(() => { $("loading").style.display = "none"; }, remaining);
+    };
     const renderWithLoading = (action) => {
       showLoading();
       requestAnimationFrame(() => {
-        try {
-          action();
-        } finally {
-          requestAnimationFrame(hideLoading);
-        }
+        requestAnimationFrame(() => {
+          try {
+            action();
+          } finally {
+            if ($("diagram").querySelector(".archmap-prototype-flow-loading")) return;
+            requestAnimationFrame(hideLoading);
+          }
+        });
       });
     };
+    $("diagram").addEventListener("archmap:prototype-render-state", (event) => {
+      if (event.detail?.state === "loading") showLoading();
+      if (event.detail?.state === "ready") hideLoading();
+    });
     const updateLog = (model) => {
       const log = [
         ...model.errors.map((d) => `<div class="err">✖ ${d.code}: ${d.message}</div>`),

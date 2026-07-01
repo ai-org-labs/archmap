@@ -951,6 +951,9 @@ export function defineArchMapViewerElement(): void {
     private loadingPanel?: HTMLDivElement;
     private result?: RenderResult;
     private loadVersion = 0;
+    private loadingSince = 0;
+    private loadingHideTimer = 0;
+    private detachPrototypeRenderState?: () => void;
 
     connectedCallback(): void {
       if (!this.source) this.source = this.textContent ?? "";
@@ -960,6 +963,8 @@ export function defineArchMapViewerElement(): void {
     disconnectedCallback(): void {
       this.result?.destroy();
       this.result = undefined;
+      this.detachPrototypeRenderState?.();
+      this.detachPrototypeRenderState = undefined;
     }
 
     attributeChangedCallback(name: string): void {
@@ -1031,23 +1036,32 @@ export function defineArchMapViewerElement(): void {
     }
 
     private showLoading(): void {
+      clearTimeout(this.loadingHideTimer);
+      this.loadingSince = performance.now();
       this.ensureLoadingStyle();
       const panel = this.ensureLoadingPanel();
       panel.style.display = "flex";
     }
 
     private hideLoading(): void {
-      if (this.loadingPanel) this.loadingPanel.style.display = "none";
+      const remaining = Math.max(0, 220 - (performance.now() - this.loadingSince));
+      clearTimeout(this.loadingHideTimer);
+      this.loadingHideTimer = window.setTimeout(() => {
+        if (this.loadingPanel) this.loadingPanel.style.display = "none";
+      }, remaining);
     }
 
     private runWithLoading(action: () => void): void {
       this.showLoading();
       requestAnimationFrame(() => {
-        try {
-          action();
-        } finally {
-          requestAnimationFrame(() => this.hideLoading());
-        }
+        requestAnimationFrame(() => {
+          try {
+            action();
+          } finally {
+            if (this.container?.querySelector(".archmap-prototype-flow-loading")) return;
+            requestAnimationFrame(() => this.hideLoading());
+          }
+        });
       });
     }
 
@@ -1094,13 +1108,23 @@ export function defineArchMapViewerElement(): void {
     private renderModel(model: ArchMapModel, options: ViewerAttributeOptions): void {
       this.applyFrameStyle();
       this.result?.destroy();
+      this.detachPrototypeRenderState?.();
+      this.detachPrototypeRenderState = undefined;
+      const container = this.ensureContainer();
+      const onPrototypeRenderState = (event: Event): void => {
+        const state = (event as CustomEvent<{ state?: string }>).detail?.state;
+        if (state === "loading") this.showLoading();
+        if (state === "ready") this.hideLoading();
+      };
+      container.addEventListener("archmap:prototype-render-state", onPrototypeRenderState);
+      this.detachPrototypeRenderState = () => container.removeEventListener("archmap:prototype-render-state", onPrototypeRenderState);
       this.result = render(model, {
         baseView: options.baseView,
         renderMode: options.renderMode,
         overlays: options.overlays,
         abstractionLevel: options.abstractionLevel,
         abstractionTarget: options.abstractionTarget,
-        target: this.ensureContainer(),
+        target: container,
         diagnosticsTarget: this.diagnosticsTarget(options),
         inspectorTarget: this.inspectorTarget(options),
         console: options.consoleReport,

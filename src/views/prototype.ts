@@ -110,6 +110,10 @@ function emit(target: Element, name: string, detail: Record<string, unknown>): v
   target.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
 }
 
+function emitPrototypeRenderState(target: Element, state: "loading" | "ready"): void {
+  emit(target, "archmap:prototype-render-state", { state });
+}
+
 interface FlowMapNode {
   node: ArchNode;
   x: number;
@@ -869,9 +873,11 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           requestAnimationFrame(() => {
             fitMap();
             mapInitialized = true;
+            emitPrototypeRenderState(target, "ready");
           });
         } else {
           applyMapTransform();
+          emitPrototypeRenderState(target, "ready");
         }
       };
 
@@ -882,9 +888,12 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         const token = ++mapRenderToken;
         screenPane.textContent = "";
         screenPane.className = "archmap-prototype-flow archmap-prototype-flow-loading";
+        emitPrototypeRenderState(target, "loading");
         requestAnimationFrame(() => {
-          if (token !== mapRenderToken || !root.isConnected) return;
-          renderMap();
+          requestAnimationFrame(() => {
+            if (token !== mapRenderToken || !root.isConnected) return;
+            renderMap();
+          });
         });
       };
 

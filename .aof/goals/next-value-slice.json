@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-072 checkpoint done: Prototype initial render no longer pays for the normal architecture computeLayout path. render() now returns a lightweight placeholder layout for the prototype view, while the prototype map performs its own deferred map layout/mount. The map canvas first shows a small loading state, images load lazily/asynchronously, and map card insertion is batched. This directly addresses first Prototype display freezes; targeted prototype test time dropped from ~2.3s to ~13-19ms. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and npm test passed. Browser verification on http://localhost:5173 was blocked by browser security policy in this session. TASK-056 broader performance remains open.",
-  "updated_at": "2026-07-02T00:52:00.000+09:00",
+  "content": "TASK-073 checkpoint done: Prototype loading is now explicit and held long enough to be visible. Prototype map rendering emits archmap:prototype-render-state loading/ready events, waits two animation frames before heavy map construction, and only signals ready after fit/transform has applied. The dev playground and <archmap-viewer> loading overlays now use a minimum visible duration and stay up while the prototype map reports loading. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and npm test passed. TASK-056 broader performance remains open.",
+  "updated_at": "2026-07-02T00:57:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
