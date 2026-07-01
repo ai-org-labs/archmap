@@ -109,8 +109,9 @@ can use an npm CDN URL instead.
 <script type="importmap">
 {
   "imports": {
-    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js",
-    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js",
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/archmap.js",
+    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/controls/diagram-tags.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/views3d/three-view.js",
     "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
     "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
@@ -119,12 +120,20 @@ can use an npm CDN URL instead.
 </script>
 <script type="module">
   import { initialize, registerIcon } from "@archmap/core";
+  import { createDiagramTags } from "@archmap/core/controls/diagram-tags";
   import { installThreeView } from "@archmap/core/views3d/three-view";
   import { installCloudProviderIcons } from "@archmap/icons";
 
   installCloudProviderIcons(registerIcon);
   installThreeView();
   initialize();
+
+  // Optional: build the same tag controls used by the playground/viewer.
+  createDiagramTags({
+    target: document.querySelector("#diagram-tags"),
+    state: { baseView: "overview", renderMode: "2d", overlays: [] },
+    onChange: (state) => console.log(state)
+  });
 </script>
 ```
 
@@ -167,14 +176,15 @@ npm publish --access public
 After publishing, verify the package and CDN paths:
 
 ```bash
-npm view @archmap/core@0.1.0 version license files
+npm view @archmap/core@0.1.1 version license files
 ```
 
 Then open:
 
 ```text
-https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js
-https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/archmap.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/controls/diagram-tags.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/views3d/three-view.js
 ```
 
 ## Security Posture

@@ -390,6 +390,10 @@ await overlaid.downloadPng("archmap.png");
   tag-style controls (View radio buttons, Render mode radio buttons, Add info
   checkboxes, fit/reset, PNG export, full screen, abstraction lock, diagnostics
   indicator).
+  The same tag UI is also available as a reusable browser control:
+  `createDiagramTags({ target, state, onChange, onAction })` from
+  `@archmap/core` or the CDN-friendly subpath
+  `@archmap/core/controls/diagram-tags`.
   2D views support wheel zoom and drag pan; `render(model,{target})` attaches
   this automatically (`interactive: false` to disable), and
   `RenderResult.fit()/reset()` control the view.
@@ -407,6 +411,8 @@ await overlaid.downloadPng("archmap.png");
 - **3D / icon packs** live outside the core bundle:
   `import { installThreeView } from "@archmap/core/views3d/three-view"` (needs `three`),
   `import { installCloudIcons } from "@archmap/core/packs/cloud-icons"`.
+- **Diagram tags** are exported for external playgrounds/viewers:
+  `import { createDiagramTags } from "@archmap/core/controls/diagram-tags"`.
 - **`initialize({ selector })`** scans the page and renders matching elements in
   place (also reads ```archmap``` fences via `extractArchMapBlocks`).
 
@@ -549,14 +555,15 @@ result.goToScreen?.("Cart");
 ### 6.4 CDN / GitHub Pages viewer
 
 For a static viewer page, use an import map. After npm publication, replace
-`0.1.0` with the published version you want to pin:
+`0.1.1` with the published version you want to pin:
 
 ```html
 <script type="importmap">
 {
   "imports": {
-    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js",
-    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js",
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/archmap.js",
+    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/controls/diagram-tags.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/views3d/three-view.js",
     "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
     "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"

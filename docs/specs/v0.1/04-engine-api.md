@@ -297,17 +297,47 @@ When `controls=true`, the viewer should provide:
 
 - base view selector
   - Overview
-  - Zone
+- Stack
+- Prototype
+- render mode selector
+  - 2D
   - 3D
 - overlay checkboxes
+  - Subgraph
+  - Zone
   - Auth
   - Data Flow
   - Boundary
   - Permission
   - Validation
 - fit-to-screen button
-- reset-view button
+- PNG export button
+- full-screen button
+- abstraction lock button
 - diagnostics indicator
+
+The same tag-style controls are available as a reusable browser API:
+
+```js
+import { createDiagramTags } from "@archmap/core/controls/diagram-tags";
+
+const tags = createDiagramTags({
+  target: document.querySelector("#diagram-tags"),
+  state: { baseView: "overview", renderMode: "2d", overlays: [] },
+  onChange: (state, event) => {
+    // Call RenderResult.setBaseView / setRenderMode / setOverlays here.
+  },
+  onAction: (action) => {
+    // Handle fit, lock, download, or fullscreen.
+  }
+});
+```
+
+For CDN pages the subpath resolves to:
+
+```text
+https://cdn.jsdelivr.net/npm/@archmap/core@<version>/dist/controls/diagram-tags.js
+```
 
 Example UI:
 

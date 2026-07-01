@@ -5,7 +5,7 @@
  * this shape, and a future GUI editor exports back to DSL from it.
  */
 
-export const ARCHMAP_VERSION = "0.1.0";
+export const ARCHMAP_VERSION = "0.1.1";
 
 export type Direction = "LR" | "TD";
 

@@ -45,6 +45,22 @@ export type {
 export { attachPanZoom, computeFitTransform, isInteractiveTarget } from "./views/interaction.js";
 export type { PanZoomHandle, PanZoomTransform } from "./views/interaction.js";
 export {
+  createDiagramTags,
+  injectDiagramTagsStyle,
+  DEFAULT_DIAGRAM_TAG_ACTIONS,
+  DEFAULT_DIAGRAM_TAG_OVERLAYS,
+  DEFAULT_DIAGRAM_TAG_RENDER_MODES,
+  DEFAULT_DIAGRAM_TAG_VIEWS,
+} from "./controls/diagram-tags.js";
+export type {
+  DiagramTagAction,
+  DiagramTagOption,
+  DiagramTagsChangeEvent,
+  DiagramTagsHandle,
+  DiagramTagsOptions,
+  DiagramTagsState,
+} from "./controls/diagram-tags.js";
+export {
   maxAbstractionDepth,
   maxSubgraphDepth,
   maxZoneDepth,

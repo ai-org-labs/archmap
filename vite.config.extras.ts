@@ -12,6 +12,7 @@ export default defineConfig({
       entry: {
         "views3d/three-view": "src/views3d/three-view.ts",
         "packs/cloud-icons": "src/packs/cloud-icons.ts",
+        "controls/diagram-tags": "src/controls/diagram-tags.ts",
       },
       formats: ["es"],
     },

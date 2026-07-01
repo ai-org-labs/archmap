@@ -229,14 +229,13 @@ boundaries:
   </script>
 
   <script type="module">
-    import { parse, render, registerIcon } from "/src/index.ts";
+    import { createDiagramTags, parse, render, registerIcon } from "/src/index.ts";
     import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "/src/views3d/three-view.ts";
     installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons (opt-in)
     installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
     installThreeView(); // opt-in 3D view; core does not bundle three.js
     const $ = (id) => document.getElementById(id);
-    const overlayNames = ["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"];
     const selectedRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
     $("src").value = $("seed").textContent.trim();
     const updateLineNumbers = () => {
@@ -268,19 +267,10 @@ boundaries:
     $("resize-handle").addEventListener("pointercancel", () => {
       $("resize-handle").classList.remove("is-dragging");
     });
-    for (const overlay of overlayNames) {
-      const label = document.createElement("label");
-      label.className = "tag";
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.value = overlay;
-      input.addEventListener("change", () => updateOverlay(input));
-      label.append(input, document.createTextNode(overlay));
-      $("overlays").appendChild(label);
-    }
     let result = null;
     let abstractionLocked = false;
-    const selectedOverlays = () => [...$("overlays").querySelectorAll("input:checked")].map((input) => input.value);
+    let zoomFitted = false;
+    const selectedOverlays = () => [...document.querySelectorAll('input[name="overlay"]:checked')].map((input) => input.value);
     const showLoading = () => { $("loading").style.display = "flex"; };
     const hideLoading = () => { $("loading").style.display = "none"; };
     const renderWithLoading = (action) => {
@@ -309,10 +299,13 @@ boundaries:
       updateLog(result.model);
     }
     function updateOverlay(input) {
+      updateOverlayValue(input.value, input.checked);
+    }
+    function updateOverlayValue(value, checked) {
       renderWithLoading(() => {
         if (!result) { draw(); return; }
-        if (input.checked) result.addOverlay(input.value);
-        else result.removeOverlay(input.value);
+        if (checked) result.addOverlay(value);
+        else result.removeOverlay(value);
         updateLog(result.model);
       });
     }
@@ -330,42 +323,40 @@ boundaries:
         updateLog(result.model);
       });
     }
+    createDiagramTags({
+      target: $("diagram-tags"),
+      state: { baseView: "overview", renderMode: "2d", overlays: [], abstractionLocked },
+      actions: ["expand", "minimize", "fit", "lock", "download", "fullscreen"],
+      onChange: (_state, event) => {
+        if (event.kind === "baseView") updateBaseView();
+        if (event.kind === "renderMode") updateRenderMode();
+        if (event.kind === "overlay") updateOverlayValue(event.value, event.checked);
+      },
+      onAction: (action) => {
+        if (action === "fit") {
+          if (!result) return;
+          if (zoomFitted) {
+            result.reset();
+            zoomFitted = false;
+          } else {
+            result.fit();
+            zoomFitted = true;
+          }
+        }
+        if (action === "lock") {
+          abstractionLocked = !abstractionLocked;
+          result?.setAbstractionLocked(abstractionLocked);
+        }
+        if (action === "download" && result) {
+          void result.downloadPng("archmap.png").catch((error) => console.error("ArchMap PNG export failed.", error));
+        }
+        if (action === "fullscreen") {
+          $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
+          requestAnimationFrame(() => result?.fit());
+        }
+      },
+    });
     $("run").addEventListener("click", () => renderWithLoading(draw));
-    document.querySelectorAll('input[name="base-view"]').forEach((input) => input.addEventListener("change", updateBaseView));
-    document.querySelectorAll('input[name="render-mode"]').forEach((input) => input.addEventListener("change", updateRenderMode));
-    $("tags-max").addEventListener("click", () => {
-      $("tag-panel").classList.remove("is-minimized");
-      $("tag-panel").classList.add("is-expanded");
-    });
-    $("tags-min").addEventListener("click", () => {
-      $("tag-panel").classList.remove("is-expanded");
-      $("tag-panel").classList.add("is-minimized");
-    });
-    const paintAbstractionLock = () => {
-      $("abstraction-lock-toggle").title = abstractionLocked ? "Unlock component expansion" : "Lock component expansion";
-      $("abstraction-lock-toggle").ariaLabel = $("abstraction-lock-toggle").title;
-      $("abstraction-lock-toggle").classList.toggle("is-active", abstractionLocked);
-      $("abstraction-lock-toggle").innerHTML = abstractionLocked
-        ? '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
-        : '<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg>';
-    };
-    $("abstraction-lock-toggle").addEventListener("click", () => {
-      abstractionLocked = !abstractionLocked;
-      result?.setAbstractionLocked(abstractionLocked);
-      paintAbstractionLock();
-    });
-    paintAbstractionLock();
-    $("export-png").addEventListener("click", () => {
-      if (!result) return;
-      void result.downloadPng("archmap.png").catch((error) => {
-        console.error("ArchMap PNG export failed.", error);
-      });
-    });
-    $("fullscreen-toggle").addEventListener("click", () => {
-      $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
-      $("fullscreen-toggle").textContent = $("diagram-tags").parentElement.classList.contains("is-fullscreen") ? "Exit" : "Full";
-      requestAnimationFrame(() => result?.fit());
-    });
     draw();
   </script>
 </body>

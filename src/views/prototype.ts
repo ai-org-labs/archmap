@@ -199,7 +199,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       root.className = "archmap-prototype";
       root.style.cssText =
         "display:grid;grid-template-columns:minmax(280px,1fr) 280px;gap:16px;width:100%;height:100%;" +
-        "box-sizing:border-box;padding:16px;background:#f8fafc;color:#172033;font:13px system-ui,sans-serif;overflow:auto;";
+        "box-sizing:border-box;padding:16px;background:#f8fafc;color:#172033;font:13px system-ui,sans-serif;overflow:auto;position:relative;";
       const style = document.createElement("style");
       style.textContent = [
         ".archmap-prototype *{box-sizing:border-box}",
@@ -210,6 +210,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-meta{color:#55657d}",
         ".archmap-prototype-hotspot{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.14);border-radius:6px;cursor:pointer}",
         ".archmap-prototype-panel{display:flex;flex-direction:column;gap:12px}",
+        ".archmap-prototype.is-map .archmap-prototype-panel{position:absolute;right:28px;top:28px;width:280px;max-height:calc(100% - 56px);overflow:auto;z-index:6;padding:10px;border:1px solid rgba(148,163,184,.65);border-radius:10px;background:rgba(248,250,252,.90);box-shadow:0 12px 28px rgba(15,23,42,.16);backdrop-filter:blur(5px)}",
         ".archmap-prototype-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
         ".archmap-prototype button,.archmap-prototype select{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#172033;padding:7px 9px;font:600 12px system-ui,sans-serif}",
         ".archmap-prototype button{cursor:pointer}",
@@ -222,6 +223,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-card-panel h3{margin:0 0 8px;font-size:13px}",
         ".archmap-prototype-card-panel ul{margin:0;padding-left:18px}",
         ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:1px solid #cbd5e1;border-radius:8px;background:#fff;position:relative;touch-action:none;cursor:grab}",
+        ".archmap-prototype.is-map .archmap-prototype-flow{min-height:100%}",
         ".archmap-prototype-flow.is-dragging{cursor:grabbing}",
         ".archmap-prototype-flow-canvas{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}",
         ".archmap-prototype-flow-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}",
@@ -513,6 +515,9 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       const renderUi = (): void => {
         const node = currentNode();
         const edges = outgoing();
+        root.classList.toggle("is-map", displayMode === "map");
+        root.style.gridTemplateColumns = displayMode === "map" ? "1fr" : "minmax(280px,1fr) 280px";
+        root.style.overflow = displayMode === "map" ? "hidden" : "auto";
         if (displayMode === "map") {
           renderMap();
         } else {

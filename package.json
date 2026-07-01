@@ -1,6 +1,6 @@
 {
   "name": "@archmap/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Browser-only semantic architecture diagram rendering framework (ArchMap DSL)",
   "license": "Apache-2.0",
   "homepage": "https://ai-org-labs.github.io/archmap/",
@@ -28,6 +28,10 @@
     "./packs/cloud-icons": {
       "types": "./dist/packs/cloud-icons.d.ts",
       "import": "./dist/packs/cloud-icons.js"
+    },
+    "./controls/diagram-tags": {
+      "types": "./dist/controls/diagram-tags.d.ts",
+      "import": "./dist/controls/diagram-tags.js"
     }
   },
   "files": [
