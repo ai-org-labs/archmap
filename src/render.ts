@@ -1114,7 +1114,7 @@ export function defineArchMapViewerElement(): void {
         views: BASE_VIEWS.map((view) => ({ value: view, label: BASE_VIEW_LABELS[view] })),
         renderModes: RENDER_MODES.map((mode) => ({ value: mode, label: mode === "3d" ? "3D" : mode.toUpperCase() })),
         overlays: [...OVERLAY_NAMES].map((overlay) => ({ value: overlay, label: overlay })),
-        actions: ["expand", "minimize", "fit", "lock", "download", "fullscreen"],
+        actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
         state: {
           ...controlsState,
         },

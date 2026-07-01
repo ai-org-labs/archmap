@@ -1,4 +1,4 @@
-export type DiagramTagAction = "expand" | "minimize" | "fit" | "reset" | "download" | "fullscreen" | "lock";
+export type DiagramTagAction = "toggleSize" | "expand" | "minimize" | "fit" | "reset" | "download" | "fullscreen" | "lock";
 
 export interface DiagramTagOption {
   value: string;
@@ -70,11 +70,12 @@ export const DEFAULT_DIAGRAM_TAG_OVERLAYS: DiagramTagOption[] = [
   { value: "validation", label: "validation" },
 ];
 
-export const DEFAULT_DIAGRAM_TAG_ACTIONS: DiagramTagAction[] = ["expand", "minimize", "fit", "lock", "download", "fullscreen"];
+export const DEFAULT_DIAGRAM_TAG_ACTIONS: DiagramTagAction[] = ["toggleSize", "fit", "lock", "download", "fullscreen"];
 
 const STYLE_ID = "archmap-diagram-tags-style";
 
 const actionLabels: Record<DiagramTagAction, string> = {
+  toggleSize: "Minimize tags",
   expand: "Expand tags",
   minimize: "Minimize tags",
   fit: "Fit diagram",
@@ -84,7 +85,10 @@ const actionLabels: Record<DiagramTagAction, string> = {
   lock: "Lock component expansion",
 };
 
-const actionPaths: Record<DiagramTagAction | "unlock", string> = {
+const actionPaths: Record<DiagramTagAction | "unlock" | "toggleSizeOpen" | "toggleSizeClosed", string> = {
+  toggleSize: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8"/><path d="m9 15 3-3 3 3"/>',
+  toggleSizeOpen: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8"/><path d="m9 15 3-3 3 3"/>',
+  toggleSizeClosed: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8"/><path d="m9 12 3 3 3-3"/>',
   expand: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
   minimize: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/>',
   fit: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/>',
@@ -102,7 +106,7 @@ export function injectDiagramTagsStyle(doc: Document = document): void {
   style.textContent = `
 .archmap-diagram-tags{position:sticky;top:12px;left:12px;z-index:5;width:min(740px,calc(100% - 24px));margin-bottom:-42px;display:flex;align-items:flex-start;gap:8px;pointer-events:none}
 .archmap-diagram-tags-panel{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border:1px solid rgba(148,163,184,.45);border-radius:8px;background:rgba(255,255,255,.92);box-shadow:0 10px 28px rgba(28,39,51,.12);backdrop-filter:blur(8px)}
-.archmap-diagram-tags-panel.is-minimized .archmap-diagram-tags-group,.archmap-diagram-tags-panel.is-minimized [data-archmap-action="minimize"]{display:none}
+.archmap-diagram-tags-panel.is-minimized .archmap-diagram-tags-group{display:none}
 .archmap-diagram-tags-panel.is-expanded{width:min(960px,calc(100vw - 420px))}
 .archmap-diagram-tags-group{display:inline-flex;align-items:center;gap:5px;border:0;padding:0;margin:0 4px 0 0;min-width:0}
 .archmap-diagram-tags-label{font-size:11px;font-weight:700;color:#64748b;margin-right:2px;white-space:nowrap}
@@ -142,7 +146,11 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
   root.appendChild(panel);
 
   const renderIcon = (button: HTMLButtonElement, action: DiagramTagAction): void => {
-    const icon = action === "lock" && !state.abstractionLocked ? "unlock" : action;
+    const icon = action === "lock" && !state.abstractionLocked
+      ? "unlock"
+      : action === "toggleSize"
+        ? state.minimized ? "toggleSizeClosed" : "toggleSizeOpen"
+        : action;
     button.replaceChildren();
     const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
@@ -152,7 +160,9 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
     button.appendChild(svg);
     const title = action === "lock"
       ? state.abstractionLocked ? "Unlock component expansion" : "Lock component expansion"
-      : actionLabels[action];
+      : action === "toggleSize"
+        ? state.minimized ? "Expand tags" : "Minimize tags"
+        : actionLabels[action];
     button.title = title;
     button.ariaLabel = title;
     button.classList.toggle("is-active", action === "lock" && Boolean(state.abstractionLocked));
@@ -187,6 +197,7 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
     button.addEventListener("click", () => {
       if (action === "expand") state = { ...state, expanded: true, minimized: false };
       if (action === "minimize") state = { ...state, expanded: false, minimized: true };
+      if (action === "toggleSize") state = { ...state, expanded: false, minimized: !state.minimized };
       if (action === "lock") state = { ...state, abstractionLocked: !state.abstractionLocked };
       sync();
       emitAction(action);

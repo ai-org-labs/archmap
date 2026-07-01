@@ -326,7 +326,7 @@ boundaries:
     createDiagramTags({
       target: $("diagram-tags"),
       state: { baseView: "overview", renderMode: "2d", overlays: [], abstractionLocked },
-      actions: ["expand", "minimize", "fit", "lock", "download", "fullscreen"],
+      actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
       onChange: (_state, event) => {
         if (event.kind === "baseView") updateBaseView();
         if (event.kind === "renderMode") updateRenderMode();
