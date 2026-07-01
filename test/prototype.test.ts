@@ -8,6 +8,10 @@ const screenflowExample = readFileSync(
   fileURLToPath(new URL("../examples/screenflow.archmap", import.meta.url)),
   "utf8",
 );
+const complexScreenflowExample = readFileSync(
+  fileURLToPath(new URL("./fixtures/screenflow-complex.archmap", import.meta.url)),
+  "utf8",
+);
 
 describe("screenflow parser", () => {
   it("parses mode, node image/frame, edge trigger/hotspot/transition, and scenarios", () => {
@@ -52,6 +56,15 @@ describe("screenflow parser", () => {
     expect(model.scenarios.map((scenario) => scenario.id)).toEqual(["happy_path", "error_path"]);
     expect(model.errors).toEqual([]);
     expect(model.edges.some((edge) => edge.trigger === "submit" && edge.hotspot)).toBe(true);
+  });
+
+  it("parses a dense branch-heavy screenflow sample", () => {
+    const model = parse(complexScreenflowExample);
+    expect(model.mode).toBe("screenflow");
+    expect(model.nodes.length).toBeGreaterThan(20);
+    expect(model.edges.length).toBeGreaterThan(25);
+    expect(model.scenarios.length).toBeGreaterThan(4);
+    expect(model.errors).toEqual([]);
   });
 });
 
@@ -125,6 +138,14 @@ describe("prototype view integration", () => {
     expect(result.view).toBe("prototype");
     expect(result.svg).toBeUndefined();
     expect(result.layout.nodes.length).toBeGreaterThan(0);
+  });
+
+  it("renders the dense branch-heavy screenflow through prototype view", () => {
+    const model = parse(complexScreenflowExample);
+    const result = render(model, { baseView: "prototype", overlays: ["validation"], scenario: "guest_purchase_requires_login" });
+    expect(result.view).toBe("prototype");
+    expect(result.svg).toBeUndefined();
+    expect(result.layout.nodes.length).toBe(model.nodes.length);
   });
 
   it("parses prototype custom element attributes", () => {

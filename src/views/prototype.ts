@@ -82,6 +82,8 @@ interface FlowMapNode {
   y: number;
   w: number;
   h: number;
+  depth: number;
+  row: number;
 }
 
 type FlowMapSide = "left" | "right" | "top" | "bottom";
@@ -92,6 +94,7 @@ interface FlowMapEndpointPlan {
   to: FlowMapNode;
   sourceSide: FlowMapSide;
   targetSide: FlowMapSide;
+  laneOrdinal: number;
 }
 
 function screenNodes(model: ArchMapModel): ArchNode[] {
@@ -158,20 +161,34 @@ function flowMapLayout(model: ArchMapModel, scenario: Scenario | undefined): { n
 
   const cardW = 210;
   const cardH = 260;
-  const xGap = 108;
-  const yGap = 44;
+  const xGap = 180;
+  const yGap = 72;
   const margin = 32;
   const placed: FlowMapNode[] = [];
   const sortedDepths = [...columns.keys()].sort((a, b) => a - b);
+  const rowById = new Map<string, number>();
   for (const d of sortedDepths) {
-    const nodes = [...(columns.get(d) ?? [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) || a.label.localeCompare(b.label));
+    const nodes = [...(columns.get(d) ?? [])].sort((a, b) => {
+      const incomingMedian = (node: ArchNode): number => {
+        const incomingRows = transitions
+          .filter((edge) => edge.to === node.id)
+          .map((edge) => rowById.get(edge.from))
+          .filter((row): row is number => row !== undefined)
+          .sort((x, y) => x - y);
+        return incomingRows.length ? incomingRows[Math.floor(incomingRows.length / 2)] : Number.POSITIVE_INFINITY;
+      };
+      return incomingMedian(a) - incomingMedian(b) || (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0) || a.label.localeCompare(b.label);
+    });
     nodes.forEach((node, index) => {
+      rowById.set(node.id, index);
       placed.push({
         node,
         x: margin + d * (cardW + xGap),
         y: margin + index * (cardH + yGap),
         w: cardW,
         h: cardH,
+        depth: d,
+        row: index,
       });
     });
   }
@@ -199,6 +216,11 @@ function flowMapSides(from: FlowMapNode, to: FlowMapNode): { sourceSide: FlowMap
   const toCy = to.y + to.h / 2;
   const dx = toCx - fromCx;
   const dy = toCy - fromCy;
+  if (from.depth !== to.depth) {
+    return from.depth < to.depth
+      ? { sourceSide: "right", targetSide: "left" }
+      : { sourceSide: "left", targetSide: "right" };
+  }
   if (Math.abs(dx) >= Math.abs(dy)) {
     return dx >= 0
       ? { sourceSide: "right", targetSide: "left" }
@@ -225,6 +247,29 @@ function sidePoint(node: FlowMapNode, side: FlowMapSide, ordinal: number, total:
 
 function endpointKey(nodeId: string, side: FlowMapSide): string {
   return `${nodeId}:${side}`;
+}
+
+function endpointSort(plan: FlowMapEndpointPlan, nodeId: string): number {
+  const other = plan.edge.from === nodeId ? plan.to : plan.from;
+  return other.y * 100000 + other.x;
+}
+
+function routeLaneKey(plan: FlowMapEndpointPlan): string {
+  const sourceHorizontal = plan.sourceSide === "left" || plan.sourceSide === "right";
+  const targetHorizontal = plan.targetSide === "left" || plan.targetSide === "right";
+  if (sourceHorizontal && targetHorizontal) {
+    const lo = Math.min(plan.from.depth, plan.to.depth);
+    const hi = Math.max(plan.from.depth, plan.to.depth);
+    const dir = plan.from.depth <= plan.to.depth ? "forward" : "back";
+    return `x:${dir}:${lo}:${hi}`;
+  }
+  if (!sourceHorizontal && !targetHorizontal) {
+    const lo = Math.min(plan.from.row, plan.to.row);
+    const hi = Math.max(plan.from.row, plan.to.row);
+    const dir = plan.from.row <= plan.to.row ? "down" : "up";
+    return `y:${dir}:${lo}:${hi}:${plan.from.depth}`;
+  }
+  return `mixed:${plan.edge.id}:${plan.from.node.id}:${plan.to.node.id}`;
 }
 
 function sideNormal(side: FlowMapSide): { x: number; y: number } {
@@ -507,7 +552,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const to = byId.get(edge.to);
           if (!from || !to) continue;
           const sides = flowMapSides(from, to);
-          const plan = { edge, from, to, ...sides };
+          const plan = { edge, from, to, ...sides, laneOrdinal: 0 };
           plans.push(plan);
           const sourceKey = endpointKey(edge.from, plan.sourceSide);
           const targetKey = endpointKey(edge.to, plan.targetSide);
@@ -518,6 +563,27 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           if (targetBucket) targetBucket.push(plan);
           else endpointGroups.set(targetKey, [plan]);
         }
+        for (const [key, group] of endpointGroups) {
+          const nodeId = key.slice(0, key.indexOf(":"));
+          group.sort((a, b) => endpointSort(a, nodeId) - endpointSort(b, nodeId) || a.edge.id.localeCompare(b.edge.id));
+        }
+        const laneGroups = new Map<string, FlowMapEndpointPlan[]>();
+        for (const plan of plans) {
+          const key = routeLaneKey(plan);
+          const bucket = laneGroups.get(key);
+          if (bucket) bucket.push(plan);
+          else laneGroups.set(key, [plan]);
+        }
+        for (const group of laneGroups.values()) {
+          group.sort((a, b) => {
+            const ay = (a.from.y + a.to.y) / 2;
+            const by = (b.from.y + b.to.y) / 2;
+            return ay - by || a.edge.id.localeCompare(b.edge.id);
+          });
+          group.forEach((plan, index) => {
+            plan.laneOrdinal = index - (group.length - 1) / 2;
+          });
+        }
         const edgeRoutes: Array<{ edge: ArchEdge; points: Array<{ x: number; y: number }> }> = [];
         for (const plan of plans) {
           const { edge, from, to } = plan;
@@ -527,8 +593,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const targetOrdinal = Math.max(0, targetGroup.indexOf(plan));
           const start = sidePoint(from, plan.sourceSide, sourceOrdinal, sourceGroup.length);
           const end = sidePoint(to, plan.targetSide, targetOrdinal, targetGroup.length);
-          const laneOrdinal = sourceOrdinal - (sourceGroup.length - 1) / 2;
-          const points = routeFlowMapEdge(start, end, plan.sourceSide, plan.targetSide, laneOrdinal);
+          const points = routeFlowMapEdge(start, end, plan.sourceSide, plan.targetSide, plan.laneOrdinal);
           edgeRoutes.push({ edge, points });
         }
         const pathByEdge = buildEdgePaths(edgeRoutes.map(({ edge, points }) => ({ id: edge.id, points })));
