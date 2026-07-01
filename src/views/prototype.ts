@@ -1,5 +1,6 @@
 import type { ArchEdge, ArchMapModel, ArchNode, DataObject, Diagnostic, Scenario } from "../types.js";
 import type { MountableView, ViewContext, ViewHandle } from "../render.js";
+import { buildEdgePaths } from "./svg.js";
 
 const SCREEN_KINDS = new Set([
   "screen", "page", "modal", "webview", "form", "external_page", "error_screen", "completion_screen",
@@ -241,8 +242,9 @@ function routeFlowMapEdge(start: { x: number; y: number }, end: { x: number; y: 
   return [start, { x: detourX, y: start.y }, { x: detourX, y: end.y }, end];
 }
 
-function pointsAttr(points: Array<{ x: number; y: number }>): string {
-  return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+function pathD(points: Array<{ x: number; y: number }>): string {
+  if (points.length === 0) return "";
+  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
 }
 
 export function prototypeView({ model, options }: ViewContext): MountableView {
@@ -275,7 +277,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-card-panel{border:1px solid #d7dee9;border-radius:8px;background:#fff;padding:10px}",
         ".archmap-prototype-card-panel h3{margin:0 0 8px;font-size:13px}",
         ".archmap-prototype-card-panel ul{margin:0;padding-left:18px}",
-        ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:1px solid #cbd5e1;border-radius:8px;background:#fff;position:relative;touch-action:none;cursor:grab}",
+        ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:0;border-radius:0;background:#fff;position:relative;touch-action:none;cursor:grab}",
         ".archmap-prototype.is-map .archmap-prototype-flow{min-height:100%}",
         ".archmap-prototype-flow.is-dragging{cursor:grabbing}",
         ".archmap-prototype-flow-canvas{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}",
@@ -474,6 +476,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           if (targetBucket) targetBucket.push(plan);
           else endpointGroups.set(targetKey, [plan]);
         }
+        const edgeRoutes: Array<{ edge: ArchEdge; points: Array<{ x: number; y: number }> }> = [];
         for (const plan of plans) {
           const { edge, from, to } = plan;
           const sourceGroup = endpointGroups.get(endpointKey(edge.from, plan.sourceSide)) ?? [plan];
@@ -484,21 +487,26 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const end = sidePoint(to, plan.targetSide, targetOrdinal, targetGroup.length);
           const laneOrdinal = sourceOrdinal - (sourceGroup.length - 1) / 2;
           const points = routeFlowMapEdge(start, end, laneOrdinal);
-          const polyline = svgEl("polyline");
-          setAttrs(polyline, {
-            points: pointsAttr(points),
+          edgeRoutes.push({ edge, points });
+        }
+        const pathByEdge = buildEdgePaths(edgeRoutes.map(({ edge, points }) => ({ id: edge.id, points })));
+        for (const { edge, points } of edgeRoutes) {
+          const path = svgEl("path");
+          setAttrs(path, {
+            d: pathByEdge.get(edge.id) ?? pathD(points),
             fill: "none",
             stroke: edge.boundaryCrossing ? "#d97706" : "#4f6f9d",
             "stroke-width": 2,
             "marker-end": "url(#archmap-prototype-arrow)",
           });
-          svg.appendChild(polyline);
+          svg.appendChild(path);
           const label = svgEl("text");
           label.classList.add("archmap-prototype-flow-edge-label");
           label.textContent = edge.trigger ?? edge.label ?? edge.flow ?? "";
-          const firstBend = points[1] ?? start;
-          const labelX = (start.x + firstBend.x) / 2;
-          const labelY = (start.y + firstBend.y) / 2 - 8;
+          const labelStart = points[0] ?? { x: 0, y: 0 };
+          const firstBend = points[1] ?? labelStart;
+          const labelX = (labelStart.x + firstBend.x) / 2;
+          const labelY = (labelStart.y + firstBend.y) / 2 - 8;
           setAttrs(label, { x: labelX, y: labelY, "text-anchor": "middle" });
           if (label.textContent) svg.appendChild(label);
         }

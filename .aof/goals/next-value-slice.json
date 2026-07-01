@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-065 checkpoint done: Applied Overview-style endpoint spacing rules to Prototype map routing. Prototype map edges now choose source/target sides from relative node position, allocate distinct ports per node side for both starts and ends, route through separated lanes instead of a shared center port/trunk, keep direct same-row/same-column routes when valid, and place edge labels near the source segment. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and browser smoke on http://localhost:5173/ confirmed 15 Prototype map edges with duplicateStarts=[] and duplicateEnds=[] after rendering the current sample. TASK-056 performance remains open; next optimization target is broader layout/render recomputation and dense edge path costs.",
-  "updated_at": "2026-07-01T22:49:00.000+09:00",
+  "content": "TASK-066 checkpoint done: Prototype map routing now uses the same SVG edge path machinery as Overview. Prototype edges are rendered as paths through buildEdgePaths(), so overlapping horizontal/vertical segments receive parallel offsets and crossing gaps instead of piling into shared lanes. The Prototype map viewport border was removed. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and browser smoke on http://localhost:5173/ confirmed pathCount=15, polylineCount=0, flow border=0px none, and Play still works. TASK-056 performance remains open; next optimization target is broader layout/render recomputation and dense edge path costs.",
+  "updated_at": "2026-07-01T23:13:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
