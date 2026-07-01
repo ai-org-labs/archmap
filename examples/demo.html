@@ -34,7 +34,7 @@
     .diagram.is-fullscreen #diagram { height: calc(100vh - 32px); min-height: calc(100vh - 32px); }
     #diagram canvas { display: block; width: 100%; min-height: 100%; }
     .diagram.is-fullscreen #diagram canvas { min-height: calc(100vh - 32px); }
-    .diagram svg { background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: 100%; height: auto; }
+    .diagram svg.archmap { display: block; background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: none; height: auto; }
     .diagram-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; gap: 10px; background: rgba(248,250,252,0.62); backdrop-filter: blur(1px); color: #334155; font: 700 13px system-ui, sans-serif; pointer-events: none; }
     .diagram-loading-spinner { width: 22px; height: 22px; border-radius: 999px; border: 3px solid rgba(100,116,139,0.25); border-top-color: #2563eb; animation: archmap-spin 0.75s linear infinite; }
     @keyframes archmap-spin { to { transform: rotate(360deg); } }

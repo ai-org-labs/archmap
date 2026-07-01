@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-076 checkpoint done: polished release UI terminology and Prototype map interaction after browser review. User-facing Stack labels are now Layer in the shared diagram-tags control, custom element controls, demo markup, and docs. Prototype map mode now places its control panel at the bottom-right and allows dragging the map from screen cards as well as whitespace; controls/panel/form elements remain excluded. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts test/render.test.ts, npm run build, and built-artifact grep for Layer label/right-bottom panel/card-drag condition passed. Remaining release work: final browser smoke on localhost/GitHub Pages, publish 0.1.1 to npm, create/push the v0.1.1 tag, and verify jsDelivr URLs after publish.",
-  "updated_at": "2026-07-02T02:31:00.000+09:00",
+  "content": "TASK-077 checkpoint done: fixed the static demo's tiny initial overview render. The demo CSS no longer applies responsive max-width scaling to rendered ArchMap SVGs; core pan/zoom fit now owns the scaling without a second browser shrink. Verification: npm run typecheck, npm test -- --run test/render.test.ts, npm run build. Remaining release work: final browser smoke on localhost/file demo/GitHub Pages, publish 0.1.1 to npm, create/push the v0.1.1 tag, and verify jsDelivr URLs after publish.",
+  "updated_at": "2026-07-02T02:38:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
