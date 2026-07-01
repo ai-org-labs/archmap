@@ -163,7 +163,7 @@ function flowMapLayout(model: ArchMapModel, scenario: Scenario | undefined): { n
   const cardH = 260;
   const xGap = 180;
   const yGap = 72;
-  const margin = 32;
+  const margin = 120;
   const placed: FlowMapNode[] = [];
   const sortedDepths = [...columns.keys()].sort((a, b) => a - b);
   const rowById = new Map<string, number>();
@@ -285,6 +285,49 @@ function addPoint(points: Array<{ x: number; y: number }>, point: { x: number; y
   points.push(point);
 }
 
+function simplifyFlowPoints(points: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  const deduped: Array<{ x: number; y: number }> = [];
+  for (const point of points) addPoint(deduped, point);
+  return deduped.filter((point, index) => {
+    if (index === 0 || index === deduped.length - 1) return true;
+    const prev = deduped[index - 1];
+    const next = deduped[index + 1];
+    const sameX = Math.abs(prev.x - point.x) < 0.5 && Math.abs(point.x - next.x) < 0.5;
+    const sameY = Math.abs(prev.y - point.y) < 0.5 && Math.abs(point.y - next.y) < 0.5;
+    return !(sameX || sameY);
+  });
+}
+
+function segmentIntersectsFlowNode(a: { x: number; y: number }, b: { x: number; y: number }, node: FlowMapNode, padding = 10): boolean {
+  const x0 = node.x - padding;
+  const y0 = node.y - padding;
+  const x1 = node.x + node.w + padding;
+  const y1 = node.y + node.h + padding;
+  if (Math.max(a.x, b.x) <= x0 || Math.min(a.x, b.x) >= x1 || Math.max(a.y, b.y) <= y0 || Math.min(a.y, b.y) >= y1) return false;
+  if (Math.abs(a.x - b.x) < 0.5) return a.x > x0 && a.x < x1 && Math.max(a.y, b.y) > y0 && Math.min(a.y, b.y) < y1;
+  if (Math.abs(a.y - b.y) < 0.5) return a.y > y0 && a.y < y1 && Math.max(a.x, b.x) > x0 && Math.min(a.x, b.x) < x1;
+  return false;
+}
+
+function flowRouteHits(points: Array<{ x: number; y: number }>, from: FlowMapNode, to: FlowMapNode, nodes: FlowMapNode[]): number {
+  const blockers = nodes.filter((node) => node.node.id !== from.node.id && node.node.id !== to.node.id);
+  let hits = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    for (const node of blockers) {
+      if (segmentIntersectsFlowNode(points[i], points[i + 1], node)) hits++;
+    }
+  }
+  return hits;
+}
+
+function flowRouteLength(points: Array<{ x: number; y: number }>): number {
+  let length = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    length += Math.abs(points[i].x - points[i + 1].x) + Math.abs(points[i].y - points[i + 1].y);
+  }
+  return length;
+}
+
 function routeFlowMapEdge(
   start: { x: number; y: number },
   end: { x: number; y: number },
@@ -326,7 +369,54 @@ function routeFlowMapEdge(
     addPoint(route, endOuter);
   }
   addPoint(route, end);
-  return route;
+  return simplifyFlowPoints(route);
+}
+
+function repairFlowMapRoute(
+  points: Array<{ x: number; y: number }>,
+  plan: FlowMapEndpointPlan,
+  nodes: FlowMapNode[],
+): Array<{ x: number; y: number }> {
+  if (flowRouteHits(points, plan.from, plan.to, nodes) === 0) return points;
+  const source = sideNormal(plan.sourceSide);
+  const target = sideNormal(plan.targetSide);
+  const start = points[0];
+  const end = points[points.length - 1];
+  const startOuter = { x: start.x + source.x * 42, y: start.y + source.y * 42 };
+  const endOuter = { x: end.x + target.x * 42, y: end.y + target.y * 42 };
+  const minX = Math.min(...nodes.map((node) => node.x));
+  const maxX = Math.max(...nodes.map((node) => node.x + node.w));
+  const minY = Math.min(...nodes.map((node) => node.y));
+  const maxY = Math.max(...nodes.map((node) => node.y + node.h));
+  const laneGap = 36;
+  const laneIndex = Math.round(plan.laneOrdinal);
+  const outsideTop = minY - 72 - Math.max(0, -laneIndex) * laneGap;
+  const outsideBottom = maxY + 72 + Math.max(0, laneIndex) * laneGap;
+  const outsideLeft = minX - 72 - Math.max(0, -laneIndex) * laneGap;
+  const outsideRight = maxX + 72 + Math.max(0, laneIndex) * laneGap;
+  const sourceHorizontal = plan.sourceSide === "left" || plan.sourceSide === "right";
+  const targetHorizontal = plan.targetSide === "left" || plan.targetSide === "right";
+  const candidates: Array<Array<{ x: number; y: number }>> = [points];
+  const candidate = (middle: Array<{ x: number; y: number }>): void => {
+    candidates.push(simplifyFlowPoints([start, startOuter, ...middle, endOuter, end]));
+  };
+
+  if (sourceHorizontal && targetHorizontal) {
+    candidate([{ x: startOuter.x, y: outsideTop }, { x: endOuter.x, y: outsideTop }]);
+    candidate([{ x: startOuter.x, y: outsideBottom }, { x: endOuter.x, y: outsideBottom }]);
+  } else if (!sourceHorizontal && !targetHorizontal) {
+    candidate([{ x: outsideLeft, y: startOuter.y }, { x: outsideLeft, y: endOuter.y }]);
+    candidate([{ x: outsideRight, y: startOuter.y }, { x: outsideRight, y: endOuter.y }]);
+  } else {
+    candidate([{ x: endOuter.x, y: startOuter.y }]);
+    candidate([{ x: startOuter.x, y: endOuter.y }]);
+    candidate([{ x: startOuter.x, y: outsideTop }, { x: endOuter.x, y: outsideTop }]);
+    candidate([{ x: outsideRight, y: startOuter.y }, { x: outsideRight, y: endOuter.y }]);
+  }
+
+  return candidates
+    .filter((route) => route.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)))
+    .sort((a, b) => flowRouteHits(a, plan.from, plan.to, nodes) - flowRouteHits(b, plan.from, plan.to, nodes) || flowRouteLength(a) - flowRouteLength(b))[0];
 }
 
 function pathD(points: Array<{ x: number; y: number }>): string {
@@ -593,7 +683,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const targetOrdinal = Math.max(0, targetGroup.indexOf(plan));
           const start = sidePoint(from, plan.sourceSide, sourceOrdinal, sourceGroup.length);
           const end = sidePoint(to, plan.targetSide, targetOrdinal, targetGroup.length);
-          const points = routeFlowMapEdge(start, end, plan.sourceSide, plan.targetSide, plan.laneOrdinal);
+          const points = repairFlowMapRoute(routeFlowMapEdge(start, end, plan.sourceSide, plan.targetSide, plan.laneOrdinal), plan, map.nodes);
           edgeRoutes.push({ edge, points });
         }
         const pathByEdge = buildEdgePaths(edgeRoutes.map(({ edge, points }) => ({ id: edge.id, points })));

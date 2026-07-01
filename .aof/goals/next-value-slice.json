@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-068 checkpoint done: Added the user's dense branch-heavy screenflow sample as test/fixtures/screenflow-complex.archmap and hardened Prototype map layout for it. Flow-map nodes now carry depth/row metadata, different-depth transitions prefer left/right side ports, endpoint ports are sorted by the opposite node position, column/row gaps are widened, and shared inter-column/inter-row route lanes are assigned globally instead of per-source only. This reduces the tangled shared trunks seen in branch-heavy screenflow maps while preserving the TASK-067 perpendicular source/target stubs and TASK-066 buildEdgePaths overlap handling. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts (9 tests, including the dense sample), and npm run build passed. TASK-056 performance remains open; dense Prototype render still takes ~2s in the targeted test.",
-  "updated_at": "2026-07-01T23:45:00.000+09:00",
+  "content": "TASK-069 checkpoint done: Prototype map routing now rejects routes that pass behind/through other screen cards. After the perpendicular source/target stubs are generated, each candidate route is checked against all non-endpoint flow-map cards with padding; if it intersects another card, the renderer chooses an outside top/bottom/left/right lane candidate with the fewest component hits and shortest length. Prototype map margins were increased so outside lanes are less likely to clip. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts (9 tests, dense sample still covered), and npm run build passed. TASK-056 performance remains open; dense Prototype render still takes ~2s in the targeted test.",
+  "updated_at": "2026-07-02T00:10:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
