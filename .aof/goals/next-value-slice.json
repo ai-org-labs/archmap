@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-063 checkpoint done: Fixed Prototype map interaction instability. renderMap() now aborts the previous map pointer/wheel listeners before installing new ones, releases active pointer capture during cleanup, clears dragging state on pointerup/pointercancel/lostpointercapture/window pointerup/window blur, and avoids starting map drag from buttons/selects/controls. Flow-map layout also precomputes outgoing transitions by node to avoid repeated edge filtering during depth traversal. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and browser smoke on http://localhost:5173/ plus /examples/screenflow-map.html confirmed drag no longer stays grabbed and Map/Play/Next remain clickable after dragging. TASK-056 performance remains open; next optimization target is broader layout/render recomputation and dense edge path costs.",
-  "updated_at": "2026-07-01T20:14:00.000+09:00",
+  "content": "TASK-064 checkpoint done: Expanded playground/static demo editor layout to fill the browser rendering area. index.html and examples/demo.html now use html/body 100% height, body grid rows for header + remaining workspace, hidden page overflow, minmax(0,1fr) main content, full-height editor/diagram panes, and diagnostics as a bottom overlay so the textarea reaches the viewport bottom. Verification: browser smoke on http://localhost:5173/ measured textareaBottomGap=0, panelBottomGap=0, mainBottomGap=0 with no document scroll; npm run build passed. TASK-056 performance remains open; next optimization target is broader layout/render recomputation and dense edge path costs.",
+  "updated_at": "2026-07-01T20:24:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

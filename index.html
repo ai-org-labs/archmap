@@ -13,25 +13,26 @@
       --archmap-zone-fill: rgba(80,120,200,0.06);
       --archmap-zone-stroke: #9bb0d4;
     }
-    body { margin: 0; font: 14px system-ui, sans-serif; color: #1c2733; background: #eef1f6; }
+    html, body { height: 100%; }
+    body { margin: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; font: 14px system-ui, sans-serif; color: #1c2733; background: #eef1f6; }
     header { padding: 12px 16px; background: #1c2733; color: #fff; }
     header h1 { margin: 0; font-size: 16px; font-weight: 600; }
     header span { opacity: 0.6; font-weight: 400; }
-    main { --editor-width: 360px; display: grid; grid-template-columns: var(--editor-width) 8px minmax(0, 1fr); gap: 0; height: calc(100vh - 49px); }
-    .panel { display: flex; flex-direction: column; min-width: 260px; border-right: 1px solid #d4dae6; background: #fff; }
+    main { --editor-width: 360px; display: grid; grid-template-columns: var(--editor-width) 8px minmax(0, 1fr); gap: 0; min-height: 0; overflow: hidden; }
+    .panel { position: relative; display: flex; flex-direction: column; min-width: 260px; min-height: 0; border-right: 1px solid #d4dae6; background: #fff; }
     .panel-top { padding: 8px 10px; border-bottom: 1px solid #d4dae6; display: flex; align-items: center; gap: 8px; }
     .editor { flex: 1; min-height: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr); overflow: hidden; background: #fff; }
-    .line-numbers { overflow: hidden; padding: 12px 8px 12px 0; border-right: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; font: 12px/1.5 ui-monospace, monospace; text-align: right; user-select: none; white-space: pre; }
-    textarea { min-width: 0; height: 100%; border: 0; padding: 12px; font: 12px/1.5 ui-monospace, monospace; resize: none; outline: none; overflow: auto; white-space: pre; }
+    .line-numbers { overflow: hidden; padding: 12px 8px 40px 0; border-right: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; font: 12px/1.5 ui-monospace, monospace; text-align: right; user-select: none; white-space: pre; }
+    textarea { box-sizing: border-box; min-width: 0; height: 100%; border: 0; padding: 12px 12px 40px; font: 12px/1.5 ui-monospace, monospace; resize: none; outline: none; overflow: auto; white-space: pre; }
     .resize-handle { cursor: col-resize; background: linear-gradient(90deg, #d7dde8, #eef1f6); border-right: 1px solid #d4dae6; }
     .resize-handle:hover, .resize-handle.is-dragging { background: #b9c7dc; }
     button { padding: 6px 14px; border: 0; border-radius: 6px; background: #34507a; color: #fff; cursor: pointer; }
-    .diagram { position: relative; overflow: auto; padding: 16px; height: calc(100vh - 49px); box-sizing: border-box; }
+    .diagram { position: relative; overflow: auto; padding: 16px; min-height: 0; box-sizing: border-box; }
     .diagram.is-fullscreen { position: fixed; inset: 0; z-index: 20; height: 100vh; background: #eef1f6; }
     .diagram.is-fullscreen .diagram-tags { width: min(980px, calc(100% - 24px)); }
-    #diagram { height: calc(100vh - 96px); min-height: calc(100vh - 96px); }
+    #diagram { height: 100%; min-height: 0; }
     .diagram.is-fullscreen #diagram { height: calc(100vh - 32px); min-height: calc(100vh - 32px); }
-    #diagram canvas { display: block; width: 100%; min-height: calc(100vh - 96px); }
+    #diagram canvas { display: block; width: 100%; min-height: 100%; }
     .diagram.is-fullscreen #diagram canvas { min-height: calc(100vh - 32px); }
     .diagram svg { background: #fff; border: 1px solid #d4dae6; border-radius: 8px; max-width: 100%; height: auto; }
     .diagram-loading { position: absolute; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; gap: 10px; background: rgba(248,250,252,0.62); backdrop-filter: blur(1px); color: #334155; font: 700 13px system-ui, sans-serif; pointer-events: none; }
@@ -49,7 +50,7 @@
     .tag-action { min-width: 28px; min-height: 26px; padding: 3px 8px; border-radius: 999px; background: #eef2f7; color: #334155; border: 1px solid #cbd5e1; }
     .tag-action.is-active { background: #e6edf7; border-color: #7892bd; color: #213a63; }
     .tag-action svg { width: 15px; height: 15px; display: block; stroke: currentColor; }
-    .diag-log { max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; font: 11px ui-monospace, monospace; }
+    .diag-log { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; background: rgba(255,255,255,0.94); font: 11px ui-monospace, monospace; }
     .err { color: #b3261e; }
     .warn { color: #a06a00; }
   </style>
