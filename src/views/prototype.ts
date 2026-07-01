@@ -491,6 +491,8 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-flow{width:100%;height:100%;min-height:520px;overflow:hidden;border:0;border-radius:0;background:#fff;position:relative;touch-action:none;cursor:grab}",
         ".archmap-prototype.is-map .archmap-prototype-flow{min-height:100%}",
         ".archmap-prototype-flow.is-dragging{cursor:grabbing}",
+        ".archmap-prototype-flow-loading{display:flex;align-items:center;justify-content:center;color:#476283;font-weight:800}",
+        ".archmap-prototype-flow-loading::after{content:'Rendering map...';padding:10px 14px;border:1px solid #cbd5e1;border-radius:999px;background:rgba(255,255,255,.9);box-shadow:0 4px 12px rgba(15,23,42,.10)}",
         ".archmap-prototype-flow-canvas{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;border:0;outline:0}",
         ".archmap-prototype-flow-svg{position:absolute;inset:0;overflow:visible;pointer-events:none}",
         ".archmap-prototype-flow-card{position:absolute;display:flex;flex-direction:column;border:2px solid #315b92;border-radius:10px;background:#f8fbff;box-shadow:0 2px 7px rgba(15,23,42,.10);overflow:hidden;cursor:pointer}",
@@ -524,6 +526,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       let mapInitialized = false;
       let cleanupMapInteractions: (() => void) | undefined;
       let activeMapPointerId: number | undefined;
+      let mapRenderToken = 0;
       const history: string[] = [];
 
       const currentNode = (): ArchNode | undefined => model.nodes.find((node) => node.id === current);
@@ -570,6 +573,8 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const img = document.createElement("img");
           img.src = node.image;
           img.alt = node.label;
+          img.loading = "lazy";
+          img.decoding = "async";
           screenPane.appendChild(img);
         } else {
           const card = document.createElement("div");
@@ -608,6 +613,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         cleanupMapInteractions?.();
         cleanupMapInteractions = undefined;
         activeMapPointerId = undefined;
+        mapRenderToken++;
         screenPane.textContent = "";
         screenPane.className = "archmap-prototype-flow";
         const mapInteractionController = new AbortController();
@@ -732,6 +738,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         }
         const pathByEdge = buildEdgePaths(edgeRoutes.map(({ edge, points }) => ({ id: edge.id, points })));
         for (const { edge, points } of edgeRoutes) {
+          const edgeLayer = document.createDocumentFragment();
           const outgoing = outgoingBySource.get(edge.from) ?? [edge];
           const color = flowMapEdgeColor(edge, Math.max(0, outgoing.indexOf(edge)), outgoing.length);
           const path = svgEl("path");
@@ -742,7 +749,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
             "stroke-width": 2,
             "marker-end": `url(#${ensureMarker(color)})`,
           });
-          svg.appendChild(path);
+          edgeLayer.appendChild(path);
           const label = svgEl("text");
           label.classList.add("archmap-prototype-flow-edge-label");
           label.textContent = edge.trigger ?? edge.label ?? edge.flow ?? "";
@@ -751,7 +758,8 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const labelX = (labelStart.x + firstBend.x) / 2;
           const labelY = (labelStart.y + firstBend.y) / 2 - 8;
           setAttrs(label, { x: labelX, y: labelY, "text-anchor": "middle", fill: color });
-          if (label.textContent) svg.appendChild(label);
+          if (label.textContent) edgeLayer.appendChild(label);
+          svg.appendChild(edgeLayer);
         }
         canvas.appendChild(svg);
 
@@ -798,6 +806,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           zoomAt(event.deltaY < 0 ? 1.1 : 0.9, event.clientX, event.clientY);
         }, { passive: false });
 
+        const cardLayer = document.createDocumentFragment();
         for (const item of map.nodes) {
           const card = document.createElement("button");
           card.type = "button";
@@ -811,6 +820,8 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
             const img = document.createElement("img");
             img.src = item.node.image;
             img.alt = item.node.label;
+            img.loading = "lazy";
+            img.decoding = "async";
             card.appendChild(img);
           } else {
             const fallback = document.createElement("div");
@@ -831,8 +842,9 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
             displayMode = "play";
             renderUi();
           });
-          canvas.appendChild(card);
+          cardLayer.appendChild(card);
         }
+        canvas.appendChild(cardLayer);
 
         const controls = document.createElement("div");
         controls.className = "archmap-prototype-flow-controls";
@@ -863,6 +875,19 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         }
       };
 
+      const renderMapDeferred = (): void => {
+        cleanupMapInteractions?.();
+        cleanupMapInteractions = undefined;
+        activeMapPointerId = undefined;
+        const token = ++mapRenderToken;
+        screenPane.textContent = "";
+        screenPane.className = "archmap-prototype-flow archmap-prototype-flow-loading";
+        requestAnimationFrame(() => {
+          if (token !== mapRenderToken || !root.isConnected) return;
+          renderMap();
+        });
+      };
+
       const renderUi = (): void => {
         const node = currentNode();
         const edges = outgoing();
@@ -870,10 +895,11 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         root.style.gridTemplateColumns = displayMode === "map" ? "1fr" : "minmax(280px,1fr) 280px";
         root.style.overflow = displayMode === "map" ? "hidden" : "auto";
         if (displayMode === "map") {
-          renderMap();
+          renderMapDeferred();
         } else {
           cleanupMapInteractions?.();
           cleanupMapInteractions = undefined;
+          mapRenderToken++;
           screenPane.className = "archmap-prototype-screen";
           renderScreen(node, edges);
         }

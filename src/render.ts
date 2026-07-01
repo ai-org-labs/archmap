@@ -157,6 +157,35 @@ export function getView(name: string): ViewRenderer | undefined {
   return registry.get(name);
 }
 
+function prototypePlaceholderLayout(model: ArchMapModel): LayoutResult {
+  return {
+    direction: model.direction,
+    width: 1,
+    height: 1,
+    depth: 1,
+    nodes: model.nodes.map((node) => ({
+      id: node.id,
+      label: node.label,
+      shape: node.shape,
+      x: 0,
+      y: 0,
+      z: 0,
+      w: 1,
+      h: 1,
+      abstraction: node.abstraction,
+    })),
+    zones: [],
+    boundaries: [],
+    edges: [],
+  };
+}
+
+function layoutForRenderState(model: ArchMapModel, state: { requestedView: string; view: string }, options: RenderOptions): LayoutResult {
+  return state.view === "prototype"
+    ? prototypePlaceholderLayout(model)
+    : computeLayout(model, layoutOptionsForState(state, options));
+}
+
 export function listViews(): string[] {
   return [...registry.keys()];
 }
@@ -625,7 +654,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
-    const layout = computeLayout(effectiveModel, layoutOptionsForState(state, options));
+    const layout = layoutForRenderState(effectiveModel, state, options);
     const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget };
     const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
@@ -685,9 +714,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
 
   const result: RenderResult = {
     view: state.view,
-    layout: computeLayout(initialModel, {
-      ...layoutOptionsForState(state, options),
-    }),
+    layout: layoutForRenderState(initialModel, state, options),
     model: initialModel,
     svg: undefined,
     handle: undefined,
