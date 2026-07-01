@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-062 checkpoint done: Added docs/AI_AUTHORING_GUIDE.md as the AI-facing entry point for agents asked to author ArchMap DSL from the v0.1.x repo/tag. The guide covers what to output, fast information gathering, core syntax rules, concept distinctions (subgraph/zone/boundary/layer and overlays), common vocabulary, metadata patterns for auth/dataflow/boundary/permission/screenflow, final quality checks, and a copy-paste delegation prompt. README now links the guide near SYNTAX, and SYNTAX links back to the AI authoring guide for AI-prompted authoring. Verification: documentation diff reviewed and npm run typecheck passed. TASK-056 performance remains open; next optimization target is layout/render recomputation and dense edge path costs.",
-  "updated_at": "2026-07-01T20:02:00.000+09:00",
+  "content": "TASK-063 checkpoint done: Fixed Prototype map interaction instability. renderMap() now aborts the previous map pointer/wheel listeners before installing new ones, releases active pointer capture during cleanup, clears dragging state on pointerup/pointercancel/lostpointercapture/window pointerup/window blur, and avoids starting map drag from buttons/selects/controls. Flow-map layout also precomputes outgoing transitions by node to avoid repeated edge filtering during depth traversal. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, npm run build, and browser smoke on http://localhost:5173/ plus /examples/screenflow-map.html confirmed drag no longer stays grabbed and Map/Play/Next remain clickable after dragging. TASK-056 performance remains open; next optimization target is broader layout/render recomputation and dense edge path costs.",
+  "updated_at": "2026-07-01T20:14:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
