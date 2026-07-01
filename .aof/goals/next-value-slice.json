@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-058 checkpoint done: Diagram tags are now a reusable @archmap/core browser control via createDiagramTags(), exported from the root API and the CDN-friendly subpath @archmap/core/controls/diagram-tags. <archmap-viewer controls>, the dev playground, and examples/demo.html now use the shared control. Package version is bumped to 0.1.1 so npm/jsDelivr can publish the new dist/controls/diagram-tags.js path without overwriting 0.1.0. The previous prototype map full-area layout change is included. Verification: npm run build, npm test -- --run test/render.test.ts test/prototype.test.ts, and localhost smoke for generated tags passed. TASK-056 performance remains open; next optimization target is layout/render recomputation and dense edge path costs.",
-  "updated_at": "2026-07-01T18:55:00.000+09:00",
+  "content": "TASK-059 checkpoint done: Added a ready-to-open ScreenFlow transition-map sample at examples/screenflow-map.html. It loads examples/screenflow.archmap through <archmap-viewer base-view=\"prototype\"> and starts in the Prototype Map surface where screen SVGs are connected by transition arrows, with Map/Play switching and controls enabled. README and DELIVERY now point to the sample and note the CDN import-map equivalent. Verification: npm run build, npm test -- --run test/prototype.test.ts, and browser smoke on http://localhost:5173/examples/screenflow-map.html confirmed 8 screen cards, 8 arrows, Map/Play controls, prototype base-view attribute, and no console errors. TASK-056 performance remains open; next optimization target is layout/render recomputation and dense edge path costs.",
+  "updated_at": "2026-07-01T19:02:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

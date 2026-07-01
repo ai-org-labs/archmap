@@ -50,6 +50,8 @@ const { svg } = render(model, { view: "overview" });
 Browser playground: `npm run dev` then open the dev server root (live source,
 no build). Or `npm run build` and open `examples/demo.html` directly from disk
 (no server — uses the built ESM bundle plus CDN-hosted optional dependencies).
+For ScreenFlow, open `examples/screenflow-map.html` to see screen images linked
+as a transition map with Map/Play switching.
 
 Published viewer page: `https://ai-org-labs.github.io/archmap/` after the
 GitHub Pages workflow has run on `main`.

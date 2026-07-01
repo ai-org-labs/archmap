@@ -99,6 +99,17 @@ result.next?.();
 result.back?.();
 ```
 
+The repository includes a ready-to-open transition-map sample:
+
+```text
+examples/screenflow-map.html
+```
+
+It loads `examples/screenflow.archmap`, starts in the `prototype` Map view, and
+shows screen capture SVGs connected by transition arrows. The same HTML can be
+made CDN-only by changing its import map to
+`https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/archmap.js`.
+
 ### CDN Pattern
 
 For browser-only pages, use an import map. During local verification,
