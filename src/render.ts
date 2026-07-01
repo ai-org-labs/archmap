@@ -920,7 +920,7 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
 export const BASE_VIEWS = ["overview", "layer", "prototype"] as const;
 const BASE_VIEW_LABELS: Record<(typeof BASE_VIEWS)[number], string> = {
   overview: "Overview",
-  layer: "Stack",
+  layer: "Layer",
   prototype: "Prototype",
 };
 /** Render modes offered by the controls toolbar: how to display the selected view. */

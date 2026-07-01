@@ -51,7 +51,7 @@ export interface DiagramTagsHandle {
 
 export const DEFAULT_DIAGRAM_TAG_VIEWS: DiagramTagOption[] = [
   { value: "overview", label: "Overview" },
-  { value: "layer", label: "Stack" },
+  { value: "layer", label: "Layer" },
   { value: "prototype", label: "Prototype" },
 ];
 

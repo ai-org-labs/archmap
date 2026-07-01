@@ -16,7 +16,7 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 - [SPEC.md](./SPEC.md) — the v0.1 language design
 
 > **Status:** v0.1 developer-preview hardening. The current product surface is
-> an overview/stack renderer with additive semantic overlays, optional
+> overview/layer/prototype renderers with additive semantic overlays, optional
 > abstraction collapse/expand, an opt-in vendor-icon registry, and an opt-in
 > three.js 3D view. The core bundle ships none of the optional assets (no vendor
 > icons, no three.js). Edges use orthogonal component-safe routing with
@@ -184,7 +184,7 @@ index.html            dev playground (Vite, live source)
 | 9 | Boundary View highlights zone/trust crossings | ✅ done |
 | 10 | Validation warnings available + Validation View | ✅ done |
 | 11–12 | Runs without a server / from static files | ✅ (UMD bundle) |
-| — | 3D / Stack view (three.js, reuses `z`) | ✅ opt-in preview |
+| — | 3D / Layer view (three.js, reuses `z`) | ✅ opt-in preview |
 ```
 
 ## License

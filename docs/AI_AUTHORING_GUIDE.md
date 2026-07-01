@@ -45,7 +45,7 @@ view:
 ````
 
 The graph section is the visible topology. The YAML section is the semantic
-model used by overlays, diagnostics, icons, abstraction, stack view, 3D view,
+model used by overlays, diagnostics, icons, abstraction, Layer view, 3D view,
 and ScreenFlow prototype view.
 
 ## Fast Information Checklist
@@ -87,15 +87,15 @@ clearly marked assumption.
 | Concept | Use it for | Do not use it for |
 | --- | --- | --- |
 | `subgraph` | Authoring hierarchy, abstraction, collapse/expand | Physical or trust grouping by itself |
-| `zone` | Physical/ownership/component area; nested zones are allowed | Stack partitions |
+| `zone` | Physical/ownership/component area; nested zones are allowed | Layer partitions |
 | `boundary` | Logical, trust, policy, network, SaaS, or external crossing area; nested boundaries are allowed | Runtime placement |
-| `layer` | Stack view partition such as app/framework/library/kernel/data | Zone or boundary semantics |
+| `layer` | Layer view partition such as app/framework/library/kernel/data | Zone or boundary semantics |
 | `auth` overlay | Token, issuer, validator, login/auth checks | General request labels |
 | `dataflow` overlay | Data objects, classification, storage, producer/consumer | Every ordinary request |
 | `permission` overlay | Principal, action, resource, role | Authentication token details |
 | `validation` overlay | Warnings/errors/assumptions and model quality | Business status |
 
-Base views are `overview`, `stack`, and `prototype`. Render modes are `2d` and
+Base views are `overview`, `layer`, and `prototype`. Render modes are `2d` and
 `3d`. Add info overlays are `subgraph`, `zone`, `auth`, `dataflow`, `boundary`,
 `permission`, and `validation`.
 
@@ -231,7 +231,7 @@ Use graph LR plus YAML metadata after ---.
 Collect or infer: actors, clients, entry points, runtimes, data stores,
 external systems, auth, dataflow, boundaries, permissions, and unknowns.
 Use zone for physical/ownership grouping, boundary for logical/trust/policy
-grouping, layer only for Stack view, and subgraph only for authoring hierarchy.
+grouping, layer only for Layer view, and subgraph only for authoring hierarchy.
 Prefer standard node kind and flow vocabulary from docs/AI_AUTHORING_GUIDE.md.
 Do not invent secrets or exact cloud roles. Mark assumptions explicitly.
 Before finalizing, check that ids resolve, auth references real nodes, external

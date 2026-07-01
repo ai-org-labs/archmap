@@ -297,7 +297,7 @@ When `controls=true`, the viewer should provide:
 
 - base view selector
   - Overview
-- Stack
+- Layer
 - Prototype
 - render mode selector
   - 2D
@@ -913,7 +913,7 @@ const result = render(model, {
 });
 ```
 
-The view consumes the same parsed model as overview/stack views. Overlay
+The view consumes the same parsed model as overview/layer views. Overlay
 changes must not require reparsing.
 
 ### 20.1 Custom element attributes

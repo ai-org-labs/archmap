@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-075 checkpoint done: prepared the 0.1.1 release-facing default sample. The dev/static demo seed is now a lightweight checkout flow that can render as Overview, Stack/Layer, and Prototype, while carrying every Add info surface: subgraph, zone, auth, dataflow, boundary, permission, and validation. The package files list now includes docs/AI_AUTHORING_GUIDE.md so AI authoring guidance ships in the npm tarball. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts test/render.test.ts, npm run build, dist-based seed parse/render across overview/layer/prototype with all add-info overlays, and npm pack --dry-run --ignore-scripts passed. Remaining release work: final browser smoke on localhost/GitHub Pages, publish 0.1.1 to npm, create/push the v0.1.1 tag, and verify jsDelivr URLs after publish.",
-  "updated_at": "2026-07-02T02:14:00.000+09:00",
+  "content": "TASK-076 checkpoint done: polished release UI terminology and Prototype map interaction after browser review. User-facing Stack labels are now Layer in the shared diagram-tags control, custom element controls, demo markup, and docs. Prototype map mode now places its control panel at the bottom-right and allows dragging the map from screen cards as well as whitespace; controls/panel/form elements remain excluded. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts test/render.test.ts, npm run build, and built-artifact grep for Layer label/right-bottom panel/card-drag condition passed. Remaining release work: final browser smoke on localhost/GitHub Pages, publish 0.1.1 to npm, create/push the v0.1.1 tag, and verify jsDelivr URLs after publish.",
+  "updated_at": "2026-07-02T02:31:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

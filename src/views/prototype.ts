@@ -483,7 +483,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         ".archmap-prototype-screen-controls{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;z-index:3}",
         ".archmap-prototype-screen-controls button{padding:6px 8px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(15,23,42,.14)}",
         ".archmap-prototype-panel{display:flex;flex-direction:column;gap:12px}",
-        ".archmap-prototype.is-map .archmap-prototype-panel{position:absolute;right:28px;top:28px;width:280px;max-height:calc(100% - 56px);overflow:auto;z-index:6;padding:10px;border:1px solid rgba(148,163,184,.65);border-radius:10px;background:rgba(248,250,252,.90);box-shadow:0 12px 28px rgba(15,23,42,.16);backdrop-filter:blur(5px)}",
+        ".archmap-prototype.is-map .archmap-prototype-panel{position:absolute;right:28px;bottom:28px;width:280px;max-height:calc(100% - 56px);overflow:auto;z-index:6;padding:10px;border:1px solid rgba(148,163,184,.65);border-radius:10px;background:rgba(248,250,252,.90);box-shadow:0 12px 28px rgba(15,23,42,.16);backdrop-filter:blur(5px)}",
         ".archmap-prototype-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
         ".archmap-prototype button,.archmap-prototype select{border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#172033;padding:7px 9px;font:600 12px system-ui,sans-serif}",
         ".archmap-prototype button{cursor:pointer}",
@@ -803,7 +803,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         screenPane.addEventListener("pointerdown", (event) => {
           if (event.button !== 0) return;
           const targetEl = event.target instanceof Element ? event.target : null;
-          if (targetEl?.closest("button,select,input,textarea,a,.archmap-prototype-panel,.archmap-prototype-flow-controls")) return;
+          if (targetEl?.closest("select,input,textarea,a,.archmap-prototype-panel,.archmap-prototype-flow-controls")) return;
           dragStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, panX: mapPan.x, panY: mapPan.y };
           activeMapPointerId = event.pointerId;
           didDrag = false;

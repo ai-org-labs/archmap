@@ -56,7 +56,7 @@ Authoring rule of thumb:
   component diagram.
 - Add `zone`, `boundary`, `auth`, `dataflow`, `permission`, and `validation`
   overlays only when you want those extra facts visible.
-- Use `layer` only for Stack view. It is a stack partition, not a zone.
+- Use `layer` only for Layer view. It is a stack partition, not a zone.
 - Use `subgraph` for authoring hierarchy and abstraction. It does not imply a
   physical or logical area unless you also define a zone or boundary.
 - Prefer explicit edge ids when multiple edges connect the same pair.
@@ -72,7 +72,7 @@ Authoring rule of thumb:
 | Subgraph | `subgraph ... end` in graph section | Authoring hierarchy and optional abstraction | Add info `subgraph` shows a translucent grouping; collapsed subgraphs become one component |
 | Zone | `zones.*` metadata | Physical or ownership area, such as client, GCP, AWS, on-prem | Add info `zone` shows nested areas; collapsed zones become one component |
 | Boundary | `boundaries.*` metadata | Logical/trust/policy boundary | Add info `boundary` shows nested boundary areas and crossing context |
-| Layer | `nodes.*.layer` | Stack view partition, such as application/framework/kernel | Used only by Stack view; it does not affect zone or boundary meaning |
+| Layer | `nodes.*.layer` | Layer view partition, such as application/framework/kernel | Used only by Layer view; it does not affect zone or boundary meaning |
 | Add info overlay | `render(..., { overlays })` or viewer checkboxes | Adds semantic information to the base diagram | Additive; it should not replace the base component diagram |
 
 `subgraph`, `zone`, and `boundary` are all user-authored. Overlay names,
@@ -225,7 +225,7 @@ layout:
   direction: LR       # LR or TD; manual node positions are parsed but ignored
 view:
   default:
-    base: overview    # overview or layer (shown as Stack in the UI)
+    base: overview    # overview, layer, or prototype
     overlays: [zone]  # additive information layers
   enabled: [...]      # parsed, not applied yet
   filters: { zones: [...], layers: [...] }  # parsed, not applied yet
@@ -332,7 +332,7 @@ open/close clicks when a read-only view is desired.
 | View | Shows |
 | --- | --- |
 | `overview` | structural nodes/edges only until Add info overlays are enabled |
-| `layer` / UI `Stack` | fixed stack bands from `nodes.*.layer`; zone and boundary do not change the stack partition |
+| `layer` / UI `Layer` | fixed stack bands from `nodes.*.layer`; zone and boundary do not change the stack partition |
 | `zone` overlay | physical component areas from explicit `zones` metadata |
 | `boundary` overlay | logical component areas from explicit `boundaries` metadata, plus boundary/zone-crossing edges; rest faded |
 | `auth` | auth-related components/connectors and token/auth labels |
@@ -342,7 +342,7 @@ open/close clicks when a read-only view is desired.
 | `prototype` | ScreenFlow current screen, transitions, hotspots, scenario playback, and overlay summaries |
 | `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
 
-**Layout behavior:** overview and stack views use automatic placement plus
+**Layout behavior:** overview and layer views use automatic placement plus
 component-safe orthogonal routing. Endpoints are distributed across component
 sides, parallel lanes are offset, component intersections are repaired when
 possible, and rendered SVG validation checks endpoint overlap, port spacing,
