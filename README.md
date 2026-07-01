@@ -5,6 +5,9 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 
 - [docs/SYNTAX.md](./docs/SYNTAX.md) — reference for every **currently
   implemented** syntax/feature (start here to author diagrams)
+- [docs/AI_AUTHORING_GUIDE.md](./docs/AI_AUTHORING_GUIDE.md) — concise
+  information-gathering checklist and prompt template for AI agents writing
+  ArchMap DSL
 - [docs/DELIVERY.md](./docs/DELIVERY.md) — npm/local/CDN delivery and security notes
 - [docs/V0_1_ACCEPTANCE_MATRIX.md](./docs/V0_1_ACCEPTANCE_MATRIX.md) —
   v0.1 acceptance status and remaining release decisions

@@ -2,7 +2,9 @@
 
 This documents **what the current implementation actually parses, models, and
 renders** — not the full v0.1 aspiration. For the language design see
-[SPEC.md](../SPEC.md); for project status see [README.md](../README.md).
+[SPEC.md](../SPEC.md); for project status see [README.md](../README.md). If
+you are prompting an AI agent to author a diagram, start with
+[AI_AUTHORING_GUIDE.md](./AI_AUTHORING_GUIDE.md).
 
 A document is a **graph section** followed by an optional **YAML metadata
 section**, separated by a line containing only `---`:
