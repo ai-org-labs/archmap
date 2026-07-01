@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-059 checkpoint done: Added a ready-to-open ScreenFlow transition-map sample at examples/screenflow-map.html. It loads examples/screenflow.archmap through <archmap-viewer base-view=\"prototype\"> and starts in the Prototype Map surface where screen SVGs are connected by transition arrows, with Map/Play switching and controls enabled. README and DELIVERY now point to the sample and note the CDN import-map equivalent. Verification: npm run build, npm test -- --run test/prototype.test.ts, and browser smoke on http://localhost:5173/examples/screenflow-map.html confirmed 8 screen cards, 8 arrows, Map/Play controls, prototype base-view attribute, and no console errors. TASK-056 performance remains open; next optimization target is layout/render recomputation and dense edge path costs.",
-  "updated_at": "2026-07-01T19:02:00.000+09:00",
+  "content": "TASK-060 checkpoint done: Fixed Prototype Map height collapse in the playground/static demo. The prototype root now has a 640px minimum height, and #diagram in index.html/examples/demo.html uses a real viewport-derived height instead of min-height only, so map mode fills the available diagram area. Verification: npm run build, npm test -- --run test/prototype.test.ts test/render.test.ts, and browser smoke on http://localhost:5173/ after switching to Prototype confirmed diagramHeight=1340, prototypeHeight=1340, flowHeight=1308, and no console errors. TASK-056 performance remains open; next optimization target is layout/render recomputation and dense edge path costs.",
+  "updated_at": "2026-07-01T19:08:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

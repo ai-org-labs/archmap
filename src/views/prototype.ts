@@ -198,7 +198,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       const root = document.createElement("div");
       root.className = "archmap-prototype";
       root.style.cssText =
-        "display:grid;grid-template-columns:minmax(280px,1fr) 280px;gap:16px;width:100%;height:100%;" +
+        "display:grid;grid-template-columns:minmax(280px,1fr) 280px;gap:16px;width:100%;height:100%;min-height:640px;" +
         "box-sizing:border-box;padding:16px;background:#f8fafc;color:#172033;font:13px system-ui,sans-serif;overflow:auto;position:relative;";
       const style = document.createElement("style");
       style.textContent = [
