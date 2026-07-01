@@ -83,6 +83,16 @@ interface FlowMapNode {
   h: number;
 }
 
+type FlowMapSide = "left" | "right" | "top" | "bottom";
+
+interface FlowMapEndpointPlan {
+  edge: ArchEdge;
+  from: FlowMapNode;
+  to: FlowMapNode;
+  sourceSide: FlowMapSide;
+  targetSide: FlowMapSide;
+}
+
 function screenNodes(model: ArchMapModel): ArchNode[] {
   const screens = model.nodes.filter(isScreenNode);
   return screens.length > 0 ? screens : model.nodes;
@@ -181,21 +191,58 @@ function setAttrs(el: Element, attrs: Record<string, string | number>): void {
   for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, String(value));
 }
 
-function outgoingCounts(model: ArchMapModel): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const edge of model.edges) counts.set(edge.from, (counts.get(edge.from) ?? 0) + 1);
-  return counts;
+function flowMapSides(from: FlowMapNode, to: FlowMapNode): { sourceSide: FlowMapSide; targetSide: FlowMapSide } {
+  const fromCx = from.x + from.w / 2;
+  const fromCy = from.y + from.h / 2;
+  const toCx = to.x + to.w / 2;
+  const toCy = to.y + to.h / 2;
+  const dx = toCx - fromCx;
+  const dy = toCy - fromCy;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? { sourceSide: "right", targetSide: "left" }
+      : { sourceSide: "left", targetSide: "right" };
+  }
+  return dy >= 0
+    ? { sourceSide: "bottom", targetSide: "top" }
+    : { sourceSide: "top", targetSide: "bottom" };
 }
 
-function outgoingOrdinals(model: ArchMapModel): Map<string, number> {
-  const seen = new Map<string, number>();
-  const ordinals = new Map<string, number>();
-  for (const edge of model.edges) {
-    const next = seen.get(edge.from) ?? 0;
-    ordinals.set(edge.id, next);
-    seen.set(edge.from, next + 1);
+function sidePoint(node: FlowMapNode, side: FlowMapSide, ordinal: number, total: number): { x: number; y: number } {
+  const along = total <= 1 ? 0.5 : (ordinal + 1) / (total + 1);
+  if (side === "left" || side === "right") {
+    return {
+      x: side === "left" ? node.x : node.x + node.w,
+      y: node.y + node.h * along,
+    };
   }
-  return ordinals;
+  return {
+    x: node.x + node.w * along,
+    y: side === "top" ? node.y : node.y + node.h,
+  };
+}
+
+function endpointKey(nodeId: string, side: FlowMapSide): string {
+  return `${nodeId}:${side}`;
+}
+
+function routeFlowMapEdge(start: { x: number; y: number }, end: { x: number; y: number }, laneOrdinal: number): Array<{ x: number; y: number }> {
+  const forward = end.x >= start.x;
+  const laneGap = 22;
+  const minStub = 34;
+  if (Math.abs(start.y - end.y) < 0.5 && forward) return [start, end];
+  if (Math.abs(start.x - end.x) < 0.5) return [start, end];
+  if (forward) {
+    const baseMid = start.x + Math.max(52, (end.x - start.x) / 2);
+    const midX = baseMid + laneOrdinal * laneGap;
+    return [start, { x: midX, y: start.y }, { x: midX, y: end.y }, end];
+  }
+  const detourX = Math.max(start.x, end.x) + minStub + laneOrdinal * laneGap;
+  return [start, { x: detourX, y: start.y }, { x: detourX, y: end.y }, end];
+}
+
+function pointsAttr(points: Array<{ x: number; y: number }>): string {
+  return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
 }
 
 export function prototypeView({ model, options }: ViewContext): MountableView {
@@ -365,8 +412,6 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         };
         const map = flowMapLayout(model, scenario);
         const byId = new Map(map.nodes.map((entry) => [entry.node.id, entry]));
-        const branchCounts = outgoingCounts(model);
-        const branchOrdinals = outgoingOrdinals(model);
         const canvas = document.createElement("div");
         canvas.className = "archmap-prototype-flow-canvas";
         canvas.style.width = `${map.width}px`;
@@ -410,19 +455,38 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         svg.appendChild(defs);
 
         const screenIds = new Set(map.nodes.map((entry) => entry.node.id));
-        for (const edge of model.edges.filter((entry) => screenIds.has(entry.from) && screenIds.has(entry.to))) {
+        const mapEdges = model.edges.filter((entry) => screenIds.has(entry.from) && screenIds.has(entry.to));
+        const endpointGroups = new Map<string, FlowMapEndpointPlan[]>();
+        const plans: FlowMapEndpointPlan[] = [];
+        for (const edge of mapEdges) {
           const from = byId.get(edge.from);
           const to = byId.get(edge.to);
           if (!from || !to) continue;
-          const start = { x: from.x + from.w, y: from.y + from.h / 2 };
-          const end = { x: to.x, y: to.y + to.h / 2 };
-          const midX = start.x + Math.max(42, (end.x - start.x) / 2);
-          const points = end.x >= start.x
-            ? `${start.x},${start.y} ${midX},${start.y} ${midX},${end.y} ${end.x},${end.y}`
-            : `${start.x},${start.y} ${start.x + 32},${start.y} ${start.x + 32},${end.y} ${end.x},${end.y}`;
+          const sides = flowMapSides(from, to);
+          const plan = { edge, from, to, ...sides };
+          plans.push(plan);
+          const sourceKey = endpointKey(edge.from, plan.sourceSide);
+          const targetKey = endpointKey(edge.to, plan.targetSide);
+          const sourceBucket = endpointGroups.get(sourceKey);
+          if (sourceBucket) sourceBucket.push(plan);
+          else endpointGroups.set(sourceKey, [plan]);
+          const targetBucket = endpointGroups.get(targetKey);
+          if (targetBucket) targetBucket.push(plan);
+          else endpointGroups.set(targetKey, [plan]);
+        }
+        for (const plan of plans) {
+          const { edge, from, to } = plan;
+          const sourceGroup = endpointGroups.get(endpointKey(edge.from, plan.sourceSide)) ?? [plan];
+          const targetGroup = endpointGroups.get(endpointKey(edge.to, plan.targetSide)) ?? [plan];
+          const sourceOrdinal = Math.max(0, sourceGroup.indexOf(plan));
+          const targetOrdinal = Math.max(0, targetGroup.indexOf(plan));
+          const start = sidePoint(from, plan.sourceSide, sourceOrdinal, sourceGroup.length);
+          const end = sidePoint(to, plan.targetSide, targetOrdinal, targetGroup.length);
+          const laneOrdinal = sourceOrdinal - (sourceGroup.length - 1) / 2;
+          const points = routeFlowMapEdge(start, end, laneOrdinal);
           const polyline = svgEl("polyline");
           setAttrs(polyline, {
-            points,
+            points: pointsAttr(points),
             fill: "none",
             stroke: edge.boundaryCrossing ? "#d97706" : "#4f6f9d",
             "stroke-width": 2,
@@ -432,12 +496,9 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const label = svgEl("text");
           label.classList.add("archmap-prototype-flow-edge-label");
           label.textContent = edge.trigger ?? edge.label ?? edge.flow ?? "";
-          const isBranch = (branchCounts.get(edge.from) ?? 0) > 1;
-          const branchOrdinal = branchOrdinals.get(edge.id) ?? 0;
-          const labelX = isBranch
-            ? (end.x >= start.x ? Math.min(start.x + 70, end.x - 42) : start.x + 38)
-            : (start.x + end.x) / 2;
-          const labelY = isBranch ? start.y - 18 + branchOrdinal * 18 : (start.y + end.y) / 2 - 8;
+          const firstBend = points[1] ?? start;
+          const labelX = (start.x + firstBend.x) / 2;
+          const labelY = (start.y + firstBend.y) / 2 - 8;
           setAttrs(label, { x: labelX, y: labelY, "text-anchor": "middle" });
           if (label.textContent) svg.appendChild(label);
         }
