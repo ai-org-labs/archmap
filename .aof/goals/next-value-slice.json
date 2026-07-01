@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-074 checkpoint done: Prototype Play controls are clarified. Play screen content can now be zoomed with +/-/Fit controls, fallback screen cards are larger by default, hotspots are only offered when the current screen has frame metadata and outgoing hotspot definitions, and Back/Next/Reset disable when they have no action. Product guidance: hotspots are for image-based clickable prototype regions; Back/Next are for scenario playback/history, not required for pure map reading. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts, and npm run build passed. TASK-056 broader performance remains open.",
-  "updated_at": "2026-07-02T01:42:00.000+09:00",
+  "content": "TASK-075 checkpoint done: prepared the 0.1.1 release-facing default sample. The dev/static demo seed is now a lightweight checkout flow that can render as Overview, Stack/Layer, and Prototype, while carrying every Add info surface: subgraph, zone, auth, dataflow, boundary, permission, and validation. The package files list now includes docs/AI_AUTHORING_GUIDE.md so AI authoring guidance ships in the npm tarball. Verification: npm run typecheck, npm test -- --run test/prototype.test.ts test/render.test.ts, npm run build, dist-based seed parse/render across overview/layer/prototype with all add-info overlays, and npm pack --dry-run --ignore-scripts passed. Remaining release work: final browser smoke on localhost/GitHub Pages, publish 0.1.1 to npm, create/push the v0.1.1 tag, and verify jsDelivr URLs after publish.",
+  "updated_at": "2026-07-02T02:14:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

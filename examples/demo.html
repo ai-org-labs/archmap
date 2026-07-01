@@ -101,65 +101,203 @@
 
   <script type="text/plain" id="seed">
 graph LR
-  User[User] --> Web[Web App]
-  User --> Android[Android App]
-  Web -->|HTTPS + JWT| APIGW[API Gateway]
-  Android -->|HTTPS + JWT| APIGW
-  FirebaseAuth[Firebase Auth] -->|issues JWT| Web
-  APIGW -->|HTTPS| GCPApp[Cloud Run]
-  GCPApp -->|SQL| CloudSQL[(Cloud SQL)]
-  GCPApp -->|HTTPS / VPN| AWSApp[AWS Service]
-  AWSApp -->|SQL| RDS[(RDS)]
-  GCPApp -->|metrics| Datadog[Datadog]
-  Wiz[Wiz] -->|scans| GCPApp
+  subgraph ShopperJourney
+    Home[Home]
+    Login[Login]
+    Checkout[Checkout]
+    Complete[Complete]
+  end
+
+  Home -->|start| Login
+  Login -->|submit| Checkout
+  Checkout -->|place order| APIGW[Order API]
+  APIGW -->|write order| OrdersDB[(Orders DB)]
+  APIGW -->|open payment| Payment[Payment Provider]
+  Payment -->|success| Complete
+  FirebaseAuth[Firebase Auth] -->|issues token| Login
+  APIGW -->|metrics| Monitor[Ops Monitor]
 ---
+mode: screenflow
+title: "Release sample: checkout flow"
+description: "Lightweight sample covering Overview, Stack, Prototype, and all Add info overlays."
 nodes:
-  User: { zone: client, layer: client, kind: user }
-  Web: { zone: client, layer: client, kind: web_app }
-  Android: { zone: client, layer: client, kind: android_app }
-  FirebaseAuth: { zone: identity, layer: identity, kind: identity_provider, provider: firebase }
-  APIGW: { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
-  GCPApp: { zone: gcp, layer: runtime, kind: serverless_service, provider: gcp, principal: gcp-app-sa }
-  CloudSQL: { zone: gcp, layer: data, kind: relational_database, provider: gcp }
-  AWSApp: { zone: aws, layer: runtime, kind: runtime_service, provider: aws }
-  RDS: { zone: aws, layer: data, kind: relational_database, provider: aws }
-  Datadog: { zone: saas, layer: operations, kind: monitoring, provider: datadog }
-  Wiz: { zone: saas, layer: operations, kind: monitoring, provider: wiz }
+  Home:
+    zone: web
+    layer: client
+    kind: page
+    frame: { device: desktop, width: 960, height: 640 }
+  Login:
+    zone: web
+    layer: client
+    kind: form
+    frame: { device: desktop, width: 960, height: 640 }
+  Checkout:
+    zone: web
+    layer: client
+    kind: form
+    frame: { device: desktop, width: 960, height: 640 }
+  Complete:
+    zone: web
+    layer: client
+    kind: completion_screen
+    frame: { device: desktop, width: 960, height: 640 }
+  FirebaseAuth:
+    zone: identity
+    layer: identity
+    kind: identity_provider
+    provider: firebase
+  APIGW:
+    zone: backend
+    layer: edge
+    kind: api_gateway
+    provider: gcp
+    principal: order-api-sa
+  OrdersDB:
+    zone: backend
+    layer: data
+    kind: relational_database
+    provider: gcp
+  Payment:
+    zone: external_payment
+    layer: external
+    kind: external_page
+    provider: stripe
+    frame: { device: webview, width: 960, height: 640 }
+  Monitor:
+    zone: operations
+    layer: operations
+    kind: monitoring
+    provider: datadog
 edges:
-  web_api:
-    from: Web
-    to: APIGW
-    label: HTTPS + JWT
-    flow: request
+  Home->Login:
+    flow: navigate
+    trigger: click
+    hotspot: { x: 96, y: 120, width: 320, height: 160 }
+  Login->Checkout:
+    flow: submit
+    trigger: submit
+    data: customer_profile
+    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
+    hotspot: { x: 560, y: 440, width: 280, height: 64 }
+  Checkout->APIGW:
+    flow: submit
+    trigger: submit
+    data: order_request
     auth: { token: JWT, issuer: FirebaseAuth, validatedBy: APIGW }
     boundaryCrossing: true
-  gcp_db:
-    from: GCPApp
-    to: CloudSQL
-    label: SQL
+    hotspot: { x: 560, y: 440, width: 280, height: 64 }
+  APIGW->OrdersDB:
     flow: data_access
-    principal: gcp-app-sa
-  gcp_aws:
-    from: GCPApp
-    to: AWSApp
-    label: HTTPS / VPN
-    flow: replication
+    trigger: submit
+    data: order_request
+    principal: order-api-sa
+  APIGW->Payment:
+    flow: redirect
+    trigger: redirect
+    data: payment_session
+    boundaryCrossing: true
+  Payment->Complete:
+    flow: success
+    trigger: redirect
+    data: payment_result
+    boundaryCrossing: true
+  FirebaseAuth->Login:
+    flow: token_issue
+    trigger: redirect
+    auth: { token: JWT, issuer: FirebaseAuth, recipient: Login }
+    boundaryCrossing: true
+  APIGW->Monitor:
+    flow: telemetry_export
+    trigger: auto
+    data: ops_event
     boundaryCrossing: true
 identities:
-  gcp-app-sa: { kind: service_account, provider: gcp, attachedTo: GCPApp }
+  order-api-sa: { kind: service_account, provider: gcp, attachedTo: APIGW }
 data:
   customer_profile:
     label: Customer Profile
     classification: personal
-    storedIn: [CloudSQL, RDS]
-    flows: [gcp_db, gcp_aws]
+    storage: transient
+    flows: [Login->Checkout]
+  order_request:
+    label: Order Request
+    classification: confidential
+    storage: durable
+    storedIn: [OrdersDB]
+    flows: [Checkout->APIGW, APIGW->OrdersDB]
+  payment_session:
+    label: Payment Session
+    classification: restricted
+    storage: transient
+    flows: [APIGW->Payment]
+  payment_result:
+    label: Payment Result
+    classification: restricted
+    storage: transient
+    flows: [Payment->Complete]
+  ops_event:
+    label: Operational Event
+    classification: internal
+    storage: transient
+    flows: [APIGW->Monitor]
+permissions:
+  api_db_writer:
+    principal: order-api-sa
+    action: write
+    resource: OrdersDB
+    role: roles/cloudsql.client
 zones:
-  client: { label: Client, contains: [User, Web, Android] }
-  gcp: { label: GCP, contains: [APIGW, GCPApp, CloudSQL] }
-  aws: { label: AWS, contains: [AWSApp, RDS] }
+  web:
+    label: Web Experience
+    kind: client
+    contains: [Home, Login, Checkout, Complete]
+  identity:
+    label: Identity
+    kind: identity
+    contains: [FirebaseAuth]
+  backend:
+    label: Backend
+    kind: cloud
+    contains: [APIGW, OrdersDB]
+  external_payment:
+    label: External Payment
+    kind: partner
+    contains: [Payment]
+  operations:
+    label: Operations
+    kind: operations
+    contains: [Monitor]
 boundaries:
-  public_edge: { label: Public→GCP Trust Boundary, kind: trust_boundary, contains: [APIGW] }
-  gcp_private: { label: GCP Private Network, kind: network_boundary, contains: [GCPApp, CloudSQL] }
+  public_edge:
+    label: Public Edge Boundary
+    kind: trust_boundary
+    contains:
+      - zone: web
+      - zone: backend
+  payment_boundary:
+    label: Payment Provider Boundary
+    kind: trust_boundary
+    contains:
+      - zone: external_payment
+  operations_boundary:
+    label: Operations Boundary
+    kind: policy_boundary
+    contains:
+      - zone: operations
+scenarios:
+  checkout_happy_path:
+    label: Checkout happy path
+    start: Home
+    steps:
+      - Home->Login
+      - Login->Checkout
+      - Checkout->APIGW
+      - APIGW->Payment
+      - Payment->Complete
+view:
+  default:
+    base: overview
+    overlays: [subgraph, zone, auth, dataflow, boundary, permission, validation]
   </script>
 
   <!--
