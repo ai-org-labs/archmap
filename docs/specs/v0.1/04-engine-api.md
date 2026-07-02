@@ -675,7 +675,43 @@ const result = render(model, {
 });
 ```
 
-### 13.5 Render result
+### 13.5 Buffered streaming input
+
+```ts
+const session = createArchMapStream({
+  target: el,
+  renderOptions: { baseView: "overview", overlays: ["zone"] },
+  debounceMs: 120,
+});
+
+session.write("graph LR\n");
+session.write("  Web[Web App] --> API[API Gateway]\n");
+await session.close();
+```
+
+`createArchMapStream()` is a buffered source interface for live editors,
+LLM/token streams, and generated source. It is not an incremental parser. Each
+flush reparses the complete accumulated source, rerenders with the supplied
+`renderOptions`, and supersedes the previous render.
+
+Required methods:
+
+```ts
+type ArchMapStreamSession = {
+  write(chunk: string | Uint8Array): void;
+  flush(): RenderResult | undefined;
+  close(): Promise<RenderResult | undefined>;
+  abort(): void;
+  pipe(stream: ReadableStream<string | Uint8Array>): Promise<RenderResult | undefined>;
+  getSource(): string;
+  getModel(): ArchMapModel | undefined;
+  getResult(): RenderResult | undefined;
+};
+```
+
+`abort()` must cancel pending debounce work and destroy the current render.
+
+### 13.6 Render result
 
 ```ts
 type RenderResult = {
@@ -696,7 +732,7 @@ type RenderResult = {
 as `overview` and `layer`. Mounted views such as `prototype` and optional `3d`
 must reject SVG export.
 
-### 13.6 Extension API
+### 13.7 Extension API
 
 ```js
 registerView("custom", renderer);

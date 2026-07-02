@@ -360,6 +360,7 @@ grouping remains visible. Nested zones/boundaries are allowed.
 import {
   parse, render, computeLayout,
   registerView, getView, listViews, initialize, defineArchMapViewerElement,
+  createArchMapStream,
   registerIcon, getIcon, listIcons, clearIcons, resolveIcon, resolveNodeIcons,
   extractArchMapBlocks, version,
 } from "@archmap/core";
@@ -375,9 +376,19 @@ overlaid.toggleOverlay("boundary");
 abstracted.setAbstractionLevel(0);
 await overlaid.downloadPng("archmap.png");
 await overlaid.downloadSvg("archmap.svg");
+
+const live = createArchMapStream({ target: el, renderOptions: { baseView: "overview" } });
+live.write("graph LR\n");
+live.write("  Web[Web App] --> API[API Gateway]\n");
+await live.close();
 ```
 
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
+- **Buffered streaming input** is available through
+  `createArchMapStream({ target, renderOptions, debounceMs })`. It accepts
+  `write(chunk)`, `pipe(readableStream)`, `flush()`, `close()`, and `abort()`.
+  This is a buffered source interface, not an incremental parser: each flush
+  reparses the complete accumulated source and supersedes the previous render.
 - **Render results** can update base view/overlays/abstraction without reparsing:
   `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`,
   `setAbstractionLevel(level)`, `setAbstractionTarget("subgraph" | "zone")`,
@@ -474,7 +485,31 @@ const svg = result.exportSvg();
 await result.downloadSvg("architecture.svg");
 ```
 
-### 6.4 Prototype View / ScreenFlow
+### 6.4 Buffered streaming input
+
+`createArchMapStream()` is the low-level interface for LLM/token-stream or live
+source updates. It intentionally buffers text and reparses the full source at
+flush boundaries, so callers get a stable API without requiring the parser to
+be incremental.
+
+```ts
+const session = createArchMapStream({
+  target: document.querySelector("#diagram"),
+  renderOptions: { baseView: "overview", overlays: ["zone"] },
+  debounceMs: 120,
+  onResult: (result) => console.log(result.view),
+});
+
+session.write("graph LR\n");
+session.write("  Web[Web App] --> API[API Gateway]\n");
+session.flush();
+await session.close();
+```
+
+`pipe(readableStream)` accepts `ReadableStream<string | Uint8Array>`. Use
+`abort()` to cancel pending debounce work and destroy the current render.
+
+### 6.5 Prototype View / ScreenFlow
 
 ScreenFlow is enabled with top-level `mode: screenflow` or
 `profile: screenflow` metadata. It reuses the normal graph: screen-like nodes

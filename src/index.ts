@@ -92,6 +92,14 @@ export type {
   RenderValidationFailure,
   RenderValidationOptions,
 } from "./render-validation.js";
+export {
+  createArchMapStream,
+} from "./stream.js";
+export type {
+  ArchMapStreamChunk,
+  ArchMapStreamOptions,
+  ArchMapStreamSession,
+} from "./stream.js";
 export type {
   ViewRenderer,
   ViewContext,
