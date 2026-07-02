@@ -536,11 +536,20 @@ describe("render", () => {
     expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");
   });
 
-  it("exposes PNG export methods on render results", () => {
+  it("exposes PNG and SVG export methods on render results", () => {
     const m = parse(example);
     const result = render(m, { baseView: "overview" });
     expect(typeof result.exportPng).toBe("function");
     expect(typeof result.downloadPng).toBe("function");
+    expect(typeof result.exportSvg).toBe("function");
+    expect(typeof result.downloadSvg).toBe("function");
+    expect(result.exportSvg()).toContain('class="archmap archmap-view-overview"');
+  });
+
+  it("limits SVG export to SVG-backed 2D views", () => {
+    const m = parse(example);
+    const result = render(m, { baseView: "prototype" });
+    expect(() => result.exportSvg()).toThrow("SVG export is only available for SVG-backed 2D views.");
   });
 
   it("keeps overview structural until information layers are added", () => {

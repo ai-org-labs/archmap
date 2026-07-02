@@ -137,6 +137,8 @@ export interface RenderResult {
   reset(): void;
   exportPng(options?: ExportPngOptions): Promise<Blob>;
   downloadPng(filename?: string, options?: ExportPngOptions): Promise<void>;
+  exportSvg(): string;
+  downloadSvg(filename?: string): Promise<void>;
   setScenario?(id: string): void;
   getScenario?(): string | null;
   goToScreen?(id: string): void;
@@ -258,15 +260,15 @@ async function svgToPngBlob(svg: string, options: ExportPngOptions = {}): Promis
   }
 }
 
-async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+async function downloadBlob(blob: Blob, filename: string, extension = "png"): Promise<void> {
   if (typeof document === "undefined" || typeof URL === "undefined") {
-    throw new Error("PNG download requires a browser DOM.");
+    throw new Error("Download requires a browser DOM.");
   }
   const url = URL.createObjectURL(blob);
   try {
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename.endsWith(".png") ? filename : `${filename}.png`;
+    a.download = filename.endsWith(`.${extension}`) ? filename : `${filename}.${extension}`;
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();
@@ -802,7 +804,18 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     },
     async downloadPng(filename = "archmap.png", exportOptions?: ExportPngOptions) {
       const blob = await result.exportPng(exportOptions);
-      await downloadBlob(blob, filename);
+      await downloadBlob(blob, filename, "png");
+    },
+    exportSvg() {
+      if (!result.svg) {
+        throw new Error("SVG export is only available for SVG-backed 2D views.");
+      }
+      return result.svg;
+    },
+    async downloadSvg(filename = "archmap.svg") {
+      if (typeof Blob === "undefined") throw new Error("SVG download requires Blob support.");
+      const svg = result.exportSvg();
+      await downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), filename, "svg");
     },
     setScenario(id: string) {
       result.handle?.setScenario?.(id);

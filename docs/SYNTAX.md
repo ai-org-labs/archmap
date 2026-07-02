@@ -374,13 +374,15 @@ overlaid.setOverlays(["permission", "validation"]);
 overlaid.toggleOverlay("boundary");
 abstracted.setAbstractionLevel(0);
 await overlaid.downloadPng("archmap.png");
+await overlaid.downloadSvg("archmap.svg");
 ```
 
 - **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
 - **Render results** can update base view/overlays/abstraction without reparsing:
   `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`,
   `setAbstractionLevel(level)`, `setAbstractionTarget("subgraph" | "zone")`,
-  `exportPng({ scale, background })`, `downloadPng(filename)`, `destroy()`.
+  `exportPng({ scale, background })`, `downloadPng(filename)`,
+  `exportSvg()`, `downloadSvg(filename)`, `destroy()`.
 - **Custom element (inline source):** `initialize()` defines
   `<archmap-viewer>` by default when `customElements` is available; call
   `defineArchMapViewerElement()` directly if you do not use `initialize()`.
@@ -460,7 +462,19 @@ await result.downloadPng("architecture.png");
 2D export converts the rendered SVG into a PNG canvas. 3D export captures the
 current WebGL canvas view, including the current camera angle.
 
-### 6.3 Prototype View / ScreenFlow
+### 6.3 SVG export
+
+SVG export is available for SVG-backed 2D views such as `overview` and `layer`.
+Mounted views such as `prototype` and the optional `3d` view are not SVG-backed
+and throw if `exportSvg()` is called.
+
+```ts
+const result = render(model, { baseView: "overview", target: el });
+const svg = result.exportSvg();
+await result.downloadSvg("architecture.svg");
+```
+
+### 6.4 Prototype View / ScreenFlow
 
 ScreenFlow is enabled with top-level `mode: screenflow` or
 `profile: screenflow` metadata. It reuses the normal graph: screen-like nodes

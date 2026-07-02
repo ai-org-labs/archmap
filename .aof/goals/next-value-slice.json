@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-079 checkpoint done: synchronized the localhost dev playground with the 0.1.1 release sample. `index.html` now uses the same lightweight checkout screenflow seed as `examples/demo.html`, including Overview/Layer/Prototype coverage and all Add info surfaces, plus the newer toolbar labels, fit SVG CSS, and Prototype loading behavior while retaining dev-time `/src/...` imports. Verification: npm run typecheck, seed parse/render check for index.html and examples/demo.html across overview/layer/prototype with all overlays, npm run build. Remaining release work: manual browser smoke on localhost/file demo/GitHub Pages, publish 0.1.1 to npm, create/push v0.1.1 tag, verify jsDelivr URLs.",
-  "updated_at": "2026-07-02T08:59:00.000+09:00",
+  "content": "TASK-080 checkpoint done: added SVG export for SVG-backed 2D views. `RenderResult` now exposes `exportSvg()` and `downloadSvg()`, available for overview/layer style SVG views and intentionally rejected for mounted views such as prototype/3d. Updated docs/SYNTAX.md and docs/specs/v0.1/04-engine-api.md. Verification: npm run typecheck, npm test -- render.test.ts, npm run build. Remaining release work: manual browser smoke on localhost/file demo/GitHub Pages, publish 0.1.1 to npm, create/push v0.1.1 tag, verify jsDelivr URLs.",
+  "updated_at": "2026-07-02T13:54:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

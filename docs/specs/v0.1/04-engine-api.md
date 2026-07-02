@@ -686,9 +686,15 @@ type RenderResult = {
   reset(): void;
   exportPng(options?: { scale?: number; background?: string }): Promise<Blob>;
   downloadPng(filename?: string, options?: { scale?: number; background?: string }): Promise<void>;
+  exportSvg(): string;
+  downloadSvg(filename?: string): Promise<void>;
   destroy(): void;
 };
 ```
+
+`exportSvg()` / `downloadSvg()` are available only for SVG-backed 2D views such
+as `overview` and `layer`. Mounted views such as `prototype` and optional `3d`
+must reject SVG export.
 
 ### 13.6 Extension API
 
