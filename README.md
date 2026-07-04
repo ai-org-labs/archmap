@@ -5,6 +5,9 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 
 - [docs/SYNTAX.md](./docs/SYNTAX.md) — reference for every **currently
   implemented** syntax/feature (start here to author diagrams)
+- [docs/AI_AUTHORING_GUIDE.md](./docs/AI_AUTHORING_GUIDE.md) — concise
+  information-gathering checklist and prompt template for AI agents writing
+  ArchMap DSL
 - [docs/DELIVERY.md](./docs/DELIVERY.md) — npm/local/CDN delivery and security notes
 - [docs/V0_1_ACCEPTANCE_MATRIX.md](./docs/V0_1_ACCEPTANCE_MATRIX.md) —
   v0.1 acceptance status and remaining release decisions
@@ -13,7 +16,7 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 - [SPEC.md](./SPEC.md) — the v0.1 language design
 
 > **Status:** v0.1 developer-preview hardening. The current product surface is
-> an overview/stack renderer with additive semantic overlays, optional
+> overview/layer/prototype renderers with additive semantic overlays, optional
 > abstraction collapse/expand, an opt-in vendor-icon registry, and an opt-in
 > three.js 3D view. The core bundle ships none of the optional assets (no vendor
 > icons, no three.js). Edges use orthogonal component-safe routing with
@@ -47,9 +50,22 @@ const { svg } = render(model, { view: "overview" });
 // registerView("my3d", ctx => ...)     // ctx.layout has z for three.js
 ```
 
+Curated starter diagrams are exported for playgrounds and AI-assisted authoring:
+
+```ts
+import { DEFAULT_ARCHMAP_SAMPLES } from "@archmap/core";
+const source = DEFAULT_ARCHMAP_SAMPLES[0].source;
+```
+
+The bundled dev playground and `examples/demo.html` expose these samples in the
+selector next to **Render**, including recommended view/render-mode/overlay
+settings for each sample.
+
 Browser playground: `npm run dev` then open the dev server root (live source,
 no build). Or `npm run build` and open `examples/demo.html` directly from disk
 (no server — uses the built ESM bundle plus CDN-hosted optional dependencies).
+For ScreenFlow, open `examples/screenflow-map.html` to see screen images linked
+as a transition map with Map/Play switching.
 
 Published viewer page: `https://ai-org-labs.github.io/archmap/` after the
 GitHub Pages workflow has run on `main`.
@@ -64,7 +80,7 @@ by `provider`/`kind` (most specific first: `provider/kind` → `provider` →
 **Recommended icon source: [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons).**
 It registers AWS/GCP/Azure service-kind icons (keyed `provider/kind`) plus a
 famous-services pack through ArchMap's `registerIcon` — a verified drop-in (same
-`RegisterIcon`/`RenderableIcon` types; `@archmap/icons` v0.1.1 ships 1,271
+`RegisterIcon`/`RenderableIcon` types; `@archmap/icons` v0.1.2 ships 1,271
 cloud icon entries plus 32 famous-service entries):
 
 ```ts
@@ -89,7 +105,7 @@ through jsDelivr:
 <script type="importmap">
 {
   "imports": {
-    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
+    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
   }
 }
 </script>
@@ -179,7 +195,7 @@ index.html            dev playground (Vite, live source)
 | 9 | Boundary View highlights zone/trust crossings | ✅ done |
 | 10 | Validation warnings available + Validation View | ✅ done |
 | 11–12 | Runs without a server / from static files | ✅ (UMD bundle) |
-| — | 3D / Stack view (three.js, reuses `z`) | ✅ opt-in preview |
+| — | 3D / Layer view (three.js, reuses `z`) | ✅ opt-in preview |
 ```
 
 ## License

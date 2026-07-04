@@ -1,0 +1,422 @@
+graph LR
+  Home[Home] --> ProductList[Product List]
+  Home --> Login[Login]
+  Home --> Help[Help Center]
+
+  ProductList --> ProductDetail[Product Detail]
+  ProductList --> SearchResult[Search Result]
+  SearchResult --> ProductDetail
+
+  ProductDetail --> CompareModal[Compare Modal]
+  CompareModal --> ProductDetail
+  ProductDetail --> AuthGuard[Auth Guard]
+  AuthGuard --> Login
+  AuthGuard --> Cart
+
+  Login --> Dashboard[Dashboard]
+  Login --> ForgotPassword[Forgot Password]
+  ForgotPassword --> ResetComplete[Reset Complete]
+  ResetComplete --> Login
+
+  Dashboard --> ProductList
+  Dashboard --> Account[Account Settings]
+  Dashboard --> OrderHistory[Order History]
+
+  Cart --> ProductDetail
+  Cart --> Checkout[Checkout]
+
+  Checkout --> AddressForm[Address Form]
+  AddressForm --> Checkout
+  Checkout --> Payment[Payment]
+
+  Payment --> PaymentError[Payment Error]
+  PaymentError --> Payment
+  Payment --> Complete[Complete]
+
+  Complete --> OrderDetail[Order Detail]
+  Complete --> Dashboard
+
+  OrderHistory --> OrderDetail
+  OrderDetail --> SupportTicket[Support Ticket]
+  Help --> SupportTicket
+  SupportTicket --> ExternalSupport[External Support Site]
+
+---
+mode: screenflow
+title: Complex Web Site ScreenFlow Sample - No Image
+description: EC/ SaaS系Webサイトを想定した、分岐・認証・モーダル・エラー・外部遷移を含む画像なし画面遷移図。
+
+nodes:
+  Home:
+    kind: page
+    label: Home
+    description: "トップページ。商品一覧、ログイン、ヘルプセンターへの入口。"
+
+  ProductList:
+    kind: page
+    label: Product List
+    description: "商品・プラン・コンテンツの一覧画面。検索、絞り込み、詳細遷移を持つ。"
+
+  SearchResult:
+    kind: page
+    label: Search Result
+    description: "検索結果画面。キーワード検索やフィルタ適用後の一覧。"
+
+  ProductDetail:
+    kind: page
+    label: Product Detail
+    description: "商品詳細画面。カート追加、比較、戻る、関連商品への導線を持つ。"
+
+  CompareModal:
+    kind: modal
+    label: Compare Modal
+    description: "商品比較用モーダル。閉じると商品詳細に戻る。"
+
+  AuthGuard:
+    kind: auth_guard
+    label: Auth Guard
+    description: "カート追加や購入開始前にログイン状態を判定する認証ガード。"
+
+  Login:
+    kind: form
+    label: Login
+    description: "ログイン画面。成功時はダッシュボード、または認証ガード後の元導線へ戻る。"
+
+  ForgotPassword:
+    kind: form
+    label: Forgot Password
+    description: "パスワード再設定メール送信用フォーム。"
+
+  ResetComplete:
+    kind: completion_screen
+    label: Reset Complete
+    description: "パスワード再設定メール送信完了画面。ログイン画面へ戻る。"
+
+  Dashboard:
+    kind: page
+    label: Dashboard
+    description: "ログイン後ホーム。商品一覧、注文履歴、アカウント設定へのハブ。"
+
+  Account:
+    kind: page
+    label: Account Settings
+    description: "ユーザー情報、通知設定、支払い方法などの管理画面。"
+
+  OrderHistory:
+    kind: page
+    label: Order History
+    description: "過去の注文一覧。各注文の詳細へ遷移できる。"
+
+  Cart:
+    kind: page
+    label: Cart
+    description: "カート画面。商品削除、数量変更、商品詳細へ戻る、購入手続きへ進む導線を持つ。"
+
+  Checkout:
+    kind: form
+    label: Checkout
+    description: "購入手続き画面。配送先、請求情報、確認内容を扱う。住所未入力なら住所フォームへ誘導。"
+
+  AddressForm:
+    kind: form
+    label: Address Form
+    description: "配送先住所の追加・編集フォーム。保存後Checkoutへ戻る。"
+
+  Payment:
+    kind: form
+    label: Payment
+    description: "決済画面。カード、請求先、決済実行を扱う。"
+
+  PaymentError:
+    kind: error_screen
+    label: Payment Error
+    description: "決済失敗画面。再試行、支払い方法変更、カートに戻る導線を持つ。"
+
+  Complete:
+    kind: completion_screen
+    label: Complete
+    description: "購入完了画面。注文詳細、ダッシュボード、追加購入への導線を持つ。"
+
+  OrderDetail:
+    kind: page
+    label: Order Detail
+    description: "注文詳細画面。注文内容、配送状況、問い合わせ導線を表示。"
+
+  Help:
+    kind: page
+    label: Help Center
+    description: "ヘルプセンター。FAQ、問い合わせ、外部サポートへの入口。"
+
+  SupportTicket:
+    kind: form
+    label: Support Ticket
+    description: "問い合わせフォーム。注文詳細またはヘルプセンターから遷移。"
+
+  ExternalSupport:
+    kind: external_page
+    label: External Support Site
+    description: "外部サポートサイト。チャットサポートやナレッジベースなど。"
+
+edges:
+  Home->ProductList:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "トップページの一覧を見るCTAをクリック。"
+
+  Home->Login:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "ヘッダーのログインボタンをクリック。"
+
+  Home->Help:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "フッターまたはヘッダーのヘルプリンクをクリック。"
+
+  ProductList->ProductDetail:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "一覧の商品カードをクリック。"
+
+  ProductList->SearchResult:
+    flow: submit
+    trigger: submit
+    transition: { type: fade, duration: 120 }
+    description: "検索フォームを送信。"
+
+  SearchResult->ProductDetail:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "検索結果の商品カードをクリック。"
+
+  ProductDetail->CompareModal:
+    flow: open_modal
+    trigger: click
+    transition: { type: modal, duration: 120 }
+    description: "比較ボタンをクリックしてモーダルを開く。"
+
+  CompareModal->ProductDetail:
+    flow: close_modal
+    trigger: click
+    transition: { type: modal_close, duration: 120 }
+    description: "閉じるボタンまたは背景クリックで商品詳細へ戻る。"
+
+  ProductDetail->AuthGuard:
+    flow: auth_check
+    trigger: click
+    transition: { type: none, duration: 0 }
+    description: "カートに追加、または購入ボタン押下時にログイン状態を判定。"
+
+  AuthGuard->Login:
+    flow: redirect
+    trigger: auto
+    transition: { type: fade, duration: 160 }
+    description: "未ログインの場合、ログイン画面へリダイレクト。"
+
+  AuthGuard->Cart:
+    flow: success
+    trigger: auto
+    transition: { type: slide, duration: 160 }
+    description: "ログイン済みの場合、カートへ進む。"
+
+  Login->Dashboard:
+    flow: submit
+    trigger: submit
+    transition: { type: fade, duration: 180 }
+    description: "ログイン成功後、ダッシュボードへ遷移。"
+
+  Login->ForgotPassword:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "パスワードを忘れた場合のリンクをクリック。"
+
+  ForgotPassword->ResetComplete:
+    flow: submit
+    trigger: submit
+    transition: { type: fade, duration: 160 }
+    description: "再設定メール送信フォームを送信。"
+
+  ResetComplete->Login:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "ログイン画面へ戻る。"
+
+  Dashboard->ProductList:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "ダッシュボードから商品一覧へ移動。"
+
+  Dashboard->Account:
+    flow: navigate
+    trigger: click
+    transition: { type: slide, duration: 160 }
+    description: "アカウント設定を開く。"
+
+  Dashboard->OrderHistory:
+    flow: navigate
+    trigger: click
+    transition: { type: slide, duration: 160 }
+    description: "注文履歴を開く。"
+
+  Cart->ProductDetail:
+    flow: back
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "カート内の商品名または戻るリンクから商品詳細へ戻る。"
+
+  Cart->Checkout:
+    flow: navigate
+    trigger: click
+    transition: { type: slide, duration: 180 }
+    description: "購入手続きへ進む。"
+
+  Checkout->AddressForm:
+    flow: navigate
+    trigger: click
+    transition: { type: slide, duration: 160 }
+    description: "住所未入力、または住所編集ボタン押下で住所フォームへ移動。"
+
+  AddressForm->Checkout:
+    flow: submit
+    trigger: submit
+    transition: { type: slide, duration: 160 }
+    description: "住所を保存してCheckoutへ戻る。"
+
+  Checkout->Payment:
+    flow: submit
+    trigger: submit
+    transition: { type: slide, duration: 180 }
+    description: "配送先・請求情報を確認して支払いへ進む。"
+
+  Payment->PaymentError:
+    flow: error
+    trigger: auto
+    transition: { type: fade, duration: 180 }
+    description: "決済APIエラー、カード拒否、タイムアウト時にエラー画面へ遷移。"
+
+  PaymentError->Payment:
+    flow: back
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "支払い方法を変更、または再試行する。"
+
+  Payment->Complete:
+    flow: success
+    trigger: auto
+    transition: { type: fade, duration: 220 }
+    description: "決済成功後、購入完了画面へ遷移。"
+
+  Complete->OrderDetail:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "注文詳細を見る。"
+
+  Complete->Dashboard:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "ダッシュボードへ戻る。"
+
+  OrderHistory->OrderDetail:
+    flow: navigate
+    trigger: click
+    transition: { type: fade, duration: 160 }
+    description: "注文履歴から注文詳細を開く。"
+
+  OrderDetail->SupportTicket:
+    flow: navigate
+    trigger: click
+    transition: { type: slide, duration: 160 }
+    description: "この注文について問い合わせる。"
+
+  Help->SupportTicket:
+    flow: navigate
+    trigger: click
+    transition: { type: slide, duration: 160 }
+    description: "ヘルプセンターから問い合わせフォームを開く。"
+
+  SupportTicket->ExternalSupport:
+    flow: redirect
+    trigger: submit
+    transition: { type: external, duration: 200 }
+    description: "問い合わせ送信後、外部サポートまたはチャットサポートへ遷移。"
+
+scenarios:
+  guest_purchase_requires_login:
+    label: ゲスト購入時にログインが必要になる導線
+    start: Home
+    steps:
+      - Home->ProductList
+      - ProductList->ProductDetail
+      - ProductDetail->AuthGuard
+      - AuthGuard->Login
+      - Login->Dashboard
+      - Dashboard->ProductList
+      - ProductList->ProductDetail
+      - ProductDetail->AuthGuard
+      - AuthGuard->Cart
+      - Cart->Checkout
+      - Checkout->Payment
+      - Payment->Complete
+
+  search_and_compare:
+    label: 検索して商品比較し、詳細に戻る導線
+    start: Home
+    steps:
+      - Home->ProductList
+      - ProductList->SearchResult
+      - SearchResult->ProductDetail
+      - ProductDetail->CompareModal
+      - CompareModal->ProductDetail
+
+  checkout_missing_address:
+    label: Checkout中に住所追加が必要になる導線
+    start: Cart
+    steps:
+      - Cart->Checkout
+      - Checkout->AddressForm
+      - AddressForm->Checkout
+      - Checkout->Payment
+      - Payment->Complete
+
+  payment_failure_retry:
+    label: 決済失敗後に再試行して購入完了する導線
+    start: Cart
+    steps:
+      - Cart->Checkout
+      - Checkout->Payment
+      - Payment->PaymentError
+      - PaymentError->Payment
+      - Payment->Complete
+
+  support_from_order:
+    label: 注文詳細から問い合わせる導線
+    start: Dashboard
+    steps:
+      - Dashboard->OrderHistory
+      - OrderHistory->OrderDetail
+      - OrderDetail->SupportTicket
+      - SupportTicket->ExternalSupport
+
+  forgot_password:
+    label: パスワード再設定導線
+    start: Home
+    steps:
+      - Home->Login
+      - Login->ForgotPassword
+      - ForgotPassword->ResetComplete
+      - ResetComplete->Login
+
+view:
+  default:
+    base: prototype
+    overlays: [validation]

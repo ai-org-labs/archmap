@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#fff7ed"/>
+  <text x="32" y="88" font-family="system-ui" font-size="30" font-weight="700" fill="#9a3412">Payment error</text>
+  <rect x="40" y="210" width="310" height="180" rx="22" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="72" y="310" font-family="system-ui" font-size="24" fill="#9a3412">Try another method</text>
+</svg>

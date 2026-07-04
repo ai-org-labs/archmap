@@ -20,10 +20,50 @@ import {
 const TOKEN_REQUIRED_FLOWS = new Set(["token_issue", "token_validate"]);
 const TOKEN_VALIDATOR_REQUIRED_FLOWS = new Set(["request", "request_response", "token_validate"]);
 const TELEMETRY_FLOWS = new Set(["monitoring", "logging", "telemetry_export", "metrics_export", "log_export", "trace_export"]);
+const SCREENFLOW_NODE_KINDS = new Set([
+  "screen", "page", "modal", "webview", "form", "external_page", "error_screen", "completion_screen",
+]);
+const SCREENFLOW_FLOW_KINDS = new Set([
+  "navigate", "submit", "back", "redirect", "deep_link", "open_modal",
+  "close_modal", "switch_tab", "auth_check", "api_call", "success", "error", "auto",
+]);
+const EXTERNAL_ZONE_KINDS = new Set(["external", "internet", "saas", "partner", "onprem"]);
 const FREEFORM_PLACEMENT_KEYS = new Set([
   "provider", "cloud", "folder", "project", "account", "region", "zone",
   "network", "subnet", "cluster", "fleet", "namespace", "environment",
 ]);
+
+function isScreenflow(model: ArchMapModel): boolean {
+  return model.mode === "screenflow" || model.profile === "screenflow";
+}
+
+function isUnsafeImageUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed === "") return false;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(trimmed)?.[1]?.toLowerCase();
+  if (!scheme) return false;
+  return !new Set(["http", "https", "blob"]).has(scheme);
+}
+
+function screenStepResolver(edges: ArchMapModel["edges"], diagnostics: ArchMapModel["errors"]): (ref: string) => string | undefined {
+  const byId = new Map(edges.map((edge) => [edge.id, edge]));
+  const byPair = new Map<string, ArchMapModel["edges"]>();
+  for (const edge of edges) {
+    const key = edge.pairKey ?? `${edge.from}->${edge.to}`;
+    byPair.set(key, [...(byPair.get(key) ?? []), edge]);
+  }
+  return (ref: string): string | undefined => {
+    const edge = byId.get(ref);
+    if (edge) return edge.id;
+    const pair = byPair.get(ref);
+    if (pair && pair.length === 1) return pair[0].id;
+    if (pair && pair.length > 1) {
+      diagnostics.push(diagnostic("edge_pair_ambiguous", `Scenario step "${ref}" matches ${pair.length} edges; use an explicit edge id.`, { type: "view", id: ref }));
+      return ref;
+    }
+    return undefined;
+  };
+}
 
 export function validate(model: ArchMapModel): ArchMapModel {
   const { errors, warnings, suggestions, infos } = model;
@@ -144,6 +184,83 @@ export function validate(model: ArchMapModel): ArchMapModel {
               : undefined;
       if (code) {
         infos.push(diagnostic(code, `Edge "${e.id}" ${field} was inferred from its label.`, { type: "edge", id: e.id }));
+      }
+    }
+  }
+
+  if (isScreenflow(model)) {
+    const screenNodes = new Set(model.nodes
+      .filter((node) => (node.kind && SCREENFLOW_NODE_KINDS.has(node.kind)) || node.image)
+      .map((node) => node.id));
+    const scenarioStarts = new Set(model.scenarios.map((scenario) => scenario.start).filter(Boolean));
+    const incoming = new Map<string, number>();
+    const outgoing = new Map<string, ArchMapModel["edges"]>();
+    for (const edge of model.edges) {
+      incoming.set(edge.to, (incoming.get(edge.to) ?? 0) + 1);
+      outgoing.set(edge.from, [...(outgoing.get(edge.from) ?? []), edge]);
+    }
+
+    for (const node of model.nodes) {
+      if (node.image && isUnsafeImageUrl(node.image)) {
+        errors.push(diagnostic("image_url_disallowed", `Node "${node.id}" image URL uses a disallowed protocol.`, { type: "node", id: node.id }));
+      }
+      if (node.kind && SCREENFLOW_NODE_KINDS.has(node.kind) && !node.image) {
+        suggestions.push(diagnostic("screen_node_without_image", `Screen node "${node.id}" has no image; Prototype View will render a fallback card.`, { type: "node", id: node.id }));
+      }
+      if (screenNodes.has(node.id) && !scenarioStarts.has(node.id) && (incoming.get(node.id) ?? 0) === 0) {
+        suggestions.push(diagnostic("unreachable_screen", `Screen node "${node.id}" has no incoming transition and is not a scenario start.`, { type: "node", id: node.id }));
+      }
+    }
+
+    for (const edge of model.edges) {
+      const screenflowEdge = screenNodes.has(edge.from) || screenNodes.has(edge.to) || (edge.flow !== undefined && SCREENFLOW_FLOW_KINDS.has(edge.flow));
+      if (screenflowEdge && !edge.trigger) {
+        suggestions.push(diagnostic("transition_without_trigger", `ScreenFlow edge "${edge.id}" has no trigger.`, { type: "edge", id: edge.id }));
+      }
+      if (edge.hotspot) {
+        const source = model.nodes.find((node) => node.id === edge.from);
+        const frame = source?.frame;
+        if (frame?.width !== undefined && frame.height !== undefined) {
+          const out =
+            edge.hotspot.x < 0 ||
+            edge.hotspot.y < 0 ||
+            edge.hotspot.width <= 0 ||
+            edge.hotspot.height <= 0 ||
+            edge.hotspot.x + edge.hotspot.width > frame.width ||
+            edge.hotspot.y + edge.hotspot.height > frame.height;
+          if (out) {
+            warnings.push(diagnostic("hotspot_out_of_bounds", `Edge "${edge.id}" hotspot is outside source frame "${edge.from}".`, { type: "edge", id: edge.id }));
+          }
+        }
+      }
+      const to = model.nodes.find((node) => node.id === edge.to);
+      const toZone = to ? model.zones.find((zone) => zone.id === (to.resolvedZone === "unknown" ? undefined : to.resolvedZone ?? to.zone)) : undefined;
+      const externalTarget =
+        to?.kind === "external_page" ||
+        to?.kind === "webview" ||
+        (toZone?.kind !== undefined && EXTERNAL_ZONE_KINDS.has(toZone.kind));
+      if (screenflowEdge && externalTarget && edge.boundaryCrossing === undefined) {
+        warnings.push(diagnostic("external_transition_without_boundary", `External transition "${edge.id}" has no boundaryCrossing declaration.`, { type: "edge", id: edge.id }));
+      }
+    }
+
+    const resolveStep = screenStepResolver(model.edges, errors);
+    for (const scenario of model.scenarios) {
+      if (!nodeIds.has(scenario.start)) {
+        errors.push(diagnostic("scenario_unknown_start", `Scenario "${scenario.id}" starts at unknown node "${scenario.start}".`, { type: "view", id: scenario.id }));
+      }
+      for (const step of scenario.steps) {
+        if (!resolveStep(step)) {
+          errors.push(diagnostic("scenario_unknown_step", `Scenario "${scenario.id}" references unknown transition "${step}".`, { type: "view", id: scenario.id }));
+        }
+      }
+    }
+
+    if (model.scenarios.length === 0) {
+      for (const [from, edges] of outgoing) {
+        if (screenNodes.has(from) && edges.length > 1) {
+          suggestions.push(diagnostic("ambiguous_transition", `Screen "${from}" has ${edges.length} outgoing transitions and no scenario defines Next order.`, { type: "node", id: from }));
+        }
       }
     }
   }

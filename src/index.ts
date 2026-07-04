@@ -16,8 +16,9 @@ export type {
   LayoutZone,
   LayoutEdge,
   LayoutOptions,
+  LayoutTimings,
 } from "./layout.js";
-export { computeLayout } from "./layout.js";
+export { computeLayout, getLastLayoutTimings } from "./layout.js";
 export { parse } from "./parser-entry.js";
 export { toCanonicalModel } from "./canonical.js";
 export {
@@ -44,6 +45,22 @@ export type {
 } from "./inspector.js";
 export { attachPanZoom, computeFitTransform, isInteractiveTarget } from "./views/interaction.js";
 export type { PanZoomHandle, PanZoomTransform } from "./views/interaction.js";
+export {
+  createDiagramTags,
+  injectDiagramTagsStyle,
+  DEFAULT_DIAGRAM_TAG_ACTIONS,
+  DEFAULT_DIAGRAM_TAG_OVERLAYS,
+  DEFAULT_DIAGRAM_TAG_RENDER_MODES,
+  DEFAULT_DIAGRAM_TAG_VIEWS,
+} from "./controls/diagram-tags.js";
+export type {
+  DiagramTagAction,
+  DiagramTagOption,
+  DiagramTagsChangeEvent,
+  DiagramTagsHandle,
+  DiagramTagsOptions,
+  DiagramTagsState,
+} from "./controls/diagram-tags.js";
 export {
   maxAbstractionDepth,
   maxSubgraphDepth,
@@ -76,11 +93,31 @@ export type {
   RenderValidationFailure,
   RenderValidationOptions,
 } from "./render-validation.js";
+export {
+  createArchMapStream,
+} from "./stream.js";
+export type {
+  ArchMapStreamChunk,
+  ArchMapStreamOptions,
+  ArchMapStreamSession,
+} from "./stream.js";
+export {
+  DEFAULT_ARCHMAP_SAMPLE_ID,
+  DEFAULT_ARCHMAP_SAMPLES,
+  getArchMapSample,
+} from "./samples.js";
+export type {
+  ArchMapSample,
+  ArchMapSampleBaseView,
+  ArchMapSampleRecommendation,
+  ArchMapSampleRenderMode,
+} from "./samples.js";
 export type {
   ViewRenderer,
   ViewContext,
   RenderOptions,
   RenderResult,
+  RenderTimings,
   ExportPngOptions,
   InitializeOptions,
   ViewerAttributeOptions,

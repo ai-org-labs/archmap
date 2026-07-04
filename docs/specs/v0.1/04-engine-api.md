@@ -297,17 +297,47 @@ When `controls=true`, the viewer should provide:
 
 - base view selector
   - Overview
-  - Zone
+- Layer
+- Prototype
+- render mode selector
+  - 2D
   - 3D
 - overlay checkboxes
+  - Subgraph
+  - Zone
   - Auth
   - Data Flow
   - Boundary
   - Permission
   - Validation
 - fit-to-screen button
-- reset-view button
+- PNG export button
+- full-screen button
+- abstraction lock button
 - diagnostics indicator
+
+The same tag-style controls are available as a reusable browser API:
+
+```js
+import { createDiagramTags } from "@archmap/core/controls/diagram-tags";
+
+const tags = createDiagramTags({
+  target: document.querySelector("#diagram-tags"),
+  state: { baseView: "overview", renderMode: "2d", overlays: [] },
+  onChange: (state, event) => {
+    // Call RenderResult.setBaseView / setRenderMode / setOverlays here.
+  },
+  onAction: (action) => {
+    // Handle fit, lock, download, or fullscreen.
+  }
+});
+```
+
+For CDN pages the subpath resolves to:
+
+```text
+https://cdn.jsdelivr.net/npm/@archmap/core@<version>/dist/controls/diagram-tags.js
+```
 
 Example UI:
 
@@ -645,7 +675,43 @@ const result = render(model, {
 });
 ```
 
-### 13.5 Render result
+### 13.5 Buffered streaming input
+
+```ts
+const session = createArchMapStream({
+  target: el,
+  renderOptions: { baseView: "overview", overlays: ["zone"] },
+  debounceMs: 120,
+});
+
+session.write("graph LR\n");
+session.write("  Web[Web App] --> API[API Gateway]\n");
+await session.close();
+```
+
+`createArchMapStream()` is a buffered source interface for live editors,
+LLM/token streams, and generated source. It is not an incremental parser. Each
+flush reparses the complete accumulated source, rerenders with the supplied
+`renderOptions`, and supersedes the previous render.
+
+Required methods:
+
+```ts
+type ArchMapStreamSession = {
+  write(chunk: string | Uint8Array): void;
+  flush(): RenderResult | undefined;
+  close(): Promise<RenderResult | undefined>;
+  abort(): void;
+  pipe(stream: ReadableStream<string | Uint8Array>): Promise<RenderResult | undefined>;
+  getSource(): string;
+  getModel(): ArchMapModel | undefined;
+  getResult(): RenderResult | undefined;
+};
+```
+
+`abort()` must cancel pending debounce work and destroy the current render.
+
+### 13.6 Render result
 
 ```ts
 type RenderResult = {
@@ -656,11 +722,17 @@ type RenderResult = {
   reset(): void;
   exportPng(options?: { scale?: number; background?: string }): Promise<Blob>;
   downloadPng(filename?: string, options?: { scale?: number; background?: string }): Promise<void>;
+  exportSvg(): string;
+  downloadSvg(filename?: string): Promise<void>;
   destroy(): void;
 };
 ```
 
-### 13.6 Extension API
+`exportSvg()` / `downloadSvg()` are available only for SVG-backed 2D views such
+as `overview` and `layer`. Mounted views such as `prototype` and optional `3d`
+must reject SVG export.
+
+### 13.7 Extension API
 
 ```js
 registerView("custom", renderer);
@@ -868,7 +940,82 @@ If Markdown or HTML labels are supported in the future, they must be sanitized b
 
 ---
 
-## 20. Minimal acceptance criteria
+## 20. Prototype View API
+
+`prototype` is a built-in base view for ScreenFlow models. It is mounted through
+the existing view registry and render lifecycle:
+
+```ts
+const result = render(model, {
+  baseView: "prototype",
+  overlays: ["dataflow", "boundary", "validation"],
+  scenario: "happy_path",
+  showHotspots: true,
+  target: element,
+});
+```
+
+The view consumes the same parsed model as overview/layer views. Overlay
+changes must not require reparsing.
+
+### 20.1 Custom element attributes
+
+`<archmap-viewer>` supports these Prototype-specific attributes:
+
+- `scenario`: initial scenario id.
+- `show-hotspots`: when present or `"true"`, hotspot rectangles are visible.
+
+Example:
+
+```html
+<archmap-viewer
+  base-view="prototype"
+  overlays="dataflow,boundary,validation"
+  scenario="happy_path"
+  show-hotspots="true"
+  controls
+></archmap-viewer>
+```
+
+### 20.2 RenderResult optional methods
+
+Prototype-capable render handles may expose these optional methods:
+
+```ts
+setScenario?(id: string): void;
+getScenario?(): string | null;
+goToScreen?(id: string): void;
+getCurrentScreen?(): string | null;
+next?(): void;
+back?(): void;
+toggleHotspots?(enabled?: boolean): void;
+```
+
+Callers must treat them as optional so existing SVG/3D views remain compatible.
+
+### 20.3 Events
+
+Prototype View emits:
+
+- `archmap:prototype-screen-change`
+- `archmap:prototype-transition`
+- `archmap:prototype-scenario-change`
+- `archmap:prototype-hotspot-click`
+
+Event `detail` contains model references, not DOM nodes:
+
+```json
+{
+  "from": "Home",
+  "to": "ProductDetail",
+  "edgeId": "Home__ProductDetail__0",
+  "scenario": "happy_path"
+}
+```
+
+---
+
+## 21. Minimal acceptance criteria
 
 The rendering engine is acceptable when:
 
@@ -889,3 +1036,5 @@ The rendering engine is acceptable when:
 15. Overlay changes do not require reparsing.
 16. The renderer works without a backend server.
 17. Labels and edges are rendered with enough quality to avoid user confusion.
+18. `prototype` base view can display a ScreenFlow current screen and transition controls.
+19. Prototype scenario, hotspot visibility, and navigation methods are available through optional APIs without breaking other views.

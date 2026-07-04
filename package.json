@@ -1,6 +1,6 @@
 {
   "name": "@archmap/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Browser-only semantic architecture diagram rendering framework (ArchMap DSL)",
   "license": "Apache-2.0",
   "homepage": "https://ai-org-labs.github.io/archmap/",
@@ -28,12 +28,17 @@
     "./packs/cloud-icons": {
       "types": "./dist/packs/cloud-icons.d.ts",
       "import": "./dist/packs/cloud-icons.js"
+    },
+    "./controls/diagram-tags": {
+      "types": "./dist/controls/diagram-tags.d.ts",
+      "import": "./dist/controls/diagram-tags.js"
     }
   },
   "files": [
     "dist",
     "docs/SYNTAX.md",
     "docs/DELIVERY.md",
+    "docs/AI_AUTHORING_GUIDE.md",
     "docs/V0_1_ACCEPTANCE_MATRIX.md",
     "docs/specs/v0.1",
     "examples",
@@ -45,9 +50,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json",
+    "bench:render": "node tools/bench-render.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify:pattern-samples": "node tools/verify-pattern-samples.mjs",
+    "verify:pattern-samples:full": "node tools/verify-pattern-samples.mjs --exhaustive",
     "test:watch": "vitest",
     "prepare": "npm run build"
   },
@@ -63,7 +70,7 @@
     }
   },
   "devDependencies": {
-    "@archmap/icons": "^0.1.1",
+    "@archmap/icons": "^0.1.2",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.0.1",
     "@types/three": "^0.184.1",

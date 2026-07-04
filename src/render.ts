@@ -6,8 +6,8 @@
  * way and consume the same LayoutResult (with `z`).
  */
 
-import { computeLayout } from "./layout.js";
-import type { LayoutOptions, LayoutResult } from "./layout.js";
+import { computeLayout, getLastLayoutTimings } from "./layout.js";
+import type { LayoutOptions, LayoutResult, LayoutTimings } from "./layout.js";
 import { diagnostic, syncDiagnostics, reportDiagnosticsToConsole } from "./diagnostics.js";
 import type { ConsoleReportOptions } from "./diagnostics.js";
 import { parse } from "./parser-entry.js";
@@ -20,6 +20,7 @@ import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
 import { boundaryView } from "./views/boundary.js";
 import { validationView } from "./views/validation.js";
+import { prototypeView } from "./views/prototype.js";
 import { renderDiagram } from "./views/base.js";
 import type { Box } from "./views/base.js";
 import { escapeXml } from "./views/svg.js";
@@ -31,6 +32,8 @@ import { renderInspector } from "./inspector.js";
 import type { InspectorSelection } from "./inspector.js";
 import { projectAbstraction } from "./subgraph-abstraction.js";
 import type { AbstractionTarget } from "./subgraph-abstraction.js";
+import { createDiagramTags } from "./controls/diagram-tags.js";
+import type { DiagramTagsHandle } from "./controls/diagram-tags.js";
 
 export interface ViewContext {
   model: ArchMapModel;
@@ -49,6 +52,13 @@ export interface ExportPngOptions {
 export interface ViewHandle {
   dispose(): void;
   exportPng?(options?: ExportPngOptions): Promise<Blob> | Blob;
+  setScenario?(id: string): void;
+  getScenario?(): string | null;
+  goToScreen?(id: string): void;
+  getCurrentScreen?(): string | null;
+  next?(): void;
+  back?(): void;
+  toggleHotspots?(enabled?: boolean): void;
 }
 
 /** A view that mounts imperatively into a DOM element instead of returning SVG. */
@@ -91,11 +101,27 @@ export interface RenderOptions {
   inspectorTarget?: Element | string | null;
   /** Initial inspector selection. */
   selection?: InspectorSelection | null;
+  /** Prototype View scenario id. */
+  scenario?: string;
+  /** Prototype View hotspot visibility. */
+  showHotspots?: boolean;
   /** Report diagnostics to the console (spec 02 §23). Default: off for the
    * programmatic API; engines (viewer/initialize) default it on. */
   console?: boolean | ConsoleReportOptions;
   /** Enable SVG pan/zoom on the target for 2D views (default on with a DOM target). */
   interactive?: boolean;
+}
+
+/** Phase timings (ms) for the most recent render pass. Additive diagnostic aid. */
+export interface RenderTimings {
+  totalMs: number;
+  projectionMs: number;
+  layoutMs: number;
+  /** SVG string generation (2D) or mountable-view construction (3D/prototype). */
+  viewMs: number;
+  /** Target DOM update, when a target element was supplied. */
+  domMs: number;
+  layoutPhases?: LayoutTimings;
 }
 
 export interface RenderResult {
@@ -106,6 +132,8 @@ export interface RenderResult {
   svg?: string;
   /** Present for mounted (3D) views when a target was supplied. */
   handle?: ViewHandle;
+  /** Phase timings for the most recent render pass (milliseconds). */
+  timings?: RenderTimings;
   setBaseView(view: string): void;
   setRenderMode(mode: string): void;
   setOverlays(overlays: string[]): void;
@@ -123,6 +151,15 @@ export interface RenderResult {
   reset(): void;
   exportPng(options?: ExportPngOptions): Promise<Blob>;
   downloadPng(filename?: string, options?: ExportPngOptions): Promise<void>;
+  exportSvg(): string;
+  downloadSvg(filename?: string): Promise<void>;
+  setScenario?(id: string): void;
+  getScenario?(): string | null;
+  goToScreen?(id: string): void;
+  getCurrentScreen?(): string | null;
+  next?(): void;
+  back?(): void;
+  toggleHotspots?(enabled?: boolean): void;
   destroy(): void;
 }
 
@@ -134,6 +171,35 @@ export function registerView(name: string, renderer: ViewRenderer): void {
 
 export function getView(name: string): ViewRenderer | undefined {
   return registry.get(name);
+}
+
+function prototypePlaceholderLayout(model: ArchMapModel): LayoutResult {
+  return {
+    direction: model.direction,
+    width: 1,
+    height: 1,
+    depth: 1,
+    nodes: model.nodes.map((node) => ({
+      id: node.id,
+      label: node.label,
+      shape: node.shape,
+      x: 0,
+      y: 0,
+      z: 0,
+      w: 1,
+      h: 1,
+      abstraction: node.abstraction,
+    })),
+    zones: [],
+    boundaries: [],
+    edges: [],
+  };
+}
+
+function layoutForRenderState(model: ArchMapModel, state: { requestedView: string; view: string }, options: RenderOptions): LayoutResult {
+  return state.view === "prototype"
+    ? prototypePlaceholderLayout(model)
+    : computeLayout(model, layoutOptionsForState(state, options));
 }
 
 export function listViews(): string[] {
@@ -208,15 +274,15 @@ async function svgToPngBlob(svg: string, options: ExportPngOptions = {}): Promis
   }
 }
 
-async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+async function downloadBlob(blob: Blob, filename: string, extension = "png"): Promise<void> {
   if (typeof document === "undefined" || typeof URL === "undefined") {
-    throw new Error("PNG download requires a browser DOM.");
+    throw new Error("Download requires a browser DOM.");
   }
   const url = URL.createObjectURL(blob);
   try {
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename.endsWith(".png") ? filename : `${filename}.png`;
+    a.download = filename.endsWith(`.${extension}`) ? filename : `${filename}.${extension}`;
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();
@@ -432,6 +498,7 @@ registerView("auth", authView);
 registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
 registerView("validation", validationView);
+registerView("prototype", prototypeView);
 registerView("3d", ({ model }) => {
   model.warnings.push(diagnostic("view_3d_unavailable", "3D renderer is not installed. Import @archmap/core/views3d/three-view and call installThreeView() to enable it.", { type: "view", id: "3d" }));
   return (
@@ -593,8 +660,40 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   let detachDiagnostics: (() => void) | undefined;
   let detachAbstractionToggles: (() => void) | undefined;
 
+  // Overlay toggles and repeated renders reuse the abstraction projection and
+  // layout: neither depends on the overlay set, and layout is the dominant
+  // render cost on larger diagrams.
+  let cache: { projectionKey: string; model: ArchMapModel; layoutKey?: string; layout?: LayoutResult } | undefined;
+  const projectionKeyNow = (): string =>
+    `${state.abstractionLevel}|${state.abstractionTarget}|${[...state.expandedAbstractions].sort().join(",")}|${[...state.collapsedAbstractions].sort().join(",")}`;
+  const effectiveModelNow = (): ArchMapModel => {
+    const key = projectionKeyNow();
+    if (cache?.projectionKey !== key) {
+      cache = {
+        projectionKey: key,
+        model: projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions, state.collapsedAbstractions),
+      };
+    }
+    return cache!.model;
+  };
+  const layoutNow = (effectiveModel: ArchMapModel): LayoutResult => {
+    const layoutKey = `${state.view}|${state.requestedView}`;
+    if (cache && cache.model === effectiveModel && cache.layoutKey === layoutKey && cache.layout) return cache.layout;
+    const layout = layoutForRenderState(effectiveModel, state, options);
+    if (cache && cache.model === effectiveModel) {
+      cache.layoutKey = layoutKey;
+      cache.layout = layout;
+    }
+    return layout;
+  };
+
+  let lastTimings: RenderTimings | undefined;
+  const nowMs = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
-    const effectiveModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions, state.collapsedAbstractions);
+    const renderStarted = nowMs();
+    const effectiveModel = effectiveModelNow();
+    const projectionDone = nowMs();
     validateOverlays(effectiveModel, state.overlays);
     const renderer = registry.get(state.view);
     if (!renderer) {
@@ -603,10 +702,23 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
-    const layout = computeLayout(effectiveModel, layoutOptionsForState(state, options));
+    const layout = layoutNow(effectiveModel);
+    const layoutDone = nowMs();
     const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget };
-    const overlaidSvg = renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
+    const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
+    const viewDone = nowMs();
+    const finishTimings = (): void => {
+      const domDone = nowMs();
+      lastTimings = {
+        totalMs: domDone - renderStarted,
+        projectionMs: projectionDone - renderStarted,
+        layoutMs: layoutDone - projectionDone,
+        viewMs: viewDone - layoutDone,
+        domMs: domDone - viewDone,
+        layoutPhases: getLastLayoutTimings(),
+      };
+    };
 
     if (typeof out === "string") {
       const svg = decorateSvgWithAbstractionLock(
@@ -648,9 +760,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
           detachDiagnostics = attachDiagnosticSelection(options.target, effectiveModel, options.diagnosticsTarget, options.inspectorTarget);
         }
       }
+      finishTimings();
       return { view: state.view, layout, model: effectiveModel, svg, handle: undefined };
     }
     const handle = options.target ? out.mount(options.target) : undefined;
+    finishTimings();
     preservePanZoomOnNextRender = false;
     syncDiagnostics(effectiveModel);
     renderDiagnostics(effectiveModel, options.diagnosticsTarget);
@@ -659,13 +773,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     return { view: state.view, layout, model: effectiveModel, handle, svg: undefined };
   };
 
-  const initialModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions, state.collapsedAbstractions);
+  const initialModel = effectiveModelNow();
 
   const result: RenderResult = {
     view: state.view,
-    layout: computeLayout(initialModel, {
-      ...layoutOptionsForState(state, options),
-    }),
+    layout: layoutNow(initialModel),
     model: initialModel,
     svg: undefined,
     handle: undefined,
@@ -753,7 +865,39 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     },
     async downloadPng(filename = "archmap.png", exportOptions?: ExportPngOptions) {
       const blob = await result.exportPng(exportOptions);
-      await downloadBlob(blob, filename);
+      await downloadBlob(blob, filename, "png");
+    },
+    exportSvg() {
+      if (!result.svg) {
+        throw new Error("SVG export is only available for SVG-backed 2D views.");
+      }
+      return result.svg;
+    },
+    async downloadSvg(filename = "archmap.svg") {
+      if (typeof Blob === "undefined") throw new Error("SVG download requires Blob support.");
+      const svg = result.exportSvg();
+      await downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), filename, "svg");
+    },
+    setScenario(id: string) {
+      result.handle?.setScenario?.(id);
+    },
+    getScenario() {
+      return result.handle?.getScenario?.() ?? null;
+    },
+    goToScreen(id: string) {
+      result.handle?.goToScreen?.(id);
+    },
+    getCurrentScreen() {
+      return result.handle?.getCurrentScreen?.() ?? null;
+    },
+    next() {
+      result.handle?.next?.();
+    },
+    back() {
+      result.handle?.back?.();
+    },
+    toggleHotspots(enabled?: boolean) {
+      result.handle?.toggleHotspots?.(enabled);
     },
     destroy() {
       panZoom?.dispose();
@@ -780,6 +924,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     result.model = next.model;
     result.svg = next.svg;
     result.handle = next.handle;
+    result.timings = lastTimings;
   };
 
   apply(snapshot());
@@ -813,6 +958,8 @@ export interface ViewerAttributeOptions {
   consoleReport: boolean;
   /** Show the controls toolbar (view selector, render mode, additive overlays, fit/reset). */
   controls: boolean;
+  scenario?: string;
+  showHotspots: boolean;
 }
 
 export function parseOverlaysAttribute(value: string | null): string[] {
@@ -839,14 +986,17 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     fallbackToInline: attrs.hasAttribute?.("fallback-to-inline") === true,
     consoleReport: attrs.getAttribute("console") !== "false",
     controls: attrs.getAttribute("controls") === "true" || attrs.hasAttribute?.("controls") === true,
+    scenario: attrs.getAttribute("scenario") ?? undefined,
+    showHotspots: attrs.getAttribute("show-hotspots") === "true" || attrs.hasAttribute?.("show-hotspots") === true,
   };
 }
 
 /** Semantic views offered by the controls toolbar: what the user wants to inspect. */
-export const BASE_VIEWS = ["overview", "layer"] as const;
+export const BASE_VIEWS = ["overview", "layer", "prototype"] as const;
 const BASE_VIEW_LABELS: Record<(typeof BASE_VIEWS)[number], string> = {
   overview: "Overview",
-  layer: "Stack",
+  layer: "Layer",
+  prototype: "Prototype",
 };
 /** Render modes offered by the controls toolbar: how to display the selected view. */
 export const RENDER_MODES = ["2d", "3d"] as const;
@@ -864,17 +1014,21 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "render-mode", "overlays", "abstraction-level", "abstraction-target", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls"];
+      return ["base-view", "render-mode", "overlays", "abstraction-level", "abstraction-target", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls", "scenario", "show-hotspots"];
     }
 
     private source = "";
     private container?: HTMLDivElement;
     private diagnosticsPanel?: HTMLDivElement;
     private inspectorPanel?: HTMLDivElement;
-    private controlsBar?: HTMLDivElement;
+    private controlsHandle?: DiagramTagsHandle;
+    private controlsHost?: HTMLDivElement;
     private loadingPanel?: HTMLDivElement;
     private result?: RenderResult;
     private loadVersion = 0;
+    private loadingSince = 0;
+    private loadingHideTimer = 0;
+    private detachPrototypeRenderState?: () => void;
 
     connectedCallback(): void {
       if (!this.source) this.source = this.textContent ?? "";
@@ -884,6 +1038,8 @@ export function defineArchMapViewerElement(): void {
     disconnectedCallback(): void {
       this.result?.destroy();
       this.result = undefined;
+      this.detachPrototypeRenderState?.();
+      this.detachPrototypeRenderState = undefined;
     }
 
     attributeChangedCallback(name: string): void {
@@ -903,6 +1059,10 @@ export function defineArchMapViewerElement(): void {
         this.runWithLoading(() => this.result?.setAbstractionLevel(options.abstractionLevel));
       } else if (name === "abstraction-target") {
         this.runWithLoading(() => this.result?.setAbstractionTarget(options.abstractionTarget));
+      } else if (name === "scenario" && options.scenario) {
+        this.runWithLoading(() => this.result?.setScenario?.(options.scenario!));
+      } else if (name === "show-hotspots") {
+        this.runWithLoading(() => this.result?.toggleHotspots?.(options.showHotspots));
       } else if (name === "width" || name === "height") {
         this.applyFrameStyle();
       } else {
@@ -951,23 +1111,32 @@ export function defineArchMapViewerElement(): void {
     }
 
     private showLoading(): void {
+      clearTimeout(this.loadingHideTimer);
+      this.loadingSince = performance.now();
       this.ensureLoadingStyle();
       const panel = this.ensureLoadingPanel();
       panel.style.display = "flex";
     }
 
     private hideLoading(): void {
-      if (this.loadingPanel) this.loadingPanel.style.display = "none";
+      const remaining = Math.max(0, 220 - (performance.now() - this.loadingSince));
+      clearTimeout(this.loadingHideTimer);
+      this.loadingHideTimer = window.setTimeout(() => {
+        if (this.loadingPanel) this.loadingPanel.style.display = "none";
+      }, remaining);
     }
 
     private runWithLoading(action: () => void): void {
       this.showLoading();
       requestAnimationFrame(() => {
-        try {
-          action();
-        } finally {
-          requestAnimationFrame(() => this.hideLoading());
-        }
+        requestAnimationFrame(() => {
+          try {
+            action();
+          } finally {
+            if (this.container?.querySelector(".archmap-prototype-flow-loading")) return;
+            requestAnimationFrame(() => this.hideLoading());
+          }
+        });
       });
     }
 
@@ -1014,19 +1183,36 @@ export function defineArchMapViewerElement(): void {
     private renderModel(model: ArchMapModel, options: ViewerAttributeOptions): void {
       this.applyFrameStyle();
       this.result?.destroy();
+      this.detachPrototypeRenderState?.();
+      this.detachPrototypeRenderState = undefined;
+      const container = this.ensureContainer();
+      const onPrototypeRenderState = (event: Event): void => {
+        const state = (event as CustomEvent<{ state?: string }>).detail?.state;
+        if (state === "loading") this.showLoading();
+        if (state === "ready") this.hideLoading();
+      };
+      container.addEventListener("archmap:prototype-render-state", onPrototypeRenderState);
+      this.detachPrototypeRenderState = () => container.removeEventListener("archmap:prototype-render-state", onPrototypeRenderState);
       this.result = render(model, {
         baseView: options.baseView,
         renderMode: options.renderMode,
         overlays: options.overlays,
         abstractionLevel: options.abstractionLevel,
         abstractionTarget: options.abstractionTarget,
-        target: this.ensureContainer(),
+        target: container,
         diagnosticsTarget: this.diagnosticsTarget(options),
         inspectorTarget: this.inspectorTarget(options),
         console: options.consoleReport,
+        scenario: options.scenario,
+        showHotspots: options.showHotspots,
       });
       if (options.controls) this.renderControls(options);
-      else this.controlsBar?.remove(), (this.controlsBar = undefined);
+      else {
+        this.controlsHandle?.destroy();
+        this.controlsHost?.remove();
+        this.controlsHandle = undefined;
+        this.controlsHost = undefined;
+      }
     }
 
     /** Controls toolbar: exclusive view/mode radios, additive overlay tags, fit/reset,
@@ -1034,246 +1220,96 @@ export function defineArchMapViewerElement(): void {
     private renderControls(options: ViewerAttributeOptions): void {
       const result = this.result;
       if (!result) return;
-      const bar = document.createElement("div");
-      bar.className = "archmap-viewer-controls";
-      bar.style.cssText =
-        "display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;" +
-        "font:13px system-ui,sans-serif;border-bottom:1px solid #d4dae6;background:#f7f9fc;";
-      const uid = Math.random().toString(36).slice(2);
-      const panelElements: HTMLElement[] = [];
-      const tagCss =
-        "display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:3px 8px;" +
-        "border:1px solid #cbd5e1;border-radius:999px;background:#f8fafc;color:#334155;" +
-        "font:600 12px system-ui,sans-serif;white-space:nowrap;cursor:pointer;";
-      const actionCss =
-        "min-width:28px;min-height:26px;padding:3px 8px;border-radius:999px;background:#eef2f7;" +
-        "color:#334155;border:1px solid #cbd5e1;cursor:pointer;";
-      const setActionIcon = (button: HTMLButtonElement, icon: "expand" | "minimize" | "fit" | "reset" | "download" | "fullscreen" | "lock" | "unlock") => {
-        const paths = {
-          expand: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
-          minimize: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/>',
-          fit: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/>',
-          reset: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/>',
-          download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
-          fullscreen: '<path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/>',
-          lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
-          unlock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/>',
-        } satisfies Record<typeof icon, string>;
-        button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;display:block">${paths[icon]}</svg>`;
-      };
-      const paintTag = (wrap: HTMLElement, checked: boolean) => {
-        wrap.style.cssText = tagCss + (checked ? "background:#e6edf7;border-color:#7892bd;color:#213a63;" : "");
-      };
-
-      const group = (label: string) => {
-        const g = document.createElement("span");
-        g.className = "archmap-controls-group";
-        g.style.cssText = "display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;";
-        const l = document.createElement("span");
-        l.className = "archmap-controls-label";
-        l.textContent = label;
-        l.style.cssText = "font-size:11px;font-weight:700;color:#64748b;margin-right:2px;";
-        g.appendChild(l);
-        panelElements.push(g);
-        return g;
-      };
-
-      const active = {
-        base: options.baseView ?? "overview",
-        renderMode: options.renderMode,
-        overlays: new Set(options.overlays),
-      };
-
-      const expand = document.createElement("button");
-      expand.type = "button";
-      expand.title = "Expand tags";
-      expand.ariaLabel = "Expand tags";
-      expand.style.cssText = actionCss;
-      setActionIcon(expand, "expand");
-      const minimize = document.createElement("button");
-      minimize.type = "button";
-      minimize.title = "Minimize tags";
-      minimize.ariaLabel = "Minimize tags";
-      minimize.style.cssText = actionCss;
-      setActionIcon(minimize, "minimize");
-      minimize.addEventListener("click", () => {
-        for (const el of panelElements) el.style.display = "none";
-        minimize.style.display = "none";
-        bar.style.width = "auto";
-      });
-      expand.addEventListener("click", () => {
-        for (const el of panelElements) el.style.display = "";
-        minimize.style.display = "";
-        bar.style.width = "min(960px, 100%)";
-      });
-      bar.append(expand, minimize);
-
-      const baseGroup = group("Views:");
-      for (const view of BASE_VIEWS) {
-        const wrap = document.createElement("label");
-        wrap.className = "archmap-control-base";
-        const input = document.createElement("input");
-        input.type = "radio";
-        input.name = `archmap-base-view-${uid}`;
-        input.value = view;
-        input.checked = view === active.base;
-        input.style.margin = "0";
-        input.addEventListener("change", () => {
-          if (!input.checked) return;
-          active.base = view;
-          baseGroup.querySelectorAll("label").forEach((label) => {
-            const radio = label.querySelector("input");
-            paintTag(label as HTMLElement, radio instanceof HTMLInputElement && radio.checked);
-          });
-          this.runWithLoading(() => {
-            result.setBaseView(view);
-            updateDiagnostics();
-          });
-        });
-        wrap.append(input, document.createTextNode(BASE_VIEW_LABELS[view]));
-        paintTag(wrap, input.checked);
-        baseGroup.appendChild(wrap);
-      }
-      bar.appendChild(baseGroup);
-
-      const modeGroup = group("Render modes:");
-      for (const mode of RENDER_MODES) {
-        const wrap = document.createElement("label");
-        wrap.className = "archmap-control-render-mode";
-        const input = document.createElement("input");
-        input.type = "radio";
-        input.name = `archmap-render-mode-${uid}`;
-        input.value = mode;
-        input.checked = mode === active.renderMode;
-        input.style.margin = "0";
-        input.addEventListener("change", () => {
-          if (!input.checked) return;
-          active.renderMode = mode;
-          modeGroup.querySelectorAll("label").forEach((label) => {
-            const radio = label.querySelector("input");
-            paintTag(label as HTMLElement, radio instanceof HTMLInputElement && radio.checked);
-          });
-          this.runWithLoading(() => {
-            result.setRenderMode(mode);
-            updateDiagnostics();
-          });
-        });
-        wrap.append(input, document.createTextNode(mode === "3d" ? "3D" : mode.toUpperCase()));
-        paintTag(wrap, input.checked);
-        modeGroup.appendChild(wrap);
-      }
-      bar.appendChild(modeGroup);
-
-      const overlayGroup = group("Add info:");
-      for (const overlay of OVERLAY_NAMES) {
-        const wrap = document.createElement("label");
-        wrap.className = "archmap-control-overlay";
-        paintTag(wrap, active.overlays.has(overlay));
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.checked = active.overlays.has(overlay);
-        cb.style.margin = "0";
-        cb.addEventListener("change", () => {
-          if (cb.checked) {
-            active.overlays.add(overlay);
-          } else {
-            active.overlays.delete(overlay);
-          }
-          paintTag(wrap, cb.checked);
-          this.runWithLoading(() => {
-            if (cb.checked) result.addOverlay(overlay);
-            else result.removeOverlay(overlay);
-            updateDiagnostics();
-          });
-        });
-        wrap.append(cb, document.createTextNode(" " + overlay));
-        overlayGroup.appendChild(wrap);
-      }
-      bar.appendChild(overlayGroup);
-
-      const zoomToggle = document.createElement("button");
-      zoomToggle.type = "button";
-      zoomToggle.title = "Fit diagram";
-      zoomToggle.ariaLabel = "Fit diagram";
-      zoomToggle.style.cssText = actionCss;
-      setActionIcon(zoomToggle, "fit");
       let zoomFitted = false;
-      zoomToggle.addEventListener("click", () => {
-        if (zoomFitted) {
-          result.reset();
-          zoomFitted = false;
-          zoomToggle.title = "Fit diagram";
-          zoomToggle.ariaLabel = "Fit diagram";
-          setActionIcon(zoomToggle, "fit");
-        } else {
-          result.fit();
-          zoomFitted = true;
-          zoomToggle.title = "Reset zoom";
-          zoomToggle.ariaLabel = "Reset zoom";
-          setActionIcon(zoomToggle, "reset");
-        }
-      });
-      const lockToggle = document.createElement("button");
-      lockToggle.type = "button";
-      lockToggle.style.cssText = actionCss;
-      const paintLockToggle = () => {
-        const locked = result.isAbstractionLocked();
-        lockToggle.title = locked ? "Unlock component expansion" : "Lock component expansion";
-        lockToggle.ariaLabel = lockToggle.title;
-        lockToggle.style.cssText = actionCss + (locked ? "background:#e6edf7;border-color:#7892bd;color:#213a63;" : "");
-        setActionIcon(lockToggle, locked ? "lock" : "unlock");
+      let controlsState = {
+        baseView: options.baseView ?? "overview",
+        renderMode: options.renderMode,
+        overlays: [...options.overlays],
+        abstractionLocked: result.isAbstractionLocked(),
       };
-      lockToggle.addEventListener("click", () => {
-        result.setAbstractionLocked(!result.isAbstractionLocked());
-        paintLockToggle();
-      });
-      paintLockToggle();
-      const exportPng = document.createElement("button");
-      exportPng.type = "button";
-      exportPng.title = "Export PNG";
-      exportPng.ariaLabel = "Export PNG";
-      exportPng.style.cssText = actionCss;
-      setActionIcon(exportPng, "download");
-      exportPng.addEventListener("click", () => {
-        void result.downloadPng("archmap.png").catch((error: unknown) => {
-          console.error("ArchMap PNG export failed.", error);
-        });
-      });
-      const fullscreen = document.createElement("button");
-      fullscreen.type = "button";
-      fullscreen.title = "Fullscreen";
-      fullscreen.ariaLabel = "Fullscreen";
-      fullscreen.style.cssText = actionCss;
-      setActionIcon(fullscreen, "fullscreen");
-      fullscreen.addEventListener("click", () => {
-        if (document.fullscreenElement === this) {
-          void document.exitFullscreen?.();
-        } else if (this.requestFullscreen) {
-          void this.requestFullscreen();
-        }
-        requestAnimationFrame(() => result.fit());
-      });
-      const actionGroup = document.createElement("span");
-      actionGroup.className = "archmap-controls-group";
-      actionGroup.style.cssText = "display:inline-flex;align-items:center;gap:5px;";
-      actionGroup.append(zoomToggle, lockToggle, exportPng, fullscreen);
-      panelElements.push(actionGroup);
-      bar.append(actionGroup);
-
-      const diag = document.createElement("span");
-      diag.className = "archmap-controls-diagnostics";
-      diag.style.cssText = "margin-left:auto;color:#5b6b86;";
       const updateDiagnostics = () => {
-        const m = result.model;
-        diag.textContent = `Errors ${m.errors.length} / Warnings ${m.warnings.length} / Suggestions ${m.suggestions.length} / Infos ${m.infos.length}`;
+        this.controlsHandle?.setState(controlsState);
       };
-      updateDiagnostics();
-      panelElements.push(diag);
-      bar.appendChild(diag);
-
-      this.controlsBar?.remove();
-      this.controlsBar = bar;
-      this.insertBefore(bar, this.firstChild);
+      const target = document.createElement("div");
+      target.className = "archmap-viewer-controls";
+      target.style.cssText = "border-bottom:1px solid #d4dae6;background:#f7f9fc;padding:8px 10px;";
+      this.controlsHandle?.destroy();
+      this.controlsHost?.remove();
+      this.controlsHandle = createDiagramTags({
+        target,
+        views: BASE_VIEWS.map((view) => ({ value: view, label: BASE_VIEW_LABELS[view] })),
+        renderModes: RENDER_MODES.map((mode) => ({ value: mode, label: mode === "3d" ? "3D" : mode.toUpperCase() })),
+        overlays: [...OVERLAY_NAMES].map((overlay) => ({ value: overlay, label: overlay })),
+        actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
+        state: {
+          ...controlsState,
+        },
+        names: {
+          baseView: `archmap-base-view-${Math.random().toString(36).slice(2)}`,
+          renderMode: `archmap-render-mode-${Math.random().toString(36).slice(2)}`,
+          overlay: `archmap-overlay-${Math.random().toString(36).slice(2)}`,
+        },
+        onChange: (_state, event) => {
+          this.runWithLoading(() => {
+            if (event.kind === "baseView") {
+              result.setBaseView(event.value);
+              controlsState = { ...controlsState, baseView: event.value };
+            }
+            if (event.kind === "renderMode") {
+              result.setRenderMode(event.value);
+              controlsState = { ...controlsState, renderMode: event.value };
+            }
+            if (event.kind === "overlay") {
+              if (event.checked) result.addOverlay(event.value);
+              else result.removeOverlay(event.value);
+              controlsState = {
+                ...controlsState,
+                overlays: event.checked
+                  ? [...new Set([...controlsState.overlays, event.value])]
+                  : controlsState.overlays.filter((overlay) => overlay !== event.value),
+              };
+            }
+            updateDiagnostics();
+          });
+        },
+        onAction: (action) => {
+          if (action === "fit") {
+            if (zoomFitted) {
+              result.reset();
+              zoomFitted = false;
+            } else {
+              result.fit();
+              zoomFitted = true;
+            }
+            return;
+          }
+          if (action === "lock") {
+            result.setAbstractionLocked(!result.isAbstractionLocked());
+            controlsState = { ...controlsState, abstractionLocked: result.isAbstractionLocked() };
+            updateDiagnostics();
+            return;
+          }
+          if (action === "download") {
+            void result.downloadPng("archmap.png").catch((error: unknown) => {
+              console.error("ArchMap PNG export failed.", error);
+            });
+            return;
+          }
+          if (action === "fullscreen") {
+            if (document.fullscreenElement === this) {
+              void document.exitFullscreen?.();
+            } else if (this.requestFullscreen) {
+              void this.requestFullscreen();
+            }
+            requestAnimationFrame(() => result.fit());
+          }
+        },
+      });
+      this.controlsHandle.element.style.position = "static";
+      this.controlsHandle.element.style.width = "auto";
+      this.controlsHandle.element.style.marginBottom = "0";
+      this.controlsHost = target;
+      this.insertBefore(target, this.firstChild);
     }
 
     private renderSourceFailure(src: string, error: unknown, options: ViewerAttributeOptions): void {

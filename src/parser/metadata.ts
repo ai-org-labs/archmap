@@ -21,6 +21,7 @@ import type {
   Identity,
   Layout,
   Permission,
+  Scenario,
   ViewConfig,
   Zone,
 } from "../types.js";
@@ -36,6 +37,11 @@ function isObject(v: unknown): v is Dict {
 
 function asString(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
+}
+
+function asNumber(v: unknown): number | undefined {
+  if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
+  return v;
 }
 
 function asStringArray(v: unknown): string[] | undefined {
@@ -79,6 +85,36 @@ function parseAuth(v: unknown): AuthMeta | undefined {
     scopes: asStringArray(v.scopes),
     claims: v.claims,
   };
+}
+
+function parseFrame(v: unknown): ArchNode["frame"] | undefined {
+  if (!isObject(v)) return undefined;
+  const frame = {
+    device: asString(v.device),
+    width: asNumber(v.width),
+    height: asNumber(v.height),
+  };
+  return frame.device || frame.width !== undefined || frame.height !== undefined ? frame : undefined;
+}
+
+function parseHotspot(v: unknown): ArchEdge["hotspot"] | undefined {
+  if (!isObject(v)) return undefined;
+  const x = asNumber(v.x);
+  const y = asNumber(v.y);
+  const width = asNumber(v.width);
+  const height = asNumber(v.height);
+  return x !== undefined && y !== undefined && width !== undefined && height !== undefined
+    ? { x, y, width, height }
+    : undefined;
+}
+
+function parseTransition(v: unknown): ArchEdge["transition"] | undefined {
+  if (!isObject(v)) return undefined;
+  const transition = {
+    type: asString(v.type),
+    duration: asNumber(v.duration),
+  };
+  return transition.type || transition.duration !== undefined ? transition : undefined;
 }
 
 export interface MergeResult {
@@ -140,6 +176,8 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     node.description = asString(value.description);
     node.androidComponent = asString(value.androidComponent);
     node.androidLayer = asString(value.androidLayer);
+    node.image = asString(value.image);
+    node.frame = parseFrame(value.frame);
   }
 
   // --- Edges (spec 01 §7, 02 §6) --------------------------------------------
@@ -185,6 +223,9 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     edge.networkPath = asStringArray(value.networkPath) ?? edge.networkPath;
     edge.boundaryCrossing = parseBoundaryCrossing(value.boundaryCrossing) ?? edge.boundaryCrossing;
     edge.direction = (asString(value.direction) as ArchEdge["direction"]) ?? edge.direction;
+    edge.trigger = asString(value.trigger) ?? edge.trigger;
+    edge.hotspot = parseHotspot(value.hotspot) ?? edge.hotspot;
+    edge.transition = parseTransition(value.transition) ?? edge.transition;
     edge.tags = asStringArray(value.tags) ?? edge.tags;
     edge.description = asString(value.description) ?? edge.description;
   };
@@ -335,6 +376,25 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     });
   }
 
+  // --- Scenarios ------------------------------------------------------------
+  const scenarios: Scenario[] = [];
+  const metaScenarios = isObject(meta.scenarios) ? meta.scenarios : {};
+  for (const [id, value] of Object.entries(metaScenarios)) {
+    if (!isObject(value)) continue;
+    const start = asString(value.start);
+    const steps = asStringArray(value.steps);
+    if (!start || !steps) {
+      warnings.push(diagnostic("scenario_incomplete", `Scenario "${id}" is missing start or steps.`, { type: "view", id }));
+    }
+    scenarios.push({
+      id,
+      label: asString(value.label),
+      start: start ?? "",
+      steps: steps ?? [],
+      description: asString(value.description),
+    });
+  }
+
   normalizeStage2({ nodes, edges, zones, boundaries, data, warnings, errors });
 
   // --- Layout / View / Title ------------------------------------------------
@@ -346,6 +406,8 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     direction: graph.direction,
     title: asString(meta.title),
     description: asString(meta.description),
+    mode: asString(meta.mode),
+    profile: asString(meta.profile) ?? asString(meta.architecture),
     graph: {
       direction: graph.direction,
       subgraphs: Object.fromEntries(graph.subgraphs.map((sg) => [
@@ -360,6 +422,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     identities,
     permissions,
     data,
+    scenarios,
     layout,
     view,
     diagnostics: [],

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <rect width="390" height="844" fill="#f8fafc"/>
+  <text x="32" y="88" font-family="system-ui" font-size="30" font-weight="700" fill="#172033">Payment</text>
+  <rect x="38" y="178" width="314" height="260" rx="22" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="72" y="318" font-family="system-ui" font-size="24" fill="#92400e">External provider</text>
+  <rect x="46" y="694" width="298" height="56" rx="18" fill="#16a34a"/>
+  <text x="138" y="730" font-family="system-ui" font-size="22" font-weight="700" fill="#fff">Complete</text>
+</svg>

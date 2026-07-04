@@ -67,6 +67,49 @@ examples/demo.html
 The static demo imports the built local ArchMap bundle and uses jsDelivr for
 `three` and `@archmap/icons`.
 
+### Prototype View / ScreenFlow
+
+Prototype View is part of `@archmap/core` and uses the existing
+`<archmap-viewer>` element:
+
+```html
+<archmap-viewer
+  src="./examples/screenflow.archmap"
+  base-view="prototype"
+  overlays="dataflow,boundary,validation"
+  scenario="happy_path"
+  show-hotspots="true"
+  controls
+  diagnostics
+  style="display:block;min-height:720px"
+></archmap-viewer>
+```
+
+The same view is available through JavaScript:
+
+```ts
+const result = render(model, {
+  baseView: "prototype",
+  scenario: "happy_path",
+  showHotspots: true,
+  target: document.querySelector("#diagram"),
+});
+
+result.next?.();
+result.back?.();
+```
+
+The repository includes a ready-to-open transition-map sample:
+
+```text
+examples/screenflow-map.html
+```
+
+It loads `examples/screenflow.archmap`, starts in the `prototype` Map view, and
+shows screen capture SVGs connected by transition arrows. The same HTML can be
+made CDN-only by changing its import map to
+`https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/archmap.js`.
+
 ### CDN Pattern
 
 For browser-only pages, use an import map. During local verification,
@@ -77,22 +120,31 @@ can use an npm CDN URL instead.
 <script type="importmap">
 {
   "imports": {
-    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js",
-    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js",
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/archmap.js",
+    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/controls/diagram-tags.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/views3d/three-view.js",
     "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
-    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
+    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
   }
 }
 </script>
 <script type="module">
   import { initialize, registerIcon } from "@archmap/core";
+  import { createDiagramTags } from "@archmap/core/controls/diagram-tags";
   import { installThreeView } from "@archmap/core/views3d/three-view";
   import { installCloudProviderIcons } from "@archmap/icons";
 
   installCloudProviderIcons(registerIcon);
   installThreeView();
   initialize();
+
+  // Optional: build the same tag controls used by the playground/viewer.
+  createDiagramTags({
+    target: document.querySelector("#diagram-tags"),
+    state: { baseView: "overview", renderMode: "2d", overlays: [] },
+    onChange: (state) => console.log(state)
+  });
 </script>
 ```
 
@@ -135,14 +187,15 @@ npm publish --access public
 After publishing, verify the package and CDN paths:
 
 ```bash
-npm view @archmap/core@0.1.0 version license files
+npm view @archmap/core@0.1.1 version license files
 ```
 
 Then open:
 
 ```text
-https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/archmap.js
-https://cdn.jsdelivr.net/npm/@archmap/core@0.1.0/dist/views3d/three-view.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/archmap.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/controls/diagram-tags.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/views3d/three-view.js
 ```
 
 ## Security Posture
@@ -161,6 +214,10 @@ Implemented safeguards:
   that contains unrelated app state.
 - External `src` loading uses browser `fetch` and emits `src_fetch_failed` on
   failure. It does not bypass browser CORS or filesystem restrictions.
+- Prototype View image URLs are assigned through DOM attributes and are not
+  interpolated as HTML. Unsafe protocols such as `javascript:` and `data:` are
+  rejected with `image_url_disallowed`; relative, `http:`, `https:`, and `blob:`
+  URLs are allowed.
 - Optional icon packs are explicit opt-ins through `registerIcon`; the core
   bundle ships no vendor icon assets.
 - Third-party logos, product names, and service marks remain the property of

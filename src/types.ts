@@ -5,7 +5,7 @@
  * this shape, and a future GUI editor exports back to DSL from it.
  */
 
-export const ARCHMAP_VERSION = "0.1.0";
+export const ARCHMAP_VERSION = "0.1.1";
 
 export type Direction = "LR" | "TD";
 
@@ -68,6 +68,14 @@ export interface ArchNode {
   /** Extension metadata for platform-stack diagrams such as Android. */
   androidComponent?: string;
   androidLayer?: string;
+  /** ScreenFlow / Prototype View image URL for screen-like nodes. */
+  image?: string;
+  /** ScreenFlow / Prototype View frame metadata. */
+  frame?: {
+    device?: string;
+    width?: number;
+    height?: number;
+  };
   /** Fields populated by inference rather than explicit metadata. */
   inferred?: string[];
   /** Renderer-only projection metadata for collapsed subgraph/zone components. */
@@ -105,6 +113,20 @@ export interface ArchEdge {
   networkPath?: string[];
   boundaryCrossing?: BoundaryCrossing;
   direction?: "one_way" | "two_way" | "request_response";
+  /** ScreenFlow trigger such as tap, click, submit, auto, redirect, or back. */
+  trigger?: string;
+  /** Clickable image-space area for Prototype View transitions. */
+  hotspot?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  /** Prototype View transition metadata. */
+  transition?: {
+    type?: string;
+    duration?: number;
+  };
   tags?: string[];
   description?: string;
   /** Fields populated by label inference rather than explicit metadata (§22). */
@@ -192,11 +214,21 @@ export interface GraphSubgraph {
   parent?: string;
 }
 
+export interface Scenario {
+  id: string;
+  label?: string;
+  start: string;
+  steps: string[];
+  description?: string;
+}
+
 export interface ArchMapModel {
   version: string;
   direction: Direction;
   title?: string;
   description?: string;
+  mode?: string;
+  profile?: string;
   source?: {
     graph: string;
     metadata?: string;
@@ -212,6 +244,7 @@ export interface ArchMapModel {
   identities: Identity[];
   permissions: Permission[];
   data: DataObject[];
+  scenarios: Scenario[];
   layout?: Layout;
   view?: ViewConfig;
   diagnostics: Diagnostic[];
@@ -225,6 +258,8 @@ export interface CanonicalArchMapModel {
   version: string;
   title?: string;
   description?: string;
+  mode?: string;
+  profile?: string;
   source?: {
     graph: string;
     metadata?: string;
@@ -240,6 +275,7 @@ export interface CanonicalArchMapModel {
   identities: Record<string, Identity>;
   permissions: Record<string, Permission>;
   data: Record<string, DataObject>;
+  scenarios: Record<string, Scenario>;
   layout?: Layout;
   view?: ViewConfig;
   diagnostics: Diagnostic[];
@@ -256,6 +292,9 @@ export const STANDARD_KINDS: ReadonlySet<string> = new Set([
   // actor / client
   "user", "external_user", "client_app", "web_app", "mobile_app",
   "android_app", "ios_app", "desktop_app", "admin_console", "external_partner", "subgraph", "zone",
+  "screen", "page", "tab", "modal", "dialog", "drawer", "form", "webview",
+  "external_page", "auth_guard", "error_screen", "completion_screen", "activity",
+  "decision", "start", "end",
   // edge / gateway
   "cdn", "waf", "load_balancer", "api_gateway", "ingress", "reverse_proxy", "firewall",
   // runtime
@@ -288,6 +327,8 @@ export const STANDARD_FLOWS: ReadonlySet<string> = new Set([
   "permission_grant", "admin_operation", "deployment", "monitoring",
   "logging", "telemetry_export", "metrics_export", "log_export", "trace_export",
   "security_scan", "compliance_scan", "network_route",
+  "navigate", "submit", "back", "redirect", "deep_link", "open_modal",
+  "close_modal", "switch_tab", "auth_check", "api_call", "success", "error", "auto",
 ]);
 
 export const STANDARD_BOUNDARY_KINDS: ReadonlySet<string> = new Set([

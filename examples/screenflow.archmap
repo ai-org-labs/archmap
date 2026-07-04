@@ -1,0 +1,160 @@
+graph LR
+  Home[Home]
+  ProductDetail[Product Detail]
+  Cart[Cart]
+  Checkout[Checkout]
+  Payment[Payment WebView]
+  Complete[Complete]
+  ErrorScreen[Payment Error]
+  SupportModal[Support Modal]
+
+  Home -->|open product| ProductDetail
+  ProductDetail -->|add item| Cart
+  Cart -->|checkout| Checkout
+  Checkout -->|submit payment| Payment
+  Payment -->|success| Complete
+  Payment -->|error| ErrorScreen
+  Checkout -->|help| SupportModal
+  SupportModal -->|close| Checkout
+---
+mode: screenflow
+title: Store checkout prototype
+nodes:
+  Home:
+    kind: screen
+    zone: app
+    layer: screen
+    image: ./screens/home.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  ProductDetail:
+    kind: screen
+    zone: app
+    layer: screen
+    image: ./screens/product-detail.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  Cart:
+    kind: screen
+    zone: app
+    layer: screen
+    image: ./screens/cart.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  Checkout:
+    kind: form
+    zone: app
+    layer: screen
+    image: ./screens/checkout.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  Payment:
+    kind: webview
+    zone: external_payment
+    layer: external
+    image: ./screens/payment.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  Complete:
+    kind: completion_screen
+    zone: app
+    layer: screen
+    image: ./screens/complete.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  ErrorScreen:
+    kind: error_screen
+    zone: app
+    layer: screen
+    image: ./screens/error.svg
+    frame: { device: mobile, width: 390, height: 844 }
+  SupportModal:
+    kind: modal
+    zone: app
+    layer: modal
+zones:
+  app:
+    label: App
+    kind: client
+    contains: [Home, ProductDetail, Cart, Checkout, Complete, ErrorScreen, SupportModal]
+  external_payment:
+    label: External Payment
+    kind: partner
+    contains: [Payment]
+boundaries:
+  payment_boundary:
+    label: External payment boundary
+    kind: trust_boundary
+    contains: [zone: external_payment]
+edges:
+  Home->ProductDetail:
+    flow: navigate
+    trigger: tap
+    data: catalog_state
+    hotspot: { x: 36, y: 190, width: 318, height: 190 }
+    transition: { type: fade, duration: 180 }
+  ProductDetail->Cart:
+    flow: submit
+    trigger: tap
+    data: cart_item
+    hotspot: { x: 34, y: 430, width: 322, height: 70 }
+  Cart->Checkout:
+    flow: navigate
+    trigger: tap
+    data: cart_item
+    hotspot: { x: 46, y: 694, width: 298, height: 56 }
+  Checkout->Payment:
+    flow: submit
+    trigger: submit
+    data: payment_request
+    boundaryCrossing: [payment_boundary]
+    hotspot: { x: 46, y: 694, width: 298, height: 56 }
+    auth: { token: session, issuer: Home, validatedBy: Checkout }
+  Payment->Complete:
+    flow: success
+    trigger: redirect
+    data: payment_result
+  Payment->ErrorScreen:
+    flow: error
+    trigger: redirect
+    data: payment_result
+  Checkout->SupportModal:
+    flow: open_modal
+    trigger: tap
+  SupportModal->Checkout:
+    flow: close_modal
+    trigger: back
+data:
+  catalog_state:
+    classification: public
+    flows: [Home->ProductDetail]
+    storage: transient
+  cart_item:
+    classification: personal
+    flows: [ProductDetail->Cart, Cart->Checkout]
+    storage: transient
+  payment_request:
+    classification: restricted
+    flows: [Checkout->Payment]
+    storage: transient
+  payment_result:
+    classification: restricted
+    flows: [Payment->Complete, Payment->ErrorScreen]
+    storage: transient
+scenarios:
+  happy_path:
+    label: Purchase happy path
+    start: Home
+    steps:
+      - Home->ProductDetail
+      - ProductDetail->Cart
+      - Cart->Checkout
+      - Checkout->Payment
+      - Payment->Complete
+  error_path:
+    label: Payment error path
+    start: Home
+    steps:
+      - Home->ProductDetail
+      - ProductDetail->Cart
+      - Cart->Checkout
+      - Checkout->Payment
+      - Payment->ErrorScreen
+view:
+  default:
+    base: prototype
+    overlays: [dataflow, boundary, validation]
