@@ -70,7 +70,7 @@
     }
   },
   "devDependencies": {
-    "@archmap/icons": "^0.1.1",
+    "@archmap/icons": "^0.1.2",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.0.1",
     "@types/three": "^0.184.1",

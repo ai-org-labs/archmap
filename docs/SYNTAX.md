@@ -617,7 +617,7 @@ For a static viewer page, use an import map. After npm publication, replace
     "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.1/dist/views3d/three-view.js",
     "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
-    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
+    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
   }
 }
 </script>

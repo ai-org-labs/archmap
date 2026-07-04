@@ -80,7 +80,7 @@ by `provider`/`kind` (most specific first: `provider/kind` → `provider` →
 **Recommended icon source: [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons).**
 It registers AWS/GCP/Azure service-kind icons (keyed `provider/kind`) plus a
 famous-services pack through ArchMap's `registerIcon` — a verified drop-in (same
-`RegisterIcon`/`RenderableIcon` types; `@archmap/icons` v0.1.1 ships 1,271
+`RegisterIcon`/`RenderableIcon` types; `@archmap/icons` v0.1.2 ships 1,271
 cloud icon entries plus 32 famous-service entries):
 
 ```ts
@@ -105,7 +105,7 @@ through jsDelivr:
 <script type="importmap">
 {
   "imports": {
-    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.1/+esm"
+    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
   }
 }
 </script>
