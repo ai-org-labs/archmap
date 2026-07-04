@@ -27,6 +27,7 @@
     .resize-handle { cursor: col-resize; background: linear-gradient(90deg, #d7dde8, #eef1f6); border-right: 1px solid #d4dae6; }
     .resize-handle:hover, .resize-handle.is-dragging { background: #b9c7dc; }
     button { padding: 6px 14px; border: 0; border-radius: 6px; background: #34507a; color: #fff; cursor: pointer; }
+    .sample-picker { min-width: 0; flex: 1; padding: 6px 28px 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #1c2733; font: 12px system-ui, sans-serif; }
     .diagram { position: relative; overflow: auto; padding: 16px; min-height: 0; box-sizing: border-box; }
     .diagram.is-fullscreen { position: fixed; inset: 0; z-index: 20; height: 100vh; background: #eef1f6; }
     .diagram.is-fullscreen .diagram-tags { width: min(980px, calc(100% - 24px)); }
@@ -50,6 +51,7 @@
     <div class="panel">
       <div class="panel-top">
         <button id="run">Render</button>
+        <select id="sample-select" class="sample-picker" aria-label="Load sample"></select>
       </div>
       <div class="editor">
         <pre class="line-numbers" id="line-numbers" aria-hidden="true">1</pre>
@@ -268,7 +270,7 @@ view:
   </script>
 
   <script type="module">
-    import { createDiagramTags, parse, render, registerIcon } from "/src/index.ts";
+    import { DEFAULT_ARCHMAP_SAMPLE_ID, DEFAULT_ARCHMAP_SAMPLES, createDiagramTags, parse, render, registerIcon } from "/src/index.ts";
     import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "/src/views3d/three-view.ts";
     installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons (opt-in)
@@ -276,7 +278,33 @@ view:
     installThreeView(); // opt-in 3D view; core does not bundle three.js
     const $ = (id) => document.getElementById(id);
     const selectedRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
-    $("src").value = $("seed").textContent.trim();
+    const samples = DEFAULT_ARCHMAP_SAMPLES;
+    const fallbackSource = $("seed").textContent.trim();
+    const sampleById = (id) => samples.find((sample) => sample.id === id);
+    const defaultSample = sampleById(DEFAULT_ARCHMAP_SAMPLE_ID) ?? samples[0];
+    $("src").value = defaultSample?.source ?? fallbackSource;
+    const populateSamples = () => {
+      const select = $("sample-select");
+      select.innerHTML = "";
+      const groups = new Map();
+      for (const sample of samples) {
+        if (!groups.has(sample.category)) {
+          const group = document.createElement("optgroup");
+          group.label = sample.category;
+          groups.set(sample.category, group);
+          select.appendChild(group);
+        }
+        const option = document.createElement("option");
+        option.value = sample.id;
+        option.textContent = sample.title;
+        groups.get(sample.category).appendChild(option);
+      }
+      if (defaultSample) {
+        select.value = defaultSample.id;
+        select.title = defaultSample.description;
+      }
+    };
+    populateSamples();
     const updateLineNumbers = () => {
       const count = Math.max(1, $("src").value.split("\n").length);
       $("line-numbers").textContent = Array.from({ length: count }, (_, i) => i + 1).join("\n");
@@ -307,6 +335,7 @@ view:
       $("resize-handle").classList.remove("is-dragging");
     });
     let result = null;
+    let tags = null;
     let abstractionLocked = false;
     let zoomFitted = false;
     const selectedOverlays = () => [...document.querySelectorAll('input[name="overlay"]:checked')].map((input) => input.value);
@@ -379,9 +408,18 @@ view:
         updateLog(result.model);
       });
     }
-    createDiagramTags({
+    function applySample(sample) {
+      $("src").value = sample.source;
+      $("sample-select").value = sample.id;
+      $("sample-select").title = sample.description;
+      abstractionLocked = false;
+      zoomFitted = false;
+      tags?.setState({ ...sample.recommendation, abstractionLocked });
+      updateLineNumbers();
+    }
+    tags = createDiagramTags({
       target: $("diagram-tags"),
-      state: { baseView: "overview", renderMode: "2d", overlays: [], abstractionLocked },
+      state: { ...(defaultSample?.recommendation ?? { baseView: "overview", renderMode: "2d", overlays: [] }), abstractionLocked },
       actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
       onChange: (_state, event) => {
         if (event.kind === "baseView") updateBaseView();
@@ -411,6 +449,14 @@ view:
           requestAnimationFrame(() => result?.fit());
         }
       },
+    });
+    $("sample-select").addEventListener("change", () => {
+      const sample = sampleById($("sample-select").value);
+      if (!sample) return;
+      renderWithLoading(() => {
+        applySample(sample);
+        draw();
+      });
     });
     $("run").addEventListener("click", () => renderWithLoading(draw));
     draw();

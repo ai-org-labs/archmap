@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-081 checkpoint done: added buffered stream input API. `createArchMapStream()` accepts `write(string|Uint8Array)`, `pipe(ReadableStream)`, `flush()`, `close()`, `abort()`, and getters for source/model/result. It buffers source and reparses/rerenders the full accumulated DSL at debounce/flush boundaries; it is intentionally not an incremental parser. Exported from @archmap/core and documented in SYNTAX and engine API. Verification: npm run typecheck, npm test -- stream.test.ts render.test.ts, npm run build. Remaining release work: manual browser smoke on localhost/file demo/GitHub Pages, publish 0.1.1 to npm, create/push v0.1.1 tag, verify jsDelivr URLs.",
-  "updated_at": "2026-07-02T16:26:00.000+09:00",
+  "content": "TASK-010 release/demo checkpoint done: added curated default ArchMap samples for the playground and static demo. `DEFAULT_ARCHMAP_SAMPLES`, `DEFAULT_ARCHMAP_SAMPLE_ID`, and `getArchMapSample()` are exported from @archmap/core. The sample selector sits next to Render in `index.html` and `examples/demo.html`, grouped by category, and applies each sample's recommended base view/render mode/add-info overlays. There are 12 lightweight samples spanning product screenflow, SaaS, data platform, multiregion, Android stack, CI/CD, IoT, zero trust, incident response, enterprise network, and AI/RAG. Default sample covers overview/layer/prototype and all Add info overlays. Verification: npm run typecheck, npm test -- --run test/samples.test.ts, full npm test, npm run build, browser smoke on 127.0.0.1:5173. Dev server remains running on 127.0.0.1:5173. Remaining release work: final browser/file demo/GitHub Pages smoke, npm publish 0.1.1 by human, create/push v0.1.1 tag, verify CDN/jsDelivr URLs.",
+  "updated_at": "2026-07-04T13:13:03.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

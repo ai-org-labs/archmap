@@ -50,6 +50,17 @@ const { svg } = render(model, { view: "overview" });
 // registerView("my3d", ctx => ...)     // ctx.layout has z for three.js
 ```
 
+Curated starter diagrams are exported for playgrounds and AI-assisted authoring:
+
+```ts
+import { DEFAULT_ARCHMAP_SAMPLES } from "@archmap/core";
+const source = DEFAULT_ARCHMAP_SAMPLES[0].source;
+```
+
+The bundled dev playground and `examples/demo.html` expose these samples in the
+selector next to **Render**, including recommended view/render-mode/overlay
+settings for each sample.
+
 Browser playground: `npm run dev` then open the dev server root (live source,
 no build). Or `npm run build` and open `examples/demo.html` directly from disk
 (no server — uses the built ESM bundle plus CDN-hosted optional dependencies).

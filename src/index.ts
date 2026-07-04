@@ -101,6 +101,17 @@ export type {
   ArchMapStreamOptions,
   ArchMapStreamSession,
 } from "./stream.js";
+export {
+  DEFAULT_ARCHMAP_SAMPLE_ID,
+  DEFAULT_ARCHMAP_SAMPLES,
+  getArchMapSample,
+} from "./samples.js";
+export type {
+  ArchMapSample,
+  ArchMapSampleBaseView,
+  ArchMapSampleRecommendation,
+  ArchMapSampleRenderMode,
+} from "./samples.js";
 export type {
   ViewRenderer,
   ViewContext,
