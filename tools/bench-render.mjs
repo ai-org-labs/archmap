@@ -77,5 +77,12 @@ for (const name of caseNames) {
     }
     const renderTime = measure(() => render(model, options), iterations);
     console.log(`  render:${renderName} min=${format(renderTime.min)} p50=${format(renderTime.p50)} max=${format(renderTime.max)}`);
+    const { timings } = render(model, options);
+    if (timings) {
+      const phases = timings.layoutPhases
+        ? ` (placement=${format(timings.layoutPhases.placementMs)} route=${format(timings.layoutPhases.routeMs)} labels=${format(timings.layoutPhases.labelMs)})`
+        : "";
+      console.log(`    phases: projection=${format(timings.projectionMs)} layout=${format(timings.layoutMs)}${phases} view=${format(timings.viewMs)} dom=${format(timings.domMs)}`);
+    }
   }
 }

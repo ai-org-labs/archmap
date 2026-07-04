@@ -536,6 +536,11 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
       let cleanupMapInteractions: (() => void) | undefined;
       let activeMapPointerId: number | undefined;
       let mapRenderToken = 0;
+      let mapDidDrag = false;
+      // The flow-map layout and its DOM (cards, images, edge SVG) only depend on
+      // the model and scenario, so Map <-> Play toggles reuse them instead of
+      // recomputing the layout and recreating every card/image.
+      let mapCache: { key: string; canvas: HTMLDivElement; width: number; height: number; cardById: Map<string, HTMLElement> } | undefined;
       const history: string[] = [];
 
       const currentNode = (): ArchNode | undefined => model.nodes.find((node) => node.id === current);
@@ -565,6 +570,7 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         history.length = 0;
         current = initialScreen(model, scenario?.id);
         mapInitialized = false;
+        mapCache = undefined;
         renderUi();
         emit(target, "archmap:prototype-scenario-change", { scenario: scenario?.id ?? null, start: current ?? null });
       };
@@ -604,23 +610,28 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         screenPane.appendChild(content);
         const controls = document.createElement("div");
         controls.className = "archmap-prototype-screen-controls";
+        // Zoom only touches the content transform; a full re-render would
+        // recreate the screen image and hotspots for no reason.
+        const applyPlayZoom = (): void => {
+          content.style.transform = `scale(${playZoom.toFixed(2)})`;
+        };
         const zoomOut = button("−", "archmap-prototype-screen-zoom-out");
         zoomOut.title = "Zoom out";
         zoomOut.addEventListener("click", () => {
           playZoom = Math.max(0.5, playZoom * 0.86);
-          renderUi();
+          applyPlayZoom();
         });
         const fit = button("Fit", "archmap-prototype-screen-fit");
         fit.title = "Fit screen";
         fit.addEventListener("click", () => {
           playZoom = 1;
-          renderUi();
+          applyPlayZoom();
         });
         const zoomIn = button("+", "archmap-prototype-screen-zoom-in");
         zoomIn.title = "Zoom in";
         zoomIn.addEventListener("click", () => {
           playZoom = Math.min(2.5, playZoom * 1.18);
-          renderUi();
+          applyPlayZoom();
         });
         controls.append(zoomOut, fit, zoomIn);
         screenPane.appendChild(controls);
@@ -645,6 +656,18 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         }
       };
 
+      const buildMapCanvas = (key: string): NonNullable<typeof mapCache> => {
+        const map = flowMapLayout(model, scenario);
+        const byId = new Map(map.nodes.map((entry) => [entry.node.id, entry]));
+        const canvas = document.createElement("div");
+        canvas.className = "archmap-prototype-flow-canvas";
+        canvas.style.width = `${map.width}px`;
+        canvas.style.height = `${map.height}px`;
+        const cache = { key, canvas, width: map.width, height: map.height, cardById: new Map<string, HTMLElement>() };
+        buildMapContent(cache, map, byId);
+        return cache;
+      };
+
       const renderMap = (): void => {
         cleanupMapInteractions?.();
         cleanupMapInteractions = undefined;
@@ -665,12 +688,10 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           screenPane.classList.remove("is-dragging");
           mapInteractionController.abort();
         };
-        const map = flowMapLayout(model, scenario);
-        const byId = new Map(map.nodes.map((entry) => [entry.node.id, entry]));
-        const canvas = document.createElement("div");
-        canvas.className = "archmap-prototype-flow-canvas";
-        canvas.style.width = `${map.width}px`;
-        canvas.style.height = `${map.height}px`;
+        const cacheKey = scenario?.id ?? "";
+        if (mapCache?.key !== cacheKey) mapCache = buildMapCanvas(cacheKey);
+        const { canvas, width: mapWidth, height: mapHeight, cardById } = mapCache;
+        for (const [id, card] of cardById) card.classList.toggle("is-current", id === current);
         const applyMapTransform = (): void => {
           canvas.style.transform = `translate(${mapPan.x.toFixed(1)}px, ${mapPan.y.toFixed(1)}px) scale(${mapZoom.toFixed(3)})`;
         };
@@ -678,10 +699,10 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           const bounds = screenPane.getBoundingClientRect();
           const viewportW = Math.max(1, bounds.width);
           const viewportH = Math.max(1, bounds.height);
-          mapZoom = Math.min(1, Math.max(0.25, Math.min((viewportW - 56) / map.width, (viewportH - 56) / map.height)));
+          mapZoom = Math.min(1, Math.max(0.25, Math.min((viewportW - 56) / mapWidth, (viewportH - 56) / mapHeight)));
           mapPan = {
-            x: (viewportW - map.width * mapZoom) / 2,
-            y: (viewportH - map.height * mapZoom) / 2,
+            x: (viewportW - mapWidth * mapZoom) / 2,
+            y: (viewportH - mapHeight * mapZoom) / 2,
           };
           applyMapTransform();
         };
@@ -697,6 +718,100 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           applyMapTransform();
         };
 
+        attachMapDrag(mapInteractionController, applyMapTransform, zoomAt);
+
+        const controls = document.createElement("div");
+        controls.className = "archmap-prototype-flow-controls";
+        controls.addEventListener("pointerdown", (event) => event.stopPropagation());
+        const zoomOut = button("−", "archmap-prototype-flow-zoom-out");
+        zoomOut.title = "Zoom out";
+        zoomOut.addEventListener("click", () => zoomAt(0.85));
+        const fit = button("Fit", "archmap-prototype-flow-fit");
+        fit.title = "Fit map";
+        fit.addEventListener("click", () => {
+          mapInitialized = false;
+          fitMap();
+          mapInitialized = true;
+        });
+        const zoomIn = button("+", "archmap-prototype-flow-zoom-in");
+        zoomIn.title = "Zoom in";
+        zoomIn.addEventListener("click", () => zoomAt(1.18));
+        controls.append(zoomOut, fit, zoomIn);
+        screenPane.appendChild(canvas);
+        screenPane.appendChild(controls);
+        if (!mapInitialized) {
+          requestAnimationFrame(() => {
+            fitMap();
+            mapInitialized = true;
+            emitPrototypeRenderState(target, "ready");
+          });
+        } else {
+          applyMapTransform();
+          emitPrototypeRenderState(target, "ready");
+        }
+      };
+
+      const attachMapDrag = (
+        mapInteractionController: AbortController,
+        applyMapTransform: () => void,
+        zoomAt: (factor: number, clientX?: number, clientY?: number) => void,
+      ): void => {
+        let dragStart: { pointerId: number; x: number; y: number; panX: number; panY: number } | undefined;
+        mapDidDrag = false;
+        const beginDrag = (event: PointerEvent): void => {
+          if (event.button !== 0) return;
+          const targetEl = event.target instanceof Element ? event.target : null;
+          if (targetEl?.closest("select,input,textarea,a,.archmap-prototype-panel,.archmap-prototype-flow-controls")) return;
+          dragStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, panX: mapPan.x, panY: mapPan.y };
+          activeMapPointerId = event.pointerId;
+          mapDidDrag = false;
+          screenPane.classList.add("is-dragging");
+          screenPane.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        };
+        const moveDrag = (event: PointerEvent): void => {
+          if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+          const dx = event.clientX - dragStart.x;
+          const dy = event.clientY - dragStart.y;
+          if (Math.abs(dx) + Math.abs(dy) > 4) mapDidDrag = true;
+          mapPan = { x: dragStart.panX + dx, y: dragStart.panY + dy };
+          applyMapTransform();
+          event.preventDefault();
+        };
+        screenPane.addEventListener("pointerdown", beginDrag, { signal: mapInteractionController.signal, capture: true });
+        screenPane.addEventListener("pointermove", moveDrag, { signal: mapInteractionController.signal });
+        window.addEventListener("pointermove", moveDrag, { signal: mapInteractionController.signal });
+        const endDrag = (event: PointerEvent): void => {
+          if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+          dragStart = undefined;
+          activeMapPointerId = undefined;
+          screenPane.classList.remove("is-dragging");
+          try {
+            screenPane.releasePointerCapture?.(event.pointerId);
+          } catch {
+            // The pointer may already have been released by the browser.
+          }
+        };
+        screenPane.addEventListener("pointerup", endDrag, { signal: mapInteractionController.signal });
+        screenPane.addEventListener("pointercancel", endDrag, { signal: mapInteractionController.signal });
+        screenPane.addEventListener("lostpointercapture", endDrag, { signal: mapInteractionController.signal });
+        window.addEventListener("pointerup", endDrag, { signal: mapInteractionController.signal });
+        window.addEventListener("pointercancel", endDrag, { signal: mapInteractionController.signal });
+        window.addEventListener("blur", () => cleanupMapInteractions?.(), { signal: mapInteractionController.signal });
+        // The wheel listener previously had no abort signal, so re-entering the
+        // map stacked duplicate zoom handlers on the shared pane.
+        screenPane.addEventListener("wheel", (event) => {
+          event.preventDefault();
+          zoomAt(event.deltaY < 0 ? 1.1 : 0.9, event.clientX, event.clientY);
+        }, { passive: false, signal: mapInteractionController.signal });
+      };
+
+      const buildMapContent = (
+        cache: { key: string; canvas: HTMLDivElement; width: number; height: number; cardById: Map<string, HTMLElement> },
+        map: ReturnType<typeof flowMapLayout>,
+        byId: Map<string, FlowMapNode>,
+      ): void => {
+        const canvas = cache.canvas;
         const svg = svgEl("svg");
         svg.classList.add("archmap-prototype-flow-svg");
         setAttrs(svg, { width: map.width, height: map.height, viewBox: `0 0 ${map.width} ${map.height}` });
@@ -799,58 +914,11 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         }
         canvas.appendChild(svg);
 
-        let dragStart: { pointerId: number; x: number; y: number; panX: number; panY: number } | undefined;
-        let didDrag = false;
-        const beginDrag = (event: PointerEvent): void => {
-          if (event.button !== 0) return;
-          const targetEl = event.target instanceof Element ? event.target : null;
-          if (targetEl?.closest("select,input,textarea,a,.archmap-prototype-panel,.archmap-prototype-flow-controls")) return;
-          dragStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, panX: mapPan.x, panY: mapPan.y };
-          activeMapPointerId = event.pointerId;
-          didDrag = false;
-          screenPane.classList.add("is-dragging");
-          screenPane.setPointerCapture?.(event.pointerId);
-          event.preventDefault();
-        };
-        const moveDrag = (event: PointerEvent): void => {
-          if (!dragStart || event.pointerId !== dragStart.pointerId) return;
-          const dx = event.clientX - dragStart.x;
-          const dy = event.clientY - dragStart.y;
-          if (Math.abs(dx) + Math.abs(dy) > 4) didDrag = true;
-          mapPan = { x: dragStart.panX + dx, y: dragStart.panY + dy };
-          applyMapTransform();
-          event.preventDefault();
-        };
-        screenPane.addEventListener("pointerdown", beginDrag, { signal: mapInteractionController.signal, capture: true });
-        screenPane.addEventListener("pointermove", moveDrag, { signal: mapInteractionController.signal });
-        window.addEventListener("pointermove", moveDrag, { signal: mapInteractionController.signal });
-        const endDrag = (event: PointerEvent): void => {
-          if (!dragStart || event.pointerId !== dragStart.pointerId) return;
-          dragStart = undefined;
-          activeMapPointerId = undefined;
-          screenPane.classList.remove("is-dragging");
-          try {
-            screenPane.releasePointerCapture?.(event.pointerId);
-          } catch {
-            // The pointer may already have been released by the browser.
-          }
-        };
-        screenPane.addEventListener("pointerup", endDrag, { signal: mapInteractionController.signal });
-        screenPane.addEventListener("pointercancel", endDrag, { signal: mapInteractionController.signal });
-        screenPane.addEventListener("lostpointercapture", endDrag, { signal: mapInteractionController.signal });
-        window.addEventListener("pointerup", endDrag, { signal: mapInteractionController.signal });
-        window.addEventListener("pointercancel", endDrag, { signal: mapInteractionController.signal });
-        window.addEventListener("blur", () => cleanupMapInteractions?.(), { signal: mapInteractionController.signal });
-        screenPane.addEventListener("wheel", (event) => {
-          event.preventDefault();
-          zoomAt(event.deltaY < 0 ? 1.1 : 0.9, event.clientX, event.clientY);
-        }, { passive: false });
-
         const cardLayer = document.createDocumentFragment();
         for (const item of map.nodes) {
           const card = document.createElement("button");
           card.type = "button";
-          card.className = `archmap-prototype-flow-card${item.node.id === current ? " is-current" : ""}`;
+          card.className = "archmap-prototype-flow-card";
           card.style.left = `${item.x}px`;
           card.style.top = `${item.y}px`;
           card.style.width = `${item.w}px`;
@@ -877,47 +945,24 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
           kind.textContent = [item.node.kind, item.node.zone].filter(Boolean).join(" / ") || item.node.id;
           card.append(label, kind);
           card.addEventListener("click", () => {
-            if (didDrag) return;
+            if (mapDidDrag) return;
             current = item.node.id;
             displayMode = "play";
             renderUi();
           });
+          cache.cardById.set(item.node.id, card);
           cardLayer.appendChild(card);
         }
         canvas.appendChild(cardLayer);
-
-        const controls = document.createElement("div");
-        controls.className = "archmap-prototype-flow-controls";
-        controls.addEventListener("pointerdown", (event) => event.stopPropagation());
-        const zoomOut = button("−", "archmap-prototype-flow-zoom-out");
-        zoomOut.title = "Zoom out";
-        zoomOut.addEventListener("click", () => zoomAt(0.85));
-        const fit = button("Fit", "archmap-prototype-flow-fit");
-        fit.title = "Fit map";
-        fit.addEventListener("click", () => {
-          mapInitialized = false;
-          fitMap();
-          mapInitialized = true;
-        });
-        const zoomIn = button("+", "archmap-prototype-flow-zoom-in");
-        zoomIn.title = "Zoom in";
-        zoomIn.addEventListener("click", () => zoomAt(1.18));
-        controls.append(zoomOut, fit, zoomIn);
-        screenPane.appendChild(canvas);
-        screenPane.appendChild(controls);
-        if (!mapInitialized) {
-          requestAnimationFrame(() => {
-            fitMap();
-            mapInitialized = true;
-            emitPrototypeRenderState(target, "ready");
-          });
-        } else {
-          applyMapTransform();
-          emitPrototypeRenderState(target, "ready");
-        }
       };
 
       const renderMapDeferred = (): void => {
+        if (mapCache?.key === (scenario?.id ?? "")) {
+          // Warm cache: the map DOM is reused, so render synchronously without
+          // flashing the loading state (keeps Map <-> Play toggles light).
+          renderMap();
+          return;
+        }
         cleanupMapInteractions?.();
         cleanupMapInteractions = undefined;
         activeMapPointerId = undefined;

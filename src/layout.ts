@@ -96,6 +96,23 @@ export interface LayoutOptions {
   stackZoneBlocks?: boolean;
 }
 
+/** Phase timings (ms) for the most recent computeLayout call. */
+export interface LayoutTimings {
+  totalMs: number;
+  placementMs: number;
+  routeMs: number;
+  labelMs: number;
+}
+
+let lastLayoutTimings: LayoutTimings | undefined;
+
+/** Timings of the most recent computeLayout call (diagnostic aid; additive API). */
+export function getLastLayoutTimings(): LayoutTimings | undefined {
+  return lastLayoutTimings;
+}
+
+const nowMs = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
 /** §10 layer order, used for `z` depth and optional layer-based ranking. */
 const LAYER_ORDER = [
   "client", "edge", "runtime", "data", "messaging",
@@ -229,6 +246,7 @@ function longestPathRanks(nodeIds: string[], edges: { from: string; to: string }
 }
 
 export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}): LayoutResult {
+  const layoutStarted = nowMs();
   const direction = options.direction ?? model.direction;
   const horizontal = direction === "LR";
   const rankBy = options.rankBy ?? "topo";
@@ -236,15 +254,15 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   const laneGap = options.laneGap ?? LANE_GAP;
 
   const nodeIds = model.nodes.map((n) => n.id);
+  const nodeIdSet = new Set(nodeIds);
   const validEdges = model.edges.filter(
-    (e) => nodeIds.includes(e.from) && nodeIds.includes(e.to),
+    (e) => nodeIdSet.has(e.from) && nodeIdSet.has(e.to),
   );
   const degree = new Map(nodeIds.map((id) => [id, 0]));
   for (const edge of validEdges) {
     degree.set(edge.from, (degree.get(edge.from) ?? 0) + 1);
     degree.set(edge.to, (degree.get(edge.to) ?? 0) + 1);
   }
-  const nodeIdSet = new Set(nodeIds);
   const nodeByPrincipal = new Map<string, string[]>();
   for (const node of model.nodes) {
     if (!node.principal) continue;
@@ -646,9 +664,18 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
   const boundaries = [...boundariesById.values()].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0) || a.id.localeCompare(b.id));
 
   // --- Edges: orthogonal routing with port + channel distribution -----------
+  const placementDone = nowMs();
   const nodeLane = new Map(model.nodes.map((n) => [n.id, laneIndex.get(laneKey(n))!]));
   const edges = routeEdges(validEdges, laid, rank, ranks, bandStart, bandExtent, horizontal, nodeLane);
+  const routeDone = nowMs();
   resolveLabelCollisions(edges, [...laid.values()]);
+  const labelDone = nowMs();
+  lastLayoutTimings = {
+    totalMs: labelDone - layoutStarted,
+    placementMs: placementDone - layoutStarted,
+    routeMs: routeDone - placementDone,
+    labelMs: labelDone - routeDone,
+  };
 
   const depth = Math.max(1, new Set([...laid.values()].map((n) => n.z)).size);
   const allPoints = [
@@ -1089,20 +1116,85 @@ function routeEdges(
     }
     return point.x > node.x + pad && point.x < node.x + node.w - pad && point.y > node.y + pad && point.y < node.y + node.h - pad;
   };
+  // Exact interior-overlap test for an axis-aligned segment against a node
+  // shape. Mirrors pointInsideShape's pad semantics, replacing the previous
+  // 6px point sampling (which dominated layout CPU on larger diagrams).
+  const segmentIntersectsShape = (node: LayoutNode, a: LayoutPoint, b: LayoutPoint, pad = 0.75): boolean => {
+    const horizontalSeg = Math.abs(a.y - b.y) < 0.5;
+    const verticalSeg = Math.abs(a.x - b.x) < 0.5;
+    if (!horizontalSeg && !verticalSeg) {
+      // Diagonal segments should not occur in orthogonal routes; sample as before.
+      const len = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+      const steps = Math.max(2, Math.ceil(len / 6));
+      for (let step = 1; step < steps; step++) {
+        const t = step / steps;
+        if (pointInsideShape(node, { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, pad)) return true;
+      }
+      return false;
+    }
+    const lo = horizontalSeg ? Math.min(a.x, b.x) : Math.min(a.y, b.y);
+    const hi = horizontalSeg ? Math.max(a.x, b.x) : Math.max(a.y, b.y);
+    const fixed = horizontalSeg ? a.y : a.x;
+    const cx = node.x + node.w / 2;
+    const cy = node.y + node.h / 2;
+    const rx = node.w / 2;
+    const ry = node.h / 2;
+    const overlaps = (lo0: number, hi0: number): boolean => Math.min(hi, hi0) - Math.max(lo, lo0) > 1e-6;
+    const center = horizontalSeg ? cx : cy;
+    const crossCenter = horizontalSeg ? cy : cx;
+    const rAlong = horizontalSeg ? rx : ry;
+    const rCross = horizontalSeg ? ry : rx;
+    if (node.shape === "circle") {
+      const K = 1 - pad / Math.max(rx, ry);
+      const q = K - ((fixed - crossCenter) / rCross) ** 2;
+      if (q <= 0) return false;
+      const d = rAlong * Math.sqrt(q);
+      return overlaps(center - d, center + d);
+    }
+    if (node.shape === "diamond") {
+      const K = 1 - pad / Math.max(rx, ry);
+      const q = K - Math.abs(fixed - crossCenter) / rCross;
+      if (q <= 0) return false;
+      const d = rAlong * q;
+      return overlaps(center - d, center + d);
+    }
+    if (node.shape === "database") {
+      const capRy = Math.min(10, node.h / 6);
+      const topCy = node.y + capRy;
+      const bottomCy = node.y + node.h - capRy;
+      const K = 1 - pad / Math.max(rx, capRy);
+      if (horizontalSeg) {
+        if (fixed >= topCy && fixed <= bottomCy) return overlaps(node.x + pad, node.x + node.w - pad);
+        const capCy = fixed < topCy ? topCy : bottomCy;
+        const q = K - ((fixed - capCy) / capRy) ** 2;
+        if (q <= 0) return false;
+        const d = rx * Math.sqrt(q);
+        return overlaps(cx - d, cx + d);
+      }
+      const qx = K - ((fixed - cx) / rx) ** 2;
+      const d = qx > 0 ? capRy * Math.sqrt(qx) : 0;
+      if (fixed > node.x + pad && fixed < node.x + node.w - pad) {
+        return overlaps(topCy - d, bottomCy + d);
+      }
+      // Outside the padded body width the caps can still bulge slightly wider.
+      if (d <= 0) return false;
+      return overlaps(topCy - d, topCy + d) || overlaps(bottomCy - d, bottomCy + d);
+    }
+    if (horizontalSeg) {
+      if (fixed <= node.y + pad || fixed >= node.y + node.h - pad) return false;
+      return overlaps(node.x + pad, node.x + node.w - pad);
+    }
+    if (fixed <= node.x + pad || fixed >= node.x + node.w - pad) return false;
+    return overlaps(node.y + pad, node.y + node.h - pad);
+  };
   const routeNodeHits = (points: LayoutPoint[], from: string, to: string): number => {
     let hits = 0;
     for (let i = 0; i < points.length - 1; i++) {
       const a = points[i];
       const b = points[i + 1];
-      const len = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
-      const steps = Math.max(2, Math.ceil(len / 6));
-      for (let step = 1; step < steps; step++) {
-        const t = step / steps;
-        const sample = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-        for (const node of laid.values()) {
-          if (node.id === from || node.id === to) continue;
-          if (pointInsideShape(node, sample)) hits++;
-        }
+      for (const node of laid.values()) {
+        if (node.id === from || node.id === to) continue;
+        if (segmentIntersectsShape(node, a, b)) hits++;
       }
     }
     return hits;
@@ -1424,8 +1516,9 @@ function routeEdges(
       }
       const replacement = candidates
         .filter((candidate) => candidate.slice(1, -1).every((point) => !pointConflictsEndpoint(edgeId, point)))
-        .sort((a, b) => routeNodeHits(a, from, to) - routeNodeHits(b, from, to) || routeLength(a) - routeLength(b))[0];
-      if (replacement && routeNodeHits(replacement, from, to) === 0) out = simplifyPolyline(replacement);
+        .map((candidate) => ({ candidate, hits: routeNodeHits(candidate, from, to), length: routeLength(candidate) }))
+        .sort((a, b) => a.hits - b.hits || a.length - b.length)[0];
+      if (replacement && replacement.hits === 0) out = simplifyPolyline(replacement.candidate);
     }
     return out;
   };
@@ -1483,12 +1576,18 @@ function routeEdges(
     }
 
     return candidates
+      .map((points) => ({
+        points,
+        conflict: coordConflict(plan.e.id, points),
+        hits: routeNodeHits(points, plan.e.from, plan.e.to),
+        length: routeLength(points),
+      }))
       .sort((a, b) =>
-        coordConflict(plan.e.id, a) - coordConflict(plan.e.id, b) ||
-        routeNodeHits(a, plan.e.from, plan.e.to) - routeNodeHits(b, plan.e.from, plan.e.to) ||
-        routeLength(a) - routeLength(b) ||
-        a.length - b.length,
-      )[0] ?? simplifyPolyline([s, d]);
+        a.conflict - b.conflict ||
+        a.hits - b.hits ||
+        a.length - b.length ||
+        a.points.length - b.points.length,
+      )[0]?.points ?? simplifyPolyline([s, d]);
   };
   const graphBounds = [...laid.values()].reduce(
     (acc, node) => ({
@@ -1550,11 +1649,16 @@ function routeEdges(
             ),
           ),
         ]
+          .map((item) => ({
+            ...item,
+            border: routeBorderCoincidence(item.route, plan.e.from, plan.e.to),
+            conflict: coordConflict(plan.e.id, item.route),
+          }))
           .sort((a, b) => {
             const targetBias = (face: Face): number => face === "cH" ? 0 : face === "fH" ? 1 : face === "fL" ? 2 : 3;
             return a.hits - b.hits ||
-              routeBorderCoincidence(a.route, plan.e.from, plan.e.to) - routeBorderCoincidence(b.route, plan.e.from, plan.e.to) ||
-              coordConflict(plan.e.id, a.route) - coordConflict(plan.e.id, b.route) ||
+              a.border - b.border ||
+              a.conflict - b.conflict ||
               a.len - b.len ||
               a.cost - b.cost ||
               targetBias(a.targetFace) - targetBias(b.targetFace);
@@ -1921,17 +2025,49 @@ function routeEdges(
     const targetKeys = new Set(targetPorts.map((point) => keyOf({ x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 })));
     const dist = new Map<string, number>();
     const prev = new Map<string, string>();
+    // Binary min-heap on cost: the grid Dijkstra previously re-sorted the whole
+    // queue per pop, which was quadratic on dense diagrams.
     const queue: Array<{ key: string; point: LayoutPoint; cost: number }> = [];
+    const heapPush = (item: { key: string; point: LayoutPoint; cost: number }): void => {
+      queue.push(item);
+      let i = queue.length - 1;
+      while (i > 0) {
+        const parent = (i - 1) >> 1;
+        if (queue[parent].cost <= queue[i].cost) break;
+        [queue[parent], queue[i]] = [queue[i], queue[parent]];
+        i = parent;
+      }
+    };
+    const heapPop = (): { key: string; point: LayoutPoint; cost: number } => {
+      const top = queue[0];
+      const last = queue.pop()!;
+      if (queue.length) {
+        queue[0] = last;
+        let i = 0;
+        for (;;) {
+          const left = i * 2 + 1;
+          const right = left + 1;
+          let min = i;
+          if (left < queue.length && queue[left].cost < queue[min].cost) min = left;
+          if (right < queue.length && queue[right].cost < queue[min].cost) min = right;
+          if (min === i) break;
+          [queue[min], queue[i]] = [queue[i], queue[min]];
+          i = min;
+        }
+      }
+      return top;
+    };
+    const xIndex = new Map(xList.map((x, i) => [x, i]));
+    const yIndex = new Map(yList.map((y, i) => [y, i]));
     for (const point of grid) {
       const key = keyOf(point);
       if (!sourceKeys.has(key)) continue;
       dist.set(key, 0);
-      queue.push({ key, point, cost: 0 });
+      heapPush({ key, point, cost: 0 });
     }
     const pointByKey = new Map(grid.map((point) => [keyOf(point), point]));
     while (queue.length) {
-      queue.sort((a, b) => a.cost - b.cost);
-      const current = queue.shift()!;
+      const current = heapPop();
       if (current.cost !== dist.get(current.key)) continue;
       if (targetKeys.has(current.key)) {
         const route: LayoutPoint[] = [];
@@ -1942,8 +2078,8 @@ function routeEdges(
         }
         return simplifyPolyline(route.reverse());
       }
-      const cx = xList.indexOf(current.point.x);
-      const cy = yList.indexOf(current.point.y);
+      const cx = xIndex.get(current.point.x) ?? xList.indexOf(current.point.x);
+      const cy = yIndex.get(current.point.y) ?? yList.indexOf(current.point.y);
       const neighbors = [
         cx > 0 ? { x: xList[cx - 1], y: current.point.y } : undefined,
         cx < xList.length - 1 ? { x: xList[cx + 1], y: current.point.y } : undefined,
@@ -1957,7 +2093,7 @@ function routeEdges(
         if (cost >= (dist.get(nextKey) ?? Number.POSITIVE_INFINITY)) continue;
         dist.set(nextKey, cost);
         prev.set(nextKey, current.key);
-        queue.push({ key: nextKey, point: next, cost });
+        heapPush({ key: nextKey, point: next, cost });
       }
     }
     return undefined;

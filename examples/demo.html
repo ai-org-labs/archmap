@@ -22,7 +22,7 @@
     .panel { position: relative; display: flex; flex-direction: column; min-width: 260px; min-height: 0; border-right: 1px solid #d4dae6; background: #fff; }
     .panel-top { padding: 8px 10px; border-bottom: 1px solid #d4dae6; display: flex; align-items: center; gap: 8px; }
     .editor { flex: 1; min-height: 0; display: grid; grid-template-columns: 42px minmax(0, 1fr); overflow: hidden; background: #fff; }
-    .line-numbers { overflow: hidden; padding: 12px 8px 40px 0; border-right: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; font: 12px/1.5 ui-monospace, monospace; text-align: right; user-select: none; white-space: pre; }
+    .line-numbers { margin: 0; overflow: hidden; padding: 12px 8px 40px 0; border-right: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; font: 12px/1.5 ui-monospace, monospace; text-align: right; user-select: none; white-space: pre; }
     textarea { box-sizing: border-box; min-width: 0; height: 100%; border: 0; padding: 12px 12px 40px; font: 12px/1.5 ui-monospace, monospace; resize: none; outline: none; overflow: auto; white-space: pre; }
     .resize-handle { cursor: col-resize; background: linear-gradient(90deg, #d7dde8, #eef1f6); border-right: 1px solid #d4dae6; }
     .resize-handle:hover, .resize-handle.is-dragging { background: #b9c7dc; }
@@ -39,17 +39,6 @@
     .diagram-loading-spinner { width: 22px; height: 22px; border-radius: 999px; border: 3px solid rgba(100,116,139,0.25); border-top-color: #2563eb; animation: archmap-spin 0.75s linear infinite; }
     @keyframes archmap-spin { to { transform: rotate(360deg); } }
     .diagram-tags { position: sticky; top: 12px; left: 12px; z-index: 5; width: min(740px, calc(100% - 24px)); margin-bottom: -42px; display: flex; align-items: flex-start; gap: 8px; pointer-events: none; }
-    .tag-panel { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid rgba(148,163,184,0.45); border-radius: 8px; background: rgba(255,255,255,0.92); box-shadow: 0 10px 28px rgba(28,39,51,0.12); backdrop-filter: blur(8px); }
-    .tag-panel.is-minimized .tag-group, .tag-panel.is-minimized .tag-action-min { display: none; }
-    .tag-panel.is-expanded { width: min(960px, calc(100vw - 420px)); }
-    .tag-group { display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 0; margin: 0 4px 0 0; }
-    .tag-label { font-size: 11px; font-weight: 700; color: #64748b; margin-right: 2px; }
-    .tag { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 3px 8px; border: 1px solid #cbd5e1; border-radius: 999px; background: #f8fafc; color: #334155; font: 600 12px system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
-    .tag input { margin: 0; accent-color: #34507a; }
-    .tag:has(input:checked) { background: #e6edf7; border-color: #7892bd; color: #213a63; }
-    .tag-action { min-width: 28px; min-height: 26px; padding: 3px 8px; border-radius: 999px; background: #eef2f7; color: #334155; border: 1px solid #cbd5e1; }
-    .tag-action.is-active { background: #e6edf7; border-color: #7892bd; color: #213a63; }
-    .tag-action svg { width: 15px; height: 15px; display: block; stroke: currentColor; }
     .diag-log { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; max-height: 160px; overflow: auto; padding: 8px 12px; border-top: 1px solid #d4dae6; background: rgba(255,255,255,0.94); font: 11px ui-monospace, monospace; }
     .err { color: #b3261e; }
     .warn { color: #a06a00; }
@@ -70,30 +59,8 @@
     </div>
     <div class="resize-handle" id="resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize editor"></div>
     <div class="diagram">
-      <div class="diagram-tags" id="diagram-tags">
-        <div class="tag-panel" id="tag-panel">
-          <button class="tag-action tag-action-max" id="tags-max" type="button" title="Expand tags" aria-label="Expand tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
-          <button class="tag-action tag-action-min" id="tags-min" type="button" title="Minimize tags" aria-label="Minimize tags"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 15h8"/></svg></button>
-          <button class="tag-action" id="zoom-toggle" type="button" title="Fit diagram" aria-label="Fit diagram"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button class="tag-action" id="abstraction-lock-toggle" type="button" title="Lock component expansion" aria-label="Lock component expansion"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg></button>
-          <button class="tag-action" id="export-png" type="button" title="Export PNG" aria-label="Export PNG"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
-          <button class="tag-action" id="fullscreen-toggle" type="button" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M8 3H3v5"/><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M16 21h5v-5"/></svg></button>
-          <fieldset class="tag-group" id="base-view">
-            <span class="tag-label">Views</span>
-            <label class="tag"><input type="radio" name="base-view" value="overview" checked>Overview</label>
-            <label class="tag"><input type="radio" name="base-view" value="layer">Layer</label>
-            <label class="tag"><input type="radio" name="base-view" value="prototype">Prototype</label>
-          </fieldset>
-          <fieldset class="tag-group" id="render-mode">
-            <span class="tag-label">Render modes</span>
-            <label class="tag"><input type="radio" name="render-mode" value="2d" checked>2D</label>
-            <label class="tag"><input type="radio" name="render-mode" value="3d">3D</label>
-          </fieldset>
-          <fieldset class="tag-group" id="overlays">
-            <span class="tag-label">Add info</span>
-          </fieldset>
-        </div>
-      </div>
+      <!-- Toolbar is rendered by createDiagramTags() into this container. -->
+      <div class="diagram-tags" id="diagram-tags"></div>
       <div class="diagram-loading" id="loading"><span class="diagram-loading-spinner" aria-hidden="true"></span><span>Rendering</span></div>
       <div id="diagram"></div>
     </div>

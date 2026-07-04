@@ -6,8 +6,8 @@
  * way and consume the same LayoutResult (with `z`).
  */
 
-import { computeLayout } from "./layout.js";
-import type { LayoutOptions, LayoutResult } from "./layout.js";
+import { computeLayout, getLastLayoutTimings } from "./layout.js";
+import type { LayoutOptions, LayoutResult, LayoutTimings } from "./layout.js";
 import { diagnostic, syncDiagnostics, reportDiagnosticsToConsole } from "./diagnostics.js";
 import type { ConsoleReportOptions } from "./diagnostics.js";
 import { parse } from "./parser-entry.js";
@@ -112,6 +112,18 @@ export interface RenderOptions {
   interactive?: boolean;
 }
 
+/** Phase timings (ms) for the most recent render pass. Additive diagnostic aid. */
+export interface RenderTimings {
+  totalMs: number;
+  projectionMs: number;
+  layoutMs: number;
+  /** SVG string generation (2D) or mountable-view construction (3D/prototype). */
+  viewMs: number;
+  /** Target DOM update, when a target element was supplied. */
+  domMs: number;
+  layoutPhases?: LayoutTimings;
+}
+
 export interface RenderResult {
   view: string;
   layout: LayoutResult;
@@ -120,6 +132,8 @@ export interface RenderResult {
   svg?: string;
   /** Present for mounted (3D) views when a target was supplied. */
   handle?: ViewHandle;
+  /** Phase timings for the most recent render pass (milliseconds). */
+  timings?: RenderTimings;
   setBaseView(view: string): void;
   setRenderMode(mode: string): void;
   setOverlays(overlays: string[]): void;
@@ -646,8 +660,40 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   let detachDiagnostics: (() => void) | undefined;
   let detachAbstractionToggles: (() => void) | undefined;
 
+  // Overlay toggles and repeated renders reuse the abstraction projection and
+  // layout: neither depends on the overlay set, and layout is the dominant
+  // render cost on larger diagrams.
+  let cache: { projectionKey: string; model: ArchMapModel; layoutKey?: string; layout?: LayoutResult } | undefined;
+  const projectionKeyNow = (): string =>
+    `${state.abstractionLevel}|${state.abstractionTarget}|${[...state.expandedAbstractions].sort().join(",")}|${[...state.collapsedAbstractions].sort().join(",")}`;
+  const effectiveModelNow = (): ArchMapModel => {
+    const key = projectionKeyNow();
+    if (cache?.projectionKey !== key) {
+      cache = {
+        projectionKey: key,
+        model: projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions, state.collapsedAbstractions),
+      };
+    }
+    return cache!.model;
+  };
+  const layoutNow = (effectiveModel: ArchMapModel): LayoutResult => {
+    const layoutKey = `${state.view}|${state.requestedView}`;
+    if (cache && cache.model === effectiveModel && cache.layoutKey === layoutKey && cache.layout) return cache.layout;
+    const layout = layoutForRenderState(effectiveModel, state, options);
+    if (cache && cache.model === effectiveModel) {
+      cache.layoutKey = layoutKey;
+      cache.layout = layout;
+    }
+    return layout;
+  };
+
+  let lastTimings: RenderTimings | undefined;
+  const nowMs = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
   const snapshot = (): Pick<RenderResult, "view" | "layout" | "model" | "svg" | "handle"> => {
-    const effectiveModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions, state.collapsedAbstractions);
+    const renderStarted = nowMs();
+    const effectiveModel = effectiveModelNow();
+    const projectionDone = nowMs();
     validateOverlays(effectiveModel, state.overlays);
     const renderer = registry.get(state.view);
     if (!renderer) {
@@ -656,10 +702,23 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
     }
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
-    const layout = layoutForRenderState(effectiveModel, state, options);
+    const layout = layoutNow(effectiveModel);
+    const layoutDone = nowMs();
     const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget };
     const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
+    const viewDone = nowMs();
+    const finishTimings = (): void => {
+      const domDone = nowMs();
+      lastTimings = {
+        totalMs: domDone - renderStarted,
+        projectionMs: projectionDone - renderStarted,
+        layoutMs: layoutDone - projectionDone,
+        viewMs: viewDone - layoutDone,
+        domMs: domDone - viewDone,
+        layoutPhases: getLastLayoutTimings(),
+      };
+    };
 
     if (typeof out === "string") {
       const svg = decorateSvgWithAbstractionLock(
@@ -701,9 +760,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
           detachDiagnostics = attachDiagnosticSelection(options.target, effectiveModel, options.diagnosticsTarget, options.inspectorTarget);
         }
       }
+      finishTimings();
       return { view: state.view, layout, model: effectiveModel, svg, handle: undefined };
     }
     const handle = options.target ? out.mount(options.target) : undefined;
+    finishTimings();
     preservePanZoomOnNextRender = false;
     syncDiagnostics(effectiveModel);
     renderDiagnostics(effectiveModel, options.diagnosticsTarget);
@@ -712,11 +773,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     return { view: state.view, layout, model: effectiveModel, handle, svg: undefined };
   };
 
-  const initialModel = projectAbstraction(model, state.abstractionLevel, state.abstractionTarget, state.expandedAbstractions, state.collapsedAbstractions);
+  const initialModel = effectiveModelNow();
 
   const result: RenderResult = {
     view: state.view,
-    layout: layoutForRenderState(initialModel, state, options),
+    layout: layoutNow(initialModel),
     model: initialModel,
     svg: undefined,
     handle: undefined,
@@ -863,6 +924,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     result.model = next.model;
     result.svg = next.svg;
     result.handle = next.handle;
+    result.timings = lastTimings;
   };
 
   apply(snapshot());

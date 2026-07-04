@@ -54,6 +54,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify:pattern-samples": "node tools/verify-pattern-samples.mjs",
+    "verify:pattern-samples:full": "node tools/verify-pattern-samples.mjs --exhaustive",
     "test:watch": "vitest",
     "prepare": "npm run build"
   },

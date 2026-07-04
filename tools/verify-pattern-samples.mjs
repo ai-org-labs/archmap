@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { performance } from "node:perf_hooks";
 import { parse, render, validateRenderedSvgPorts } from "../dist/archmap.js";
 
 const samples = [
@@ -16,10 +17,24 @@ const baseViews = ["overview", "layer"];
 const overlays = ["zone", "auth", "dataflow", "boundary", "permission", "validation"];
 const allowedDiagnosticCodes = new Set(["zone_crossing_marked_false", "view_3d_unavailable"]);
 
+// fast (default, CI): no overlays, each overlay alone, and all overlays together.
+// exhaustive: the full 2^N overlay power set (use before releases).
+const mode = process.argv.includes("--exhaustive") || process.argv.includes("--mode=exhaustive")
+  ? "exhaustive"
+  : "fast";
+const slowThresholdMs = Number(
+  process.argv.find((arg) => arg.startsWith("--slow-ms="))?.slice("--slow-ms=".length) ?? 500,
+) || 500;
+
 const fixtureUrl = new URL("../test/fixtures/pattern-samples/", import.meta.url);
-const overlaySets = Array.from({ length: 1 << overlays.length }, (_unused, mask) =>
+const exhaustiveOverlaySets = Array.from({ length: 1 << overlays.length }, (_unused, mask) =>
   overlays.filter((_overlay, i) => mask & (1 << i)),
 );
+const overlaySets = mode === "exhaustive"
+  ? exhaustiveOverlaySets
+  : [[], ...overlays.map((overlay) => [overlay]), [...overlays]];
+
+const progress = (message) => process.stderr.write(`${message}\n`);
 
 function readSample(file) {
   return readFileSync(fileURLToPath(new URL(file, fixtureUrl)), "utf8");
@@ -67,8 +82,14 @@ function unexpectedDiagnostics(model) {
 
 const results = [];
 const failures = [];
+const slowRenders = [];
+const startedAt = performance.now();
 
-for (const sample of samples) {
+progress(`verify:pattern-samples mode=${mode} samples=${samples.length} baseViews=${baseViews.length} overlaySets=${overlaySets.length}`);
+
+for (const [sampleIndex, sample] of samples.entries()) {
+  const sampleStarted = performance.now();
+  progress(`[${sampleIndex + 1}/${samples.length}] ${sample} ...`);
   const source = readSample(sample);
   const parsed = parse(source);
   const baseUnexpected = unexpectedDiagnostics(parsed);
@@ -86,9 +107,15 @@ for (const sample of samples) {
   let maxStartpoints = 0;
 
   for (const baseView of baseViews) {
+    const viewStarted = performance.now();
     for (const overlaySet of overlaySets) {
       const model = parse(source);
+      const renderStarted = performance.now();
       const { svg, view } = render(model, { baseView, renderMode: "2d", overlays: overlaySet });
+      const renderMs = performance.now() - renderStarted;
+      if (renderMs >= slowThresholdMs) {
+        slowRenders.push({ sample, baseView, overlays: overlaySet, ms: Math.round(renderMs) });
+      }
       renders++;
       if (view !== baseView) failures.push({ sample, baseView, overlays: overlaySet, stage: "view", view });
       if (!svg?.includes(`archmap-view-${baseView}`)) failures.push({ sample, baseView, overlays: overlaySet, stage: "svg-class" });
@@ -124,6 +151,7 @@ for (const sample of samples) {
         });
       }
     }
+    progress(`    ${baseView}: ${overlaySets.length} overlay sets in ${((performance.now() - viewStarted) / 1000).toFixed(1)}s`);
   }
 
   for (const renderMode of ["isometric", "3d"]) {
@@ -143,6 +171,7 @@ for (const sample of samples) {
     }
   }
 
+  const sampleMs = performance.now() - sampleStarted;
   results.push({
     sample,
     nodes: parsed.nodes.length,
@@ -153,18 +182,25 @@ for (const sample of samples) {
     renders,
     maxPaths,
     maxStartpoints,
+    ms: Math.round(sampleMs),
   });
+  progress(`  done in ${(sampleMs / 1000).toFixed(1)}s (renders=${renders})`);
 }
 
 const report = {
+  mode,
   samples: results.length,
   baseViews,
   overlays,
   overlaySets: overlaySets.length,
   total2dRenders: results.reduce((sum, entry) => sum + entry.renders, 0),
+  totalMs: Math.round(performance.now() - startedAt),
+  slowThresholdMs,
+  slowRenders: slowRenders.sort((a, b) => b.ms - a.ms).slice(0, 20),
   results,
   failures,
 };
 
 console.log(JSON.stringify(report, null, 2));
+progress(`verify:pattern-samples ${failures.length ? `FAILED (${failures.length} failures)` : "OK"} in ${(report.totalMs / 1000).toFixed(1)}s; slow renders (>=${slowThresholdMs}ms): ${slowRenders.length}`);
 if (failures.length) process.exitCode = 1;
