@@ -16,8 +16,9 @@ export type {
   LayoutZone,
   LayoutEdge,
   LayoutOptions,
+  LayoutTimings,
 } from "./layout.js";
-export { computeLayout } from "./layout.js";
+export { computeLayout, getLastLayoutTimings } from "./layout.js";
 export { parse } from "./parser-entry.js";
 export { toCanonicalModel } from "./canonical.js";
 export {
@@ -105,6 +106,7 @@ export type {
   ViewContext,
   RenderOptions,
   RenderResult,
+  RenderTimings,
   ExportPngOptions,
   InitializeOptions,
   ViewerAttributeOptions,
