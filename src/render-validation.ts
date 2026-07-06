@@ -1,5 +1,6 @@
 export interface RenderValidationOptions {
   minPortGap?: number;
+  minEndpointStub?: number;
   overlapThreshold?: number;
   componentPadding?: number;
   tolerance?: number;
@@ -56,6 +57,7 @@ interface Segment {
 }
 
 const DEFAULT_MIN_PORT_GAP = 6;
+const DEFAULT_MIN_ENDPOINT_STUB = 10;
 const DEFAULT_OVERLAP_THRESHOLD = 8;
 const DEFAULT_COMPONENT_PADDING = 4;
 const DEFAULT_TOLERANCE = 0.5;
@@ -333,7 +335,23 @@ function isPerpendicularToSide(side: Endpoint["side"], endpoint: Point, adjacent
   return Math.abs(endpoint.x - adjacent.x) <= tolerance;
 }
 
-function validateEndpointIncidence(edges: EdgePath[], nodes: Map<string, NodeBox>, tolerance: number): RenderValidationFailure[] {
+function segmentLength(a: Point, b: Point): number {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function exitsOutwardFromSide(side: Endpoint["side"], endpoint: Point, adjacent: Point, tolerance: number): boolean {
+  if (side === "left") return adjacent.x <= endpoint.x + tolerance;
+  if (side === "right") return adjacent.x >= endpoint.x - tolerance;
+  if (side === "top") return adjacent.y <= endpoint.y + tolerance;
+  return adjacent.y >= endpoint.y - tolerance;
+}
+
+function validateEndpointIncidence(
+  edges: EdgePath[],
+  nodes: Map<string, NodeBox>,
+  tolerance: number,
+  minEndpointStub: number,
+): RenderValidationFailure[] {
   const failures: RenderValidationFailure[] = [];
   for (const edge of edges) {
     const source = nodes.get(edge.from);
@@ -342,25 +360,37 @@ function validateEndpointIncidence(edges: EdgePath[], nodes: Map<string, NodeBox
     const start = edge.points[0];
     const startAdjacent = edge.points[1];
     const startSide = endpointSide(source, start);
-    if (!isPerpendicularToSide(startSide, start, startAdjacent, tolerance)) {
+    const startLength = segmentLength(start, startAdjacent);
+    if (
+      !isPerpendicularToSide(startSide, start, startAdjacent, tolerance) ||
+      !exitsOutwardFromSide(startSide, start, startAdjacent, tolerance) ||
+      startLength + tolerance < minEndpointStub
+    ) {
       failures.push({
         kind: "endpoint-incidence",
-        message: `Edge "${edge.id}" does not leave source "${edge.from}" perpendicular to its ${startSide} side.`,
+        message: `Edge "${edge.id}" does not leave source "${edge.from}" perpendicular and outward from its ${startSide} side.`,
         edgeIds: [edge.id],
         nodeId: edge.from,
         side: startSide,
+        value: startLength,
       });
     }
     const end = edge.points[edge.points.length - 1];
     const endAdjacent = edge.points[edge.points.length - 2];
     const endSide = endpointSide(target, end);
-    if (!isPerpendicularToSide(endSide, end, endAdjacent, tolerance)) {
+    const endLength = segmentLength(end, endAdjacent);
+    if (
+      !isPerpendicularToSide(endSide, end, endAdjacent, tolerance) ||
+      !exitsOutwardFromSide(endSide, end, endAdjacent, tolerance) ||
+      endLength + tolerance < minEndpointStub
+    ) {
       failures.push({
         kind: "endpoint-incidence",
-        message: `Edge "${edge.id}" does not enter target "${edge.to}" perpendicular to its ${endSide} side.`,
+        message: `Edge "${edge.id}" does not enter target "${edge.to}" perpendicular and outward from its ${endSide} side.`,
         edgeIds: [edge.id],
         nodeId: edge.to,
         side: endSide,
+        value: endLength,
       });
     }
   }
@@ -369,6 +399,7 @@ function validateEndpointIncidence(edges: EdgePath[], nodes: Map<string, NodeBox
 
 export function validateRenderedSvgPorts(svg: string, options: RenderValidationOptions = {}): RenderValidationFailure[] {
   const minPortGap = options.minPortGap ?? DEFAULT_MIN_PORT_GAP;
+  const minEndpointStub = options.minEndpointStub ?? DEFAULT_MIN_ENDPOINT_STUB;
   const overlapThreshold = options.overlapThreshold ?? DEFAULT_OVERLAP_THRESHOLD;
   const componentPadding = options.componentPadding ?? DEFAULT_COMPONENT_PADDING;
   const tolerance = options.tolerance ?? DEFAULT_TOLERANCE;
@@ -379,6 +410,6 @@ export function validateRenderedSvgPorts(svg: string, options: RenderValidationO
   failures.push(...validateEndpointPlacement(endpoints, minPortGap, tolerance));
   failures.push(...validateSegmentOverlap(edges, overlapThreshold, tolerance));
   failures.push(...validateComponentIntersections(edges, nodes, componentPadding));
-  failures.push(...validateEndpointIncidence(edges, nodes, tolerance));
+  failures.push(...validateEndpointIncidence(edges, nodes, tolerance, minEndpointStub));
   return failures;
 }

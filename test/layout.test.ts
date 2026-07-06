@@ -135,6 +135,8 @@ function endpointLeavesFaceCleanly(
   adjacent: { x: number; y: number },
 ): boolean {
   const side = closestRectSide(node, endpoint);
+  const length = Math.abs(adjacent.x - endpoint.x) + Math.abs(adjacent.y - endpoint.y);
+  if (length < 10) return false;
   if (side === "left") return Math.abs(adjacent.y - endpoint.y) < 0.5 && adjacent.x <= endpoint.x + 0.5;
   if (side === "right") return Math.abs(adjacent.y - endpoint.y) < 0.5 && adjacent.x >= endpoint.x - 0.5;
   if (side === "top") return Math.abs(adjacent.x - endpoint.x) < 0.5 && adjacent.y <= endpoint.y + 0.5;

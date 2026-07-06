@@ -13,6 +13,7 @@ import {
   viewerOptionsFromAttributes,
 } from "../src/render.js";
 import { renderInspector } from "../src/inspector.js";
+import { validateRenderedSvgPorts } from "../src/render-validation.js";
 
 const example = readFileSync(
   fileURLToPath(new URL("../examples/multi-cloud.archmap", import.meta.url)),
@@ -20,6 +21,10 @@ const example = readFileSync(
 );
 const comprehensive = readFileSync(
   fileURLToPath(new URL("fixtures/comprehensive.archmap", import.meta.url)),
+  "utf8",
+);
+const localFirstUi = readFileSync(
+  fileURLToPath(new URL("fixtures/local-first-ui.archmap", import.meta.url)),
   "utf8",
 );
 const nestedZones = readFileSync(
@@ -396,6 +401,12 @@ describe("render", () => {
     expect(svg).toContain(".archmap-edge-startpoint { fill: var(--archmap-edge-stroke, #5b6b86); stroke: none; }");
     expect(svg).toContain(".archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis");
     expect(svg).toContain(".archmap-overlay-edge .archmap-edge-startpoint { fill: var(--archmap-permission");
+  });
+
+  it("keeps rendered local-first endpoints perpendicular and visibly outward from component sides", () => {
+    const svg = render(parse(localFirstUi), { baseView: "overview", overlays: ["zone"] }).svg!;
+    const endpointFailures = validateRenderedSvgPorts(svg).filter((failure) => failure.kind === "endpoint-incidence");
+    expect(endpointFailures).toEqual([]);
   });
 
   it("keeps comprehensive sample zone and boundary labels from overlapping", () => {

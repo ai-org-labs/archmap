@@ -2182,12 +2182,15 @@ function routeEdges(
     }
   };
   spaceFinalEndpoints();
+  const MIN_ENDPOINT_STUB = 10;
   const normalStubPoint = (point: LayoutPoint, side: BoxFace, distance = 14): LayoutPoint => {
     if (side === "left") return { x: point.x - distance, y: point.y };
     if (side === "right") return { x: point.x + distance, y: point.y };
     if (side === "top") return { x: point.x, y: point.y - distance };
     return { x: point.x, y: point.y + distance };
   };
+  const endpointSegmentLength = (endpoint: LayoutPoint, adjacent: LayoutPoint): number =>
+    Math.abs(endpoint.x - adjacent.x) + Math.abs(endpoint.y - adjacent.y);
   const endpointSegmentIsNormal = (side: BoxFace, endpoint: LayoutPoint, adjacent: LayoutPoint): boolean =>
     side === "left" || side === "right"
       ? Math.abs(endpoint.y - adjacent.y) < 0.5
@@ -2205,8 +2208,10 @@ function routeEdges(
     return (
       endpointSegmentIsNormal(sourceSide, points[0], points[1]) &&
       endpointSegmentIsOutward(sourceSide, points[0], points[1]) &&
+      endpointSegmentLength(points[0], points[1]) >= MIN_ENDPOINT_STUB &&
       endpointSegmentIsNormal(targetSide, points[points.length - 1], points[points.length - 2]) &&
-      endpointSegmentIsOutward(targetSide, points[points.length - 1], points[points.length - 2])
+      endpointSegmentIsOutward(targetSide, points[points.length - 1], points[points.length - 2]) &&
+      endpointSegmentLength(points[points.length - 1], points[points.length - 2]) >= MIN_ENDPOINT_STUB
     );
   };
   const enforceEndpointStubs = (edge: LayoutEdge): LayoutPoint[] => {
@@ -2364,11 +2369,22 @@ function routeEdges(
     const candidates = sourcePorts.flatMap((src) =>
       targetPorts.flatMap((dst) => {
         const routes: LayoutPoint[][] = [];
+        const sourceSide = finalEndpointSide(edge.from, src);
+        const targetSide = finalEndpointSide(edge.to, dst);
+        const sourceHorizontal = sourceSide === "left" || sourceSide === "right";
+        const targetHorizontal = targetSide === "left" || targetSide === "right";
         if (Math.abs(src.x - dst.x) < 0.5 || Math.abs(src.y - dst.y) < 0.5) routes.push([src, dst]);
         routes.push(
           [src, { x: dst.x, y: src.y }, dst],
           [src, { x: src.x, y: dst.y }, dst],
         );
+        if (sourceHorizontal && targetHorizontal) {
+          const midX = (src.x + dst.x) / 2;
+          routes.push([src, { x: midX, y: src.y }, { x: midX, y: dst.y }, dst]);
+        } else if (!sourceHorizontal && !targetHorizontal) {
+          const midY = (src.y + dst.y) / 2;
+          routes.push([src, { x: src.x, y: midY }, { x: dst.x, y: midY }, dst]);
+        }
         return routes;
       }),
     );
