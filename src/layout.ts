@@ -1098,6 +1098,7 @@ function routeEdges(
       const prev = points[i - 1];
       return sum + Math.abs(p.x - prev.x) + Math.abs(p.y - prev.y);
     }, 0);
+  const routeBendCount = (points: LayoutPoint[]): number => Math.max(0, simplifyPolyline(points).length - 2);
   const pointInsideShape = (node: LayoutNode, point: LayoutPoint, pad = 0.75): boolean => {
     const cx = node.x + node.w / 2;
     const cy = node.y + node.h / 2;
@@ -1397,10 +1398,7 @@ function routeEdges(
       const groups = new Map<string, EndpointEntry[]>();
       for (const entry of entries) {
         entry.value = entry.variable === "flow" ? entry.end.flow : entry.end.cross;
-        const screenValue = horizontal
-          ? (entry.variable === "flow" ? entry.value : entry.value)
-          : entry.value;
-        const key = `${entry.variable}|${Math.round(screenValue * 2) / 2}`;
+        const key = `${entry.end.node}|${entry.end.face}|${entry.variable}|${Math.round(entry.value * 2) / 2}`;
         (groups.get(key) ?? (groups.set(key, []), groups.get(key)!)).push(entry);
       }
       let changed = false;
@@ -1476,8 +1474,7 @@ function routeEdges(
       const cross = horizontal ? p.y : p.x;
       for (const endpoint of endpointRecords) {
         if (endpoint.edgeId === edgeId) continue;
-        if (Math.abs(flow - endpoint.flow) < 0.5) score += 1;
-        if (Math.abs(cross - endpoint.cross) < 0.5) score += 1;
+        if (Math.abs(flow - endpoint.flow) < 0.5 && Math.abs(cross - endpoint.cross) < 0.5) score += 1;
       }
     }
     return score;
@@ -1487,7 +1484,8 @@ function routeEdges(
     const cross = horizontal ? point.y : point.x;
     return endpointRecords.some((endpoint) =>
       endpoint.edgeId !== edgeId &&
-      (Math.abs(flow - endpoint.flow) < 0.5 || Math.abs(cross - endpoint.cross) < 0.5),
+      Math.abs(flow - endpoint.flow) < 0.5 &&
+      Math.abs(cross - endpoint.cross) < 0.5,
     );
   };
   const deconflictBends = (edgeId: string, from: string, to: string, points: LayoutPoint[]): LayoutPoint[] => {
@@ -1583,10 +1581,10 @@ function routeEdges(
         length: routeLength(points),
       }))
       .sort((a, b) =>
-        a.conflict - b.conflict ||
         a.hits - b.hits ||
+        routeBendCount(a.points) - routeBendCount(b.points) ||
         a.length - b.length ||
-        a.points.length - b.points.length,
+        a.conflict - b.conflict,
       )[0]?.points ?? simplifyPolyline([s, d]);
   };
   const graphBounds = [...laid.values()].reduce(
@@ -1658,8 +1656,9 @@ function routeEdges(
             const targetBias = (face: Face): number => face === "cH" ? 0 : face === "fH" ? 1 : face === "fL" ? 2 : 3;
             return a.hits - b.hits ||
               a.border - b.border ||
-              a.conflict - b.conflict ||
+              routeBendCount(a.route) - routeBendCount(b.route) ||
               a.len - b.len ||
+              a.conflict - b.conflict ||
               a.cost - b.cost ||
               targetBias(a.targetFace) - targetBias(b.targetFace);
           })[0].route
@@ -1878,14 +1877,13 @@ function routeEdges(
     for (const point of points.slice(1, -1)) {
       for (const endpoint of records) {
         if (endpoint.edgeId === edgeId) continue;
-        if (Math.abs(point.x - endpoint.x) < 0.5) score++;
-        if (Math.abs(point.y - endpoint.y) < 0.5) score++;
+        if (Math.abs(point.x - endpoint.x) < 0.5 && Math.abs(point.y - endpoint.y) < 0.5) score++;
       }
     }
     return score;
   };
   const finalPointConflicts = (edgeId: string, point: LayoutPoint, records: Array<{ edgeId: string; x: number; y: number }>): boolean =>
-    records.some((endpoint) => endpoint.edgeId !== edgeId && (Math.abs(point.x - endpoint.x) < 0.5 || Math.abs(point.y - endpoint.y) < 0.5));
+    records.some((endpoint) => endpoint.edgeId !== edgeId && Math.abs(point.x - endpoint.x) < 0.5 && Math.abs(point.y - endpoint.y) < 0.5);
   for (const item of routedPlans) {
     const records = finalEndpointRecords();
     let points = item.edge.points;
@@ -1911,7 +1909,11 @@ function routeEdges(
       const replacement = candidates
         .map((candidate) => simplifyPolyline(candidate))
         .filter((candidate) => routeNodeHits(candidate, item.edge.from, item.edge.to) === 0 && routeBorderCoincidence(candidate, item.edge.from, item.edge.to) === 0)
-        .sort((a, b) => finalCoordConflict(item.edge.id, a, records) - finalCoordConflict(item.edge.id, b, records) || routeLength(a) - routeLength(b))[0];
+        .sort((a, b) =>
+          finalCoordConflict(item.edge.id, a, records) - finalCoordConflict(item.edge.id, b, records) ||
+          routeBendCount(a) - routeBendCount(b) ||
+          routeLength(a) - routeLength(b),
+        )[0];
       if (replacement && finalCoordConflict(item.edge.id, replacement, records) < finalCoordConflict(item.edge.id, points, records)) {
         points = replacement;
         item.edge.points = replacement;
@@ -2001,7 +2003,10 @@ function routeEdges(
           const endKey = endpointUseKey(edge.to, route[route.length - 1]);
           return ((endpointUse.get(startKey) ?? 0) + (endpointUse.get(endKey) ?? 0)) * 10000;
         };
-        return endpointUseCost(a) - endpointUseCost(b) || routeLength(a) - routeLength(b) || endpointMove(a) - endpointMove(b) || a.length - b.length;
+        return endpointUseCost(a) - endpointUseCost(b) ||
+          routeBendCount(a) - routeBendCount(b) ||
+          routeLength(a) - routeLength(b) ||
+          endpointMove(a) - endpointMove(b);
       })[0];
     if (direct) return direct;
 
@@ -2234,6 +2239,79 @@ function routeEdges(
     spaceFinalEndpoints();
   }
   enforceAndRepairFinalRoutes();
+  const endpointTaken = (edgeId: string, nodeId: string, point: LayoutPoint): boolean =>
+    routedPlans.some((item) => {
+      if (item.edge.id === edgeId) return false;
+      const points = item.edge.points;
+      const checks = [
+        { nodeId: item.edge.from, point: points[0] },
+        { nodeId: item.edge.to, point: points[points.length - 1] },
+      ];
+      return checks.some((entry) =>
+        entry.nodeId === nodeId &&
+        Math.abs(entry.point.x - point.x) < 0.5 &&
+        Math.abs(entry.point.y - point.y) < 0.5,
+      );
+    });
+  const tryStraightenOppositeSideRoute = (edge: LayoutEdge): void => {
+    if (edge.points.length <= 2) return;
+    const source = laid.get(edge.from);
+    const target = laid.get(edge.to);
+    if (!source || !target) return;
+    const sourceSide = finalEndpointSide(edge.from, edge.points[0]);
+    const targetSide = finalEndpointSide(edge.to, edge.points[edge.points.length - 1]);
+    const bothHorizontalSides = (sourceSide === "left" || sourceSide === "right") && (targetSide === "left" || targetSide === "right");
+    const bothVerticalSides = (sourceSide === "top" || sourceSide === "bottom") && (targetSide === "top" || targetSide === "bottom");
+    const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+    const candidates: LayoutPoint[][] = [];
+    if (bothHorizontalSides) {
+      const minY = Math.max(source.y + FACE_INSET, target.y + FACE_INSET);
+      const maxY = Math.min(source.y + source.h - FACE_INSET, target.y + target.h - FACE_INSET);
+      if (minY <= maxY) {
+        const ys = [
+          edge.points[0].y,
+          edge.points[edge.points.length - 1].y,
+          source.y + source.h / 2,
+          target.y + target.h / 2,
+        ].map((y) => clamp(y, minY, maxY));
+        for (const y of [...new Set(ys.map((value) => Math.round(value * 10) / 10))]) {
+          const start = boundaryPoint(source, sourceSide, { x: sourceSide === "left" ? source.x : source.x + source.w, y });
+          const end = boundaryPoint(target, targetSide, { x: targetSide === "left" ? target.x : target.x + target.w, y });
+          candidates.push([start, end]);
+        }
+      }
+    } else if (bothVerticalSides) {
+      const minX = Math.max(source.x + FACE_INSET, target.x + FACE_INSET);
+      const maxX = Math.min(source.x + source.w - FACE_INSET, target.x + target.w - FACE_INSET);
+      if (minX <= maxX) {
+        const xs = [
+          edge.points[0].x,
+          edge.points[edge.points.length - 1].x,
+          source.x + source.w / 2,
+          target.x + target.w / 2,
+        ].map((x) => clamp(x, minX, maxX));
+        for (const x of [...new Set(xs.map((value) => Math.round(value * 10) / 10))]) {
+          const start = boundaryPoint(source, sourceSide, { x, y: sourceSide === "top" ? source.y : source.y + source.h });
+          const end = boundaryPoint(target, targetSide, { x, y: targetSide === "top" ? target.y : target.y + target.h });
+          candidates.push([start, end]);
+        }
+      }
+    }
+    const replacement = candidates
+      .filter((route) =>
+        routeComponentHits(route, edge.from, edge.to) === 0 &&
+        routeBorderCoincidence(route, edge.from, edge.to) === 0 &&
+        !endpointTaken(edge.id, edge.from, route[0]) &&
+        !endpointTaken(edge.id, edge.to, route[route.length - 1]),
+      )
+      .sort((a, b) => routeLength(a) - routeLength(b))[0];
+    if (replacement && routeBendCount(replacement) < routeBendCount(edge.points)) {
+      edge.points = replacement;
+    }
+  };
+  for (const item of routedPlans) {
+    tryStraightenOppositeSideRoute(item.edge);
+  }
   return routedPlans.map((item) => {
     item.edge.points = enforceEndpointStubs(item.edge);
     const seg = longestSegment(item.edge.points);

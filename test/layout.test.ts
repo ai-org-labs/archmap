@@ -347,6 +347,21 @@ describe("computeLayout", () => {
     expect(edge.points.length).toBeLessThanOrEqual(3);
   });
 
+  it("does not add detours only to avoid sharing endpoint axes", () => {
+    const m = parse(`graph LR
+      Home[Home] --> ProductList[Product List]
+      Home --> Login[Login]
+      Home --> Help[Help]
+      ProductList --> ProductDetail[Product Detail]
+      Login --> ProductDetail
+      Help --> ProductDetail
+    `);
+    const layout = computeLayout(m);
+    for (const edge of layout.edges) {
+      expect(edge.points.length).toBeLessThanOrEqual(3);
+    }
+  });
+
   it("places endpoints on non-rectangular node boundaries", () => {
     const m = parse(`graph LR
       App[App] --> Circle((Circle))
