@@ -2334,6 +2334,68 @@ function routeEdges(
       const next = points[i + 1];
       return Math.abs(point.x - next.x) < 0.5 || Math.abs(point.y - next.y) < 0.5;
     });
+  const tryReselectInvalidEndpointRoute = (edge: LayoutEdge): void => {
+    if (edge.points.length < 2 || routeEndpointSegmentsAreValid(edge, edge.points)) return;
+    const faces: Face[] = ["fL", "fH", "cL", "cH"];
+    const alongs = [0.15, 0.32, 0.5, 0.68, 0.85];
+    const originalStart = edge.points[0];
+    const originalEnd = edge.points[edge.points.length - 1];
+    const uniquePoints = (points: LayoutPoint[]): LayoutPoint[] => {
+      const seen = new Set<string>();
+      return points.filter((point) => {
+        const key = `${Math.round(point.x * 10) / 10},${Math.round(point.y * 10) / 10}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    const portsFor = (nodeId: string, include: LayoutPoint): LayoutPoint[] =>
+      uniquePoints([
+        include,
+        ...faces.flatMap((face) =>
+          alongs.map((along) => {
+            const point = facePoint(nodeId, face, along);
+            return toXY(point.flow, point.cross, horizontal);
+          }),
+        ),
+      ]);
+    const sourcePorts = portsFor(edge.from, originalStart);
+    const targetPorts = portsFor(edge.to, originalEnd);
+    const candidates = sourcePorts.flatMap((src) =>
+      targetPorts.flatMap((dst) => {
+        const routes: LayoutPoint[][] = [];
+        if (Math.abs(src.x - dst.x) < 0.5 || Math.abs(src.y - dst.y) < 0.5) routes.push([src, dst]);
+        routes.push(
+          [src, { x: dst.x, y: src.y }, dst],
+          [src, { x: src.x, y: dst.y }, dst],
+        );
+        return routes;
+      }),
+    );
+    const endpointMove = (route: LayoutPoint[]): number =>
+      Math.abs(route[0].x - originalStart.x) +
+      Math.abs(route[0].y - originalStart.y) +
+      Math.abs(route[route.length - 1].x - originalEnd.x) +
+      Math.abs(route[route.length - 1].y - originalEnd.y);
+    const endpointReuseCost = (route: LayoutPoint[]): number =>
+      (endpointTaken(edge.id, edge.from, route[0]) ? 1 : 0) +
+      (endpointTaken(edge.id, edge.to, route[route.length - 1]) ? 1 : 0);
+    const replacement = candidates
+      .map((route) => simplifyPolyline(route.map((point) => ({ ...point }))))
+      .filter((route) => route.length >= 2)
+      .filter((route) => route.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)))
+      .filter(routeIsOrthogonal)
+      .filter((route) => routeEndpointSegmentsAreValid(edge, route))
+      .filter((route) => routeComponentHits(route, edge.from, edge.to) === 0)
+      .filter((route) => routeBorderCoincidence(route, edge.from, edge.to) === 0)
+      .sort((a, b) =>
+        endpointReuseCost(a) - endpointReuseCost(b) ||
+        routeBendCount(a) - routeBendCount(b) ||
+        routeLength(a) - routeLength(b) ||
+        endpointMove(a) - endpointMove(b),
+      )[0];
+    if (replacement) edge.points = replacement;
+  };
   const trySimplifyEndpointPreservingRoute = (edge: LayoutEdge): void => {
     if (edge.points.length <= 3) return;
     const start = edge.points[0];
@@ -2367,6 +2429,7 @@ function routeEdges(
     if (replacement) edge.points = replacement;
   };
   for (const item of routedPlans) {
+    tryReselectInvalidEndpointRoute(item.edge);
     trySimplifyEndpointPreservingRoute(item.edge);
   }
   return routedPlans.map((item) => {

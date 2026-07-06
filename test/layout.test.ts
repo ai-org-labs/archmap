@@ -16,6 +16,10 @@ const coreArchitecture = readFileSync(
   fileURLToPath(new URL("fixtures/core-architecture.archmap", import.meta.url)),
   "utf8",
 );
+const localFirstUi = readFileSync(
+  fileURLToPath(new URL("fixtures/local-first-ui.archmap", import.meta.url)),
+  "utf8",
+);
 
 function labelBox(label: string, at: { x: number; y: number }, orient: "h" | "v" = "h") {
   const w = label.length * 6.5 + 8;
@@ -111,6 +115,30 @@ function segmentCoincidesWithNodeBorder(
     return overlap > 1 && (Math.abs(a.x - node.x) < 0.5 || Math.abs(a.x - (node.x + node.w)) < 0.5);
   }
   return false;
+}
+
+function closestRectSide(
+  node: { x: number; y: number; w: number; h: number },
+  point: { x: number; y: number },
+): "left" | "right" | "top" | "bottom" {
+  return [
+    { side: "left" as const, distance: Math.abs(point.x - node.x) },
+    { side: "right" as const, distance: Math.abs(point.x - (node.x + node.w)) },
+    { side: "top" as const, distance: Math.abs(point.y - node.y) },
+    { side: "bottom" as const, distance: Math.abs(point.y - (node.y + node.h)) },
+  ].sort((a, b) => a.distance - b.distance)[0].side;
+}
+
+function endpointLeavesFaceCleanly(
+  node: { x: number; y: number; w: number; h: number },
+  endpoint: { x: number; y: number },
+  adjacent: { x: number; y: number },
+): boolean {
+  const side = closestRectSide(node, endpoint);
+  if (side === "left") return Math.abs(adjacent.y - endpoint.y) < 0.5 && adjacent.x <= endpoint.x + 0.5;
+  if (side === "right") return Math.abs(adjacent.y - endpoint.y) < 0.5 && adjacent.x >= endpoint.x - 0.5;
+  if (side === "top") return Math.abs(adjacent.x - endpoint.x) < 0.5 && adjacent.y <= endpoint.y + 0.5;
+  return Math.abs(adjacent.x - endpoint.x) < 0.5 && adjacent.y >= endpoint.y - 0.5;
 }
 
 describe("computeLayout", () => {
@@ -374,6 +402,23 @@ describe("computeLayout", () => {
     expect(layoutToRenderer.points).toHaveLength(3);
     for (const edge of layout.edges) {
       expect(edge.points.length).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it("keeps local-first UI routes from turning back through endpoint components", () => {
+    const m = parse(localFirstUi);
+    const layout = computeLayout(m);
+
+    for (const edge of layout.edges) {
+      if (edge.points.length < 2) continue;
+      const source = layout.nodes.find((n) => n.id === edge.from)!;
+      const target = layout.nodes.find((n) => n.id === edge.to)!;
+      if (source.shape === "rectangle") {
+        expect(endpointLeavesFaceCleanly(source, edge.points[0], edge.points[1])).toBe(true);
+      }
+      if (target.shape === "rectangle") {
+        expect(endpointLeavesFaceCleanly(target, edge.points[edge.points.length - 1], edge.points[edge.points.length - 2])).toBe(true);
+      }
     }
   });
 

@@ -1,0 +1,140 @@
+graph LR
+  User[User] --> Tabs[Document Tabs]
+  Tabs --> Editor[Editor Pane]
+  Editor --> Parser[Block Parser]
+  Parser --> Registry[Renderer Registry]
+  Registry --> Document[Document Renderer]
+  Registry --> Slide[Slide Renderer]
+  Registry --> Mermaid[Mermaid Renderer]
+  Registry --> ArchMap[ArchMap Renderer]
+  Document --> Preview[Preview Pane]
+  Slide --> Preview
+  Mermaid --> Preview
+  ArchMap --> Preview
+  Preview --> Sync[Sync Layer]
+  Sync --> Editor
+  Sync --> PreviewWindow
+  Preview --> Status[Status Bar]
+  Preview --> PreviewWindow[Browser Preview Window]
+  User --> Shortcuts[Shortcut Controls]
+  Shortcuts --> Preview
+  Shortcuts --> Editor
+  Editor --> FileOps[File Commands]
+  Preview --> Export[Export Commands]
+  Export --> PreviewWindow
+  FileOps --> LocalFiles[(Local Files)]
+  Export --> LocalFiles
+---
+nodes:
+  User: { zone: user, layer: actor, kind: user }
+  Tabs: { zone: frontend, layer: state, kind: session_state }
+  Editor: { zone: frontend, layer: input, kind: editor }
+  Parser: { zone: frontend, layer: core, kind: parser }
+  Registry: { zone: frontend, layer: core, kind: registry }
+  Document: { zone: frontend, layer: render, kind: document_renderer }
+  Slide: { zone: frontend, layer: render, kind: slide_renderer }
+  Mermaid: { zone: frontend, layer: render, kind: diagram_renderer }
+  ArchMap: { zone: frontend, layer: render, kind: architecture_renderer }
+  Preview: { zone: frontend, layer: output, kind: preview }
+  Sync: { zone: frontend, layer: interaction, kind: synchronizer }
+  Status: { zone: frontend, layer: feedback, kind: status_bar }
+  PreviewWindow: { zone: frontend, layer: output, kind: standalone_preview_window }
+  Shortcuts: { zone: frontend, layer: interaction, kind: keyboard_controls }
+  Export: { zone: frontend, layer: output, kind: export_command }
+  FileOps: { zone: desktop, layer: os, kind: file_command }
+  LocalFiles: { zone: local, layer: storage, kind: filesystem }
+edges:
+  user_tabs:
+    from: User
+    to: Tabs
+    label: create and switch documents
+    flow: session_document_control
+  tabs_editor:
+    from: Tabs
+    to: Editor
+    label: active tab text
+    flow: session_state
+  editor_parser:
+    from: Editor
+    to: Parser
+    label: text changes
+    flow: render_input
+  parser_registry:
+    from: Parser
+    to: Registry
+    label: Block AST
+    flow: render_dispatch
+  preview_sync:
+    from: Preview
+    to: Sync
+    label: block click
+    flow: source_navigation
+  sync_editor:
+    from: Sync
+    to: Editor
+    label: line target
+    flow: cursor_update
+  sync_preview_window:
+    from: Sync
+    to: PreviewWindow
+    label: live preview update message
+    flow: local_preview_sync
+  preview_status:
+    from: Preview
+    to: Status
+    label: zoom and source range
+    flow: user_feedback
+  preview_window:
+    from: Preview
+    to: PreviewWindow
+    label: standalone preview HTML
+    flow: local_preview_output
+  shortcuts_preview:
+    from: Shortcuts
+    to: Preview
+    label: scroll, page, zoom
+    flow: navigation_command
+  file_local:
+    from: FileOps
+    to: LocalFiles
+    label: open/save
+    flow: local_io
+  export_local:
+    from: Export
+    to: LocalFiles
+    label: print/PDF or HTML export
+    flow: explicit_output
+  export_preview_window:
+    from: Export
+    to: PreviewWindow
+    label: open preview-only window
+    flow: explicit_output
+zones:
+  user:
+    label: Human User
+    kind: actor_boundary
+    contains: [User]
+  frontend:
+    label: Web Frontend
+    kind: app_boundary
+    contains: [Tabs, Editor, Parser, Registry, Document, Slide, Mermaid, ArchMap, Preview, PreviewWindow, Sync, Status, Shortcuts, Export]
+  desktop:
+    label: Tauri Desktop Shell
+    kind: desktop_boundary
+    contains: [FileOps]
+  local:
+    label: Local Device
+    kind: storage_boundary
+    contains: [LocalFiles]
+boundaries:
+  local_first:
+    label: Local-first Boundary
+    kind: data_boundary
+    contains: [Tabs, Editor, Preview, PreviewWindow, Sync, Export, FileOps, LocalFiles]
+layout:
+  mode: auto
+  direction: LR
+view:
+  default:
+    base: overview
+    overlays: [zone]
