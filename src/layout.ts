@@ -2192,6 +2192,23 @@ function routeEdges(
     side === "left" || side === "right"
       ? Math.abs(endpoint.y - adjacent.y) < 0.5
       : Math.abs(endpoint.x - adjacent.x) < 0.5;
+  const endpointSegmentIsOutward = (side: BoxFace, endpoint: LayoutPoint, adjacent: LayoutPoint): boolean => {
+    if (side === "left") return adjacent.x <= endpoint.x + 0.5;
+    if (side === "right") return adjacent.x >= endpoint.x - 0.5;
+    if (side === "top") return adjacent.y <= endpoint.y + 0.5;
+    return adjacent.y >= endpoint.y - 0.5;
+  };
+  const routeEndpointSegmentsAreValid = (edge: LayoutEdge, points: LayoutPoint[]): boolean => {
+    if (points.length < 2) return false;
+    const sourceSide = finalEndpointSide(edge.from, points[0]);
+    const targetSide = finalEndpointSide(edge.to, points[points.length - 1]);
+    return (
+      endpointSegmentIsNormal(sourceSide, points[0], points[1]) &&
+      endpointSegmentIsOutward(sourceSide, points[0], points[1]) &&
+      endpointSegmentIsNormal(targetSide, points[points.length - 1], points[points.length - 2]) &&
+      endpointSegmentIsOutward(targetSide, points[points.length - 1], points[points.length - 2])
+    );
+  };
   const enforceEndpointStubs = (edge: LayoutEdge): LayoutPoint[] => {
     let points = edge.points.map((point) => ({ ...point }));
     if (points.length < 2) return points;
@@ -2311,6 +2328,46 @@ function routeEdges(
   };
   for (const item of routedPlans) {
     tryStraightenOppositeSideRoute(item.edge);
+  }
+  const routeIsOrthogonal = (points: LayoutPoint[]): boolean =>
+    points.slice(0, -1).every((point, i) => {
+      const next = points[i + 1];
+      return Math.abs(point.x - next.x) < 0.5 || Math.abs(point.y - next.y) < 0.5;
+    });
+  const trySimplifyEndpointPreservingRoute = (edge: LayoutEdge): void => {
+    if (edge.points.length <= 3) return;
+    const start = edge.points[0];
+    const end = edge.points[edge.points.length - 1];
+    const candidates: LayoutPoint[][] = [];
+    if (Math.abs(start.x - end.x) < 0.5 || Math.abs(start.y - end.y) < 0.5) {
+      candidates.push([start, end]);
+    }
+    candidates.push(
+      [start, { x: end.x, y: start.y }, end],
+      [start, { x: start.x, y: end.y }, end],
+    );
+    const currentBends = routeBendCount(edge.points);
+    const currentLength = routeLength(edge.points);
+    const replacement = candidates
+      .map((route) => simplifyPolyline(route.map((point) => ({ ...point }))))
+      .filter((route) => route.length >= 2)
+      .filter((route) => route.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)))
+      .filter(routeIsOrthogonal)
+      .filter((route) => routeEndpointSegmentsAreValid(edge, route))
+      .filter((route) => routeComponentHits(route, edge.from, edge.to) === 0)
+      .filter((route) => routeBorderCoincidence(route, edge.from, edge.to) === 0)
+      .filter((route) => {
+        const bends = routeBendCount(route);
+        return bends < currentBends || (bends === currentBends && routeLength(route) < currentLength);
+      })
+      .sort((a, b) =>
+        routeBendCount(a) - routeBendCount(b) ||
+        routeLength(a) - routeLength(b),
+      )[0];
+    if (replacement) edge.points = replacement;
+  };
+  for (const item of routedPlans) {
+    trySimplifyEndpointPreservingRoute(item.edge);
   }
   return routedPlans.map((item) => {
     item.edge.points = enforceEndpointStubs(item.edge);

@@ -1,0 +1,273 @@
+graph LR
+  Author[Author / AI] --> Source[ArchMap DSL]
+  Source --> Parser[Parser]
+  Parser --> Model[Canonical Model]
+  Model --> Validation[Diagnostics]
+  Model --> Layout[Layout Engine]
+  Layout --> Renderer[Render API]
+  Validation --> Renderer
+  Renderer --> Overview[Overview View]
+  Renderer --> Layer[Layer View]
+  Renderer --> Prototype[Prototype View]
+  Renderer --> ThreeD[3D View]
+  Overview --> SVGExport[SVG Export]
+  Layer --> SVGExport
+  Overview --> PNGExport[PNG Export]
+  Layer --> PNGExport
+  Prototype --> PNGExport
+  ThreeD --> PNGExport
+  Controls[Diagram Tags]
+  Viewer[archmap-viewer]
+  Stream[Buffered Stream API]
+  Icons[Icon Registry]
+  Controls --> Renderer
+  Viewer --> Renderer
+  Stream --> Parser
+  Stream --> Renderer
+  Icons --> Overview
+  Icons --> Layer
+  Icons --> ThreeD
+  Specs[Docs / Specs] --> Author
+  AOF[AOF Shared State] --> Author
+---
+title: ArchMap Core Architecture
+mode: architecture
+nodes:
+  Author:
+    kind: user
+    zone: authoring
+    layer: client
+    description: Human or AI authoring ArchMap source.
+  Source:
+    kind: repository
+    zone: authoring
+    layer: client
+    description: Mermaid-like graph plus semantic YAML metadata.
+  Parser:
+    kind: runtime_service
+    zone: core
+    layer: runtime
+    description: splitSections, parseGraph, metadata parser.
+  Model:
+    kind: object_storage
+    zone: core
+    layer: data
+    description: Canonical ArchMapModel with nodes, edges, zones, boundaries, scenarios, diagnostics.
+  Validation:
+    kind: monitoring
+    zone: core
+    layer: operations
+    description: Vocabulary, reference, security, screenflow, and rendering diagnostics.
+  Layout:
+    kind: workflow
+    zone: core
+    layer: runtime
+    description: Automatic layout, area boxes, port allocation, component-safe orthogonal routing.
+  Renderer:
+    kind: serverless_service
+    zone: core
+    layer: runtime
+    description: render(), registerView(), RenderResult, overlays, pan/zoom, export APIs.
+  Overview:
+    kind: screen
+    zone: views
+    layer: client
+    description: Structure-first architecture view.
+  Layer:
+    kind: screen
+    zone: views
+    layer: client
+    description: Stack/layer partition view.
+  Prototype:
+    kind: screen
+    zone: views
+    layer: client
+    description: ScreenFlow map and playback view.
+  ThreeD:
+    kind: screen
+    zone: views3d
+    layer: client
+    description: Optional Three.js 3D renderer.
+  SVGExport:
+    kind: file_storage
+    zone: delivery
+    layer: data
+    description: exportSvg()/downloadSvg() for SVG-backed 2D views.
+  PNGExport:
+    kind: file_storage
+    zone: delivery
+    layer: data
+    description: exportPng()/downloadPng() for SVG-backed views and mounted 3D canvas.
+  Controls:
+    kind: admin_console
+    zone: controls
+    layer: client
+    description: Reusable diagram tag controls for base view, render mode, overlays, fit, download, fullscreen.
+  Viewer:
+    kind: web_app
+    zone: delivery
+    layer: client
+    description: Browser embedding surface with attributes and controls.
+  Stream:
+    kind: queue
+    zone: core
+    layer: messaging
+    description: createArchMapStream buffered input API for live/token-stream source.
+  Icons:
+    kind: artifact_registry
+    zone: assets
+    layer: operations
+    description: Opt-in icon registry and external @archmap/icons support.
+  Specs:
+    kind: repository
+    zone: governance
+    layer: operations
+    description: Syntax, delivery, engine API, rendering, validation, screenflow docs.
+  AOF:
+    kind: monitoring
+    zone: governance
+    layer: operations
+    description: Shared development status and handoff state for Claude/Codex alternation.
+edges:
+  Author->Source:
+    flow: data_write
+    label: writes DSL
+  Source->Parser:
+    flow: request
+    label: source text
+    boundaryCrossing: true
+  Parser->Model:
+    flow: data_write
+    label: graph + metadata
+  Model->Validation:
+    flow: compliance_scan
+    label: model checks
+  Model->Layout:
+    flow: request
+    label: semantic model
+  Layout->Renderer:
+    flow: request
+    label: layout result
+  Validation->Renderer:
+    flow: response
+    label: diagnostics
+  Renderer->Overview:
+    flow: response
+    label: base view
+    boundaryCrossing: true
+  Renderer->Layer:
+    flow: response
+    label: base view
+    boundaryCrossing: true
+  Renderer->Prototype:
+    flow: response
+    label: screenflow
+    boundaryCrossing: true
+  Renderer->ThreeD:
+    flow: response
+    label: optional 3D
+    boundaryCrossing: true
+  Overview->SVGExport:
+    flow: data_write
+    label: SVG
+    boundaryCrossing: true
+  Layer->SVGExport:
+    flow: data_write
+    label: SVG
+    boundaryCrossing: true
+  Overview->PNGExport:
+    flow: data_write
+    label: PNG
+    boundaryCrossing: true
+  Layer->PNGExport:
+    flow: data_write
+    label: PNG
+    boundaryCrossing: true
+  Prototype->PNGExport:
+    flow: data_write
+    label: PNG
+    boundaryCrossing: true
+  ThreeD->PNGExport:
+    flow: data_write
+    label: canvas PNG
+    boundaryCrossing: true
+  Controls->Renderer:
+    flow: admin_operation
+    label: view + overlays
+    boundaryCrossing: true
+  Viewer->Renderer:
+    flow: request
+    label: custom element
+    boundaryCrossing: true
+  Stream->Parser:
+    flow: message_send
+    label: buffered chunks
+  Stream->Renderer:
+    flow: request
+    label: flush / close
+  Icons->Overview:
+    flow: deployment
+    label: icons
+    boundaryCrossing: true
+  Icons->Layer:
+    flow: deployment
+    label: icons
+    boundaryCrossing: true
+  Icons->ThreeD:
+    flow: deployment
+    label: icons
+    boundaryCrossing: true
+  Specs->Author:
+    flow: request
+    label: authoring guide
+    boundaryCrossing: true
+  AOF->Author:
+    flow: response
+    label: handoff
+    boundaryCrossing: true
+zones:
+  authoring:
+    label: Authoring Input
+    kind: client
+    contains: [Author, Source]
+  core:
+    label: Core Package @archmap/core
+    kind: project
+    contains: [Parser, Model, Validation, Layout, Renderer, Stream]
+  views:
+    label: Built-in Views
+    kind: project
+    contains: [Overview, Layer, Prototype]
+  views3d:
+    label: Optional 3D Bundle
+    kind: project
+    contains: [ThreeD]
+  controls:
+    label: Controls
+    kind: project
+    contains: [Controls]
+  assets:
+    label: Optional Assets
+    kind: operations
+    contains: [Icons]
+  delivery:
+    label: Delivery / Export
+    kind: project
+    contains: [Viewer, SVGExport, PNGExport]
+  governance:
+    label: Docs / Governance
+    kind: operations
+    contains: [Specs, AOF]
+boundaries:
+  public_api:
+    label: Public API Surface
+    kind: policy_boundary
+    contains:
+      - zone: core
+      - zone: controls
+      - zone: delivery
+      - zone: views3d
+view:
+  default:
+    base: overview
+    overlays: [zone, boundary, dataflow, validation]

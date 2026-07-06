@@ -12,6 +12,10 @@ const comprehensive = readFileSync(
   fileURLToPath(new URL("fixtures/comprehensive.archmap", import.meta.url)),
   "utf8",
 );
+const coreArchitecture = readFileSync(
+  fileURLToPath(new URL("fixtures/core-architecture.archmap", import.meta.url)),
+  "utf8",
+);
 
 function labelBox(label: string, at: { x: number; y: number }, orient: "h" | "v" = "h") {
   const w = label.length * 6.5 + 8;
@@ -359,6 +363,17 @@ describe("computeLayout", () => {
     const layout = computeLayout(m);
     for (const edge of layout.edges) {
       expect(edge.points.length).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("removes endpoint-preserving doglegs from the core architecture sample", () => {
+    const m = parse(coreArchitecture);
+    const layout = computeLayout(m);
+    const layoutToRenderer = layout.edges.find((e) => e.id === "Layout__Renderer__0")!;
+
+    expect(layoutToRenderer.points).toHaveLength(3);
+    for (const edge of layout.edges) {
+      expect(edge.points.length).toBeLessThanOrEqual(4);
     }
   });
 

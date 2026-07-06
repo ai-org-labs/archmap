@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Routing hardening follow-up after v0.1.1: reduced unnecessary doglegs by treating same X/Y as valid unless it creates exact endpoint overlap, insufficient spacing, component intersection, or long segment overlap. Endpoint deconfliction is now scoped by node side, direct/low-bend routes are preferred before axis-conflict avoidance, and a final opposite-side straightening pass removes detours when a safe straight segment exists. Added layout regression for multi-outgoing screenflow-style routes. Verification: npm test -- --run test/layout.test.ts, npm test -- --run test/render.test.ts, npx tsc --noEmit, and npm run build all pass. Existing untracked reports/ left untouched.",
-  "updated_at": "2026-07-07T01:18:00.000+09:00",
+  "content": "Routing hardening follow-up after v0.1.1: reduced unnecessary doglegs by treating same X/Y as valid unless it creates exact endpoint overlap, insufficient spacing, component intersection, or long segment overlap. Endpoint deconfliction is scoped by node side, direct/low-bend routes are preferred before axis-conflict avoidance, and final straightening now also handles mixed-side endpoint-preserving L routes. The ArchMap core architecture fixture covers the previously observed Layout->Renderer dogleg and keeps it to three points. Verification: npm test -- --run test/layout.test.ts, npm test -- --run test/render.test.ts, npx tsc --noEmit, npm run build. Existing untracked reports/ left untouched.",
+  "updated_at": "2026-07-07T02:42:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
