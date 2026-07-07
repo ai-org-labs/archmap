@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Release verification checkpoint after routing polish: final endpoint spacing is re-applied after route repair/simplification so endpoint ports do not collapse before render labels are computed. This resolves the last pattern-sample verification failure around high-degree same-side ports while keeping the edge-label route attachment work intact. Verification: npm test -- --run test/render.test.ts test/layout.test.ts test/edges.test.ts, npx tsc --noEmit, npm run build, npm run verify:pattern-samples, npm test, npm pack --dry-run with tmp npm cache/logs, git diff --check, and browser smoke on a fresh http://127.0.0.1:5173/ tab. Existing untracked reports/ left untouched. Release note: GitHub tag v0.1.1 and npm @archmap/core@0.1.1 already exist, and local main cannot fast-forward onto origin/main; publish the verified work as a new patch version such as 0.1.2 unless the human explicitly accepts public tag/history rewriting.",
-  "updated_at": "2026-07-07T14:09:17.000+09:00",
+  "content": "Release execution for 0.1.2: npm already has @archmap/core 0.1.0 and 0.1.1, so this verified release is being prepared as 0.1.2 rather than rewriting public 0.1.1. Updated package.json/package-lock.json, ARCHMAP_VERSION, and pinned CDN documentation/examples to 0.1.2. Verification after the bump: npx tsc --noEmit, npm run build, npm test (196 passing), npm run verify:pattern-samples (96 renders, 0 failures), and npm pack --dry-run with tmp npm cache/logs (tarball archmap-core-0.1.2.tgz, 67 files). Existing untracked reports/ left untouched. Release caveat: origin/main and local main still have unrelated histories; use a non-rewriting merge or release branch/tag path, never force-move v0.1.1.",
+  "updated_at": "2026-07-08T00:11:25.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
