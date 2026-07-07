@@ -138,13 +138,13 @@ const ANDROID_LAYER_INDEX = new Map(ANDROID_LAYER_ORDER.map((l, i) => [l, i]));
 
 // Geometry constants.
 const NODE_H = 48;
-const NODE_MIN_W = 96;
+const NODE_MIN_W = 56;
 const NODE_MAX_W = 260;
 const HUB_NODE_MAX_W = 560;
 const HUB_NODE_MAX_H = 240;
-const CHAR_W = 8;
-const NODE_PAD_X = 28;
-const ICON_RESERVED_W = 54;
+const CHAR_W = 6.5;
+const NODE_PAD_X = 14;
+const ICON_RESERVED_W = 42;
 const RANK_GAP = 170; // gap between bands along the flow axis
 const NODE_GAP = 72; // gap between nodes within a band
 const LANE_GAP = 128; // gap between zone lanes on the cross axis (clears zone boxes)
@@ -287,7 +287,7 @@ export function computeLayout(model: ArchMapModel, options: LayoutOptions = {}):
       degree.set(resource, (degree.get(resource) ?? 0) + 1);
     }
   }
-  const sizeById = new Map(model.nodes.map((n) => [n.id, nodeSize(n.label, degree.get(n.id) ?? 0, n.abstraction ? n.contains?.length ?? 0 : 0, !!(n.provider || n.kind))]));
+  const sizeById = new Map(model.nodes.map((n) => [n.id, nodeSize(n.label, degree.get(n.id) ?? 0, n.abstraction ? n.contains?.length ?? 0 : 0, !!n.provider)]));
 
   // --- Rank (flow axis) -----------------------------------------------------
   const allLayered = model.nodes.length > 0 && model.nodes.every((n) => n.layer);

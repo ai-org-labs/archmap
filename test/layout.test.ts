@@ -156,6 +156,14 @@ describe("computeLayout", () => {
     }
   });
 
+  it("keeps short kind-only components compact instead of reserving unused icon space", () => {
+    const layout = computeLayout(parse(localFirstUi));
+    const user = layout.nodes.find((n) => n.id === "User")!;
+    const tabs = layout.nodes.find((n) => n.id === "Tabs")!;
+    expect(user.w).toBeLessThanOrEqual(60);
+    expect(tabs.w).toBeLessThanOrEqual(116);
+  });
+
   it("ranks topologically along the flow axis (LR => increasing x)", () => {
     const m = parse(`graph LR
       A[a] --> B[b]
