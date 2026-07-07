@@ -300,17 +300,34 @@ export function buildEdgePaths(
   edges: { id: string; points: { x: number; y: number }[] }[],
   gap = 7,
 ): Map<string, string> {
+  return new Map([...buildEdgeVisuals(edges, gap).entries()].map(([id, visual]) => [id, visual.d]));
+}
+
+export interface EdgeVisual {
+  d: string;
+  points: { x: number; y: number }[];
+}
+
+/**
+ * Build visible SVG routes and retain the post-offset polyline. Consumers that
+ * place labels/badges should use these visual points so annotations follow the
+ * rendered connector, not the pre-lane-offset layout route.
+ */
+export function buildEdgeVisuals(
+  edges: { id: string; points: { x: number; y: number }[] }[],
+  gap = 7,
+): Map<string, EdgeVisual> {
   const segsByEdge = new Map(edges.map((e) => [e.id, segmentsOf(e.id, e.points)]));
   const allSegs = [...segsByEdge.values()].flat();
   const offsets = parallelOffsets(allSegs);
   const routed = new Map(edges.map((e) => [e.id, offsetPolyline(e.points, segsByEdge.get(e.id) ?? [], offsets)]));
   const routedSegs = new Map(edges.map((e) => [e.id, segmentsOf(e.id, routed.get(e.id) ?? e.points)]));
   const verticals = [...routedSegs.values()].flat().filter((s) => s.orient === "v");
-  const result = new Map<string, string>();
+  const result = new Map<string, EdgeVisual>();
 
   for (const e of edges) {
     if (e.points.length === 0) {
-      result.set(e.id, "");
+      result.set(e.id, { d: "", points: [] });
       continue;
     }
     const points = routed.get(e.id) ?? e.points;
@@ -358,7 +375,7 @@ export function buildEdgePaths(
       }
       lineTo(end);
     }
-    result.set(e.id, d);
+    result.set(e.id, { d, points });
   }
   return result;
 }

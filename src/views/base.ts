@@ -7,13 +7,13 @@
  * means a new view is a small classifier, not a new renderer.
  */
 
-import type { LayoutNode, LayoutResult } from "../layout.js";
+import type { LayoutEdge, LayoutNode, LayoutResult } from "../layout.js";
 import type { ResolvedIcon } from "../icons.js";
 import { iconDomId } from "../icons.js";
 import {
   DEFAULT_STYLE,
   MARKERS,
-  buildEdgePaths,
+  buildEdgeVisuals,
   edgeBadgesSize,
   edgeBadgesSvg,
   edgeLabelSvg,
@@ -309,6 +309,51 @@ function placeEdgeBadges(badges: EdgeBadgeList, at: { x: number; y: number }, re
   return { x, y, box: { id: "", x: x - size.w / 2 - 2, y: y - 2, w: size.w + 4, h: size.h + 4 } };
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function longestVisibleSegment(points: Array<{ x: number; y: number }>): { x: number; y: number; orient: "h" | "v"; len: number } | undefined {
+  let best: { x: number; y: number; orient: "h" | "v"; len: number } | undefined;
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    const dx = Math.abs(b.x - a.x);
+    const dy = Math.abs(b.y - a.y);
+    const len = dx + dy;
+    if (len < 1) continue;
+    const orient = dx >= dy ? "h" : "v";
+    if (!best || len > best.len) best = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, orient, len };
+  }
+  return best;
+}
+
+function visualEdgeAnnotationAnchor(edge: LayoutEdge, visualPoints: Array<{ x: number; y: number }> | undefined): { at: { x: number; y: number }; orient: "h" | "v" } {
+  const originalSeg = longestVisibleSegment(edge.points);
+  const visualSeg = longestVisibleSegment(visualPoints?.length ? visualPoints : edge.points);
+  if (!originalSeg || !visualSeg) return { at: edge.labelAt, orient: edge.labelOrient ?? "h" };
+
+  const dx = edge.labelAt.x - originalSeg.x;
+  const dy = edge.labelAt.y - originalSeg.y;
+  if (visualSeg.orient === "h") {
+    const signY = Math.sign(dy) || -1;
+    const nearY = signY * clamp(Math.abs(dy), 11, 42);
+    const half = Math.max(0, visualSeg.len / 2 - 12);
+    return {
+      at: { x: visualSeg.x + clamp(dx, -half, half), y: visualSeg.y + nearY },
+      orient: "h",
+    };
+  }
+
+  const signX = Math.sign(dx) || 1;
+  const nearX = signX * clamp(Math.abs(dx), 8, 58);
+  const half = Math.max(0, visualSeg.len / 2 - 12);
+  return {
+    at: { x: visualSeg.x + nearX, y: visualSeg.y + clamp(dy, -half, half) },
+    orient: "v",
+  };
+}
+
 function segmentIntersectsBox(a: { x: number; y: number }, b: { x: number; y: number }, box: Box): boolean {
   const x0 = box.x;
   const y0 = box.y;
@@ -518,7 +563,8 @@ export function renderDiagram(spec: DiagramSpec): string {
   const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
   const overlayPlan = planOverlayEdges(overlayEdges, nodeById);
   const densePermissionOverlay = (overlayEdges ?? []).filter((edge) => edge.className?.includes("archmap-permission-edge")).length > 8;
-  const edgePaths = buildEdgePaths([...layout.edges, ...overlayPlan.drawables]);
+  const edgeVisuals = buildEdgeVisuals([...layout.edges, ...overlayPlan.drawables]);
+  const edgePaths = new Map([...edgeVisuals.entries()].map(([id, visual]) => [id, visual.d]));
   const reservedEdgeBadges: Box[] = [];
   const edgesSvg = layout.edges
     .map((e) => {
@@ -526,11 +572,13 @@ export function renderDiagram(spec: DiagramSpec): string {
       const cls = `archmap-edge${channelClass(e.id, emphasizeEdges)}`;
       const style = edgeStyles?.get(e.id);
       const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
-      const path = edgePathFromD(edgePaths.get(e.id) ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
-      const startpoint = edgeStartpointSvg(e.points[0]);
-      const label = e.label ? edgeLabelSvg(e.label, e.labelAt, e.labelOrient) : "";
+      const visual = edgeVisuals.get(e.id);
+      const anchor = e.label || edgeBadges?.has(e.id) ? visualEdgeAnnotationAnchor(e, visual?.points) : { at: e.labelAt, orient: e.labelOrient ?? "h" as const };
+      const path = edgePathFromD(visual?.d ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
+      const startpoint = edgeStartpointSvg(visual?.points[0] ?? e.points[0]);
+      const label = e.label ? edgeLabelSvg(e.label, anchor.at, anchor.orient) : "";
       const badges = edgeBadges?.get(e.id);
-      const placedBadges = badges ? placeEdgeBadges(badges, e.labelAt, reservedEdgeBadges) : undefined;
+      const placedBadges = badges ? placeEdgeBadges(badges, anchor.at, reservedEdgeBadges) : undefined;
       if (placedBadges) reservedEdgeBadges.push(placedBadges.box);
       const badgeSvg = badges && placedBadges ? edgeBadgesSvg(badges, placedBadges) : "";
       return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}"${styleAttr}>${path}${startpoint}${label}${badgeSvg}</g>`;

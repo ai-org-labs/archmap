@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Rendering polish after browser review: single-icon provider nodes now render icon + label as one horizontally spaced row, with both vertically centered on the node. The icon is no longer pinned to the top-left corner, and the label starts after a fixed icon/label gap to avoid overlap in compact components such as Ops Monitor. Verification: npm test -- --run test/icons.test.ts test/render.test.ts, npx tsc --noEmit, npm test, npm run build. Existing untracked reports/ left untouched.",
-  "updated_at": "2026-07-07T11:00:13.000+09:00",
+  "content": "Rendering polish after browser review: edge labels and semantic badges now follow the post-offset connector route rather than the pre-offset layout route. SVG routing exposes rendered edge visuals with the visible polyline, and normal edge annotations clamp near the visible segment so labels such as line target / live preview update message / active tab text remain tied to their connector. Added a local-first UI regression that checks labels stay close to rendered connector lines. Verification: npm test -- --run test/render.test.ts test/edges.test.ts, npx tsc --noEmit, npm test, npm run build. Existing untracked reports/ left untouched.",
+  "updated_at": "2026-07-07T11:12:09.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

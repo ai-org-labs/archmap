@@ -73,6 +73,31 @@ function containsArea(outer: { x0: number; x1: number; y0: number; y1: number },
   return inner.x0 >= outer.x0 && inner.x1 <= outer.x1 && inner.y0 >= outer.y0 && inner.y1 <= outer.y1;
 }
 
+function pathSegments(d: string): Array<[{ x: number; y: number }, { x: number; y: number }]> {
+  const tokens = [...d.matchAll(/[ML]|-?\d+(?:\.\d+)?/g)].map((m) => m[0]);
+  const segments: Array<[{ x: number; y: number }, { x: number; y: number }]> = [];
+  let current: { x: number; y: number } | undefined;
+  let cmd = "M";
+  for (let i = 0; i < tokens.length;) {
+    if (tokens[i] === "M" || tokens[i] === "L") cmd = tokens[i++];
+    const next = { x: Number(tokens[i++]), y: Number(tokens[i++]) };
+    if (!Number.isFinite(next.x) || !Number.isFinite(next.y)) break;
+    if (cmd === "L" && current) segments.push([current, next]);
+    current = next;
+  }
+  return segments;
+}
+
+function pointSegmentDistance(p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  const x = a.x + dx * t;
+  const y = a.y + dy * t;
+  return Math.hypot(p.x - x, p.y - y);
+}
+
 function expectInnerAreasStayInsideZones(svg: string): void {
   const zones = areaBoxes(svg, "archmap-zone", "archmap-zone-box");
   const innerAreas = [
@@ -126,6 +151,23 @@ describe("render", () => {
     expect(svg).toContain("HTTPS + JWT");
     // Overview is structural until zone is added as information.
     expect(svg).not.toContain('class="archmap-zone archmap-zone-depth-');
+  });
+
+  it("keeps rendered edge labels near their post-offset connector lines", () => {
+    const m = parse(localFirstUi);
+    const { svg } = render(m, { baseView: "overview", overlays: ["zone"] });
+    const cases = [
+      { id: "tabs_editor", label: "active tab text" },
+      { id: "sync_editor", label: "line target" },
+      { id: "sync_preview_window", label: "live preview update message" },
+    ];
+    for (const item of cases) {
+      const match = svg!.match(new RegExp(`data-id="${item.id}"[\\s\\S]*?<path class="archmap-edge-path" d="([^"]+)"[\\s\\S]*?<text x="([0-9.]+)" y="([0-9.]+)"[^>]*>${item.label}</text>`));
+      expect(match, `${item.id} label should render`).toBeTruthy();
+      const labelPoint = { x: Number(match?.[2]), y: Number(match?.[3]) };
+      const nearest = Math.min(...pathSegments(match![1]).map(([a, b]) => pointSegmentDistance(labelPoint, a, b)));
+      expect(nearest, `${item.id} label should follow its rendered connector`).toBeLessThanOrEqual(44);
+    }
   });
 
   it("tints overview nodes and outgoing edges by zone", () => {
