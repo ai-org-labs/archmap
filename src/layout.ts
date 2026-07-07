@@ -2130,6 +2130,7 @@ function routeEdges(
     entry.edge.points = simplifyPolyline(entry.edge.points);
   };
   const spaceFinalEndpoints = (): void => {
+    const FINAL_MIN_PORT_GAP = 7;
     const finalEndpointEntries: RoutedEndpoint[] = [];
     for (const item of routedPlans) {
       const points = item.edge.points;
@@ -2170,13 +2171,22 @@ function routeEdges(
       const max = low + size - FACE_INSET;
       const span = Math.max(1, max - min);
       group.sort((a, b) => a.sortKey - b.sortKey || a.edge.id.localeCompare(b.edge.id));
-      const positions = group.map((entry) => Math.min(max, Math.max(min, entry.sortKey)));
+      const minGap = span >= FINAL_MIN_PORT_GAP * (group.length - 1)
+        ? FINAL_MIN_PORT_GAP
+        : span / Math.max(1, group.length - 1);
+      let positions = group.map((entry) => Math.min(max, Math.max(min, entry.sortKey)));
       for (let i = 1; i < positions.length; i++) {
-        if (positions[i] - positions[i - 1] >= 6) continue;
-        const start = min + (span * i) / (group.length + 1);
-        const end = min + (span * (i + 1)) / (group.length + 1);
-        positions[i - 1] = Math.min(max, Math.max(min, start));
-        positions[i] = Math.min(max, Math.max(min, end));
+        positions[i] = Math.max(positions[i], positions[i - 1] + minGap);
+      }
+      const overflow = positions[positions.length - 1] - max;
+      if (overflow > 0) positions = positions.map((position) => position - overflow);
+      for (let i = positions.length - 2; i >= 0; i--) {
+        positions[i] = Math.min(positions[i], positions[i + 1] - minGap);
+      }
+      const underflow = min - positions[0];
+      if (underflow > 0) positions = positions.map((position) => position + underflow);
+      if (positions[0] < min - 0.5 || positions[positions.length - 1] > max + 0.5) {
+        positions = group.map((_, index) => min + (span * index) / Math.max(1, group.length - 1));
       }
       group.forEach((entry, index) => moveFinalEndpoint(entry, side, positions[index]));
     }
@@ -2448,8 +2458,11 @@ function routeEdges(
     tryReselectInvalidEndpointRoute(item.edge);
     trySimplifyEndpointPreservingRoute(item.edge);
   }
-  return routedPlans.map((item) => {
+  for (const item of routedPlans) {
     item.edge.points = enforceEndpointStubs(item.edge);
+  }
+  spaceFinalEndpoints();
+  return routedPlans.map((item) => {
     const seg = longestSegment(item.edge.points);
     item.edge.labelAt = seg.orient === "h" ? { x: seg.x, y: seg.y - 11 } : { x: seg.x + 8, y: seg.y };
     item.edge.labelOrient = seg.orient;

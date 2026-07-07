@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Rendering polish after browser review: edge labels and semantic badges now follow the post-offset connector route rather than the pre-offset layout route. SVG routing exposes rendered edge visuals with the visible polyline, and normal edge annotations clamp near the visible segment so labels such as line target / live preview update message / active tab text remain tied to their connector. Added a local-first UI regression that checks labels stay close to rendered connector lines. Verification: npm test -- --run test/render.test.ts test/edges.test.ts, npx tsc --noEmit, npm test, npm run build. Existing untracked reports/ left untouched.",
-  "updated_at": "2026-07-07T11:12:09.000+09:00",
+  "content": "Release verification checkpoint after routing polish: final endpoint spacing is re-applied after route repair/simplification so endpoint ports do not collapse before render labels are computed. This resolves the last pattern-sample verification failure around high-degree same-side ports while keeping the edge-label route attachment work intact. Verification: npm test -- --run test/render.test.ts test/layout.test.ts test/edges.test.ts, npx tsc --noEmit, npm run build, npm run verify:pattern-samples, npm test, npm pack --dry-run with tmp npm cache/logs, git diff --check, and browser smoke on a fresh http://127.0.0.1:5173/ tab. Existing untracked reports/ left untouched. Release note: GitHub tag v0.1.1 and npm @archmap/core@0.1.1 already exist, and local main cannot fast-forward onto origin/main; publish the verified work as a new patch version such as 0.1.2 unless the human explicitly accepts public tag/history rewriting.",
+  "updated_at": "2026-07-07T14:09:17.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
