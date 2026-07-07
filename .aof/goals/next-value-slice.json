@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Release execution for 0.1.2: npm already has @archmap/core 0.1.0 and 0.1.1, so this verified release is being prepared as 0.1.2 rather than rewriting public 0.1.1. Updated package.json/package-lock.json, ARCHMAP_VERSION, and pinned CDN documentation/examples to 0.1.2. Verification after the bump: npx tsc --noEmit, npm run build, npm test (196 passing), npm run verify:pattern-samples (96 renders, 0 failures), and npm pack --dry-run with tmp npm cache/logs (tarball archmap-core-0.1.2.tgz, 67 files). Existing untracked reports/ left untouched. Release caveat: origin/main and local main still have unrelated histories; use a non-rewriting merge or release branch/tag path, never force-move v0.1.1.",
-  "updated_at": "2026-07-08T00:11:25.000+09:00",
+  "content": "Release execution for 0.1.2: npm already has @archmap/core 0.1.0 and 0.1.1, so this verified release was prepared as 0.1.2 rather than rewriting public 0.1.1. Updated package.json/package-lock.json, ARCHMAP_VERSION, and pinned CDN documentation/examples to 0.1.2. Verification after the bump: npx tsc --noEmit, npm run build, npm test (196 passing), npm run verify:pattern-samples (96 renders, 0 failures), and npm pack --dry-run with tmp npm cache/logs (tarball archmap-core-0.1.2.tgz, 67 files). Connected the unrelated origin/main release history with a non-rewriting ours merge, pushed main, pushed tag v0.1.2, and created GitHub Release https://github.com/ai-org-labs/archmap/releases/tag/v0.1.2. Existing untracked reports/ left untouched. npm publish is intentionally left for the human to run.",
+  "updated_at": "2026-07-08T00:20:21.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
