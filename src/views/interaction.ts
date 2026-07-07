@@ -54,6 +54,22 @@ export function isInteractiveTarget(target: unknown): target is HTMLElement {
   );
 }
 
+function hasClass(target: unknown, className: string): boolean {
+  return typeof (target as Element | undefined)?.classList?.contains === "function" &&
+    (target as Element).classList.contains(className);
+}
+
+export function shouldStartPanFromPointerTarget(target: EventTarget | null, container: HTMLElement, svg: SVGSVGElement): boolean {
+  const closest = (target as { closest?: unknown } | null)?.closest;
+  if (typeof closest !== "function") return true;
+  const expansionTarget = closest.call(
+    target,
+    ".archmap-node[data-abstraction-key],.archmap-zone[data-id],.archmap-subgraph[data-id]",
+  );
+  if (!expansionTarget) return true;
+  return hasClass(container, "archmap-abstraction-locked") || hasClass(svg, "archmap-abstraction-locked");
+}
+
 export function attachPanZoom(container: HTMLElement, initial?: PanZoomTransform): PanZoomHandle {
   const svg = container.querySelector("svg") as SVGSVGElement | null;
   const noop: PanZoomHandle = { fit() {}, reset() {}, get: () => ({ scale: 1, x: 0, y: 0 }), dispose() {} };
@@ -100,7 +116,7 @@ export function attachPanZoom(container: HTMLElement, initial?: PanZoomTransform
   let lastX = 0;
   let lastY = 0;
   const onPointerDown = (e: PointerEvent) => {
-    if (e.target instanceof Element && e.target.closest(".archmap-node[data-abstraction-key],.archmap-zone[data-id],.archmap-subgraph[data-id]")) return;
+    if (!shouldStartPanFromPointerTarget(e.target, container, svg)) return;
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;

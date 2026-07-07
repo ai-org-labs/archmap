@@ -823,6 +823,7 @@ ${permissions}
     expect(result.isAbstractionLocked()).toBe(true);
     expect(result.svg).toContain("archmap-abstraction-locked");
     expect(result.svg).toContain("data-abstraction-key=\"subgraph:Service\"");
+    expect(result.svg).toContain(".archmap-abstraction-locked .archmap-node-abstraction, .archmap-abstraction-locked .archmap-zone[data-id], .archmap-abstraction-locked .archmap-subgraph[data-id] { cursor: grab; }");
     result.setAbstractionLocked(false);
     expect(result.isAbstractionLocked()).toBe(false);
   });

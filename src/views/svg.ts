@@ -533,7 +533,7 @@ export const DEFAULT_STYLE = `
 .archmap-node-abstraction:hover .archmap-node-label { text-decoration: underline; }
 .archmap-zone[data-id]:hover .archmap-zone-box, .archmap-subgraph[data-id]:hover .archmap-subgraph-box { filter: drop-shadow(0 3px 7px rgba(37,99,235,0.18)); stroke-width: 2.6; }
 .archmap-zone[data-id]:hover .archmap-zone-label, .archmap-subgraph[data-id]:hover .archmap-subgraph-label { text-decoration: underline; }
-.archmap-abstraction-locked .archmap-node-abstraction, .archmap-abstraction-locked .archmap-zone[data-id], .archmap-abstraction-locked .archmap-subgraph[data-id] { cursor: default; }
+.archmap-abstraction-locked .archmap-node-abstraction, .archmap-abstraction-locked .archmap-zone[data-id], .archmap-abstraction-locked .archmap-subgraph[data-id] { cursor: grab; }
 .archmap-abstraction-locked .archmap-node-abstraction:hover .archmap-node-shape, .archmap-abstraction-locked .archmap-node-abstraction:hover .archmap-node-shape-top, .archmap-abstraction-locked .archmap-zone[data-id]:hover .archmap-zone-box, .archmap-abstraction-locked .archmap-subgraph[data-id]:hover .archmap-subgraph-box { filter: none; }
 .archmap-abstraction-locked .archmap-node-abstraction:hover .archmap-node-label, .archmap-abstraction-locked .archmap-zone[data-id]:hover .archmap-zone-label, .archmap-abstraction-locked .archmap-subgraph[data-id]:hover .archmap-subgraph-label { text-decoration: none; }
 .archmap-abstraction-icon { opacity: 0.95; }

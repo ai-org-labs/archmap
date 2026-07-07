@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attachPanZoom, computeFitTransform, isInteractiveTarget } from "../src/views/interaction.js";
+import { attachPanZoom, computeFitTransform, isInteractiveTarget, shouldStartPanFromPointerTarget } from "../src/views/interaction.js";
 
 describe("computeFitTransform (TASK-006)", () => {
   it("scales content to fit the container with padding and centers it", () => {
@@ -22,6 +22,24 @@ describe("computeFitTransform (TASK-006)", () => {
     expect(isInteractiveTarget({ querySelector() {}, addEventListener() {} })).toBe(true);
     expect(isInteractiveTarget({ innerHTML: "" })).toBe(false);
     expect(isInteractiveTarget(null)).toBe(false);
+  });
+
+  it("allows zone-area pan starts only while abstraction interaction is locked", () => {
+    const classSet = new Set<string>();
+    const container = {
+      classList: { contains: (name: string) => classSet.has(name) },
+    } as unknown as HTMLElement;
+    const svg = {
+      classList: { contains: (name: string) => classSet.has(name) },
+    } as unknown as SVGSVGElement;
+    const zoneTarget = {
+      closest: (selector: string) => selector.includes(".archmap-zone") ? {} : null,
+    } as unknown as EventTarget;
+
+    expect(shouldStartPanFromPointerTarget(zoneTarget, container, svg)).toBe(false);
+
+    classSet.add("archmap-abstraction-locked");
+    expect(shouldStartPanFromPointerTarget(zoneTarget, container, svg)).toBe(true);
   });
 
   it("keeps an existing transform when reattached with an initial value", () => {
