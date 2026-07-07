@@ -1,6 +1,6 @@
 {
   "name": "@archmap/core",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Browser-only semantic architecture diagram rendering framework (ArchMap DSL)",
   "license": "Apache-2.0",
   "homepage": "https://ai-org-labs.github.io/archmap/",
@@ -41,6 +41,7 @@
     "docs/AI_AUTHORING_GUIDE.md",
     "docs/V0_1_ACCEPTANCE_MATRIX.md",
     "docs/specs/v0.1",
+    "docs/specs/v0.2",
     "examples",
     "README.md",
     "SPEC.md",

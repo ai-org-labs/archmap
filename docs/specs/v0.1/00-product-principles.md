@@ -362,7 +362,7 @@ ArchMap v0.1 is not intended to provide:
 - full OAuth/OIDC protocol modeling
 - provider-specific importers for Terraform, Kubernetes, AWS, GCP, or Azure
 - GUI round-trip editing
-- timeline or 4D modeling
+- timeline or 4D modeling (added in v0.2 — see `../v0.2/06-timeline-4d.md`)
 - manually authored coordinate-heavy diagrams
 
 These may become future capabilities, but they should not complicate the v0.1 authoring model.

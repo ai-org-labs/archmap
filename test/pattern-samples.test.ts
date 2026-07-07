@@ -11,6 +11,7 @@ const sampleFiles = [
   "04-android-single-app-framework-api.archmap",
   "05-android-inter-app-collaboration.archmap",
   "06-android-framework-driver-bt-devices.archmap",
+  "07-migration-timeline.archmap",
 ] as const;
 
 const allowedWarningCodes = new Set(["zone_crossing_marked_false"]);
@@ -44,6 +45,19 @@ describe("pattern sample fixtures", () => {
       expect(view).toBe(renderCase.baseView);
       expect(svg).toMatch(new RegExp(`class="archmap archmap-view-${renderCase.baseView}(\\s|")`));
       expect(svg).toContain("<path");
+    }
+  });
+
+  it("renders the migration timeline sample across every phase", () => {
+    const model = parse(readSample("07-migration-timeline.archmap"));
+    const phases = model.timeline?.phases.map((phase) => phase.id) ?? [];
+    expect(phases).toEqual(["now", "parallel", "cutover", "done"]);
+    for (const phase of phases) {
+      for (const baseView of ["overview", "layer"] as const) {
+        const { svg } = render(model, { baseView, overlays: ["zone", "timeline"], phase });
+        expect(svg).toContain(`data-phase="${phase}"`);
+        expect(svg).toContain("<path");
+      }
     }
   });
 });

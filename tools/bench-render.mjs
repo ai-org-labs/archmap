@@ -9,6 +9,7 @@ const CASES = {
   large: "test/fixtures/pattern-samples/03-large-multiregion-hybrid-ops.archmap",
   comprehensive: "test/fixtures/comprehensive.archmap",
   screenflow: "examples/screenflow.archmap",
+  migration: "examples/migration.archmap",
 };
 
 const RENDER_CASES = {
@@ -83,6 +84,25 @@ for (const name of caseNames) {
         ? ` (placement=${format(timings.layoutPhases.placementMs)} route=${format(timings.layoutPhases.routeMs)} labels=${format(timings.layoutPhases.labelMs)})`
         : "";
       console.log(`    phases: projection=${format(timings.projectionMs)} layout=${format(timings.layoutMs)}${phases} view=${format(timings.viewMs)} dom=${format(timings.domMs)}`);
+    }
+  }
+
+  // Timeline phase switching (v0.2 4D) must be decoration-only: assert the
+  // layout cache is hit (no re-layout) when scrubbing phases.
+  if (model.timeline) {
+    const result = render(parse(source), { baseView: "overview" });
+    const layoutBefore = result.layout;
+    const phaseIds = result.listPhases().map((phase) => phase.id);
+    const nextPhase = phaseIds.find((id) => id !== result.getPhase()) ?? phaseIds[0];
+    const switchTime = measure(() => {
+      result.setPhase(nextPhase);
+      result.setPhase(phaseIds[0]);
+    }, iterations);
+    const layoutReused = result.layout === layoutBefore;
+    console.log(`  setPhase roundtrip min=${format(switchTime.min)} p50=${format(switchTime.p50)} max=${format(switchTime.max)} layoutCacheHit=${layoutReused}`);
+    if (!layoutReused) {
+      console.error("  FAIL: phase switching recomputed layout (must be decoration-only)");
+      process.exitCode = 1;
     }
   }
 }

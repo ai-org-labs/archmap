@@ -11,6 +11,7 @@ const samples = [
   "04-android-single-app-framework-api.archmap",
   "05-android-inter-app-collaboration.archmap",
   "06-android-framework-driver-bt-devices.archmap",
+  "07-migration-timeline.archmap",
 ];
 
 const baseViews = ["overview", "layer"];
@@ -106,15 +107,21 @@ for (const [sampleIndex, sample] of samples.entries()) {
   let maxPaths = 0;
   let maxStartpoints = 0;
 
+  // Timeline documents (v0.2 4D): fast mode renders the default phase only;
+  // exhaustive mode sweeps every phase for each overlay set.
+  const phaseIds = parsed.timeline?.phases.map((phase) => phase.id) ?? [];
+  const phaseCases = mode === "exhaustive" && phaseIds.length > 0 ? phaseIds : [undefined];
+
   for (const baseView of baseViews) {
     const viewStarted = performance.now();
     for (const overlaySet of overlaySets) {
+    for (const phase of phaseCases) {
       const model = parse(source);
       const renderStarted = performance.now();
-      const { svg, view } = render(model, { baseView, renderMode: "2d", overlays: overlaySet });
+      const { svg, view } = render(model, { baseView, renderMode: "2d", overlays: overlaySet, phase });
       const renderMs = performance.now() - renderStarted;
       if (renderMs >= slowThresholdMs) {
-        slowRenders.push({ sample, baseView, overlays: overlaySet, ms: Math.round(renderMs) });
+        slowRenders.push({ sample, baseView, overlays: overlaySet, phase, ms: Math.round(renderMs) });
       }
       renders++;
       if (view !== baseView) failures.push({ sample, baseView, overlays: overlaySet, stage: "view", view });
@@ -139,19 +146,25 @@ for (const [sampleIndex, sample] of samples.entries()) {
         }
       }
 
+      if (phase && !svg?.includes(`data-phase="${phase}"`)) {
+        failures.push({ sample, baseView, overlays: overlaySet, phase, stage: "phase-marker" });
+      }
+
       const unexpected = unexpectedDiagnostics(model);
       if (model.errors.length || unexpected.length) {
         failures.push({
           sample,
           baseView,
           overlays: overlaySet,
+          phase,
           stage: "render-diagnostics",
           errors: model.errors.map((entry) => entry.code),
           unexpectedDiagnostics: unexpected.map((entry) => entry.code),
         });
       }
     }
-    progress(`    ${baseView}: ${overlaySets.length} overlay sets in ${((performance.now() - viewStarted) / 1000).toFixed(1)}s`);
+    }
+    progress(`    ${baseView}: ${overlaySets.length} overlay sets x ${phaseCases.length} phase(s) in ${((performance.now() - viewStarted) / 1000).toFixed(1)}s`);
   }
 
   for (const renderMode of ["isometric", "3d"]) {

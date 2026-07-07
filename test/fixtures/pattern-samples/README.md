@@ -18,6 +18,7 @@ The samples follow the current ArchMap authoring shape:
 | `04-android-single-app-framework-api.archmap` | Android single app | App layers, framework APIs, device resources, local DB/storage, backend API. |
 | `05-android-inter-app-collaboration.archmap` | Android inter-app | Intent, deep link, content provider, bound service, Binder IPC, permission mediation. |
 | `06-android-framework-driver-bt-devices.archmap` | Android framework + driver + Bluetooth | App → framework → system service → HAL → kernel driver → controller → wireless link → peer device. |
+| `07-migration-timeline.archmap` | Cloud migration timeline (4D) | On-prem → cloud evolution across four phases: `timeline:`, per-element `lifecycle:` (added/removed/states), edge/zone lifecycles. |
 
 ## Intended rendering checks
 

@@ -15,14 +15,17 @@ DSL that compiles to a rich semantic model and multiple architecture views.
   icon, and trademark notes
 - [SPEC.md](./SPEC.md) — the v0.1 language design
 
-> **Status:** v0.1 developer-preview hardening. The current product surface is
+> **Status:** v0.2 developer preview. The current product surface is
 > overview/layer/prototype renderers with additive semantic overlays, optional
 > abstraction collapse/expand, an opt-in vendor-icon registry, and an opt-in
 > three.js 3D view. The core bundle ships none of the optional assets (no vendor
 > icons, no three.js). Edges use orthogonal component-safe routing with
 > distributed ports and rendered SVG validation for endpoint/overlap risks.
-> Next: release acceptance closure, CDN verification, and continued dense
-> diagram visual QA.
+> **New in v0.2: the 4D timeline** — a `timeline:` section plus per-element
+> `lifecycle:` declarations model how an architecture evolves (migrations, DR,
+> blue-green); a toolbar phase slider scrubs snapshots with stable layout and
+> ghosted absent elements. See
+> [docs/specs/v0.2/06-timeline-4d.md](./docs/specs/v0.2/06-timeline-4d.md).
 
 ## Install / dev
 

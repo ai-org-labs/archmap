@@ -231,6 +231,49 @@ view:
   filters: { zones: [...], layers: [...] }  # parsed, not applied yet
 ```
 
+### 2.9 `timeline` and element `lifecycle` (4D, v0.2)
+
+One document can describe how the architecture evolves across named phases
+(migrations, DR, blue-green). Full semantics: `docs/specs/v0.2/06-timeline-4d.md`.
+
+```yaml
+timeline:
+  label: Cloud migration
+  phases:                       # id -> definition; order is the time axis
+    now:      { label: "Today" }
+    parallel: { label: "Parallel run", at: "2026-Q3" }  # `at` is display-only
+    done:     { label: "Cloud only" }
+  order: [now, parallel, done]  # optional; recommended for numeric-like ids
+  default: now                  # optional initial phase
+```
+
+`nodes.*`, `edges.*`, and `zones.*` accept `lifecycle:`:
+
+```yaml
+nodes:
+  AppNew:
+    lifecycle:
+      added: parallel                  # present from `parallel` (inclusive)
+      states: { parallel: planned }    # sticky until overridden; states:
+                                       # planned | active | deprecated | removing
+  AppOld:
+    lifecycle: { removed: done }       # absent from `done` (inclusive)
+edges:
+  DbOld->DbNew:
+    lifecycle: { added: parallel, removed: done }  # clamped to its endpoints
+```
+
+- Presence is the half-open interval `[added, removed)`. Elements without a
+  `lifecycle` exist in every phase; documents without `timeline:` behave
+  exactly as before.
+- Rendering: layout is stable across phases; absent elements are strongly
+  ghosted (not hidden); the `timeline` overlay adds a "what changes at this
+  phase" lens with badges. `render(model, { phase })`,
+  `result.setPhase/getPhase/listPhases`, `<archmap-viewer phase="...">`, and
+  the controls-toolbar phase slider switch phases without re-layout.
+- `variants:` (top level) and `lifecycle.variants` are reserved for the future
+  5D variant dimension and are ignored by the v0.2 parser.
+
 ---
 
 ## 3. Label inference
