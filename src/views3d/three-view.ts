@@ -20,6 +20,7 @@ import type { MountableView, ViewContext, ViewHandle, RenderableIcon } from "@ar
 import { buildScene3D } from "./scene.js";
 import type { Scene3D } from "./scene.js";
 import { buildOverlayProjection } from "../views/overlays.js";
+import { computePhasePresence, resolvePhaseId } from "../time-projection.js";
 import type { Box } from "../views/base.js";
 
 /** Per-layer color ramp (client → external), tuned to the soft station-map palette used by isometric SVG. */
@@ -129,7 +130,9 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
     disposables.push(x);
     return x;
   };
-  const projection = buildOverlayProjection(ctx.model, ctx.layout, ctx.options.overlays ?? []);
+  const phaseId = ctx.options.phase ? resolvePhaseId(ctx.model, ctx.options.phase) : undefined;
+  const presence = phaseId ? computePhasePresence(ctx.model, phaseId) : undefined;
+  const projection = buildOverlayProjection(ctx.model, ctx.layout, ctx.options.overlays ?? [], phaseId ? { phase: phaseId } : undefined);
   const emphasizeNodes = projection.emphasizeNodes ?? new Set<string>();
   const emphasizeEdges = projection.emphasizeEdges ?? new Set<string>();
   const badges = projection.nodeBadges ?? new Map<string, string>();
@@ -138,6 +141,9 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
 
   // Nodes as boxes + labels.
   for (const n of scene3d.nodes) {
+    // Minimal 4D parity: elements absent at the active timeline phase render
+    // as ghosts (per-state coloring in 3D is a documented follow-up).
+    const nodeAbsent = presence?.absentNodes.has(n.id) === true;
     const geo = track(new THREE.BoxGeometry(n.w, n.h, n.d));
     const mat = track(new THREE.MeshStandardMaterial({
       color: layerColor(n.layer),
@@ -146,6 +152,8 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
       roughness: 0.82,
       metalness: 0,
       flatShading: true,
+      transparent: nodeAbsent,
+      opacity: nodeAbsent ? 0.15 : 1,
     }));
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(n.x, n.y, n.z);
@@ -154,7 +162,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
     // Provider/kind icon (same registry as 2D), as a billboard above the box.
     const icon = icons.get(n.id);
     const labelY = icon ? n.y + n.h / 2 + 0.95 : n.y + n.h / 2 + 0.45;
-    if (icon) {
+    if (icon && !nodeAbsent) {
       const { sprite, texture } = makeIconSprite(icon);
       sprite.position.set(n.x - n.w / 2 + 0.38, n.y + n.h / 2 + 0.42, n.z - n.d / 2 + 0.38);
       disposables.push(texture, sprite.material);
@@ -163,6 +171,7 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
 
     const label = makeTextSprite(n.label);
     label.position.set(n.x, labelY, n.z);
+    if (nodeAbsent) label.material.opacity = 0.25;
     disposeSprite(label, disposables);
     root.add(label);
 
@@ -185,10 +194,11 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
   // Edges as lines.
   for (const e of scene3d.edges) {
     const isEmphasized = emphasizeEdges.has(e.id);
+    const edgeAbsent = presence?.absentEdges.has(e.id) === true;
     const edgeMat = track(new THREE.LineBasicMaterial({
       color: isEmphasized ? EMPHASIS_EDGE_COLOR : 0x52617a,
       transparent: true,
-      opacity: isEmphasized ? 0.95 : 0.58,
+      opacity: edgeAbsent ? 0.08 : isEmphasized ? 0.95 : 0.58,
     }));
     const geo = track(
       new THREE.BufferGeometry().setFromPoints([
