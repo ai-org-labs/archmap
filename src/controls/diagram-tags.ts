@@ -13,12 +13,22 @@ export interface DiagramTagsState {
   fullscreen?: boolean;
   minimized?: boolean;
   expanded?: boolean;
+  /** Active timeline phase (v0.2 4D); only meaningful with a timeline group. */
+  phase?: string;
 }
 
 export interface DiagramTagsChangeEvent {
-  kind: "baseView" | "renderMode" | "overlay";
+  kind: "baseView" | "renderMode" | "overlay" | "phase";
   value: string;
   checked: boolean;
+}
+
+/** Timeline slider group (v0.2 4D). Rendered only when `phases` is non-empty. */
+export interface DiagramTagsTimelineOptions {
+  /** Ordered timeline phases. */
+  phases: DiagramTagOption[];
+  /** Group label. Default: "Phase". */
+  label?: string;
 }
 
 export interface DiagramTagsOptions {
@@ -28,6 +38,8 @@ export interface DiagramTagsOptions {
   renderModes?: DiagramTagOption[];
   overlays?: DiagramTagOption[];
   actions?: DiagramTagAction[];
+  /** Optional timeline phase slider (prev / range / next / label). */
+  timeline?: DiagramTagsTimelineOptions;
   labels?: Partial<{
     views: string;
     renderModes: string;
@@ -68,6 +80,7 @@ export const DEFAULT_DIAGRAM_TAG_OVERLAYS: DiagramTagOption[] = [
   { value: "boundary", label: "boundary" },
   { value: "permission", label: "permission" },
   { value: "validation", label: "validation" },
+  { value: "timeline", label: "timeline" },
 ];
 
 export const DEFAULT_DIAGRAM_TAG_ACTIONS: DiagramTagAction[] = ["toggleSize", "fit", "lock", "download", "fullscreen"];
@@ -116,6 +129,11 @@ export function injectDiagramTagsStyle(doc: Document = document): void {
 .archmap-diagram-tag-action{min-width:28px;min-height:26px;padding:3px 8px;border-radius:999px;background:#eef2f7;color:#334155;border:1px solid #cbd5e1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 .archmap-diagram-tag-action.is-active{background:#e6edf7;border-color:#7892bd;color:#213a63}
 .archmap-diagram-tag-action svg{width:15px;height:15px;display:block;stroke:currentColor}
+.archmap-diagram-tags-timeline{gap:6px}
+.archmap-diagram-tag-phase-step{min-width:24px;min-height:24px;padding:2px 6px;border-radius:999px;background:#eef2f7;color:#334155;border:1px solid #cbd5e1;cursor:pointer;font:700 12px system-ui,sans-serif}
+.archmap-diagram-tag-phase-step:disabled{opacity:.4;cursor:default}
+.archmap-diagram-tag-phase-range{width:110px;accent-color:#34507a;margin:0}
+.archmap-diagram-tag-phase-label{font:700 12px system-ui,sans-serif;color:#213a63;white-space:nowrap}
 `;
   doc.head.appendChild(style);
 }
@@ -129,6 +147,7 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
   const actions = options.actions ?? DEFAULT_DIAGRAM_TAG_ACTIONS;
   const labels = { views: "Views", renderModes: "Render modes", overlays: "Add info", ...options.labels };
   const names = { baseView: "base-view", renderMode: "render-mode", overlay: "overlay", ...options.names };
+  const timeline = options.timeline && options.timeline.phases.length > 0 ? options.timeline : undefined;
   let state: DiagramTagsState = {
     baseView: options.state?.baseView ?? views[0]?.value ?? "overview",
     renderMode: options.state?.renderMode ?? renderModes[0]?.value ?? "2d",
@@ -137,6 +156,7 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
     fullscreen: options.state?.fullscreen ?? false,
     minimized: options.state?.minimized ?? false,
     expanded: options.state?.expanded ?? false,
+    phase: options.state?.phase ?? timeline?.phases[0]?.value,
   };
 
   const root = doc.createElement("div");
@@ -184,6 +204,18 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
     panel.querySelectorAll<HTMLButtonElement>("[data-archmap-action]").forEach((button) => {
       renderIcon(button, button.dataset.archmapAction as DiagramTagAction);
     });
+    if (timeline) {
+      const index = Math.max(0, timeline.phases.findIndex((phase) => phase.value === state.phase));
+      const phase = timeline.phases[index];
+      const range = panel.querySelector<HTMLInputElement>(".archmap-diagram-tag-phase-range");
+      if (range) range.value = String(index);
+      const label = panel.querySelector<HTMLElement>(".archmap-diagram-tag-phase-label");
+      if (label) label.textContent = phase?.label ?? phase?.value ?? "";
+      const prev = panel.querySelector<HTMLButtonElement>(".archmap-diagram-tag-phase-prev");
+      if (prev) prev.disabled = index <= 0;
+      const next = panel.querySelector<HTMLButtonElement>(".archmap-diagram-tag-phase-next");
+      if (next) next.disabled = index >= timeline.phases.length - 1;
+    }
   };
 
   const emitChange = (event: DiagramTagsChangeEvent): void => options.onChange?.({ ...state, overlays: [...state.overlays] }, event);
@@ -236,10 +268,52 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
     panel.appendChild(group);
   };
 
+  const addTimelineGroup = (): void => {
+    if (!timeline) return;
+    const group = doc.createElement("fieldset");
+    group.className = "archmap-diagram-tags-group archmap-diagram-tags-timeline";
+    const labelEl = doc.createElement("span");
+    labelEl.className = "archmap-diagram-tags-label";
+    labelEl.textContent = timeline.label ?? "Phase";
+    const stepTo = (index: number): void => {
+      const phase = timeline.phases[Math.max(0, Math.min(timeline.phases.length - 1, index))];
+      if (!phase || phase.value === state.phase) return;
+      state = { ...state, phase: phase.value };
+      sync();
+      emitChange({ kind: "phase", value: phase.value, checked: true });
+    };
+    const indexNow = (): number => Math.max(0, timeline.phases.findIndex((phase) => phase.value === state.phase));
+    const prev = doc.createElement("button");
+    prev.type = "button";
+    prev.className = "archmap-diagram-tag-phase-step archmap-diagram-tag-phase-prev";
+    prev.textContent = "‹";
+    prev.title = "Previous phase";
+    prev.addEventListener("click", () => stepTo(indexNow() - 1));
+    const range = doc.createElement("input");
+    range.type = "range";
+    range.className = "archmap-diagram-tag-phase-range";
+    range.min = "0";
+    range.max = String(timeline.phases.length - 1);
+    range.step = "1";
+    range.setAttribute("aria-label", timeline.label ?? "Timeline phase");
+    range.addEventListener("input", () => stepTo(Number(range.value)));
+    const next = doc.createElement("button");
+    next.type = "button";
+    next.className = "archmap-diagram-tag-phase-step archmap-diagram-tag-phase-next";
+    next.textContent = "›";
+    next.title = "Next phase";
+    next.addEventListener("click", () => stepTo(indexNow() + 1));
+    const current = doc.createElement("span");
+    current.className = "archmap-diagram-tag-phase-label";
+    group.append(labelEl, prev, range, next, current);
+    panel.appendChild(group);
+  };
+
   for (const action of actions) addAction(action);
   addGroup(labels.views, "baseView", views);
   addGroup(labels.renderModes, "renderMode", renderModes);
   addGroup(labels.overlays, "overlay", overlays);
+  addTimelineGroup();
   sync();
   options.target.replaceChildren(root);
 

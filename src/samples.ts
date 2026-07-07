@@ -1141,6 +1141,104 @@ view:
     overlays: [zone, dataflow, boundary, permission]
 `),
   },
+  {
+    id: "cloud-migration-timeline",
+    title: "Cloud migration timeline (4D)",
+    category: "Evolution / 4D",
+    description: "On-prem to cloud migration across four phases; scrub the phase slider to watch components appear, deprecate, and retire.",
+    recommendation: {
+      baseView: "overview",
+      renderMode: "2d",
+      overlays: ["zone", "timeline"],
+    },
+    source: source(`
+graph LR
+  Web[Web Frontend] --> AppOld[Legacy App]
+  Web --> AppNew[Cloud App]
+  AppOld --> DbOld[(Legacy DB)]
+  AppNew --> DbNew[(Cloud DB)]
+  DbOld -->|replicate| DbNew
+---
+title: "Cloud migration timeline"
+description: "Blue-green style on-prem to cloud migration modeled as timeline phases."
+nodes:
+  Web:
+    zone: client
+    layer: client
+    kind: web_app
+  AppOld:
+    zone: onprem
+    layer: runtime
+    kind: runtime_service
+    principal: legacy-app-sa
+    lifecycle: { removed: done, states: { cutover: deprecated } }
+  DbOld:
+    zone: onprem
+    layer: data
+    kind: legacy_database
+    lifecycle: { removed: done, states: { cutover: deprecated } }
+  AppNew:
+    zone: cloud
+    layer: runtime
+    kind: runtime_service
+    provider: gcp
+    principal: cloud-app-sa
+    lifecycle: { added: parallel, states: { parallel: planned, cutover: active } }
+  DbNew:
+    zone: cloud
+    layer: data
+    kind: relational_database
+    provider: gcp
+    lifecycle: { added: parallel, states: { parallel: planned, cutover: active } }
+edges:
+  Web->AppOld:
+    flow: request
+    boundaryCrossing: true
+  Web->AppNew:
+    flow: request
+    boundaryCrossing: true
+  AppOld->DbOld:
+    flow: data_access
+    principal: legacy-app-sa
+  AppNew->DbNew:
+    flow: data_access
+    principal: cloud-app-sa
+  DbOld->DbNew:
+    flow: replication
+    boundaryCrossing: true
+    lifecycle: { added: parallel, removed: done }
+identities:
+  legacy-app-sa: { kind: service_account, attachedTo: AppOld }
+  cloud-app-sa: { kind: service_account, provider: gcp, attachedTo: AppNew }
+zones:
+  client:
+    label: Client
+    kind: client
+    contains: [Web]
+  onprem:
+    label: On-premises
+    kind: onprem
+    contains: [AppOld, DbOld]
+    lifecycle: { removed: done }
+  cloud:
+    label: Cloud
+    kind: cloud
+    contains: [AppNew, DbNew]
+    lifecycle: { added: parallel }
+timeline:
+  label: Migration
+  phases:
+    now: { label: "Today" }
+    parallel: { label: "Parallel run", at: "2026-Q3" }
+    cutover: { label: "Cutover", at: "2026-Q4" }
+    done: { label: "Cloud only", at: "2027-Q1" }
+  default: now
+view:
+  default:
+    base: overview
+    overlays: [zone, timeline]
+`),
+  },
 ];
 
 export function getArchMapSample(id: string): ArchMapSample | undefined {

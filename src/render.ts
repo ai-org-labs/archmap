@@ -1013,6 +1013,8 @@ export interface ViewerAttributeOptions {
   controls: boolean;
   scenario?: string;
   showHotspots: boolean;
+  /** Timeline phase to display (v0.2 4D). */
+  phase?: string;
 }
 
 export function parseOverlaysAttribute(value: string | null): string[] {
@@ -1041,6 +1043,7 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
     controls: attrs.getAttribute("controls") === "true" || attrs.hasAttribute?.("controls") === true,
     scenario: attrs.getAttribute("scenario") ?? undefined,
     showHotspots: attrs.getAttribute("show-hotspots") === "true" || attrs.hasAttribute?.("show-hotspots") === true,
+    phase: attrs.getAttribute("phase") ?? undefined,
   };
 }
 
@@ -1067,7 +1070,7 @@ export function defineArchMapViewerElement(): void {
 
   class ArchMapViewerElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return ["base-view", "render-mode", "overlays", "abstraction-level", "abstraction-target", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls", "scenario", "show-hotspots"];
+      return ["base-view", "render-mode", "overlays", "abstraction-level", "abstraction-target", "width", "height", "src", "diagnostics", "diagnostics-target", "inspector", "inspector-target", "fallback-to-inline", "console", "controls", "scenario", "show-hotspots", "phase"];
     }
 
     private source = "";
@@ -1114,6 +1117,9 @@ export function defineArchMapViewerElement(): void {
         this.runWithLoading(() => this.result?.setAbstractionTarget(options.abstractionTarget));
       } else if (name === "scenario" && options.scenario) {
         this.runWithLoading(() => this.result?.setScenario?.(options.scenario!));
+      } else if (name === "phase") {
+        // Removing the attribute restores the timeline default.
+        this.runWithLoading(() => this.result?.setPhase(options.phase ?? null));
       } else if (name === "show-hotspots") {
         this.runWithLoading(() => this.result?.toggleHotspots?.(options.showHotspots));
       } else if (name === "width" || name === "height") {
@@ -1258,6 +1264,7 @@ export function defineArchMapViewerElement(): void {
         console: options.consoleReport,
         scenario: options.scenario,
         showHotspots: options.showHotspots,
+        phase: options.phase,
       });
       if (options.controls) this.renderControls(options);
       else {
@@ -1274,11 +1281,13 @@ export function defineArchMapViewerElement(): void {
       const result = this.result;
       if (!result) return;
       let zoomFitted = false;
+      const timelinePhases = result.listPhases();
       let controlsState = {
         baseView: options.baseView ?? "overview",
         renderMode: options.renderMode,
         overlays: [...options.overlays],
         abstractionLocked: result.isAbstractionLocked(),
+        phase: result.getPhase() ?? undefined,
       };
       const updateDiagnostics = () => {
         this.controlsHandle?.setState(controlsState);
@@ -1293,6 +1302,9 @@ export function defineArchMapViewerElement(): void {
         views: BASE_VIEWS.map((view) => ({ value: view, label: BASE_VIEW_LABELS[view] })),
         renderModes: RENDER_MODES.map((mode) => ({ value: mode, label: mode === "3d" ? "3D" : mode.toUpperCase() })),
         overlays: [...OVERLAY_NAMES].map((overlay) => ({ value: overlay, label: overlay })),
+        timeline: timelinePhases.length > 0
+          ? { phases: timelinePhases.map((phase) => ({ value: phase.id, label: phase.label ?? phase.id })) }
+          : undefined,
         actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
         state: {
           ...controlsState,
@@ -1321,6 +1333,10 @@ export function defineArchMapViewerElement(): void {
                   ? [...new Set([...controlsState.overlays, event.value])]
                   : controlsState.overlays.filter((overlay) => overlay !== event.value),
               };
+            }
+            if (event.kind === "phase") {
+              result.setPhase(event.value);
+              controlsState = { ...controlsState, phase: result.getPhase() ?? undefined };
             }
             updateDiagnostics();
           });

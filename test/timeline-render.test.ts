@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "../src/parser-entry.js";
-import { render } from "../src/render.js";
+import { render, viewerOptionsFromAttributes } from "../src/render.js";
 
 const graphAndNodes = `graph LR
   Web[Web] --> AppOld[Legacy App]
@@ -158,6 +158,17 @@ describe("timeline rendering", () => {
     result.setPhase("anything");
     expect(result.svg).toBe(svgBefore);
     expect(result.svg).not.toContain("data-phase");
+  });
+
+  it("maps the viewer phase attribute into options", () => {
+    const attrs = new Map([["phase", "cutover"]]);
+    const options = viewerOptionsFromAttributes({
+      getAttribute: (name: string) => attrs.get(name) ?? null,
+      hasAttribute: (name: string) => attrs.has(name),
+    });
+    expect(options.phase).toBe("cutover");
+    const empty = viewerOptionsFromAttributes({ getAttribute: () => null, hasAttribute: () => false });
+    expect(empty.phase).toBeUndefined();
   });
 
   it("renders the timeline overlay lens (badges + emphasis on changes)", () => {

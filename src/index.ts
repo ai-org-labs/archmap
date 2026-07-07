@@ -67,6 +67,7 @@ export type {
   DiagramTagsHandle,
   DiagramTagsOptions,
   DiagramTagsState,
+  DiagramTagsTimelineOptions,
 } from "./controls/diagram-tags.js";
 export {
   maxAbstractionDepth,
