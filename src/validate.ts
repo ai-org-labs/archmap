@@ -6,7 +6,7 @@
  */
 
 import { diagnostic, syncDiagnostics } from "./diagnostics.js";
-import type { ArchMapModel } from "./types.js";
+import type { ArchMapModel, Lifecycle } from "./types.js";
 import {
   STANDARD_BOUNDARY_KINDS,
   STANDARD_DATA_CLASSIFICATIONS,
@@ -14,8 +14,15 @@ import {
   STANDARD_IDENTITY_KINDS,
   STANDARD_KINDS,
   STANDARD_LAYERS,
+  STANDARD_LIFECYCLE_STATES,
   STANDARD_ZONE_KINDS,
 } from "./types.js";
+import {
+  intersectIntervals,
+  intervalContains,
+  presenceInterval,
+  timelinePhaseIndex,
+} from "./time-projection.js";
 
 const TOKEN_REQUIRED_FLOWS = new Set(["token_issue", "token_validate"]);
 const TOKEN_VALIDATOR_REQUIRED_FLOWS = new Set(["request", "request_response", "token_validate"]);
@@ -260,6 +267,91 @@ export function validate(model: ArchMapModel): ArchMapModel {
       for (const [from, edges] of outgoing) {
         if (screenNodes.has(from) && edges.length > 1) {
           suggestions.push(diagnostic("ambiguous_transition", `Screen "${from}" has ${edges.length} outgoing transitions and no scenario defines Next order.`, { type: "node", id: from }));
+        }
+      }
+    }
+  }
+
+  // --- Timeline / lifecycle (v0.2 4D) ---------------------------------------
+  // Interval math is shared with the render-time projection (time-projection.ts)
+  // so validation and rendering can never disagree about presence.
+  {
+    const phases = model.timeline?.phases ?? [];
+    const phaseIndex = timelinePhaseIndex(model.timeline);
+    type Carrier = { kind: "node" | "edge" | "zone"; id: string; lifecycle?: Lifecycle };
+    const carriers: Carrier[] = [
+      ...model.nodes.map((n): Carrier => ({ kind: "node", id: n.id, lifecycle: n.lifecycle })),
+      ...model.edges.map((e): Carrier => ({ kind: "edge", id: e.id, lifecycle: e.lifecycle })),
+      ...model.zones.map((z): Carrier => ({ kind: "zone", id: z.id, lifecycle: z.lifecycle })),
+    ];
+    if (phases.length === 0) {
+      for (const carrier of carriers) {
+        if (!carrier.lifecycle) continue;
+        warnings.push(diagnostic("lifecycle_without_timeline", `${carrier.kind} "${carrier.id}" declares a lifecycle but the document has no timeline; it is ignored.`, { type: carrier.kind, id: carrier.id }));
+      }
+    } else {
+      for (const carrier of carriers) {
+        const lifecycle = carrier.lifecycle;
+        if (!lifecycle) continue;
+        const target = { type: carrier.kind, id: carrier.id } as const;
+        for (const key of ["added", "removed"] as const) {
+          const ref = lifecycle[key];
+          if (ref !== undefined && !phaseIndex.has(ref)) {
+            errors.push(diagnostic("lifecycle_unknown_phase", `${carrier.kind} "${carrier.id}" lifecycle.${key} references unknown phase "${ref}".`, target));
+          }
+        }
+        const addedIndex = lifecycle.added !== undefined ? phaseIndex.get(lifecycle.added) : 0;
+        const removedIndex = lifecycle.removed !== undefined ? phaseIndex.get(lifecycle.removed) : undefined;
+        if (addedIndex !== undefined && removedIndex !== undefined && removedIndex <= addedIndex) {
+          errors.push(diagnostic("lifecycle_removed_before_added", `${carrier.kind} "${carrier.id}" is removed at "${lifecycle.removed}" before (or when) it is added; it never exists.`, target));
+        }
+        const interval = presenceInterval(lifecycle, phaseIndex);
+        for (const [phaseId, state] of Object.entries(lifecycle.states ?? {})) {
+          const idx = phaseIndex.get(phaseId);
+          if (idx === undefined) {
+            errors.push(diagnostic("lifecycle_unknown_phase", `${carrier.kind} "${carrier.id}" lifecycle.states references unknown phase "${phaseId}".`, target));
+            continue;
+          }
+          if (!STANDARD_LIFECYCLE_STATES.has(state)) {
+            warnings.push(diagnostic("unknown_lifecycle_state", `${carrier.kind} "${carrier.id}" uses unknown lifecycle state "${state}" at phase "${phaseId}".`, target));
+          }
+          if (!intervalContains(interval, idx)) {
+            suggestions.push(diagnostic("lifecycle_state_while_absent", `${carrier.kind} "${carrier.id}" declares state "${state}" at phase "${phaseId}" where it does not exist.`, target));
+          }
+        }
+      }
+
+      // Declared edge lifecycles must stay within the interval where both
+      // endpoints exist (rendering clamps; validation surfaces the intent gap).
+      const nodeLifecycle = new Map(model.nodes.map((n) => [n.id, n.lifecycle]));
+      for (const e of model.edges) {
+        if (!e.lifecycle) continue;
+        if (!nodeIds.has(e.from) || !nodeIds.has(e.to)) continue; // unknown endpoints already error
+        const declared = presenceInterval(e.lifecycle, phaseIndex);
+        const derived = intersectIntervals(
+          presenceInterval(nodeLifecycle.get(e.from), phaseIndex),
+          presenceInterval(nodeLifecycle.get(e.to), phaseIndex),
+        );
+        if (declared.addedIndex < derived.addedIndex || declared.removedIndex > derived.removedIndex) {
+          warnings.push(diagnostic("lifecycle_edge_endpoint_absent", `Edge "${e.id}" is declared present while an endpoint is absent; its presence is clamped to the endpoints.`, { type: "edge", id: e.id }));
+        }
+      }
+
+      // A zone absent at a phase where a contained node is present is usually
+      // an authoring mistake (members are not implicitly removed with the box).
+      for (const z of model.zones) {
+        if (!z.lifecycle) continue;
+        const zoneInterval = presenceInterval(z.lifecycle, phaseIndex);
+        const offenders: string[] = [];
+        for (const child of z.resolvedContains ?? []) {
+          if (child.type !== "node") continue;
+          const memberInterval = presenceInterval(nodeLifecycle.get(child.id), phaseIndex);
+          if (memberInterval.addedIndex < zoneInterval.addedIndex || memberInterval.removedIndex > zoneInterval.removedIndex) {
+            offenders.push(child.id);
+          }
+        }
+        if (offenders.length > 0) {
+          warnings.push(diagnostic("lifecycle_zone_member_present", `Zone "${z.id}" is absent at phases where contained node(s) ${offenders.join(", ")} are present.`, { type: "zone", id: z.id }));
         }
       }
     }

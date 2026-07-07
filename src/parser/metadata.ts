@@ -20,8 +20,11 @@ import type {
   Diagnostic,
   Identity,
   Layout,
+  Lifecycle,
   Permission,
   Scenario,
+  Timeline,
+  TimelinePhase,
   ViewConfig,
   Zone,
 } from "../types.js";
@@ -117,6 +120,19 @@ function parseTransition(v: unknown): ArchEdge["transition"] | undefined {
   return transition.type || transition.duration !== undefined ? transition : undefined;
 }
 
+/** v0.2 timeline lifecycle: { added?, removed?, states? }. `variants` is a reserved 5D key (ignored). */
+function parseLifecycle(v: unknown): Lifecycle | undefined {
+  if (!isObject(v)) return undefined;
+  const lifecycle: Lifecycle = {
+    added: asString(v.added),
+    removed: asString(v.removed),
+    states: asStringRecord(v.states),
+  };
+  return lifecycle.added !== undefined || lifecycle.removed !== undefined || lifecycle.states !== undefined
+    ? lifecycle
+    : undefined;
+}
+
 export interface MergeResult {
   model: ArchMapModel;
 }
@@ -178,6 +194,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     node.androidLayer = asString(value.androidLayer);
     node.image = asString(value.image);
     node.frame = parseFrame(value.frame);
+    node.lifecycle = parseLifecycle(value.lifecycle);
   }
 
   // --- Edges (spec 01 §7, 02 §6) --------------------------------------------
@@ -226,6 +243,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     edge.trigger = asString(value.trigger) ?? edge.trigger;
     edge.hotspot = parseHotspot(value.hotspot) ?? edge.hotspot;
     edge.transition = parseTransition(value.transition) ?? edge.transition;
+    edge.lifecycle = parseLifecycle(value.lifecycle) ?? edge.lifecycle;
     edge.tags = asStringArray(value.tags) ?? edge.tags;
     edge.description = asString(value.description) ?? edge.description;
   };
@@ -302,6 +320,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
       trustLevel: asString(value.trustLevel),
       owner: asString(value.owner),
       description: asString(value.description),
+      lifecycle: parseLifecycle(value.lifecycle),
     });
   }
 
@@ -395,6 +414,71 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     });
   }
 
+  // --- Timeline (v0.2 4D) -----------------------------------------------------
+  // Ordered evolution phases. `order:` wins over declaration order (recommended
+  // for numeric-like ids, which JS object key ordering would rearrange).
+  let timeline: Timeline | undefined;
+  if (meta.timeline !== undefined) {
+    const timelineTarget = { type: "view" as const, id: "timeline" };
+    if (!isObject(meta.timeline)) {
+      warnings.push(diagnostic("timeline_empty", "timeline must be a mapping with a phases section.", timelineTarget));
+    } else {
+      const metaTimeline = meta.timeline;
+      const declared: TimelinePhase[] = [];
+      const phasesById = new Map<string, TimelinePhase>();
+      const metaPhases = isObject(metaTimeline.phases) ? metaTimeline.phases : {};
+      for (const [id, value] of Object.entries(metaPhases)) {
+        const body = isObject(value) ? value : {};
+        const phase: TimelinePhase = {
+          id,
+          label: asString(body.label),
+          description: asString(body.description),
+          at: asString(body.at),
+        };
+        declared.push(phase);
+        phasesById.set(id, phase);
+      }
+      if (declared.length === 0) {
+        warnings.push(diagnostic("timeline_empty", "timeline declares no phases; it is ignored.", timelineTarget));
+      } else {
+        let phases = declared;
+        const order = asStringArray(metaTimeline.order);
+        if (order) {
+          const ordered: TimelinePhase[] = [];
+          const seen = new Set<string>();
+          for (const id of order) {
+            const phase = phasesById.get(id);
+            if (!phase) {
+              errors.push(diagnostic("timeline_unknown_order_ref", `timeline.order references unknown phase "${id}".`, timelineTarget));
+              continue;
+            }
+            if (seen.has(id)) {
+              warnings.push(diagnostic("timeline_order_duplicate", `timeline.order lists phase "${id}" more than once.`, timelineTarget));
+              continue;
+            }
+            seen.add(id);
+            ordered.push(phase);
+          }
+          const omitted = declared.filter((phase) => !seen.has(phase.id));
+          if (omitted.length > 0) {
+            warnings.push(diagnostic("timeline_order_incomplete", `timeline.order omits phases: ${omitted.map((phase) => phase.id).join(", ")}. They are appended in declaration order.`, timelineTarget));
+          }
+          phases = [...ordered, ...omitted];
+        }
+        let defaultPhase = asString(metaTimeline.default);
+        if (defaultPhase !== undefined && !phasesById.has(defaultPhase)) {
+          warnings.push(diagnostic("timeline_unknown_default", `timeline.default "${defaultPhase}" is not a declared phase; falling back to "${phases[0].id}".`, timelineTarget));
+          defaultPhase = undefined;
+        }
+        timeline = {
+          label: asString(metaTimeline.label),
+          phases,
+          default: defaultPhase,
+        };
+      }
+    }
+  }
+
   normalizeStage2({ nodes, edges, zones, boundaries, data, warnings, errors });
 
   // --- Layout / View / Title ------------------------------------------------
@@ -423,6 +507,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     permissions,
     data,
     scenarios,
+    timeline,
     layout,
     view,
     diagnostics: [],

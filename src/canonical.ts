@@ -30,6 +30,7 @@ export function toCanonicalModel(model: ArchMapModel): CanonicalArchMapModel {
     permissions: byId(model.permissions),
     data: byId(model.data),
     scenarios: byId(model.scenarios),
+    timeline: model.timeline,
     layout: model.layout,
     view: model.view,
     diagnostics,

@@ -78,6 +78,8 @@ export interface ArchNode {
   };
   /** Fields populated by inference rather than explicit metadata. */
   inferred?: string[];
+  /** Timeline presence and per-phase state (v0.2 4D). */
+  lifecycle?: Lifecycle;
   /** Renderer-only projection metadata for collapsed subgraph/zone components. */
   abstraction?: {
     target: "subgraph" | "zone";
@@ -131,6 +133,8 @@ export interface ArchEdge {
   description?: string;
   /** Fields populated by label inference rather than explicit metadata (§22). */
   inferred?: string[];
+  /** Timeline presence and per-phase state (v0.2 4D). */
+  lifecycle?: Lifecycle;
 }
 
 export interface Zone {
@@ -144,6 +148,8 @@ export interface Zone {
   trustLevel?: string;
   owner?: string;
   description?: string;
+  /** Timeline presence and per-phase state (v0.2 4D). Ghosts the zone box only. */
+  lifecycle?: Lifecycle;
 }
 
 export interface Boundary {
@@ -222,6 +228,45 @@ export interface Scenario {
   description?: string;
 }
 
+/** One named snapshot on the 4D time axis (v0.2 timeline). */
+export interface TimelinePhase {
+  id: string;
+  label?: string;
+  description?: string;
+  /** Display-only point-in-time annotation, e.g. "2026-Q3". No date math. */
+  at?: string;
+}
+
+/**
+ * Ordered evolution timeline (v0.2 §timeline). Phase order is semantic, so
+ * phases stay an ordered array even in the canonical model. The object shape
+ * leaves room for a future sibling `variants:` (5D) section.
+ */
+export interface Timeline {
+  label?: string;
+  /** Phases in resolved order (`order:` wins, else declaration order). */
+  phases: TimelinePhase[];
+  /** Initial phase id; defaults to the first phase. */
+  default?: string;
+}
+
+export type LifecycleState = "planned" | "active" | "deprecated" | "removing" | (string & {});
+
+/**
+ * When an element exists on the timeline and what state it is in per phase.
+ * Presence is the half-open interval [added, removed); states are sticky
+ * forward until overridden. Elements without a lifecycle exist in all phases.
+ * `variants` is reserved for the future 5D extension and ignored in v0.2.
+ */
+export interface Lifecycle {
+  /** Phase where the element first exists. Default: first phase. */
+  added?: string;
+  /** Phase from which the element no longer exists (inclusive). Default: never. */
+  removed?: string;
+  /** Phase id -> state; a state persists until overridden by a later phase. */
+  states?: Record<string, LifecycleState>;
+}
+
 export interface ArchMapModel {
   version: string;
   direction: Direction;
@@ -245,6 +290,7 @@ export interface ArchMapModel {
   permissions: Permission[];
   data: DataObject[];
   scenarios: Scenario[];
+  timeline?: Timeline;
   layout?: Layout;
   view?: ViewConfig;
   diagnostics: Diagnostic[];
@@ -276,6 +322,8 @@ export interface CanonicalArchMapModel {
   permissions: Record<string, Permission>;
   data: Record<string, DataObject>;
   scenarios: Record<string, Scenario>;
+  /** Ordered timeline; order is semantic, so phases stay an array here too. */
+  timeline?: Timeline;
   layout?: Layout;
   view?: ViewConfig;
   diagnostics: Diagnostic[];
@@ -350,4 +398,9 @@ export const STANDARD_IDENTITY_KINDS: ReadonlySet<string> = new Set([
 
 export const STANDARD_DATA_CLASSIFICATIONS: ReadonlySet<string> = new Set([
   "public", "internal", "confidential", "personal", "secret", "restricted", "regulated",
+]);
+
+/** v0.2 timeline lifecycle states. Unknown states warn and render as active. */
+export const STANDARD_LIFECYCLE_STATES: ReadonlySet<string> = new Set([
+  "planned", "active", "deprecated", "removing",
 ]);

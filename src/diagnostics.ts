@@ -20,12 +20,23 @@ const REGISTRY_LEVELS: Record<string, DiagnosticLevel> = {
   zone_parent_conflict: "error",
   zone_cycle: "error",
   src_fetch_failed: "error",
+  timeline_unknown_order_ref: "error",
+  lifecycle_unknown_phase: "error",
+  lifecycle_removed_before_added: "error",
 
   unknown_base_view: "warning",
   unknown_overlay: "warning",
   view_3d_unavailable: "warning",
   hotspot_out_of_bounds: "warning",
   external_transition_without_boundary: "warning",
+  timeline_empty: "warning",
+  timeline_order_duplicate: "warning",
+  timeline_order_incomplete: "warning",
+  timeline_unknown_default: "warning",
+  lifecycle_without_timeline: "warning",
+  lifecycle_edge_endpoint_absent: "warning",
+  lifecycle_zone_member_present: "warning",
+  unknown_lifecycle_state: "warning",
 
   missing_direction: "info",
   inferred_protocol: "info",
@@ -45,6 +56,7 @@ const REGISTRY_LEVELS: Record<string, DiagnosticLevel> = {
   transition_without_trigger: "suggestion",
   unreachable_screen: "suggestion",
   ambiguous_transition: "suggestion",
+  lifecycle_state_while_absent: "suggestion",
 };
 
 function levelFor(diagnostic: Diagnostic): DiagnosticLevel {
