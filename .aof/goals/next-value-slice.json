@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Small interaction polish after the routing hardening: zone/subgraph/abstraction areas still click to collapse/expand when unlocked, but when the expansion lock is enabled those same areas are now valid pan-grab surfaces for the 2D SVG canvas. The pan/zoom guard checks the live archmap-abstraction-locked class before suppressing drags, and locked interactive areas show a grab cursor instead of looking clickable. Verification: npm test -- --run test/interaction.test.ts test/render.test.ts, npx tsc --noEmit, npm run build. Existing untracked reports/ left untouched.",
-  "updated_at": "2026-07-07T09:50:00.000+09:00",
+  "content": "Rendering polish after browser review: shared parallel edge lanes now use a 9px offset instead of the previous 6px spacing, so intentionally parallel lines remain readable without reverting to overlap. Endpoint protection now scales with lane spacing to preserve perpendicular source/target stubs, and a buildEdgePaths regression asserts shared lanes keep at least 9px separation. Verification: npm test -- --run test/edges.test.ts test/render.test.ts, npx tsc --noEmit, npm test, npm run build. Existing untracked reports/ left untouched.",
+  "updated_at": "2026-07-07T10:11:48.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

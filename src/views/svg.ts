@@ -188,7 +188,9 @@ function orthogonalizePoints(points: Array<{ x: number; y: number }>): Array<{ x
   return out;
 }
 
-function parallelOffsets(allSegs: Seg[], spacing = 6): WeakMap<Seg, number> {
+const PARALLEL_EDGE_LANE_SPACING = 9;
+
+function parallelOffsets(allSegs: Seg[], spacing = PARALLEL_EDGE_LANE_SPACING): WeakMap<Seg, number> {
   const result = new WeakMap<Seg, number>();
   const groups = new Map<string, Seg[]>();
   for (const seg of allSegs) {
@@ -260,7 +262,7 @@ function offsetCorner(prev: Seg, next: Seg, prevOffset: number, nextOffset: numb
 
 function offsetPolyline(points: Array<{ x: number; y: number }>, segs: Seg[], offsets: WeakMap<Seg, number>): Array<{ x: number; y: number }> {
   if (segs.length === 0) return points;
-  const protectedStub = 14;
+  const protectedStub = Math.max(18, PARALLEL_EDGE_LANE_SPACING * 2);
   const out: Array<{ x: number; y: number }> = [points[0]];
   const first = segs[0];
   const firstOffset = offsets.get(first) ?? 0;

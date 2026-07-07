@@ -24,6 +24,26 @@ function pathSegments(d: string): Array<{ orient: "h" | "v" | "diag"; len: numbe
   return segs;
 }
 
+function pathPoints(d: string): Array<{ x: number; y: number }> {
+  return [...d.matchAll(/[ML]\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)].map((m) => ({
+    x: Number(m[1]),
+    y: Number(m[2]),
+  }));
+}
+
+function horizontalSegments(d: string): Array<{ x0: number; x1: number; y: number }> {
+  const points = pathPoints(d);
+  const segs: Array<{ x0: number; x1: number; y: number }> = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    if (Math.abs(a.y - b.y) < 0.5 && Math.abs(a.x - b.x) >= 0.5) {
+      segs.push({ x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), y: a.y });
+    }
+  }
+  return segs;
+}
+
 describe("orthogonal routing", () => {
   it("uses at most one bend when endpoints are not aligned on the flow axis", () => {
     // A and B share rank 0 (stacked at different y); both point at C in rank 1.
@@ -199,5 +219,23 @@ describe("crossing jumps (buildEdgePaths)", () => {
     const paths = buildEdgePaths(edges, 7);
     expect(pathSegments(paths.get("a")!)).toHaveLength(2);
     expect(pathSegments(paths.get("b")!)).toHaveLength(2);
+  });
+
+  it("keeps shared parallel edge lanes far enough apart to read", () => {
+    const edges = [
+      { id: "a", points: [{ x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 120 }, { x: 160, y: 120 }] },
+      { id: "b", points: [{ x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 0 }, { x: 160, y: 0 }] },
+      { id: "c", points: [{ x: 0, y: 50 }, { x: 100, y: 50 }, { x: 100, y: 170 }, { x: 160, y: 170 }] },
+    ];
+    const paths = buildEdgePaths(edges, 7);
+    const sharedLanes = [...paths.values()]
+      .flatMap(horizontalSegments)
+      .filter((seg) => seg.x0 <= 20 && seg.x1 >= 90)
+      .map((seg) => seg.y)
+      .sort((a, b) => a - b);
+
+    expect(sharedLanes).toHaveLength(3);
+    expect(sharedLanes[1] - sharedLanes[0]).toBeGreaterThanOrEqual(9);
+    expect(sharedLanes[2] - sharedLanes[1]).toBeGreaterThanOrEqual(9);
   });
 });
