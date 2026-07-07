@@ -571,6 +571,21 @@ export const DEFAULT_STYLE = `
 .archmap-edge-label text { fill: var(--archmap-edge-label, #3a4a63); font: 400 11px var(--archmap-font, system-ui, sans-serif); }
 .archmap-edge-label-bg { fill: var(--archmap-bg, #ffffff); opacity: 0.85; }
 .archmap-faded { opacity: 0.18; }
+.archmap-phase-absent { opacity: var(--archmap-phase-absent-opacity, 0.12); }
+.archmap-phase-absent .archmap-node-shape, .archmap-phase-absent .archmap-node-shape-top, .archmap-phase-absent .archmap-edge-path { stroke-dasharray: 4 4; }
+.archmap-lifecycle-planned .archmap-node-shape, .archmap-lifecycle-planned .archmap-node-shape-top { stroke-dasharray: 5 4; }
+.archmap-lifecycle-planned .archmap-node-shape { fill-opacity: 0.55; }
+.archmap-lifecycle-planned .archmap-edge-path { stroke-dasharray: 5 4; }
+.archmap-lifecycle-deprecated .archmap-node-shape { stroke: var(--archmap-lifecycle-deprecated, #b45309); fill: var(--archmap-lifecycle-deprecated-fill, #fef3c7); }
+.archmap-lifecycle-deprecated .archmap-node-shape-top { stroke: var(--archmap-lifecycle-deprecated, #b45309); }
+.archmap-lifecycle-deprecated .archmap-node-shape-top-fill { fill: var(--archmap-lifecycle-deprecated-fill, #fef3c7); }
+.archmap-lifecycle-deprecated .archmap-edge-path { stroke: var(--archmap-lifecycle-deprecated, #b45309); }
+.archmap-lifecycle-deprecated .archmap-edge-startpoint { fill: var(--archmap-lifecycle-deprecated, #b45309); }
+.archmap-lifecycle-deprecated .archmap-zone-box { stroke: var(--archmap-lifecycle-deprecated, #b45309); }
+.archmap-lifecycle-removing .archmap-node-shape, .archmap-lifecycle-removing .archmap-node-shape-top { stroke: var(--archmap-lifecycle-removing, #b91c1c); stroke-dasharray: 5 4; }
+.archmap-lifecycle-removing .archmap-edge-path { stroke: var(--archmap-lifecycle-removing, #b91c1c); stroke-dasharray: 5 4; }
+.archmap-lifecycle-removing .archmap-edge-startpoint { fill: var(--archmap-lifecycle-removing, #b91c1c); }
+.archmap-lifecycle-removing .archmap-zone-box { stroke: var(--archmap-lifecycle-removing, #b91c1c); }
 .archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(247,240,220,0.48)); stroke: var(--archmap-boundary-stroke, #c0a044); stroke-width: 1.8; }
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-selected .archmap-node-shape, .archmap-selected .archmap-node-shape-top { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }

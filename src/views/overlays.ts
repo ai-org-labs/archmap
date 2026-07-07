@@ -1,8 +1,15 @@
 import type { LayoutResult } from "../layout.js";
 import type { ArchMapModel, BoundaryCrossing, Diagnostic, GraphSubgraph, Permission } from "../types.js";
 import type { Box } from "./base.js";
+import { computePhasePresence, presenceInterval, timelinePhaseIndex } from "../time-projection.js";
 
-export const OVERLAY_NAMES = new Set(["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation"]);
+export const OVERLAY_NAMES = new Set(["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation", "timeline"]);
+
+/** Extra context for overlays that depend on render state (v0.2 timeline). */
+export interface OverlayContext {
+  /** Active timeline phase id, when the render has one. */
+  phase?: string;
+}
 
 export interface OverlayEdgeBadge {
   kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary";
@@ -50,6 +57,7 @@ const BADGE_PRIORITY = {
   auth: 30,
   permission: 40,
   validation: 50,
+  timeline: 60,
 } as const;
 
 function setBadge(
@@ -166,7 +174,7 @@ function subgraphBoxes(model: ArchMapModel, layout: LayoutResult): Box[] {
     .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0));
 }
 
-export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult, overlays: string[]): OverlayProjection {
+export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult, overlays: string[], context?: OverlayContext): OverlayProjection {
   const active = overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
   const nodes = new Set<string>();
   const edges = new Set<string>();
@@ -403,6 +411,46 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
         setBadge(badges, badgePriorities, id, badgePayload(`validation:${level}:`, label, title), BADGE_PRIORITY.validation);
       } else if (type === "edge") {
         edgeBadges.set(id, [{ kind: "validation-summary", label, title, level }]);
+      }
+    }
+  }
+
+  // Timeline overlay (v0.2 4D): the "what changes at this phase" lens. It
+  // emphasizes elements whose presence or state changes at the active phase
+  // and badges lifecycle transitions. Ghost/state classes themselves are not
+  // gated on this overlay — they apply whenever a phase is active.
+  if (active.includes("timeline") && context?.phase && model.timeline) {
+    const presence = computePhasePresence(model, context.phase);
+    if (presence) {
+      const phaseIndex = timelinePhaseIndex(model.timeline);
+      const idx = presence.phaseIndex;
+      const phases = model.timeline.phases;
+      const phaseName = (index: number): string => phases[index]?.label ?? phases[index]?.id ?? "";
+      const lifecycleTitle = (lifecycle: { added?: string; removed?: string }): string => {
+        const parts: string[] = [];
+        if (lifecycle.added) parts.push(`added: ${lifecycle.added}`);
+        if (lifecycle.removed) parts.push(`removed: ${lifecycle.removed}`);
+        return parts.join(" / ");
+      };
+      for (const node of model.nodes) {
+        if (!node.lifecycle) continue;
+        const interval = presenceInterval(node.lifecycle, phaseIndex);
+        const labels: string[] = [];
+        if (interval.addedIndex === idx && interval.addedIndex > 0) labels.push(`+ ${phaseName(idx)}`);
+        if (Number.isFinite(interval.removedIndex) && interval.removedIndex === idx + 1) labels.push(`- ${phaseName(interval.removedIndex)}`);
+        const state = presence.nodeStates.get(node.id);
+        if (state) labels.push(state);
+        if (labels.length === 0) continue;
+        nodes.add(node.id);
+        setBadge(badges, badgePriorities, node.id, badgePayload("", labels.join(" · "), lifecycleTitle(node.lifecycle)), BADGE_PRIORITY.timeline);
+      }
+      for (const edge of model.edges) {
+        if (!edge.lifecycle) continue;
+        const interval = presenceInterval(edge.lifecycle, phaseIndex);
+        const changesNow = (interval.addedIndex === idx && interval.addedIndex > 0) ||
+          (Number.isFinite(interval.removedIndex) && interval.removedIndex === idx + 1) ||
+          presence.edgeStates.has(edge.id);
+        if (changesNow && !presence.absentEdges.has(edge.id)) edges.add(edge.id);
       }
     }
   }

@@ -25,6 +25,9 @@ import { renderDiagram } from "./views/base.js";
 import type { Box } from "./views/base.js";
 import { escapeXml } from "./views/svg.js";
 import { buildOverlayProjection, OVERLAY_NAMES } from "./views/overlays.js";
+import { buildTimeDecoration, computePhasePresence, listTimelinePhases, resolvePhaseId } from "./time-projection.js";
+import type { PhasePresence } from "./time-projection.js";
+import type { TimelinePhase } from "./types.js";
 import { overviewZoneColorStyles } from "./views/zone-colors.js";
 import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
 import type { PanZoomHandle } from "./views/interaction.js";
@@ -105,6 +108,8 @@ export interface RenderOptions {
   scenario?: string;
   /** Prototype View hotspot visibility. */
   showHotspots?: boolean;
+  /** Timeline phase to display (v0.2 4D). Defaults to the timeline default. */
+  phase?: string;
   /** Report diagnostics to the console (spec 02 §23). Default: off for the
    * programmatic API; engines (viewer/initialize) default it on. */
   console?: boolean | ConsoleReportOptions;
@@ -147,6 +152,12 @@ export interface RenderResult {
   addOverlay(overlay: string): void;
   removeOverlay(overlay: string): void;
   toggleOverlay(overlay: string): void;
+  /** Switch the active timeline phase (null restores the default). No-op without a timeline. */
+  setPhase(id: string | null): void;
+  /** Active timeline phase id, or null when the model has no timeline. */
+  getPhase(): string | null;
+  /** Ordered timeline phases ([] without a timeline). */
+  listPhases(): TimelinePhase[];
   fit(): void;
   reset(): void;
   exportPng(options?: ExportPngOptions): Promise<Blob>;
@@ -574,9 +585,12 @@ function metadataOverlays(model: ArchMapModel): string[] {
   return typeof value === "object" ? value.overlays ?? [] : [];
 }
 
-function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[]): string | undefined {
-  if (overlays.length === 0 || (view !== "overview" && view !== "zone" && view !== "layer")) return undefined;
-  const projection = buildOverlayProjection(model, layout, overlays);
+function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[], presence?: PhasePresence): string | undefined {
+  // An active timeline phase routes zero-overlay renders through this shared
+  // path too, so time decoration lands in the same renderDiagram spec.
+  if ((overlays.length === 0 && !presence) || (view !== "overview" && view !== "zone" && view !== "layer")) return undefined;
+  const projection = buildOverlayProjection(model, layout, overlays, presence ? { phase: presence.phaseId } : undefined);
+  const timeDecoration = presence ? buildTimeDecoration(presence) : undefined;
   const collapsedZoneIds = new Set(model.nodes
     .filter((node) => node.abstraction?.target === "zone")
     .map((node) => node.abstraction!.id));
@@ -627,7 +641,22 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     edgeBadges: projection.edgeBadges,
     overlayEdges: projection.overlayEdges,
     nodeIcons: resolveNodeIcons(model),
+    nodeExtraClasses: timeDecoration?.nodeExtraClasses,
+    edgeExtraClasses: timeDecoration?.edgeExtraClasses,
+    boxExtraClasses: timeDecoration?.boxExtraClasses,
     ...(zoneStyles ?? {}),
+  });
+}
+
+/** Stamp the active timeline phase onto the SVG root for host CSS/tooling. */
+function decorateSvgWithPhase(svg: string, phaseId: string | undefined): string {
+  if (!phaseId) return svg;
+  const safe = phaseId.replace(/[^a-z0-9_-]/gi, "-");
+  return svg.replace(/^<svg\b([^>]*)>/, (_match, attrs: string) => {
+    const withClasses = attrs.includes('class="')
+      ? attrs.replace(/class="([^"]*)"/, `class="$1 archmap-phase-${safe}"`)
+      : `${attrs} class="archmap-phase-${safe}"`;
+    return `<svg${withClasses} data-phase="${escapeXml(phaseId)}">`;
   });
 }
 
@@ -653,6 +682,8 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     expandedAbstractions: new Set(options.expandedAbstractions ?? []),
     collapsedAbstractions: new Set(options.collapsedAbstractions ?? []),
     abstractionLocked: options.abstractionLocked === true,
+    // Undefined without a timeline: the render then behaves exactly as v0.1.
+    phase: resolvePhaseId(model, options.phase),
   };
   let panZoom: PanZoomHandle | undefined;
   let preservePanZoomOnNextRender = false;
@@ -704,8 +735,13 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
     const layout = layoutNow(effectiveModel);
     const layoutDone = nowMs();
-    const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget };
-    const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays);
+    // Time projection is decoration-only and computed AFTER cache resolution:
+    // the phase must never enter projectionKeyNow() or the layout key, so
+    // phase switches reuse both cached artifacts. (A future absent="hidden"
+    // mode would have to join the projection key instead.)
+    const presence = state.phase ? computePhasePresence(effectiveModel, state.phase) : undefined;
+    const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget, phase: state.phase };
+    const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays, presence);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
     const viewDone = nowMs();
     const finishTimings = (): void => {
@@ -722,7 +758,11 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
 
     if (typeof out === "string") {
       const svg = decorateSvgWithAbstractionLock(
-        decorateSvgWithSelection(decorateSvgWithOverlays(out, knownOverlays), effectiveModel, options.selection),
+        decorateSvgWithSelection(
+          decorateSvgWithPhase(decorateSvgWithOverlays(out, knownOverlays), state.view === "prototype" ? undefined : state.phase),
+          effectiveModel,
+          options.selection,
+        ),
         state.abstractionLocked,
       );
       syncDiagnostics(effectiveModel);
@@ -850,6 +890,19 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
         : [...state.overlays, overlay];
       preservePanZoomOnNextRender = true;
       apply(snapshot());
+    },
+    setPhase(id: string | null) {
+      const next = resolvePhaseId(model, id);
+      if (next === undefined || next === state.phase) return; // no timeline / no change
+      state.phase = next;
+      preservePanZoomOnNextRender = true;
+      apply(snapshot());
+    },
+    getPhase() {
+      return state.phase ?? null;
+    },
+    listPhases() {
+      return listTimelinePhases(model).map((phase) => ({ ...phase }));
     },
     fit() {
       panZoom?.fit();

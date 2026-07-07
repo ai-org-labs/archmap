@@ -19,6 +19,13 @@ export type {
   LayoutTimings,
 } from "./layout.js";
 export { computeLayout, getLastLayoutTimings } from "./layout.js";
+export {
+  buildTimeDecoration,
+  computePhasePresence,
+  listTimelinePhases,
+  resolvePhaseId,
+} from "./time-projection.js";
+export type { PhasePresence, PresenceInterval, TimeDecoration } from "./time-projection.js";
 export { parse } from "./parser-entry.js";
 export { toCanonicalModel } from "./canonical.js";
 export {

@@ -62,6 +62,12 @@ export interface DiagramSpec {
   edgeStyles?: Map<string, string>;
   /** Optional inline CSS variables scoped to rendered area box groups. */
   boxStyles?: Map<string, string>;
+  /** Extra per-node classes (e.g. timeline ghost/state decoration). */
+  nodeExtraClasses?: Map<string, string>;
+  /** Extra per-edge classes (e.g. timeline ghost/state decoration). */
+  edgeExtraClasses?: Map<string, string>;
+  /** Extra per-box classes keyed by box id (e.g. timeline ghost decoration). */
+  boxExtraClasses?: Map<string, string>;
 }
 
 const BOX_GROUP_DEPTH_ORDER = new Map([
@@ -516,6 +522,9 @@ export function renderDiagram(spec: DiagramSpec): string {
     nodeStyles,
     edgeStyles,
     boxStyles,
+    nodeExtraClasses,
+    edgeExtraClasses,
+    boxExtraClasses,
   } = spec;
   const boxGroups = orderedBoxGroups(spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []));
   const boxExtent = boxGroups.flatMap((group) => group.boxes.map((box) => ({ x: box.x + box.w, y: box.y + box.h })));
@@ -549,8 +558,9 @@ export function renderDiagram(spec: DiagramSpec): string {
           const depth = Math.max(0, Math.min(9, Math.floor(b.depth ?? 0)));
           const style = boxStyles?.get(b.id);
           const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
+          const extraClass = boxExtraClasses?.get(b.id);
           return (
-            `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}" data-id="${escapeXml(b.id)}" data-depth="${depth}"${styleAttr}>` +
+            `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}${extraClass ? ` ${extraClass}` : ""}" data-id="${escapeXml(b.id)}" data-depth="${depth}"${styleAttr}>` +
             `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14" ry="14" />` +
             `<text class="${resolvedLabelClass}" x="${placedLabel.x}" y="${placedLabel.y}">${escapeXml(label)}</text>` +
             `</g>`
@@ -569,7 +579,8 @@ export function renderDiagram(spec: DiagramSpec): string {
   const edgesSvg = layout.edges
     .map((e) => {
       const emph = emphasizeEdges?.has(e.id) ?? false;
-      const cls = `archmap-edge${channelClass(e.id, emphasizeEdges)}`;
+      const edgeExtra = edgeExtraClasses?.get(e.id);
+      const cls = `archmap-edge${channelClass(e.id, emphasizeEdges)}${edgeExtra ? ` ${edgeExtra}` : ""}`;
       const style = edgeStyles?.get(e.id);
       const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
       const visual = edgeVisuals.get(e.id);
@@ -590,7 +601,10 @@ export function renderDiagram(spec: DiagramSpec): string {
   const nodesSvg = layout.nodes
     .map((n) => {
       const nodeIcon = nodeIcons?.get(n.id);
-      const node = nodeSvg(n, channelClass(n.id, emphasizeNodes).trim(), nodeIcon, nodeStyles?.get(n.id));
+      const extraClass = [channelClass(n.id, emphasizeNodes).trim(), nodeExtraClasses?.get(n.id)]
+        .filter(Boolean)
+        .join(" ");
+      const node = nodeSvg(n, extraClass, nodeIcon, nodeStyles?.get(n.id));
       const badge = nodeBadges?.get(n.id);
       return badge ? node + nodeBadgeSvg(n, badge) : node;
     })
