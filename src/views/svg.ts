@@ -22,18 +22,26 @@ function centeredLabel(n: LayoutNode, cls = "archmap-node-label", yOffset = 0): 
   return `<text class="${cls}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(n.label)}</text>`;
 }
 
+const NODE_ICON_SIZE = 32;
+const NODE_ICON_LABEL_GAP = 14;
+const NODE_ICON_TEXT_CHAR_W = 6.5;
+
 function leadingIconLabel(n: LayoutNode, cls = "archmap-node-label"): string {
-  const cx = n.x + n.w / 2;
+  const estimatedLabelWidth = Math.max(NODE_ICON_TEXT_CHAR_W, n.label.length * NODE_ICON_TEXT_CHAR_W);
+  const groupWidth = NODE_ICON_SIZE + NODE_ICON_LABEL_GAP + estimatedLabelWidth;
+  const groupX = n.x + Math.max(10, (n.w - groupWidth) / 2);
+  const labelX = groupX + NODE_ICON_SIZE + NODE_ICON_LABEL_GAP;
   const cy = n.y + n.h / 2;
-  return `<text class="${cls}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(n.label)}</text>`;
+  return `<text class="${cls}" x="${labelX.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="start" dominant-baseline="central">${escapeXml(n.label)}</text>`;
 }
 
-/** A small vendor/provider icon badge in the node's top-left corner. */
+/** A small vendor/provider icon aligned with the node label row. */
 function iconBadgeSvg(n: LayoutNode, iconKey: string): string {
-  const size = 32;
-  const x = n.x + 8;
-  const y = n.y + 8;
-  return `<use class="archmap-node-icon" href="#${iconDomId(iconKey)}" x="${x}" y="${y}" width="${size}" height="${size}" />`;
+  const estimatedLabelWidth = Math.max(NODE_ICON_TEXT_CHAR_W, n.label.length * NODE_ICON_TEXT_CHAR_W);
+  const groupWidth = NODE_ICON_SIZE + NODE_ICON_LABEL_GAP + estimatedLabelWidth;
+  const x = n.x + Math.max(10, (n.w - groupWidth) / 2);
+  const y = n.y + n.h / 2 - NODE_ICON_SIZE / 2;
+  return `<use class="archmap-node-icon" href="#${iconDomId(iconKey)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${NODE_ICON_SIZE}" height="${NODE_ICON_SIZE}" />`;
 }
 
 function abstractionIconsSvg(n: LayoutNode, icons: ResolvedIcon[]): string {

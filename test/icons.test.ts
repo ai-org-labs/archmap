@@ -58,10 +58,13 @@ describe("icons in rendering", () => {
     const nodeMatch = svg!.match(/data-id="A"[^>]*data-x="([0-9.]+)" data-y="([0-9.]+)" data-w="([0-9.]+)" data-h="([0-9.]+)"/);
     expect(Number(nodeMatch?.[3])).toBeGreaterThan(90);
     expect(Number(nodeMatch?.[3])).toBeLessThan(120);
-    const iconMatch = svg!.match(/href="#archmap-icon-gcp" x="([0-9.]+)"[^>]*width="32"/);
-    const labelMatch = svg!.match(/<text class="archmap-node-label" x="([0-9.]+)"[^>]*>a<\/text>/);
-    expect(Number(labelMatch?.[1])).toBeGreaterThan(Number(iconMatch?.[1]) + 40);
-    expect(Number(labelMatch?.[1])).toBeCloseTo(Number(nodeMatch?.[1]) + Number(nodeMatch?.[3]) / 2, 1);
+    const iconMatch = svg!.match(/href="#archmap-icon-gcp" x="([0-9.]+)" y="([0-9.]+)" width="32"/);
+    const labelMatch = svg!.match(/<text class="archmap-node-label" x="([0-9.]+)" y="([0-9.]+)"[^>]*>a<\/text>/);
+    const nodeY = Number(nodeMatch?.[2]);
+    const nodeH = Number(nodeMatch?.[4]);
+    expect(Number(labelMatch?.[1])).toBeGreaterThan(Number(iconMatch?.[1]) + 44);
+    expect(Number(iconMatch?.[2]) + 16).toBeCloseTo(nodeY + nodeH / 2, 1);
+    expect(Number(labelMatch?.[2])).toBeCloseTo(nodeY + nodeH / 2, 1);
   });
 
   it("renders every available member icon inside a collapsed abstraction node", () => {

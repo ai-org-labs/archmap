@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Rendering polish after browser review: component boxes no longer reserve excessive horizontal whitespace. Layout now uses a 56px minimum node width, tighter label measurement/padding, and only reserves icon-side width for provider-backed nodes instead of every kind-only component. Provider icon nodes still keep enough room to avoid icon/label collision, while short kind-only components such as User and Document Tabs become compact. Verification: npm test -- --run test/layout.test.ts test/render.test.ts test/edges.test.ts, npx tsc --noEmit, npm test, npm run build. Existing untracked reports/ left untouched.",
-  "updated_at": "2026-07-07T10:23:43.000+09:00",
+  "content": "Rendering polish after browser review: single-icon provider nodes now render icon + label as one horizontally spaced row, with both vertically centered on the node. The icon is no longer pinned to the top-left corner, and the label starts after a fixed icon/label gap to avoid overlap in compact components such as Ops Monitor. Verification: npm test -- --run test/icons.test.ts test/render.test.ts, npx tsc --noEmit, npm test, npm run build. Existing untracked reports/ left untouched.",
+  "updated_at": "2026-07-07T11:00:13.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
