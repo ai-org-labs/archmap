@@ -66,6 +66,10 @@ clearly marked assumption.
 - Boundaries: trust, network, organization, cloud account/project, SaaS, on-prem.
 - Permissions: principal, action, resource, role.
 - ScreenFlow: screens, images, hotspots, triggers, scenarios, error paths.
+- Evolution (4D): migration/rollout phases, which components appear or retire
+  when, deprecated/planned states — model with `timeline:` phases plus
+  per-element `lifecycle: { added, removed, states }` (see
+  `docs/specs/v0.2/06-timeline-4d.md`).
 - Unknowns: keep them visible as `TODO` descriptions or assumptions instead of
   inventing secret names, exact IAM roles, endpoints, or compliance status.
 

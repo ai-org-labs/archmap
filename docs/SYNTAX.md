@@ -111,7 +111,8 @@ unmatched graph edges get a generated id `from_to`.
 ## 2. Metadata section (YAML)
 
 Top-level keys parsed today: `title`, `description`, `nodes`, `edges`, `zones`,
-`boundaries`, `identities`, `permissions`, `data`, `layout`, `view`.
+`boundaries`, `identities`, `permissions`, `data`, `scenarios`, `timeline`,
+`layout`, `view`.
 
 ### 2.1 `nodes`
 ```yaml
@@ -382,6 +383,7 @@ open/close clicks when a read-only view is desired.
 | `dataflow` | data-related components/connectors and data/classification labels |
 | `permission` | permission-related components/connectors and role/action labels or summaries |
 | `validation` | components/connectors referenced by diagnostics, with error/warning labels |
+| `timeline` overlay | elements whose presence/state changes at the active phase, with lifecycle badges (`+ phase`, `- phase`, state names); ghost/state styling applies whenever a phase is active, overlay or not |
 | `prototype` | ScreenFlow current screen, transitions, hotspots, scenario playback, and overlay summaries |
 | `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
 
@@ -443,7 +445,8 @@ await live.close();
   Supported first-pass attributes: `base-view`, `overlays`,
   `abstraction-level`, `abstraction-target`, `width`, `height`, `src`,
   `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`,
-  `controls`, `scenario`, and `show-hotspots`.
+  `controls`, `scenario`, `show-hotspots`, and `phase` (timeline phase;
+  removing the attribute restores the timeline default).
 - **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows
   tag-style controls (View radio buttons, Render mode radio buttons, Add info
   checkboxes, fit/reset, PNG export, full screen, abstraction lock, diagnostics
@@ -649,15 +652,15 @@ result.goToScreen?.("Cart");
 ### 6.4 CDN / GitHub Pages viewer
 
 For a static viewer page, use an import map. After npm publication, replace
-`0.1.2` with the published version you want to pin:
+`0.2.0` with the published version you want to pin:
 
 ```html
 <script type="importmap">
 {
   "imports": {
-    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.2/dist/archmap.js",
-    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.2/dist/controls/diagram-tags.js",
-    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.1.2/dist/views3d/three-view.js",
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/archmap.js",
+    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/controls/diagram-tags.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/views3d/three-view.js",
     "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
     "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
