@@ -12,6 +12,7 @@ const sampleFiles = [
   "05-android-inter-app-collaboration.archmap",
   "06-android-framework-driver-bt-devices.archmap",
   "07-migration-timeline.archmap",
+  "08-strangler-microservices.archmap",
 ] as const;
 
 const allowedWarningCodes = new Set(["zone_crossing_marked_false"]);

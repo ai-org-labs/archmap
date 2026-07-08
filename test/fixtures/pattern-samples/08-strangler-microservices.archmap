@@ -1,0 +1,197 @@
+graph LR
+  Web[Web App] --> LB[Load Balancer]
+  LB --> Monolith[Monolith]
+  LB --> Facade[API Gateway]
+  Facade --> Monolith
+  Facade --> OrdersSvc[Orders Service]
+  Facade --> PaySvc[Payments Service]
+  Monolith --> MonoDB[(Monolith DB)]
+  OrdersSvc --> OrdersDB[(Orders DB)]
+  PaySvc --> PayDB[(Payments DB)]
+  OrdersSvc --> EventBus[Order Events]
+  PaySvc --> EventBus
+  SyncWorker[Dual-write Sync] --> MonoDB
+  SyncWorker --> OrdersDB
+  SyncWorker --> PayDB
+  Monolith --> Monitor[Ops Monitor]
+  OrdersSvc --> Monitor
+  PaySvc --> Monitor
+---
+title: "Strangler-fig microservices migration"
+description: "Monolith to microservices over six phases: facade first, per-domain extraction with planned states, a transient dual-write sync worker, deprecation, cutover, and retirement."
+nodes:
+  Web:
+    zone: client
+    layer: client
+    kind: web_app
+  LB:
+    zone: edge
+    layer: edge
+    kind: load_balancer
+  Facade:
+    zone: edge
+    layer: edge
+    kind: api_gateway
+    lifecycle: { added: facade, states: { facade: planned, orders: active } }
+  Monolith:
+    zone: legacy
+    layer: runtime
+    kind: runtime_service
+    principal: monolith-sa
+    lifecycle: { removed: retire, states: { payments: deprecated, cutover: removing } }
+  MonoDB:
+    zone: legacy
+    layer: data
+    kind: legacy_database
+    lifecycle: { removed: retire, states: { cutover: deprecated } }
+  OrdersSvc:
+    zone: platform
+    layer: runtime
+    kind: container_service
+    provider: gcp
+    principal: orders-sa
+    lifecycle: { added: orders, states: { orders: planned, payments: active } }
+  OrdersDB:
+    zone: platform
+    layer: data
+    kind: relational_database
+    provider: gcp
+    lifecycle: { added: orders, states: { orders: planned, payments: active } }
+  PaySvc:
+    zone: platform
+    layer: runtime
+    kind: container_service
+    provider: gcp
+    principal: pay-sa
+    lifecycle: { added: payments, states: { payments: planned, cutover: active } }
+  PayDB:
+    zone: platform
+    layer: data
+    kind: relational_database
+    provider: gcp
+    lifecycle: { added: payments, states: { payments: planned, cutover: active } }
+  EventBus:
+    zone: platform
+    layer: messaging
+    kind: queue
+    provider: gcp
+    lifecycle: { added: payments }
+  SyncWorker:
+    zone: platform
+    layer: runtime
+    kind: batch_job
+    provider: gcp
+    principal: sync-sa
+    description: "Transient dual-write worker; exists only while legacy and platform overlap."
+    lifecycle: { added: orders, removed: retire, states: { cutover: removing } }
+  Monitor:
+    zone: ops
+    layer: operations
+    kind: monitoring
+    provider: datadog
+edges:
+  Web->LB:
+    flow: request
+    boundaryCrossing: true
+  LB->Monolith:
+    flow: request
+    boundaryCrossing: true
+    description: "Direct legacy routing ends at cutover, before the monolith itself retires."
+    lifecycle: { removed: cutover }
+  LB->Facade:
+    flow: request
+  Facade->Monolith:
+    flow: request
+    boundaryCrossing: true
+    description: "Strangler passthrough for not-yet-extracted domains."
+    lifecycle: { removed: retire }
+  Facade->OrdersSvc:
+    flow: request
+    boundaryCrossing: true
+  Facade->PaySvc:
+    flow: request
+    boundaryCrossing: true
+  Monolith->MonoDB:
+    flow: data_access
+    principal: monolith-sa
+  OrdersSvc->OrdersDB:
+    flow: data_access
+    principal: orders-sa
+  PaySvc->PayDB:
+    flow: data_access
+    principal: pay-sa
+  OrdersSvc->EventBus:
+    flow: event_publish
+  PaySvc->EventBus:
+    flow: event_subscribe
+  SyncWorker->MonoDB:
+    flow: data_read
+    principal: sync-sa
+    boundaryCrossing: true
+    lifecycle: { removed: cutover }
+  SyncWorker->OrdersDB:
+    flow: sync
+    lifecycle: { removed: cutover }
+  SyncWorker->PayDB:
+    flow: sync
+    lifecycle: { removed: cutover }
+  Monolith->Monitor:
+    flow: telemetry_export
+    boundaryCrossing: true
+    data: ops_event
+  OrdersSvc->Monitor:
+    flow: telemetry_export
+    boundaryCrossing: true
+    data: ops_event
+  PaySvc->Monitor:
+    flow: telemetry_export
+    boundaryCrossing: true
+    data: ops_event
+identities:
+  monolith-sa: { kind: service_account, attachedTo: Monolith }
+  orders-sa: { kind: service_account, provider: gcp, attachedTo: OrdersSvc }
+  pay-sa: { kind: service_account, provider: gcp, attachedTo: PaySvc }
+  sync-sa: { kind: service_account, provider: gcp, attachedTo: SyncWorker }
+data:
+  ops_event:
+    label: Operational Event
+    classification: internal
+    storage: transient
+    flows: [Monolith->Monitor, OrdersSvc->Monitor, PaySvc->Monitor]
+zones:
+  client:
+    label: Client
+    kind: client
+    contains: [Web]
+  edge:
+    label: Edge
+    kind: network
+    contains: [LB, Facade]
+  legacy:
+    label: Legacy (on-prem)
+    kind: onprem
+    contains: [Monolith, MonoDB]
+    lifecycle: { removed: retire }
+  platform:
+    label: Cloud Platform
+    kind: cloud
+    contains: [OrdersSvc, OrdersDB, PaySvc, PayDB, EventBus, SyncWorker]
+    lifecycle: { added: orders }
+  ops:
+    label: Operations
+    kind: operations
+    contains: [Monitor]
+timeline:
+  label: Strangler migration
+  phases:
+    baseline: { label: "Monolith baseline" }
+    facade: { label: "Facade in front", at: "2026-Q1" }
+    orders: { label: "Extract Orders", at: "2026-Q2" }
+    payments: { label: "Extract Payments", at: "2026-Q3" }
+    cutover: { label: "Traffic cutover", at: "2026-Q4" }
+    retire: { label: "Monolith retired", at: "2027-Q1" }
+  default: baseline
+view:
+  default:
+    base: overview
+    overlays: [zone, timeline]

@@ -12,6 +12,7 @@ const samples = [
   "05-android-inter-app-collaboration.archmap",
   "06-android-framework-driver-bt-devices.archmap",
   "07-migration-timeline.archmap",
+  "08-strangler-microservices.archmap",
 ];
 
 const baseViews = ["overview", "layer"];

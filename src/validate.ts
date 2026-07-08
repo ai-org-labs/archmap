@@ -323,6 +323,8 @@ export function validate(model: ArchMapModel): ArchMapModel {
 
       // Declared edge lifecycles must stay within the interval where both
       // endpoints exist (rendering clamps; validation surfaces the intent gap).
+      // Only explicitly declared sides count: an omitted `added`/`removed`
+      // inherits the endpoint-derived bound and is never an authoring error.
       const nodeLifecycle = new Map(model.nodes.map((n) => [n.id, n.lifecycle]));
       for (const e of model.edges) {
         if (!e.lifecycle) continue;
@@ -332,7 +334,9 @@ export function validate(model: ArchMapModel): ArchMapModel {
           presenceInterval(nodeLifecycle.get(e.from), phaseIndex),
           presenceInterval(nodeLifecycle.get(e.to), phaseIndex),
         );
-        if (declared.addedIndex < derived.addedIndex || declared.removedIndex > derived.removedIndex) {
+        const addedTooEarly = e.lifecycle.added !== undefined && declared.addedIndex < derived.addedIndex;
+        const removedTooLate = e.lifecycle.removed !== undefined && declared.removedIndex > derived.removedIndex;
+        if (addedTooEarly || removedTooLate) {
           warnings.push(diagnostic("lifecycle_edge_endpoint_absent", `Edge "${e.id}" is declared present while an endpoint is absent; its presence is clamped to the endpoints.`, { type: "edge", id: e.id }));
         }
       }

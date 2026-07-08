@@ -19,6 +19,7 @@ The samples follow the current ArchMap authoring shape:
 | `05-android-inter-app-collaboration.archmap` | Android inter-app | Intent, deep link, content provider, bound service, Binder IPC, permission mediation. |
 | `06-android-framework-driver-bt-devices.archmap` | Android framework + driver + Bluetooth | App → framework → system service → HAL → kernel driver → controller → wireless link → peer device. |
 | `07-migration-timeline.archmap` | Cloud migration timeline (4D) | On-prem → cloud evolution across four phases: `timeline:`, per-element `lifecycle:` (added/removed/states), edge/zone lifecycles. |
+| `08-strangler-microservices.archmap` | Strangler-fig microservices (4D) | Six-phase monolith decomposition: facade, per-domain extraction, transient dual-write sync worker, explicit edge lifecycles that end before their endpoints (traffic cutover), deprecation → removing → retired. |
 
 ## Intended rendering checks
 

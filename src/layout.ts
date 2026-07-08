@@ -1698,6 +1698,14 @@ function routeEdges(
       : (horizontal ? point.y : point.x);
   };
   type RoutedEndpoint = { edge: LayoutEdge; pointIndex: number; adjacentIndex: number; nodeId: string; face: Face; sortKey: number };
+  // Polylines get re-simplified between endpoint passes, so indices recorded
+  // at entry-build time can go stale for the edge's other end. Resolve them
+  // against the current points array at use time (pointIndex 0 = source end,
+  // anything else = target end).
+  const liveEndpointIndices = (entry: RoutedEndpoint): { pointIndex: number; adjacentIndex: number } =>
+    entry.pointIndex === 0
+      ? { pointIndex: 0, adjacentIndex: 1 }
+      : { pointIndex: entry.edge.points.length - 1, adjacentIndex: entry.edge.points.length - 2 };
   const endpointEntries: RoutedEndpoint[] = [];
   for (const item of routedPlans) {
     const points = item.edge.points;
@@ -1749,7 +1757,9 @@ function routeEdges(
     if (underflow > 0) positions = positions.map((pos) => pos + underflow);
     group.forEach((entry, index) => {
       const original = entry.edge.points.map((point) => ({ ...point }));
-      const originalEndpoint = original[entry.pointIndex];
+      if (original.length < 2) return;
+      const { pointIndex, adjacentIndex } = liveEndpointIndices(entry);
+      const originalEndpoint = original[pointIndex];
       const originalAxis = varyFlow
         ? (horizontal ? originalEndpoint.x : originalEndpoint.y)
         : (horizontal ? originalEndpoint.y : originalEndpoint.x);
@@ -1777,9 +1787,9 @@ function routeEdges(
         };
         projectEnd(end);
         const nextPoint = toXY(end.flow, end.cross, horizontal);
-        const adjacent = entry.edge.points[entry.adjacentIndex];
-        const previousEndpoint = entry.edge.points[entry.pointIndex];
-        entry.edge.points[entry.pointIndex] = nextPoint;
+        const adjacent = entry.edge.points[adjacentIndex];
+        const previousEndpoint = entry.edge.points[pointIndex];
+        entry.edge.points[pointIndex] = nextPoint;
         if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
         if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
         const simplified = simplifyPolyline(entry.edge.points);
@@ -1808,9 +1818,11 @@ function routeEdges(
     };
     projectEnd(end);
     const nextPoint = toXY(end.flow, end.cross, horizontal);
-    const adjacent = entry.edge.points[entry.adjacentIndex];
-    const previousEndpoint = entry.edge.points[entry.pointIndex];
-    entry.edge.points[entry.pointIndex] = nextPoint;
+    if (entry.edge.points.length < 2) return false;
+    const { pointIndex, adjacentIndex } = liveEndpointIndices(entry);
+    const adjacent = entry.edge.points[adjacentIndex];
+    const previousEndpoint = entry.edge.points[pointIndex];
+    entry.edge.points[pointIndex] = nextPoint;
     if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
     if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
     const simplified = simplifyPolyline(entry.edge.points);
@@ -1830,8 +1842,9 @@ function routeEdges(
     return Math.abs(point.y - (node.y + node.h)) < 0.5;
   };
   for (const entry of endpointEntries) {
-    const point = entry.edge.points[entry.pointIndex];
-    const adjacent = entry.edge.points[entry.adjacentIndex];
+    const live = liveEndpointIndices(entry);
+    const point = entry.edge.points[live.pointIndex];
+    const adjacent = entry.edge.points[live.adjacentIndex];
     if (!point || !adjacent) continue;
     const face = inferFaceFromPoint(entry.nodeId, point, adjacent);
     if (endpointIsOnFace(entry.nodeId, point, face)) continue;
@@ -1840,8 +1853,9 @@ function routeEdges(
   }
   const exactEndpointGroups = new Map<string, RoutedEndpoint[]>();
   for (const entry of endpointEntries) {
-    const point = entry.edge.points[entry.pointIndex];
-    const adjacent = entry.edge.points[entry.adjacentIndex];
+    const live = liveEndpointIndices(entry);
+    const point = entry.edge.points[live.pointIndex];
+    const adjacent = entry.edge.points[live.adjacentIndex];
     if (!point || !adjacent) continue;
     const face = inferFaceFromPoint(entry.nodeId, point, adjacent);
     const key = `${entry.nodeId}|${face}|${Math.round(point.x * 2) / 2}|${Math.round(point.y * 2) / 2}`;
@@ -2122,9 +2136,11 @@ function routeEdges(
     const x = side === "left" ? node.x : side === "right" ? node.x + node.w : Math.min(node.x + node.w - FACE_INSET, Math.max(node.x + FACE_INSET, axisValue));
     const y = side === "top" ? node.y : side === "bottom" ? node.y + node.h : Math.min(node.y + node.h - FACE_INSET, Math.max(node.y + FACE_INSET, axisValue));
     const nextPoint = boundaryPoint(node, side, { x, y });
-    const adjacent = entry.edge.points[entry.adjacentIndex];
-    const previousEndpoint = entry.edge.points[entry.pointIndex];
-    entry.edge.points[entry.pointIndex] = nextPoint;
+    if (entry.edge.points.length < 2) return;
+    const { pointIndex, adjacentIndex } = liveEndpointIndices(entry);
+    const adjacent = entry.edge.points[adjacentIndex];
+    const previousEndpoint = entry.edge.points[pointIndex];
+    entry.edge.points[pointIndex] = nextPoint;
     if (Math.abs(adjacent.x - previousEndpoint.x) < 0.5) adjacent.x = nextPoint.x;
     if (Math.abs(adjacent.y - previousEndpoint.y) < 0.5) adjacent.y = nextPoint.y;
     entry.edge.points = simplifyPolyline(entry.edge.points);
@@ -2154,7 +2170,7 @@ function routeEdges(
     }
     const finalSideGroups = new Map<string, RoutedEndpoint[]>();
     for (const entry of finalEndpointEntries) {
-      const point = entry.edge.points[entry.pointIndex];
+      const point = entry.edge.points[liveEndpointIndices(entry).pointIndex];
       const side = finalEndpointSide(entry.nodeId, point);
       const axis = side === "left" || side === "right" ? point.y : point.x;
       entry.sortKey = axis;
