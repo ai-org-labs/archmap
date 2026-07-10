@@ -1533,73 +1533,294 @@ function routeEdges(
     }
     return out;
   };
-  const candidateMidValues = (a: number, b: number, used: number[]): number[] => {
-    const lo = Math.min(a, b);
-    const hi = Math.max(a, b);
-    const span = Math.max(hi - lo, 48);
-    const base = (a + b) / 2;
-    const values = [base, base - 24, base + 24, lo - 36, hi + 36, lo - 72, hi + 72];
-    return values.sort((left, right) => {
-      const lc = used.some((v) => Math.abs(left - v) < 0.5) ? 1 : 0;
-      const rc = used.some((v) => Math.abs(right - v) < 0.5) ? 1 : 0;
-      return lc - rc || Math.abs(left - base) - Math.abs(right - base) || Math.abs(left - (lo - span)) - Math.abs(right - (lo - span));
-    });
+  type RoutedChannel = { axis: "h" | "v"; index: number; lo: number; hi: number };
+  type RoutedRecord = { id: string; planIndex: number; points: LayoutPoint[]; channels: RoutedChannel[] };
+  type PortSide = { point: LayoutPoint; side: BoxFace };
+  const normalForSide = (side: BoxFace): LayoutPoint => {
+    if (side === "left") return { x: -1, y: 0 };
+    if (side === "right") return { x: 1, y: 0 };
+    if (side === "top") return { x: 0, y: -1 };
+    return { x: 0, y: 1 };
   };
-  const minimalPolyline = (plan: Plan): LayoutPoint[] => {
-    const { src, dst } = plan;
-    const s = toXY(src.flow, src.cross, horizontal);
-    const d = toXY(dst.flow, dst.cross, horizontal);
-    const sourceFlow = isFlowFace(src.face);
-    const targetFlow = isFlowFace(dst.face);
-    const endpointFlows = endpointRecords.filter((r) => r.edgeId !== plan.e.id).map((r) => r.flow);
-    const endpointCrosses = endpointRecords.filter((r) => r.edgeId !== plan.e.id).map((r) => r.cross);
+  const clampNumber = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+  const routeSegment = (
+    source: PortSide,
+    target: PortSide,
+    lane: { centered: number; outward: number },
+    stub = 20,
+    gap = CHANNEL_SPACING,
+  ): { points: LayoutPoint[]; channels: RoutedChannel[] } => {
+    const a = source.point;
+    const b = target.point;
+    const sourceNormal = normalForSide(source.side);
+    const targetNormal = normalForSide(target.side);
+    const aStub = { x: a.x + sourceNormal.x * stub, y: a.y + sourceNormal.y * stub };
+    const bStub = { x: b.x + targetNormal.x * stub, y: b.y + targetNormal.y * stub };
+    const sourceHorizontal = sourceNormal.x !== 0;
+    const targetHorizontal = targetNormal.x !== 0;
+    const span = gap * 6;
+    const outBounds = (base: number, dir: number): [number, number] => dir > 0 ? [base, base + span] : [base - span, base];
+    const channels: RoutedChannel[] = [];
+    let points: LayoutPoint[];
 
-    const fromFC = (points: Array<{ flow: number; cross: number }>) =>
-      simplifyPolyline(points.map((p) => toXY(p.flow, p.cross, horizontal)));
-    const candidates: LayoutPoint[][] = [];
-    if (Math.abs(src.flow - dst.flow) < 0.5 && !sourceFlow && !targetFlow) {
-      candidates.push(fromFC([src, dst]));
-    } else if (Math.abs(src.cross - dst.cross) < 0.5 && sourceFlow && targetFlow) {
-      candidates.push(fromFC([src, dst]));
-    }
-    if (sourceFlow !== targetFlow) {
-      const corner = sourceFlow
-        ? { flow: dst.flow, cross: src.cross }
-        : { flow: src.flow, cross: dst.cross };
-      candidates.push(fromFC([src, corner, dst]));
-      const midFlows = candidateMidValues(src.flow, dst.flow, endpointFlows).slice(0, 3);
-      const midCrosses = candidateMidValues(src.cross, dst.cross, endpointCrosses).slice(0, 3);
-      for (const midFlow of midFlows) {
-        for (const midCross of midCrosses) {
-          candidates.push(sourceFlow
-            ? fromFC([src, { flow: midFlow, cross: src.cross }, { flow: midFlow, cross: midCross }, { flow: dst.flow, cross: midCross }, dst])
-            : fromFC([src, { flow: src.flow, cross: midCross }, { flow: midFlow, cross: midCross }, { flow: midFlow, cross: dst.cross }, dst]));
+    if (sourceHorizontal && targetHorizontal) {
+      if (source.side !== target.side) {
+        const facing = sourceNormal.x * (b.x - a.x) > 0 && targetNormal.x * (a.x - b.x) > 0;
+        if (facing) {
+          let lo = Math.max(Math.min(a.x, b.x), Math.min(aStub.x, bStub.x));
+          let hi = Math.min(Math.max(a.x, b.x), Math.max(aStub.x, bStub.x));
+          if (lo > hi) lo = hi = (a.x + b.x) / 2;
+          const margin = Math.min((hi - lo) / 2, gap / 2);
+          const midX = clampNumber((aStub.x + bStub.x) / 2 + lane.centered, lo + margin, hi - margin);
+          points = [a, { x: midX, y: a.y }, { x: midX, y: b.y }, b];
+          channels.push({ axis: "v", index: 1, lo: lo + margin, hi: hi - margin });
+        } else {
+          const midY = (a.y + b.y) / 2 + lane.centered;
+          points = [a, aStub, { x: aStub.x, y: midY }, { x: bStub.x, y: midY }, bStub, b];
+          const [sourceLo, sourceHi] = outBounds(aStub.x, sourceNormal.x);
+          const [targetLo, targetHi] = outBounds(bStub.x, targetNormal.x);
+          channels.push({ axis: "v", index: 1, lo: sourceLo, hi: sourceHi });
+          channels.push({ axis: "h", index: 2, lo: midY - span, hi: midY + span });
+          channels.push({ axis: "v", index: 3, lo: targetLo, hi: targetHi });
         }
+      } else {
+        const outward = stub + lane.outward;
+        const x = source.side === "right" ? Math.max(a.x, b.x) + outward : Math.min(a.x, b.x) - outward;
+        const limit = source.side === "right" ? Math.max(a.x, b.x) + stub : Math.min(a.x, b.x) - stub;
+        points = [a, { x, y: a.y }, { x, y: b.y }, b];
+        channels.push({
+          axis: "v",
+          index: 1,
+          lo: source.side === "right" ? limit : x - span,
+          hi: source.side === "right" ? x + span : limit,
+        });
       }
-    } else if (sourceFlow) {
-      for (const midFlow of candidateMidValues(src.flow, dst.flow, endpointFlows).slice(0, 5)) {
-        candidates.push(fromFC([src, { flow: midFlow, cross: src.cross }, { flow: midFlow, cross: dst.cross }, dst]));
+    } else if (!sourceHorizontal && !targetHorizontal) {
+      if (source.side !== target.side) {
+        const facing = sourceNormal.y * (b.y - a.y) > 0 && targetNormal.y * (a.y - b.y) > 0;
+        if (facing) {
+          let lo = Math.max(Math.min(a.y, b.y), Math.min(aStub.y, bStub.y));
+          let hi = Math.min(Math.max(a.y, b.y), Math.max(aStub.y, bStub.y));
+          if (lo > hi) lo = hi = (a.y + b.y) / 2;
+          const margin = Math.min((hi - lo) / 2, gap / 2);
+          const midY = clampNumber((aStub.y + bStub.y) / 2 + lane.centered, lo + margin, hi - margin);
+          points = [a, { x: a.x, y: midY }, { x: b.x, y: midY }, b];
+          channels.push({ axis: "h", index: 1, lo: lo + margin, hi: hi - margin });
+        } else {
+          const midX = (a.x + b.x) / 2 + lane.centered;
+          points = [a, aStub, { x: midX, y: aStub.y }, { x: midX, y: bStub.y }, bStub, b];
+          const [sourceLo, sourceHi] = outBounds(aStub.y, sourceNormal.y);
+          const [targetLo, targetHi] = outBounds(bStub.y, targetNormal.y);
+          channels.push({ axis: "h", index: 1, lo: sourceLo, hi: sourceHi });
+          channels.push({ axis: "v", index: 2, lo: midX - span, hi: midX + span });
+          channels.push({ axis: "h", index: 3, lo: targetLo, hi: targetHi });
+        }
+      } else {
+        const outward = stub + lane.outward;
+        const y = source.side === "bottom" ? Math.max(a.y, b.y) + outward : Math.min(a.y, b.y) - outward;
+        const limit = source.side === "bottom" ? Math.max(a.y, b.y) + stub : Math.min(a.y, b.y) - stub;
+        points = [a, { x: a.x, y }, { x: b.x, y }, b];
+        channels.push({
+          axis: "h",
+          index: 1,
+          lo: source.side === "bottom" ? limit : y - span,
+          hi: source.side === "bottom" ? y + span : limit,
+        });
+      }
+    } else if (sourceHorizontal) {
+      const corner = { x: b.x, y: a.y };
+      const sourceOk = sourceNormal.x * (corner.x - a.x) >= stub;
+      const targetOk = targetNormal.y * (corner.y - b.y) >= stub;
+      if (sourceOk && targetOk) {
+        points = [a, corner, b];
+      } else {
+        points = [a, aStub, { x: aStub.x, y: bStub.y }, { x: b.x, y: bStub.y }, b];
+        const [sourceLo, sourceHi] = outBounds(aStub.x, sourceNormal.x);
+        const [targetLo, targetHi] = outBounds(bStub.y, targetNormal.y);
+        channels.push({ axis: "v", index: 1, lo: sourceLo, hi: sourceHi });
+        channels.push({ axis: "h", index: 2, lo: targetLo, hi: targetHi });
       }
     } else {
-      for (const midCross of candidateMidValues(src.cross, dst.cross, endpointCrosses).slice(0, 5)) {
-        candidates.push(fromFC([src, { flow: src.flow, cross: midCross }, { flow: dst.flow, cross: midCross }, dst]));
+      const corner = { x: a.x, y: b.y };
+      const sourceOk = sourceNormal.y * (corner.y - a.y) >= stub;
+      const targetOk = targetNormal.x * (corner.x - b.x) >= stub;
+      if (sourceOk && targetOk) {
+        points = [a, corner, b];
+      } else {
+        points = [a, aStub, { x: bStub.x, y: aStub.y }, { x: bStub.x, y: b.y }, b];
+        const [sourceLo, sourceHi] = outBounds(aStub.y, sourceNormal.y);
+        const [targetLo, targetHi] = outBounds(bStub.x, targetNormal.x);
+        channels.push({ axis: "h", index: 1, lo: sourceLo, hi: sourceHi });
+        channels.push({ axis: "v", index: 2, lo: targetLo, hi: targetHi });
       }
     }
 
-    return candidates
-      .map((points) => ({
-        points,
-        conflict: coordConflict(plan.e.id, points),
-        hits: routeNodeHits(points, plan.e.from, plan.e.to),
-        length: routeLength(points),
-      }))
+    return { points, channels };
+  };
+  const resolveChannelOverlaps = (records: RoutedRecord[], gap = CHANNEL_SPACING, passes = 2): void => {
+    const near = gap * 0.9;
+    for (let pass = 0; pass < passes; pass++) {
+      for (const axis of ["h", "v"] as const) {
+        const list: Array<{ record: RoutedRecord; channel: RoutedChannel }> = [];
+        for (const record of records) {
+          for (const channel of record.channels) {
+            if (channel.axis !== axis) continue;
+            const p = record.points[channel.index];
+            const q = record.points[channel.index + 1];
+            if (!p || !q) continue;
+            const len = axis === "h" ? Math.abs(q.x - p.x) : Math.abs(q.y - p.y);
+            if (len < 1) continue;
+            list.push({ record, channel });
+          }
+        }
+        const coordOf = (item: { record: RoutedRecord; channel: RoutedChannel }): number =>
+          axis === "h" ? item.record.points[item.channel.index].y : item.record.points[item.channel.index].x;
+        const spanOf = (item: { record: RoutedRecord; channel: RoutedChannel }): [number, number] => {
+          const p = item.record.points[item.channel.index];
+          const q = item.record.points[item.channel.index + 1];
+          return axis === "h" ? [Math.min(p.x, q.x), Math.max(p.x, q.x)] : [Math.min(p.y, q.y), Math.max(p.y, q.y)];
+        };
+        const parent = list.map((_, i) => i);
+        const find = (index: number): number => parent[index] === index ? index : (parent[index] = find(parent[index]));
+        for (let i = 0; i < list.length; i++) {
+          for (let j = i + 1; j < list.length; j++) {
+            if (list[i].record === list[j].record) continue;
+            if (Math.abs(coordOf(list[i]) - coordOf(list[j])) >= near) continue;
+            const [a0, a1] = spanOf(list[i]);
+            const [b0, b1] = spanOf(list[j]);
+            if (Math.min(a1, b1) - Math.max(a0, b0) <= -(gap * 2)) continue;
+            parent[find(i)] = find(j);
+          }
+        }
+        const clusters = new Map<number, Array<{ record: RoutedRecord; channel: RoutedChannel }>>();
+        for (let i = 0; i < list.length; i++) {
+          const root = find(i);
+          (clusters.get(root) ?? (clusters.set(root, []), clusters.get(root)!)).push(list[i]);
+        }
+        for (const members of clusters.values()) {
+          if (members.length < 2) continue;
+          members.sort((a, b) => coordOf(a) - coordOf(b) || a.record.id.localeCompare(b.record.id) || a.channel.index - b.channel.index);
+          const base = members.reduce((sum, item) => sum + coordOf(item), 0) / members.length;
+          members.forEach((item, index) => {
+            const target = clampNumber(
+              base + (index - (members.length - 1) / 2) * gap,
+              item.channel.lo,
+              item.channel.hi,
+            );
+            const pointIndex = item.channel.index;
+            if (axis === "h") {
+              item.record.points[pointIndex].y = target;
+              item.record.points[pointIndex + 1].y = target;
+            } else {
+              item.record.points[pointIndex].x = target;
+              item.record.points[pointIndex + 1].x = target;
+            }
+          });
+        }
+      }
+    }
+  };
+  const laneForPlan = (plan: Plan): { centered: number; outward: number } => {
+    const key = unorderedPairKey(plan.e.from, plan.e.to);
+    const ordinal = pairOrdinals.get(plan.e.id) ?? 0;
+    const total = Math.max(1, pairCounts.get(key) ?? 1);
+    return {
+      centered: (ordinal - (total - 1) / 2) * CHANNEL_SPACING,
+      outward: ordinal * CHANNEL_SPACING,
+    };
+  };
+  const routeRecordForEnds = (plan: Plan, planIndex: number, src: End, dst: End, lane = laneForPlan(plan)): RoutedRecord & { src: End; dst: End } => {
+    const segment = routeSegment(
+      { point: toXY(src.flow, src.cross, horizontal), side: boxFace(src.face) },
+      { point: toXY(dst.flow, dst.cross, horizontal), side: boxFace(dst.face) },
+      lane,
+    );
+    return { id: plan.e.id, planIndex, src, dst, points: segment.points, channels: segment.channels };
+  };
+  const chooseInitialRouteRecord = (plan: Plan, planIndex: number): RoutedRecord => {
+    const lane = laneForPlan(plan);
+    const original = routeRecordForEnds(plan, planIndex, plan.src, plan.dst, lane);
+    const originalRoute = simplifyPolyline(original.points);
+    if (
+      originalRoute.length <= 4 &&
+      routeNodeHits(originalRoute, plan.e.from, plan.e.to) === 0 &&
+      routeBorderCoincidence(originalRoute, plan.e.from, plan.e.to) === 0
+    ) {
+      return original;
+    }
+
+    const sourceGeom = geom(plan.e.from);
+    const targetGeom = geom(plan.e.to);
+    const sourceFaces = [...new Set([plan.src.face, ...oneBendSourceFaces(sourceGeom, targetGeom), "fL", "fH", "cL", "cH"] as Face[])];
+    const alongs = [0.18, 0.34, 0.5, 0.66, 0.82];
+    const candidates: Array<(RoutedRecord & { src: End; dst: End }) & { score: number; hits: number; border: number; bends: number; len: number }> = [original].map((record) => {
+      const route = simplifyPolyline(record.points);
+      return {
+        ...record,
+        points: route,
+        hits: routeNodeHits(route, plan.e.from, plan.e.to),
+        border: routeBorderCoincidence(route, plan.e.from, plan.e.to),
+        bends: routeBendCount(route),
+        len: routeLength(route),
+        score: 0,
+      };
+    });
+
+    for (const sourceFace of sourceFaces) {
+      const preferredTarget = complementaryTargetFace(sourceFace, sourceGeom, targetGeom);
+      const targetFaces = [...new Set([preferredTarget, plan.dst.face, "fL", "fH", "cL", "cH"] as Face[])];
+      for (const targetFace of targetFaces) {
+        for (const sourceAlong of alongs) {
+          for (const targetAlong of alongs) {
+            const src = facePoint(plan.e.from, sourceFace, sourceAlong);
+            const dst = facePoint(plan.e.to, targetFace, targetAlong);
+            const record = routeRecordForEnds(plan, planIndex, src, dst, lane);
+            const route = simplifyPolyline(record.points);
+            const hits = routeNodeHits(route, plan.e.from, plan.e.to);
+            const border = routeBorderCoincidence(route, plan.e.from, plan.e.to);
+            const bends = routeBendCount(route);
+            const len = routeLength(route);
+            const endpointMove =
+              Math.abs(src.flow - plan.src.flow) +
+              Math.abs(src.cross - plan.src.cross) +
+              Math.abs(dst.flow - plan.dst.flow) +
+              Math.abs(dst.cross - plan.dst.cross);
+            const facePenalty =
+              faceCost(sourceFace, plan.src.face) +
+              faceCost(targetFace, preferredTarget) +
+              Math.abs(sourceAlong - 0.5) +
+              Math.abs(targetAlong - 0.5);
+            candidates.push({
+              ...record,
+              points: route,
+              hits,
+              border,
+              bends,
+              len,
+              score: hits * 1_000_000 + border * 100_000 + bends * 8_000 + len + facePenalty * 220 + endpointMove * 0.12,
+            });
+          }
+        }
+      }
+    }
+
+    const best = candidates
       .sort((a, b) =>
         a.hits - b.hits ||
-        routeBendCount(a.points) - routeBendCount(b.points) ||
-        a.length - b.length ||
-        a.conflict - b.conflict,
-      )[0]?.points ?? simplifyPolyline([s, d]);
+        a.border - b.border ||
+        a.bends - b.bends ||
+        a.len - b.len ||
+        a.score - b.score,
+      )[0];
+    plan.src = best.src;
+    plan.dst = best.dst;
+    return { id: best.id, planIndex: best.planIndex, points: best.points, channels: best.channels };
   };
+  const initialRouteRecords: RoutedRecord[] = plans.map((plan, planIndex) => {
+    return chooseInitialRouteRecord(plan, planIndex);
+  });
+  resolveChannelOverlaps(initialRouteRecords);
+  const initialRouteByPlan = new Map(initialRouteRecords.map((record) => [record.planIndex, simplifyPolyline(record.points)]));
   const graphBounds = [...laid.values()].reduce(
     (acc, node) => ({
       x0: Math.min(acc.x0, node.x),
@@ -1622,11 +1843,16 @@ function routeEdges(
     return simplifyPolyline([s, { x: s.x, y: outsideY }, { x: d.x, y: outsideY }, d]);
   };
 
-  // Build polylines. The default route is at most one bend (3 points); more
-  // complex tracks are reserved for a future explicit router mode.
-  const routedPlans = plans.map((plan) => {
-    const minimal = minimalPolyline(plan);
-    const points = routeNodeHits(minimal, plan.e.from, plan.e.to) > 0
+  // Build polylines from the supplied routing algorithm: choose already
+  // assigned ports, leave and enter each component via an outward normal stub,
+  // then spread overlapping internal channels before the component-safe repair
+  // pass gets involved.
+  const routedPlans = plans.map((plan, planIndex) => {
+    const initial = initialRouteByPlan.get(planIndex) ?? simplifyPolyline([
+      toXY(plan.src.flow, plan.src.cross, horizontal),
+      toXY(plan.dst.flow, plan.dst.cross, horizontal),
+    ]);
+    const points = routeNodeHits(initial, plan.e.from, plan.e.to) > 0
       ? [
           {
             route: outsidePolyline(plan.src, plan.dst),
@@ -1675,7 +1901,7 @@ function routeEdges(
               a.cost - b.cost ||
               targetBias(a.targetFace) - targetBias(b.targetFace);
           })[0].route
-      : minimal;
+      : initial;
     const routed = deconflictBends(plan.e.id, plan.e.from, plan.e.to, points);
     // Offset the label off the line (above for H, to the right for V) so a
     // short segment isn't hidden under the label's background.
