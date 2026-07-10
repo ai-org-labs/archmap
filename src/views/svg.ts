@@ -196,7 +196,7 @@ function orthogonalizePoints(points: Array<{ x: number; y: number }>): Array<{ x
   return out;
 }
 
-const PARALLEL_EDGE_LANE_SPACING = 9;
+const PARALLEL_EDGE_LANE_SPACING = 12;
 
 function parallelOffsets(allSegs: Seg[], spacing = PARALLEL_EDGE_LANE_SPACING): WeakMap<Seg, number> {
   const result = new WeakMap<Seg, number>();

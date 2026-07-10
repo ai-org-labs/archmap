@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Release execution for 0.1.2: npm already has @archmap/core 0.1.0 and 0.1.1, so this verified release was prepared as 0.1.2 rather than rewriting public 0.1.1. Updated package.json/package-lock.json, ARCHMAP_VERSION, and pinned CDN documentation/examples to 0.1.2. Verification after the bump: npx tsc --noEmit, npm run build, npm test (196 passing), npm run verify:pattern-samples (96 renders, 0 failures), and npm pack --dry-run with tmp npm cache/logs (tarball archmap-core-0.1.2.tgz, 67 files). Connected the unrelated origin/main release history with a non-rewriting ours merge, pushed main, pushed tag v0.1.2, and created GitHub Release https://github.com/ai-org-labs/archmap/releases/tag/v0.1.2. Existing untracked reports/ left untouched. npm publish is intentionally left for the human to run.",
-  "updated_at": "2026-07-08T00:20:21.000+09:00",
+  "content": "Routing-quality slice: incorporated the supplied Connection Port Assignment / Orthogonal Edge Routing algorithm into the existing routeEdges pipeline without replacing the whole router. New behavior groups half-edges by (node, face), iteratively re-sorts by partner port coordinates, distributes same-face ports at readable intervals, and widens internal/SVG parallel lanes (layout channel spacing 14, SVG lane spacing 12). Added regression coverage for same-side port ordering/spacing and updated the lane-spacing expectation. Verification: npx tsc --noEmit, npm test (227 passing), npm run build. Existing untracked reports/ was left untouched. Next: visually smoke the localhost sample areas that previously showed excessive bends/edge-lane crowding, then continue remaining routing polish only where visible regressions remain.",
+  "updated_at": "2026-07-11T01:25:39.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

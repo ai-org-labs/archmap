@@ -230,12 +230,12 @@ describe("crossing jumps (buildEdgePaths)", () => {
     const paths = buildEdgePaths(edges, 7);
     const sharedLanes = [...paths.values()]
       .flatMap(horizontalSegments)
-      .filter((seg) => seg.x0 <= 20 && seg.x1 >= 90)
+      .filter((seg) => seg.x0 <= 32 && seg.x1 >= 90)
       .map((seg) => seg.y)
       .sort((a, b) => a - b);
 
     expect(sharedLanes).toHaveLength(3);
-    expect(sharedLanes[1] - sharedLanes[0]).toBeGreaterThanOrEqual(9);
-    expect(sharedLanes[2] - sharedLanes[1]).toBeGreaterThanOrEqual(9);
+    expect(sharedLanes[1] - sharedLanes[0]).toBeGreaterThanOrEqual(12);
+    expect(sharedLanes[2] - sharedLanes[1]).toBeGreaterThanOrEqual(12);
   });
 });

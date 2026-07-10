@@ -346,6 +346,32 @@ describe("computeLayout", () => {
     expect(gap).toBeGreaterThanOrEqual(72);
   });
 
+  it("orders same-side ports by the partner positions and keeps readable gaps", () => {
+    const m = parse(`graph LR
+      A[Alpha] --> Hub[Hub]
+      B[Beta] --> Hub
+      C[Gamma] --> Hub
+      D[Delta] --> Hub
+    `);
+    const layout = computeLayout(m);
+    const hub = layout.nodes.find((n) => n.id === "Hub")!;
+    const entries = layout.edges
+      .filter((edge) => edge.to === "Hub")
+      .map((edge) => ({
+        edge,
+        partnerY: layout.nodes.find((node) => node.id === edge.from)!.y,
+        point: edge.points[edge.points.length - 1],
+      }))
+      .filter((entry) => Math.abs(entry.point.y - (hub.y + hub.h)) < 0.5)
+      .sort((a, b) => a.partnerY - b.partnerY);
+
+    expect(entries.length).toBeGreaterThanOrEqual(3);
+    for (let i = 1; i < entries.length; i++) {
+      expect(entries[i].point.x).toBeGreaterThan(entries[i - 1].point.x);
+      expect(entries[i].point.x - entries[i - 1].point.x).toBeGreaterThanOrEqual(7);
+    }
+  });
+
   it("keeps unobstructed ordinary routes to at most one bend", () => {
     const m = parse(`graph LR
       A[A] --> B[B]

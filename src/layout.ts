@@ -950,7 +950,7 @@ function routeEdges(
   const colIndex = new Map(ranks.map((r, i) => [r, i]));
   const FACE_INSET = 6;
   const CHANNEL_INSET = 34; // cross-lane horizontal sits this far into the lane gap
-  const CHANNEL_SPACING = 11; // separation between same-target lane-gap channels
+  const CHANNEL_SPACING = 14; // separation between same-target lane-gap channels
 
   const geom = (id: string) => {
     const n = laid.get(id)!;
@@ -1295,44 +1295,57 @@ function routeEdges(
     push(e.to, dstFace, { planIndex: i, isSource: false, sortKey: dstFace[0] === "f" ? a.crossCenter : a.flowCenter });
   }
 
-  // Distribute ports along each face (cross faces vary in flow, flow faces in cross).
-  for (const [key, entries] of faces) {
-    const sep = key.lastIndexOf("|");
-    const g = geom(key.slice(0, sep));
-    const face = key.slice(sep + 1) as Face;
+  const portAxis = (face: Face, end: End): number => face === "cL" || face === "cH" ? end.flow : end.cross;
+  const portAxisFromPartner = (face: Face, entry: PortEntry): number => {
+    const plan = plans[entry.planIndex];
+    const partner = entry.isSource ? plan.dst : plan.src;
+    return portAxis(face, partner);
+  };
+  const assignPortEntry = (nodeId: string, face: Face, entry: PortEntry, axis: number): void => {
+    const g = geom(nodeId);
     const varyFlow = face === "cL" || face === "cH";
-    const low = varyFlow ? g.flowLow : g.crossLow;
-    const size = varyFlow ? g.flowSize : g.crossSize;
     const fixed = face === "fL" ? g.flowLow : face === "fH" ? g.flowHigh : face === "cL" ? g.crossLow : g.crossHigh;
-    entries.sort((p, q) => p.sortKey - q.sortKey);
-    const span = size - FACE_INSET * 2;
-    const n = entries.length;
-    const min = low + FACE_INSET;
-    const max = low + FACE_INSET + span;
-    const clampPos = (value: number): number => Math.min(max, Math.max(min, value));
-    let positions = entries.map((entry) => clampPos(entry.sortKey));
-    if (n > 1) {
-      const minSep = Math.min(18, span / Math.max(1, n - 1));
-      for (let i = 1; i < positions.length; i++) {
-        positions[i] = Math.max(positions[i], positions[i - 1] + minSep);
-      }
-      const overflow = positions[positions.length - 1] - max;
-      if (overflow > 0) positions = positions.map((pos) => pos - overflow);
-      for (let i = positions.length - 2; i >= 0; i--) {
-        positions[i] = Math.min(positions[i], positions[i + 1] - minSep);
-      }
-      const underflow = min - positions[0];
-      if (underflow > 0) positions = positions.map((pos) => pos + underflow);
-      if (positions[0] < min - 0.5 || positions[positions.length - 1] > max + 0.5) {
-        positions = entries.map((_, i) => min + (span * i) / (n - 1));
-      }
+    const end = entry.isSource ? plans[entry.planIndex].src : plans[entry.planIndex].dst;
+    if (varyFlow) {
+      end.flow = axis;
+      end.cross = fixed;
+    } else {
+      end.cross = axis;
+      end.flow = fixed;
     }
-    entries.forEach((entry, i) => {
-      const pos = n === 1 ? clampPos(entry.sortKey) : positions[i];
-      const end = entry.isSource ? plans[entry.planIndex].src : plans[entry.planIndex].dst;
-      if (varyFlow) { end.flow = pos; end.cross = fixed; }
-      else { end.cross = pos; end.flow = fixed; }
-    });
+  };
+
+  // Distribute ports along each face. This follows the imported routing
+  // algorithm's half-edge phases: group by (node, side), sort initially by the
+  // other node center, place ports at equal intervals, then re-sort a few times
+  // by the partner port's actual axis coordinate. The final routing stage still
+  // owns collision repair, but starting from stable ports removes many avoidable
+  // backtracks and same-side crossings.
+  for (let pass = 0; pass < 3; pass++) {
+    for (const [key, entries] of faces) {
+      const sep = key.lastIndexOf("|");
+      const nodeId = key.slice(0, sep);
+      const g = geom(nodeId);
+      const face = key.slice(sep + 1) as Face;
+      const varyFlow = face === "cL" || face === "cH";
+      const low = varyFlow ? g.flowLow : g.crossLow;
+      const size = varyFlow ? g.flowSize : g.crossSize;
+      const span = Math.max(1, size - FACE_INSET * 2);
+      const min = low + FACE_INSET;
+      const max = low + FACE_INSET + span;
+      const clampPos = (value: number): number => Math.min(max, Math.max(min, value));
+      entries.sort((p, q) => p.sortKey - q.sortKey || plans[p.planIndex].e.id.localeCompare(plans[q.planIndex].e.id) || Number(p.isSource) - Number(q.isSource));
+      const n = entries.length;
+      const positions = entries.map((entry, index) =>
+        n === 1 ? clampPos(entry.sortKey) : min + (span * (index + 1)) / (n + 1),
+      );
+      entries.forEach((entry, index) => assignPortEntry(nodeId, face, entry, positions[index]));
+    }
+
+    for (const [key, entries] of faces) {
+      const face = key.slice(key.lastIndexOf("|") + 1) as Face;
+      for (const entry of entries) entry.sortKey = portAxisFromPartner(face, entry);
+    }
   }
   const isFlowFace = (face: Face): boolean => face === "fL" || face === "fH";
   const redistributeNodeAxisPorts = (node: string, axisFaces: Face[], varyFlow: boolean): void => {
