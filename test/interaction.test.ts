@@ -40,13 +40,33 @@ describe("computeFitTransform (TASK-006)", () => {
       classList: { contains: (name: string) => classSet.has(name) },
     } as unknown as SVGSVGElement;
     const zoneTarget = {
-      closest: (selector: string) => selector.includes(".archmap-zone") ? {} : null,
+      nodeType: 1,
+      parentElement: null,
+      parentNode: null,
+      matches: (selector: string) => selector.includes(".archmap-zone"),
     } as unknown as EventTarget;
 
     expect(shouldStartPanFromPointerTarget(zoneTarget, container, svg)).toBe(false);
 
     classSet.add("archmap-abstraction-locked");
     expect(shouldStartPanFromPointerTarget(zoneTarget, container, svg)).toBe(true);
+  });
+
+  it("does not start pan gestures from popup trigger labels", () => {
+    const container = {
+      classList: { contains: () => true },
+    } as unknown as HTMLElement;
+    const svg = {
+      classList: { contains: () => true },
+    } as unknown as SVGSVGElement;
+    const triggerTarget = {
+      nodeType: 1,
+      parentElement: null,
+      parentNode: null,
+      matches: (selector: string) => selector === ".archmap-popup-trigger",
+    } as unknown as EventTarget;
+
+    expect(shouldStartPanFromPointerTarget(triggerTarget, container, svg)).toBe(false);
   });
 
   it("keeps an existing transform when reattached with an initial value", () => {
@@ -123,6 +143,9 @@ describe("computeFitTransform (TASK-006)", () => {
       offsetWidth = 260;
       offsetHeight = 120;
       removed = false;
+      nodeType = 1;
+      parentElement: FakeElement | null = null;
+      parentNode: FakeElement | null = null;
 
       constructor(private rect = { left: 120, right: 200, top: 80, bottom: 104, width: 80, height: 24 }) {}
 
@@ -143,6 +166,10 @@ describe("computeFitTransform (TASK-006)", () => {
       }
 
       append(...nodes: FakeElement[]) {
+        for (const node of nodes) {
+          node.parentElement = this;
+          node.parentNode = this;
+        }
         this.children.push(...nodes);
       }
 
@@ -154,8 +181,8 @@ describe("computeFitTransform (TASK-006)", () => {
         return target === this || this.children.some((child) => child.contains(target));
       }
 
-      closest(selector: string) {
-        return selector === ".archmap-popup-trigger" && this.className.includes("archmap-popup-trigger") ? this : null;
+      matches(selector: string) {
+        return selector === ".archmap-popup-trigger" && this.className.includes("archmap-popup-trigger");
       }
     }
 
@@ -181,12 +208,17 @@ describe("computeFitTransform (TASK-006)", () => {
     trigger.className = "archmap-popup-trigger";
     trigger.setAttribute("data-archmap-popup-title", "1 warning");
     trigger.setAttribute("data-archmap-popup-detail", "level: warning\ncode: zone_crossing_without_boundary");
+    trigger.parentElement = container;
+    trigger.parentNode = container;
     container.children.push(trigger);
 
     attachLabelPopups(container);
 
     const eventTarget = {
-      closest: () => trigger,
+      nodeType: 1,
+      parentElement: trigger,
+      parentNode: trigger,
+      matches: () => false,
     };
     const event = {
       target: eventTarget,

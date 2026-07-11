@@ -65,8 +65,31 @@ export function isInteractiveTarget(target: unknown): target is HTMLElement {
   );
 }
 
-function isElement(value: unknown): value is Element {
-  return !!value && typeof (value as Element).closest === "function";
+function isDomNode(value: unknown): value is Node {
+  return !!value && typeof (value as Node).nodeType === "number";
+}
+
+function parentElementOf(node: Node): Element | null {
+  const directParent = (node as Node & { parentElement?: Element | null }).parentElement;
+  if (directParent) return directParent;
+  const parentNode = node.parentNode;
+  return parentNode && parentNode.nodeType === 1 ? parentNode as Element : null;
+}
+
+function elementFromEventTarget(target: EventTarget | null): Element | null {
+  if (!isDomNode(target)) return null;
+  if (target.nodeType === 1) return target as Element;
+  return parentElementOf(target);
+}
+
+function closestMatchingElement(target: EventTarget | null, selector: string, boundary?: Element): Element | null {
+  let current = elementFromEventTarget(target);
+  while (current) {
+    if (typeof current.matches === "function" && current.matches(selector)) return current;
+    if (boundary && current === boundary) return null;
+    current = parentElementOf(current);
+  }
+  return null;
 }
 
 function popupRows(detail: string): Array<{ key?: string; value: string }> {
@@ -236,9 +259,8 @@ export function attachLabelPopups(container: HTMLElement): LabelPopupHandle {
   };
 
   const onClick = (event: MouseEvent) => {
-    if (!isElement(event.target)) return;
-    const trigger = event.target.closest(".archmap-popup-trigger");
-    if (!trigger || !container.contains(trigger)) return;
+    const trigger = closestMatchingElement(event.target, ".archmap-popup-trigger", container);
+    if (!trigger) return;
     stopPopupActivation(event);
     if (trigger === activeTrigger && popup) close();
     else open(trigger);
@@ -246,9 +268,8 @@ export function attachLabelPopups(container: HTMLElement): LabelPopupHandle {
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    if (!isElement(event.target)) return;
-    const trigger = event.target.closest(".archmap-popup-trigger");
-    if (!trigger || !container.contains(trigger)) return;
+    const trigger = closestMatchingElement(event.target, ".archmap-popup-trigger", container);
+    if (!trigger) return;
     stopPopupActivation(event);
     if (trigger === activeTrigger && popup) close();
     else open(trigger);
@@ -272,11 +293,11 @@ function hasClass(target: unknown, className: string): boolean {
 }
 
 export function shouldStartPanFromPointerTarget(target: EventTarget | null, container: HTMLElement, svg: SVGSVGElement): boolean {
-  const closest = (target as { closest?: unknown } | null)?.closest;
-  if (typeof closest !== "function") return true;
-  const expansionTarget = closest.call(
+  if (closestMatchingElement(target, ".archmap-popup-trigger", container)) return false;
+  const expansionTarget = closestMatchingElement(
     target,
     ".archmap-node[data-abstraction-key],.archmap-zone[data-id],.archmap-subgraph[data-id]",
+    container,
   );
   if (!expansionTarget) return true;
   return hasClass(container, "archmap-abstraction-locked") || hasClass(svg, "archmap-abstraction-locked");
