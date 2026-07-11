@@ -29,8 +29,8 @@ import { buildTimeDecoration, computePhasePresence, listTimelinePhases, resolveP
 import type { PhasePresence } from "./time-projection.js";
 import type { TimelinePhase } from "./types.js";
 import { overviewZoneColorStyles } from "./views/zone-colors.js";
-import { attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
-import type { PanZoomHandle } from "./views/interaction.js";
+import { attachLabelPopups, attachPanZoom, isInteractiveTarget } from "./views/interaction.js";
+import type { LabelPopupHandle, PanZoomHandle } from "./views/interaction.js";
 import { renderInspector } from "./inspector.js";
 import type { InspectorSelection } from "./inspector.js";
 import { projectAbstraction } from "./subgraph-abstraction.js";
@@ -690,6 +690,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
   let detachInspector: (() => void) | undefined;
   let detachDiagnostics: (() => void) | undefined;
   let detachAbstractionToggles: (() => void) | undefined;
+  let labelPopups: LabelPopupHandle | undefined;
 
   // Overlay toggles and repeated renders reuse the abstraction projection and
   // layout: neither depends on the overlay set, and layout is the dominant
@@ -782,8 +783,13 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
         detachDiagnostics = undefined;
         detachAbstractionToggles?.();
         detachAbstractionToggles = undefined;
-        if (options.interactive !== false && isInteractiveTarget(options.target)) {
-          panZoom = attachPanZoom(options.target, preservedPanZoom);
+        labelPopups?.dispose();
+        labelPopups = undefined;
+        if (isInteractiveTarget(options.target)) {
+          if (options.interactive !== false) {
+            panZoom = attachPanZoom(options.target, preservedPanZoom);
+          }
+          labelPopups = attachLabelPopups(options.target);
         }
         if ("addEventListener" in options.target && "dispatchEvent" in options.target) {
           detachAbstractionToggles = attachAbstractionToggles(
@@ -803,6 +809,16 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       finishTimings();
       return { view: state.view, layout, model: effectiveModel, svg, handle: undefined };
     }
+    panZoom?.dispose();
+    panZoom = undefined;
+    labelPopups?.dispose();
+    labelPopups = undefined;
+    detachInspector?.();
+    detachInspector = undefined;
+    detachDiagnostics?.();
+    detachDiagnostics = undefined;
+    detachAbstractionToggles?.();
+    detachAbstractionToggles = undefined;
     const handle = options.target ? out.mount(options.target) : undefined;
     finishTimings();
     preservePanZoomOnNextRender = false;
@@ -961,6 +977,8 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
       detachDiagnostics = undefined;
       detachAbstractionToggles?.();
       detachAbstractionToggles = undefined;
+      labelPopups?.dispose();
+      labelPopups = undefined;
       result.handle?.dispose();
       result.handle = undefined;
       result.svg = undefined;

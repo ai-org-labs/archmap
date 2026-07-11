@@ -166,7 +166,7 @@ describe("render", () => {
       expect(match, `${item.id} label should render`).toBeTruthy();
       const labelPoint = { x: Number(match?.[2]), y: Number(match?.[3]) };
       const nearest = Math.min(...pathSegments(match![1]).map(([a, b]) => pointSegmentDistance(labelPoint, a, b)));
-      expect(nearest, `${item.id} label should follow its rendered connector`).toBeLessThanOrEqual(44);
+      expect(nearest, `${item.id} label should follow its rendered connector with readable clearance`).toBeLessThanOrEqual(72);
     }
   });
 
@@ -583,7 +583,10 @@ describe("render", () => {
     expect(svg).not.toContain("JWT · issuer FirebaseAuth · validator APIGW");
     expect(svg).toContain(">JWT</text>");
     expect(svg).toContain(">customer_profile</text>");
-    expect(svg).toContain("archmap-badge-tooltip");
+    expect(svg).not.toContain("archmap-badge-tooltip");
+    expect(svg).toContain("archmap-popup-trigger");
+    expect(svg).toContain('data-archmap-popup-title="JWT"');
+    expect(svg).toContain('data-archmap-popup-detail="token: JWT');
     expect(svg).toContain("issuer: FirebaseAuth");
     expect(svg).toContain("validator: APIGW");
     expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");
@@ -809,6 +812,7 @@ describe("render", () => {
     const svg = render(m, { baseView: "overview", overlays: ["boundary", "dataflow", "permission", "validation"] }).svg!;
     expect(svg).toContain("archmap-boundary-edge-badge");
     expect(svg).toContain(">public_boundary</text>");
+    expect(svg).toContain("archmap-popup-trigger");
     expect(svg).toContain("archmap-data-edge-badge");
     expect(svg).toContain(">profile</text>");
     expect(svg).toContain("classification: confidential");

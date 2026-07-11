@@ -51,7 +51,7 @@ export interface DiagramSpec {
   /** Node id -> short caption rendered beneath the node. */
   nodeBadges?: Map<string, string>;
   /** Edge id -> compact semantic badges rendered near the edge. */
-  edgeBadges?: Map<string, Array<{ kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary"; label: string; title?: string }>>;
+  edgeBadges?: Map<string, Array<{ kind: "auth-summary" | "data-summary" | "boundary-summary" | "permission-summary" | "validation-summary"; label: string; title?: string; level?: "error" | "warning" | "suggestion" | "info" }>>;
   /** Overlay-only edges, such as synthesized permission relationships. */
   overlayEdges?: Array<{ id: string; from: string; to: string; label?: string; className?: string }>;
   /** Node id -> resolved provider/kind icon(s) from the icon registry. */
@@ -261,14 +261,13 @@ function labelAnchor(node: LayoutNode, face: Face, slot: number, count: number, 
 function permissionSummarySvg(node: LayoutNode, labels: string[]): string {
   const unique = [...new Set(labels)];
   const text = unique.length === 1 ? "1 permission" : `${unique.length} permissions`;
-  const title = unique.map((label, index) => `${index + 1}. ${label}`).join("\n");
+  const detail = unique.map((label, index) => `${index + 1}: ${label}`).join("\n");
   const w = Math.min(node.w - 14, Math.max(76, text.length * 6.2 + 14));
   const h = 18;
   const x = node.x + node.w - w - 7;
   const y = node.y + node.h - h - 6;
   return (
-    `<g class="archmap-overlay-summary archmap-permission-summary">` +
-    `<title>${escapeXml(title)}</title>` +
+    `<g class="archmap-overlay-summary archmap-permission-summary archmap-popup-trigger" role="button" tabindex="0" data-archmap-popup-title="${escapeXml(text)}" data-archmap-popup-detail="${escapeXml(detail)}">` +
     `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="4" />` +
     `<text x="${(x + w / 2).toFixed(1)}" y="${(y + h / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(text)}</text>` +
     `</g>`
@@ -289,29 +288,47 @@ function boxesOverlap(a: Box, b: Box): boolean {
   return overlapArea(a, b) > 0;
 }
 
-function placeEdgeBadges(badges: EdgeBadgeList, at: { x: number; y: number }, reserved: Box[]): { x: number; y: number; box: Box } {
+function placeEdgeBadges(
+  badges: EdgeBadgeList,
+  at: { x: number; y: number },
+  orient: "h" | "v",
+  reserved: Box[],
+): { x: number; y: number; box: Box } {
   const size = edgeBadgesSize(badges);
-  const candidates = [
-    { dx: 0, dy: 13 },
-    { dx: 0, dy: -34 },
-    { dx: 0, dy: 38 },
-    { dx: 0, dy: -58 },
-    { dx: 72, dy: 13 },
-    { dx: -72, dy: 13 },
-    { dx: 72, dy: -34 },
-    { dx: -72, dy: -34 },
-    { dx: 120, dy: 38 },
-    { dx: -120, dy: 38 },
-  ];
+  const verticalShift = Math.max(24, size.h + 10);
+  const horizontalShift = Math.max(32, size.w / 2 + 18);
+  const candidates = orient === "h"
+    ? [
+        { dx: 0, dy: 0 },
+        { dx: 0, dy: verticalShift },
+        { dx: 0, dy: -verticalShift },
+        { dx: horizontalShift, dy: 0 },
+        { dx: -horizontalShift, dy: 0 },
+        { dx: horizontalShift, dy: verticalShift },
+        { dx: -horizontalShift, dy: verticalShift },
+        { dx: horizontalShift, dy: -verticalShift },
+        { dx: -horizontalShift, dy: -verticalShift },
+      ]
+    : [
+        { dx: 0, dy: 0 },
+        { dx: 0, dy: verticalShift },
+        { dx: 0, dy: -verticalShift },
+        { dx: horizontalShift, dy: 0 },
+        { dx: -horizontalShift, dy: 0 },
+        { dx: horizontalShift, dy: verticalShift },
+        { dx: -horizontalShift, dy: -verticalShift },
+        { dx: horizontalShift, dy: -verticalShift },
+        { dx: -horizontalShift, dy: verticalShift },
+      ];
   for (const candidate of candidates) {
     const x = at.x + candidate.dx;
-    const y = at.y + candidate.dy;
+    const y = at.y + candidate.dy - size.h / 2;
     const box: Box = { id: "", x: x - size.w / 2 - 2, y: y - 2, w: size.w + 4, h: size.h + 4 };
     if (!reserved.some((other) => boxesOverlap(box, other))) return { x, y, box };
   }
   const fallback = candidates[candidates.length - 1];
   const x = at.x + fallback.dx;
-  const y = at.y + fallback.dy + reserved.length * 22;
+  const y = at.y + fallback.dy - size.h / 2 + reserved.length * 22;
   return { x, y, box: { id: "", x: x - size.w / 2 - 2, y: y - 2, w: size.w + 4, h: size.h + 4 } };
 }
 
@@ -343,7 +360,7 @@ function visualEdgeAnnotationAnchor(edge: LayoutEdge, visualPoints: Array<{ x: n
   const dy = edge.labelAt.y - originalSeg.y;
   if (visualSeg.orient === "h") {
     const signY = Math.sign(dy) || -1;
-    const nearY = signY * clamp(Math.abs(dy), 11, 42);
+    const nearY = signY * clamp(Math.abs(dy), 28, 56);
     const half = Math.max(0, visualSeg.len / 2 - 12);
     return {
       at: { x: visualSeg.x + clamp(dx, -half, half), y: visualSeg.y + nearY },
@@ -352,7 +369,7 @@ function visualEdgeAnnotationAnchor(edge: LayoutEdge, visualPoints: Array<{ x: n
   }
 
   const signX = Math.sign(dx) || 1;
-  const nearX = signX * clamp(Math.abs(dx), 8, 58);
+  const nearX = signX * clamp(Math.abs(dx), 72, 96);
   const half = Math.max(0, visualSeg.len / 2 - 12);
   return {
     at: { x: visualSeg.x + nearX, y: visualSeg.y + clamp(dy, -half, half) },
@@ -491,7 +508,7 @@ function renderOverlayEdges(plan: OverlayPlan, edgePaths: Map<string, string>, d
       const stack = plan.targetSlot.get(key) ?? { slot: 0, count: 1 };
       const suppressLabel = densePermissionOverlay && entry.edge.className?.includes("archmap-permission-edge");
       const label = entry.edge.label && !suppressLabel
-        ? edgeLabelSvg(entry.edge.label, labelAnchor(entry.to, entry.target.face, stack.slot, stack.count, entry.edge.label), "h")
+        ? edgeLabelSvg(entry.edge.label, labelAnchor(entry.to, entry.target.face, stack.slot, stack.count, entry.edge.label))
         : "";
       return (
         `<g class="${cls}" data-id="${escapeXml(entry.edge.id)}" data-from="${escapeXml(entry.edge.from)}" data-to="${escapeXml(entry.edge.to)}">` +
@@ -587,9 +604,9 @@ export function renderDiagram(spec: DiagramSpec): string {
       const anchor = e.label || edgeBadges?.has(e.id) ? visualEdgeAnnotationAnchor(e, visual?.points) : { at: e.labelAt, orient: e.labelOrient ?? "h" as const };
       const path = edgePathFromD(visual?.d ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
       const startpoint = edgeStartpointSvg(visual?.points[0] ?? e.points[0]);
-      const label = e.label ? edgeLabelSvg(e.label, anchor.at, anchor.orient) : "";
+      const label = e.label ? edgeLabelSvg(e.label, anchor.at) : "";
       const badges = edgeBadges?.get(e.id);
-      const placedBadges = badges ? placeEdgeBadges(badges, anchor.at, reservedEdgeBadges) : undefined;
+      const placedBadges = badges ? placeEdgeBadges(badges, anchor.at, anchor.orient, reservedEdgeBadges) : undefined;
       if (placedBadges) reservedEdgeBadges.push(placedBadges.box);
       const badgeSvg = badges && placedBadges ? edgeBadgesSvg(badges, placedBadges) : "";
       return `<g class="${cls}" data-id="${escapeXml(e.id)}" data-from="${escapeXml(e.from)}" data-to="${escapeXml(e.to)}"${styleAttr}>${path}${startpoint}${label}${badgeSvg}</g>`;

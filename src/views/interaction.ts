@@ -21,6 +21,10 @@ export interface PanZoomHandle {
   dispose(): void;
 }
 
+export interface LabelPopupHandle {
+  dispose(): void;
+}
+
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
 
@@ -59,6 +63,184 @@ export function isInteractiveTarget(target: unknown): target is HTMLElement {
     typeof (target as HTMLElement).querySelector === "function" &&
     typeof (target as HTMLElement).addEventListener === "function"
   );
+}
+
+function isElement(value: unknown): value is Element {
+  return !!value && typeof (value as Element).closest === "function";
+}
+
+function popupRows(detail: string): Array<{ key?: string; value: string }> {
+  const trimmed = detail.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.entries(parsed as Record<string, unknown>).map(([key, value]) => ({
+        key,
+        value: typeof value === "string" ? value : JSON.stringify(value, null, 2),
+      }));
+    }
+  } catch {
+    // Existing overlay payloads are newline-delimited "key: value" pairs.
+  }
+  return trimmed.split(/\n+/).filter(Boolean).map((line) => {
+    const index = line.indexOf(":");
+    if (index > 0 && index < 48) {
+      return { key: line.slice(0, index).trim(), value: line.slice(index + 1).trim() };
+    }
+    return { value: line.trim() };
+  });
+}
+
+function stylePopup(popup: HTMLElement): void {
+  Object.assign(popup.style, {
+    position: "fixed",
+    zIndex: "2147483647",
+    minWidth: "220px",
+    maxWidth: "440px",
+    maxHeight: "360px",
+    overflow: "auto",
+    padding: "10px 12px",
+    border: "1px solid rgba(91, 107, 134, 0.36)",
+    borderRadius: "8px",
+    background: "rgba(255, 255, 255, 0.98)",
+    boxShadow: "0 16px 40px rgba(15, 23, 42, 0.18)",
+    color: "#1f2937",
+    font: "12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+    lineHeight: "1.45",
+    pointerEvents: "auto",
+  });
+}
+
+function positionPopup(popup: HTMLElement, trigger: Element, doc: Document): void {
+  const rect = trigger.getBoundingClientRect();
+  const viewportW = doc.documentElement.clientWidth || doc.defaultView?.innerWidth || 1024;
+  const viewportH = doc.documentElement.clientHeight || doc.defaultView?.innerHeight || 768;
+  let left = rect.left;
+  let top = rect.bottom + 8;
+  const margin = 10;
+  const w = popup.offsetWidth;
+  const h = popup.offsetHeight;
+  if (left + w + margin > viewportW) left = Math.max(margin, rect.right - w);
+  if (top + h + margin > viewportH) top = Math.max(margin, rect.top - h - 8);
+  popup.style.left = `${Math.max(margin, left)}px`;
+  popup.style.top = `${Math.max(margin, top)}px`;
+}
+
+export function attachLabelPopups(container: HTMLElement): LabelPopupHandle {
+  const doc = container.ownerDocument ?? document;
+  let popup: HTMLElement | undefined;
+  let activeTrigger: Element | undefined;
+
+  const close = () => {
+    popup?.remove();
+    popup = undefined;
+    activeTrigger?.removeAttribute("aria-expanded");
+    activeTrigger = undefined;
+    doc.removeEventListener("pointerdown", onDocumentPointerDown, true);
+    doc.removeEventListener("keydown", onDocumentKeyDown, true);
+  };
+
+  const onDocumentPointerDown = (event: PointerEvent) => {
+    const target = event.target as Node | null;
+    if (target && (popup?.contains(target) || activeTrigger?.contains(target))) return;
+    close();
+  };
+
+  const onDocumentKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") close();
+  };
+
+  const open = (trigger: Element) => {
+    const title = trigger.getAttribute("data-archmap-popup-title") ?? "Details";
+    const detail = trigger.getAttribute("data-archmap-popup-detail") ?? "";
+    const rows = popupRows(detail);
+    close();
+    activeTrigger = trigger;
+    trigger.setAttribute("aria-expanded", "true");
+
+    const el = doc.createElement("div");
+    el.className = "archmap-label-popup";
+    el.setAttribute("role", "dialog");
+    stylePopup(el);
+
+    const header = doc.createElement("div");
+    header.textContent = title;
+    Object.assign(header.style, {
+      fontWeight: "800",
+      marginBottom: rows.length ? "8px" : "0",
+      color: "#0f172a",
+    });
+    el.append(header);
+
+    if (rows.length) {
+      const list = doc.createElement("div");
+      Object.assign(list.style, {
+        display: "grid",
+        gridTemplateColumns: "max-content minmax(0, 1fr)",
+        gap: "5px 10px",
+        whiteSpace: "pre-wrap",
+      });
+      for (const row of rows) {
+        if (row.key) {
+          const key = doc.createElement("div");
+          key.textContent = row.key;
+          Object.assign(key.style, { color: "#64748b", fontWeight: "700" });
+          const value = doc.createElement("div");
+          value.textContent = row.value;
+          Object.assign(value.style, { color: "#1f2937", overflowWrap: "anywhere" });
+          list.append(key, value);
+        } else {
+          const value = doc.createElement("div");
+          value.textContent = row.value;
+          Object.assign(value.style, {
+            gridColumn: "1 / -1",
+            color: "#1f2937",
+            overflowWrap: "anywhere",
+          });
+          list.append(value);
+        }
+      }
+      el.append(list);
+    }
+
+    doc.body.append(el);
+    popup = el;
+    positionPopup(el, trigger, doc);
+    doc.addEventListener("pointerdown", onDocumentPointerDown, true);
+    doc.addEventListener("keydown", onDocumentKeyDown, true);
+  };
+
+  const onClick = (event: MouseEvent) => {
+    if (!isElement(event.target)) return;
+    const trigger = event.target.closest(".archmap-popup-trigger");
+    if (!trigger || !container.contains(trigger)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (trigger === activeTrigger && popup) close();
+    else open(trigger);
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (!isElement(event.target)) return;
+    const trigger = event.target.closest(".archmap-popup-trigger");
+    if (!trigger || !container.contains(trigger)) return;
+    event.preventDefault();
+    if (trigger === activeTrigger && popup) close();
+    else open(trigger);
+  };
+
+  container.addEventListener("click", onClick);
+  container.addEventListener("keydown", onKeyDown);
+
+  return {
+    dispose() {
+      close();
+      container.removeEventListener("click", onClick);
+      container.removeEventListener("keydown", onKeyDown);
+    },
+  };
 }
 
 function hasClass(target: unknown, className: string): boolean {
