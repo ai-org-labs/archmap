@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Validation view-scoping slice completed: Prototype-only diagnostics such as screen_node_without_image, transition_without_trigger, unreachable_screen, ambiguous_transition, hotspot_out_of_bounds, scenario_unknown_start, and scenario_unknown_step remain in the canonical model but are suppressed from Overview/Layer/3D validation overlay and diagnostics-panel display unless the requested base view is prototype. Global diagnostics such as external_transition_without_boundary and image_url_disallowed remain visible. Updated docs/aof/VALIDATION-VIEW-SCOPING-QIF-CHECK-2026-07-12.md. Verification: npm test -- --run test/render.test.ts (57 passing); npx tsc --noEmit; npm test (236 passing); npm run build; in-app browser smoke on http://127.0.0.1:5173/ sample release-checkout with Overview + validation found no screen_node_without_image or Prototype fallback-card message in page text. Existing untracked reports/ remains untouched.",
-  "updated_at": "2026-07-12T01:58:00.000+09:00",
+  "content": "Release v0.2.0 checkpoint completed for GitHub: main was clean at 19cfa3b, local verification passed (npm run typecheck; npm test = 236 passing; npm run build; npm pack --dry-run = 71 files / 316.0 kB; npm publish --access public --dry-run), GitHub Pages workflow on main was already green, annotated tag v0.2.0 was pushed, and public GitHub Release was created at https://github.com/ai-org-labs/archmap/releases/tag/v0.2.0. npm registry currently has 0.1.0/0.1.1/0.1.2 only; @archmap/core@0.2.0 is not published because this environment is not authenticated to npm (npm whoami returned E401). Next human action: run npm login if needed, then npm publish --access public, then verify npm view @archmap/core@0.2.0 and jsDelivr URLs.",
+  "updated_at": "2026-07-12T02:32:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
