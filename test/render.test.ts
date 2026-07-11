@@ -585,7 +585,7 @@ describe("render", () => {
     expect(svg).toContain("archmap-overlay-dataflow");
     expect(svg).toContain('class="archmap-edge archmap-emphasis" data-id="web_api"');
     expect(svg).toContain(">JWT<");
-    expect(svg).toContain("archmap-auth-badge");
+    expect(svg).not.toContain('class="archmap-badge archmap-auth-badge');
     expect(svg).toContain("archmap-auth-edge-badge");
     expect(svg).toContain("archmap-data-edge-badge");
     expect(svg).not.toContain("JWT · issuer FirebaseAuth · validator APIGW");

@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Overlay label/badge readability slice completed: user observed ordinary edge labels and auth overlay badges overlapping, with the auth badge background too narrow for its icon/text. Normal edge labels are now reserved before overlay edge badges are placed, so auth/dataflow/boundary/permission/validation badges avoid ordinary labels. Edge badge width now accounts for icon column, text width, and right padding. Updated docs/aof/OVERLAY-LABEL-BADGE-QIF-CHECK-2026-07-12.md. Verification: npm test -- --run test/render.test.ts (56 passing); npx tsc --noEmit; npm test (235 passing); npm run build; in-app browser smoke on http://127.0.0.1:5173/ sample release-checkout found 0 edge-label/badge overlaps and visible JWT badges with about 15px right padding. Existing untracked reports/ remains untouched.",
-  "updated_at": "2026-07-12T01:20:00.000+09:00",
+  "content": "Auth edge-badge dedup slice completed: user observed non-clickable JWT auth badges below Login/Checkout even though the same auth information was already on the connector. The auth overlay no longer emits node-level auth badges for edge.auth.token; auth token/issuer/validator/recipient stays on the clickable edge badge popup. Updated docs/aof/AUTH-EDGE-BADGE-DEDUP-QIF-CHECK-2026-07-12.md. Verification: npm test -- --run test/render.test.ts (56 passing); npx tsc --noEmit; npm test (235 passing); npm run build; in-app browser smoke on http://127.0.0.1:5173/ sample release-checkout with auth enabled found node auth badge count 0, edge auth badge count 3, all edge auth badges popup-triggered. Existing untracked reports/ remains untouched.",
+  "updated_at": "2026-07-12T01:36:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

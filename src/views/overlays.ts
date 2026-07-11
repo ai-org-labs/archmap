@@ -314,9 +314,6 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
         edge.auth?.recipient ? `recipient: ${edge.auth.recipient}` : undefined,
       ].filter(Boolean).join("\n");
       const label = edge.auth?.token ?? edge.auth?.method ?? "auth";
-      if (edge.auth?.token) {
-        setBadge(badges, badgePriorities, edge.to, `auth:${edge.auth.token}`, BADGE_PRIORITY.auth);
-      }
       if (title) edgeBadges.set(edge.id, [{ kind: "auth-summary", label, title }]);
     }
   }
