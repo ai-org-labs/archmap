@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "External visibility handoff: Cloudflare quick tunnels are unsuitable for handoff because the origin unregisters when the tunnel process dies, and persistent tunneling of the local repo is not acceptable. Pushed main to origin at e148719 so the existing GitHub Pages workflow deploys the curated static site (_site contains dist/examples/docs plus release docs, not the whole workspace). GitHub Actions run 29150779413 completed successfully. Public check URL: https://ai-org-labs.github.io/archmap/ . Verified 200 for /, /dist/archmap.js, and /examples/demo.html. Existing untracked reports/ was left untouched. Next: use GitHub Pages for out-of-office review; continue visual smoke on routing-quality defects only where visible.",
-  "updated_at": "2026-07-11T20:22:00.000+09:00",
+  "content": "Interaction slice: changed viewport navigation so ordinary wheel/scroll moves the camera vertically while trackpad/browser pinch (ctrl-wheel) zooms. Applied the same semantics to SVG 2D views, Prototype flow-map mode, and optional Three.js 3D view. 3D now disables OrbitControls wheel zoom and owns wheel handling: scroll pans along screen-space up/right, ctrl-wheel zooms orthographic/perspective cameras. Updated docs/specs/acceptance text so future agents do not assume wheel zoom. Verification: npx tsc --noEmit, npm test -- --run test/interaction.test.ts test/scene3d.test.ts test/prototype.test.ts, npm run build, npm test (230 passing). Existing untracked reports/ was left untouched. Next: browser-smoke localhost/GitHub Pages interaction on trackpad/mouse and tune gesture direction if user expects inverted scroll direction.",
+  "updated_at": "2026-07-11T22:26:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

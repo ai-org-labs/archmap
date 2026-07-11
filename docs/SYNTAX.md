@@ -455,8 +455,10 @@ await live.close();
   `createDiagramTags({ target, state, onChange, onAction })` from
   `@archmap/core` or the CDN-friendly subpath
   `@archmap/core/controls/diagram-tags`.
-  2D views support wheel zoom and drag pan; `render(model,{target})` attaches
-  this automatically (`interactive: false` to disable), and
+  2D views support ordinary wheel/scroll for vertical camera movement,
+  trackpad/browser pinch (`ctrl`-wheel) for zoom, and drag pan;
+  `render(model,{target})` attaches this automatically
+  (`interactive: false` to disable), and
   `RenderResult.fit()/reset()` control the view.
   External `src` takes priority; failed loads emit `src_fetch_failed` and show
   diagnostics. Inline fallback is used only when `fallback-to-inline` is present.

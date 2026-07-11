@@ -382,8 +382,8 @@ ArchMap diagrams should support interactive navigation.
 
 SVG-based views should support:
 
-- mouse wheel zoom
-- trackpad pinch zoom where available
+- ordinary wheel/scroll vertical camera movement
+- trackpad/browser pinch zoom (`ctrl`-wheel where exposed by the browser)
 - drag to pan
 - double click or button to fit
 - reset view
@@ -392,7 +392,8 @@ SVG-based views should support:
 Default behavior:
 
 ```text
-wheel / pinch: zoom in/out
+ordinary wheel / scroll: move camera vertically
+pinch / ctrl-wheel: zoom in/out
 drag background: pan
 click node: select node
 click edge: select edge
@@ -404,7 +405,8 @@ click edge: select edge
 
 - mouse drag to rotate camera
 - right drag or modifier drag to pan
-- mouse wheel to zoom
+- ordinary wheel/scroll to move the camera vertically
+- trackpad/browser pinch (`ctrl`-wheel) to zoom
 - touch gestures where possible
 - reset camera
 - fit to scene
@@ -1025,8 +1027,8 @@ The rendering engine is acceptable when:
 4. The viewer supports `overview`, `zone`, and `3d` base views.
 5. The 3D view is treated as required and has a defined fallback diagnostic.
 6. The viewer supports `auth`, `dataflow`, `boundary`, `permission`, and `validation` overlays.
-7. The viewer supports mouse wheel zoom and drag pan in SVG views.
-8. The 3D view supports drag rotate, pan, wheel zoom, reset, fit, and gizmo display.
+7. The viewer supports wheel/scroll vertical camera movement, pinch/ctrl-wheel zoom, and drag pan in SVG views.
+8. The 3D view supports drag rotate, pan, wheel/scroll vertical camera movement, pinch/ctrl-wheel zoom, reset, fit, and gizmo display.
 9. The viewer can fit to parent width.
 10. The viewer can use explicit width and height.
 11. Diagnostics are available on the model as `diagnostics`, `errors`, `warnings`, `suggestions`, and `infos`.

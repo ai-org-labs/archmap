@@ -39,6 +39,12 @@ const OVERLAY_EDGE_COLOR = 0x7a4f9a;
 const EMPHASIS_EDGE_COLOR = 0xb3261e;
 const BOUNDARY_COLOR = 0xc0a044;
 
+function wheelUnit(event: WheelEvent, pageSize: number): number {
+  if (event.deltaMode === 1) return 16;
+  if (event.deltaMode === 2) return Math.max(1, pageSize);
+  return 1;
+}
+
 function layerColor(layer: number): number {
   return LAYER_COLORS[layer % LAYER_COLORS.length];
 }
@@ -378,6 +384,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.copy(center);
   controls.enableDamping = true;
+  controls.enableZoom = false;
   controls.screenSpacePanning = true;
   controls.update();
 
@@ -408,6 +415,43 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     };
     controls.target.copy(center);
   };
+
+  const onWheel = (event: WheelEvent): void => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    snap = undefined;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const unit = wheelUnit(event, rect.height || height);
+    const dx = event.deltaX * unit;
+    const dy = event.deltaY * unit;
+    if (event.ctrlKey) {
+      const zoomFactor = Math.exp(-dy * 0.0015);
+      if (camera instanceof THREE.OrthographicCamera) {
+        camera.zoom = THREE.MathUtils.clamp(camera.zoom * zoomFactor, 0.12, 12);
+        camera.updateProjectionMatrix();
+      } else {
+        const direction = camera.position.clone().sub(controls.target);
+        const currentDistance = Math.max(0.001, direction.length());
+        const nextDistance = THREE.MathUtils.clamp(
+          currentDistance / zoomFactor,
+          Math.max(1, size * 0.08),
+          Math.max(20, size * 8),
+        );
+        camera.position.copy(controls.target).add(direction.setLength(nextDistance));
+      }
+      controls.update();
+      return;
+    }
+    const xDelta = event.shiftKey && Math.abs(dx) < Math.abs(dy) ? dy : dx;
+    const panScale = Math.max(0.004, size * 0.0015);
+    const screenRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
+    const screenUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+    const movement = screenRight.multiplyScalar(-xDelta * panScale).add(screenUp.multiplyScalar(-dy * panScale));
+    camera.position.add(movement);
+    controls.target.add(movement);
+    controls.update();
+  };
+  renderer.domElement.addEventListener("wheel", onWheel, { passive: false, capture: true });
 
   const cube = document.createElement("div");
   cube.className = "archmap-view-cube";
@@ -552,6 +596,7 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
       cancelAnimationFrame(raf);
       observer.disconnect();
       controls.dispose();
+      renderer.domElement.removeEventListener("wheel", onWheel, { capture: true });
       for (const d of disposables) d.dispose();
       renderer.dispose();
       renderer.domElement.remove();

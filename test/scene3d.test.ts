@@ -87,4 +87,12 @@ describe("three-view mount behavior", () => {
     expect(source).not.toContain("setFromSpherical");
     expect(source).not.toContain("setPointerCapture");
   });
+
+  it("uses wheel scroll for camera movement and ctrl-wheel for zoom", () => {
+    expect(source).toContain("controls.enableZoom = false");
+    expect(source).toContain('renderer.domElement.addEventListener("wheel", onWheel');
+    expect(source).toContain("event.ctrlKey");
+    expect(source).toContain("camera.position.add(movement)");
+    expect(source).toContain("controls.target.add(movement)");
+  });
 });

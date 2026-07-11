@@ -63,6 +63,12 @@ function markerIdForColor(color: string): string {
   return `archmap-prototype-arrow-${color.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 }
 
+function wheelUnit(event: WheelEvent, pageSize: number): number {
+  if (event.deltaMode === 1) return 16;
+  if (event.deltaMode === 2) return Math.max(1, pageSize);
+  return 1;
+}
+
 function scenarioById(model: ArchMapModel, id: string | undefined): Scenario | undefined {
   return id ? model.scenarios.find((scenario) => scenario.id === id) : undefined;
 }
@@ -798,11 +804,22 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
         window.addEventListener("pointerup", endDrag, { signal: mapInteractionController.signal });
         window.addEventListener("pointercancel", endDrag, { signal: mapInteractionController.signal });
         window.addEventListener("blur", () => cleanupMapInteractions?.(), { signal: mapInteractionController.signal });
-        // The wheel listener previously had no abort signal, so re-entering the
-        // map stacked duplicate zoom handlers on the shared pane.
+        // Keep map navigation aligned with 2D views: ordinary wheel scroll moves
+        // the camera vertically, while trackpad/browser pinch (ctrl-wheel)
+        // zooms toward the cursor.
         screenPane.addEventListener("wheel", (event) => {
           event.preventDefault();
-          zoomAt(event.deltaY < 0 ? 1.1 : 0.9, event.clientX, event.clientY);
+          const bounds = screenPane.getBoundingClientRect();
+          const unit = wheelUnit(event, bounds.height);
+          const dx = event.deltaX * unit;
+          const dy = event.deltaY * unit;
+          if (event.ctrlKey) {
+            zoomAt(Math.exp(-dy * 0.0015), event.clientX, event.clientY);
+            return;
+          }
+          const xDelta = event.shiftKey && Math.abs(dx) < Math.abs(dy) ? dy : dx;
+          mapPan = { x: mapPan.x - xDelta, y: mapPan.y - dy };
+          applyMapTransform();
         }, { passive: false, signal: mapInteractionController.signal });
       };
 

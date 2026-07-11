@@ -60,8 +60,8 @@ Source: [04-engine-api.md §20](./specs/v0.1/04-engine-api.md#20-minimal-accepta
 | 4 | Viewer supports `overview`, `zone`, `3d` base views. | Partial | `overview` and `3d` are primary controls; `zone` remains supported for compatibility but product UI treats it as Add info. |
 | 5 | 3D fallback diagnostic. | Pass | Core fallback emits `view_3d_unavailable`; installing the 3D bundle replaces it. |
 | 6 | Five semantic overlays supported. | Pass | Auth, dataflow, boundary, permission, validation are additive controls. |
-| 7 | SVG wheel zoom and drag pan. | Pass | Attached for interactive 2D targets; `fit()`/`reset()` available. |
-| 8 | 3D drag/pan/zoom/reset/fit/gizmo. | Pass | Real 3D view satisfies this with OrbitControls and ViewCube. |
+| 7 | SVG scroll/pinch navigation and drag pan. | Pass | Ordinary wheel/scroll moves the camera vertically; pinch/`ctrl`-wheel zooms; `fit()`/`reset()` available. |
+| 8 | 3D drag/pan/scroll/pinch/reset/fit/gizmo. | Pass | Real 3D view keeps OrbitControls rotation/pan, uses wheel/scroll for vertical camera movement, pinch/`ctrl`-wheel for zoom, and shows ViewCube. |
 | 9 | Fit to parent width. | Pass | `RenderResult.fit()` and viewer controls fit current container. |
 | 10 | Explicit width/height. | Pass | `<archmap-viewer width height>` attributes are parsed and applied. |
 | 11 | Model diagnostics arrays. | Pass | `diagnostics`, `errors`, `warnings`, `suggestions`, `infos`. |

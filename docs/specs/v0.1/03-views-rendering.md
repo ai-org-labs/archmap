@@ -304,7 +304,8 @@ external
 The 3D view must support:
 
 - drag to rotate
-- wheel to zoom
+- ordinary wheel/scroll to move the camera vertically
+- trackpad/browser pinch (`ctrl`-wheel) to zoom
 - pan support
 - reset camera
 - fit scene

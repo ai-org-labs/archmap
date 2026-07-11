@@ -63,4 +63,55 @@ describe("computeFitTransform (TASK-006)", () => {
     expect(svg.style.transform).toBe("translate(-120.00px, 42.00px) scale(1.75)");
     panZoom.dispose();
   });
+
+  it("uses ordinary wheel for vertical camera movement and ctrl-wheel for zoom", () => {
+    const listeners = new Map<string, EventListener>();
+    const svg = {
+      style: {},
+      viewBox: { baseVal: { width: 1000, height: 500 } },
+      clientWidth: 1000,
+      clientHeight: 500,
+    } as unknown as SVGSVGElement;
+    const container = {
+      style: {},
+      querySelector: () => svg,
+      addEventListener(type: string, listener: EventListener) {
+        listeners.set(type, listener);
+      },
+      removeEventListener() {},
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 600, height: 400 }),
+    } as unknown as HTMLElement;
+
+    const panZoom = attachPanZoom(container);
+    const fitted = panZoom.get();
+    listeners.get("wheel")?.({
+      preventDefault() {},
+      deltaMode: 0,
+      deltaX: 0,
+      deltaY: 50,
+      ctrlKey: false,
+      shiftKey: false,
+      clientX: 300,
+      clientY: 200,
+    } as unknown as WheelEvent);
+    const scrolled = panZoom.get();
+
+    expect(scrolled.scale).toBe(fitted.scale);
+    expect(scrolled.y).toBeCloseTo(fitted.y - 50);
+
+    listeners.get("wheel")?.({
+      preventDefault() {},
+      deltaMode: 0,
+      deltaX: 0,
+      deltaY: -60,
+      ctrlKey: true,
+      shiftKey: false,
+      clientX: 300,
+      clientY: 200,
+    } as unknown as WheelEvent);
+    const zoomed = panZoom.get();
+
+    expect(zoomed.scale).toBeGreaterThan(scrolled.scale);
+    panZoom.dispose();
+  });
 });

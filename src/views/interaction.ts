@@ -1,9 +1,10 @@
 /**
  * SVG pan/zoom interaction for 2D views (spec 03 §2.1, 04 controls / TASK-006).
  *
- * The pure `computeFitTransform` is unit-testable; `attachPanZoom` wires wheel
- * zoom (toward the cursor) and drag pan onto the SVG inside a container by
- * setting a CSS transform — it never restructures the DOM, so callers that read
+ * The pure `computeFitTransform` is unit-testable; `attachPanZoom` wires
+ * pinch/ctrl-wheel zoom (toward the cursor), ordinary wheel vertical camera
+ * movement, and drag pan onto the SVG inside a container by setting a CSS
+ * transform — it never restructures the DOM, so callers that read
  * `target.innerHTML` keep working.
  */
 
@@ -22,6 +23,12 @@ export interface PanZoomHandle {
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
+
+function wheelUnit(e: WheelEvent, pageSize: number): number {
+  if (e.deltaMode === 1) return 16;
+  if (e.deltaMode === 2) return Math.max(1, pageSize);
+  return 1;
+}
 
 /** Transform that fits `content` centered within `container` (with padding). */
 export function computeFitTransform(
@@ -100,15 +107,24 @@ export function attachPanZoom(container: HTMLElement, initial?: PanZoomTransform
     apply();
   };
 
+  const zoomAt = (factor: number, px: number, py: number) => {
+    const scale = clamp(t.scale * factor, MIN_SCALE, MAX_SCALE);
+    t = { scale, x: px - ((px - t.x) / t.scale) * scale, y: py - ((py - t.y) / t.scale) * scale };
+    apply();
+  };
+
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     const rect = container.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const factor = Math.exp(-e.deltaY * 0.0015);
-    const scale = clamp(t.scale * factor, MIN_SCALE, MAX_SCALE);
-    // Keep the point under the cursor fixed.
-    t = { scale, x: px - ((px - t.x) / t.scale) * scale, y: py - ((py - t.y) / t.scale) * scale };
+    const unit = wheelUnit(e, rect.height);
+    const dx = e.deltaX * unit;
+    const dy = e.deltaY * unit;
+    if (e.ctrlKey) {
+      zoomAt(Math.exp(-dy * 0.0015), e.clientX - rect.left, e.clientY - rect.top);
+      return;
+    }
+    const xDelta = e.shiftKey && Math.abs(dx) < Math.abs(dy) ? dy : dx;
+    t = { ...t, x: t.x - xDelta, y: t.y - dy };
     apply();
   };
 
