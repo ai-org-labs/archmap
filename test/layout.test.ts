@@ -372,6 +372,29 @@ describe("computeLayout", () => {
     }
   });
 
+  it("snaps same-side ports to equal slots on the component edge", () => {
+    const m = parse(`graph LR
+      A[Alpha] --> Hub[Hub]
+      B[Beta] --> Hub
+      C[Gamma] --> Hub
+      D[Delta] --> Hub
+    `);
+    const layout = computeLayout(m);
+    const hub = layout.nodes.find((n) => n.id === "Hub")!;
+    const entries = layout.edges
+      .filter((edge) => edge.to === "Hub")
+      .map((edge) => edge.points[edge.points.length - 1])
+      .filter((point) => Math.abs(point.y - (hub.y + hub.h)) < 0.5)
+      .sort((a, b) => a.x - b.x);
+
+    expect(entries.length).toBeGreaterThanOrEqual(3);
+    const gaps = entries.slice(1).map((point, index) => point.x - entries[index].x);
+    const firstGap = gaps[0];
+    for (const gap of gaps) {
+      expect(Math.abs(gap - firstGap)).toBeLessThan(0.75);
+    }
+  });
+
   it("keeps unobstructed ordinary routes to at most one bend", () => {
     const m = parse(`graph LR
       A[A] --> B[B]
