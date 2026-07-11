@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Routing-quality slice: added final component-edge port slots. routeEdges now snaps multi-edge endpoints on the same node side to equal interior divisions of that side after repair/reselection, instead of only spacing from current coordinates. Over-bent routes with otherwise valid endpoint incidence are now eligible for candidate port reselection, then simplified again after final slot snapping so equal ports do not reintroduce doglegs. Added a regression test proving same-side ports land with uniform gaps. Verification: npx tsc --noEmit, npm test -- --run test/layout.test.ts test/render.test.ts test/edges.test.ts, npm test (228 passing), npm run build. Existing untracked reports/ was left untouched. Next: visually smoke localhost on the highlighted Local-first/Web Frontend regions and tune remaining parallel-lane spacing or label-following defects only where visible.",
-  "updated_at": "2026-07-11T19:12:30.000+09:00",
+  "content": "External visibility handoff: Cloudflare quick tunnels are unsuitable for handoff because the origin unregisters when the tunnel process dies, and persistent tunneling of the local repo is not acceptable. Pushed main to origin at e148719 so the existing GitHub Pages workflow deploys the curated static site (_site contains dist/examples/docs plus release docs, not the whole workspace). GitHub Actions run 29150779413 completed successfully. Public check URL: https://ai-org-labs.github.io/archmap/ . Verified 200 for /, /dist/archmap.js, and /examples/demo.html. Existing untracked reports/ was left untouched. Next: use GitHub Pages for out-of-office review; continue visual smoke on routing-quality defects only where visible.",
+  "updated_at": "2026-07-11T20:22:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
