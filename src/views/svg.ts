@@ -438,6 +438,14 @@ export interface EdgeBadgeSpec {
   level?: "error" | "warning" | "suggestion" | "info";
 }
 
+const EDGE_BADGE_TEXT_X = 26;
+const EDGE_BADGE_RIGHT_PAD = 14;
+const EDGE_BADGE_H = 20;
+
+function edgeBadgeWidth(label: string): number {
+  return Math.max(62, EDGE_BADGE_TEXT_X + label.length * 6.8 + EDGE_BADGE_RIGHT_PAD);
+}
+
 function edgeBadgeIcon(kind: EdgeBadgeSpec["kind"], x: number, y: number): string {
   if (kind === "auth-summary") {
     return (
@@ -458,22 +466,22 @@ function edgeBadgeIcon(kind: EdgeBadgeSpec["kind"], x: number, y: number): strin
 }
 
 export function edgeBadgesSize(badges: EdgeBadgeSpec[]): { w: number; h: number } {
-  const sizes = badges.map((badge) => Math.max(42, badge.label.length * 6.2 + 26));
-  return { w: sizes.reduce((sum, size) => sum + size, 0) + 5 * Math.max(0, sizes.length - 1), h: 18 };
+  const sizes = badges.map((badge) => edgeBadgeWidth(badge.label));
+  return { w: sizes.reduce((sum, size) => sum + size, 0) + 5 * Math.max(0, sizes.length - 1), h: EDGE_BADGE_H };
 }
 
 export function edgeBadgesSvg(badges: EdgeBadgeSpec[], at: { x: number; y: number }): string {
   if (badges.length === 0) return "";
-  const sizes = badges.map((badge) => Math.max(42, badge.label.length * 6.2 + 26));
+  const sizes = badges.map((badge) => edgeBadgeWidth(badge.label));
   const gap = 5;
   const total = sizes.reduce((sum, size) => sum + size, 0) + gap * (sizes.length - 1);
   let x = at.x - total / 2;
   const y = at.y;
   return `<g class="archmap-edge-badges">` + badges.map((badge, index) => {
     const w = sizes[index];
-    const rect = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="9" />`;
-    const icon = edgeBadgeIcon(badge.kind, x + 9, y + 7);
-    const text = `<text x="${(x + 23).toFixed(1)}" y="${(y + 9.5).toFixed(1)}" dominant-baseline="central">${escapeXml(badge.label)}</text>`;
+    const rect = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${EDGE_BADGE_H}" rx="10" />`;
+    const icon = edgeBadgeIcon(badge.kind, x + 10, y + 8);
+    const text = `<text x="${(x + EDGE_BADGE_TEXT_X).toFixed(1)}" y="${(y + EDGE_BADGE_H / 2 + 0.5).toFixed(1)}" dominant-baseline="central">${escapeXml(badge.label)}</text>`;
     x += w + gap;
     const legacyClass = badge.kind === "auth-summary" ? " archmap-auth-edge-badge" : ` archmap-${badge.kind.replace("-summary", "")}-edge-badge`;
     const levelClass = badge.kind === "validation-summary" && badge.level ? ` archmap-validation-level-${badge.level}` : "";

@@ -288,6 +288,10 @@ function boxesOverlap(a: Box, b: Box): boolean {
   return overlapArea(a, b) > 0;
 }
 
+function inflateBox(box: Box, pad: number): Box {
+  return { ...box, x: box.x - pad, y: box.y - pad, w: box.w + pad * 2, h: box.h + pad * 2 };
+}
+
 function placeEdgeBadges(
   badges: EdgeBadgeList,
   at: { x: number; y: number },
@@ -592,7 +596,14 @@ export function renderDiagram(spec: DiagramSpec): string {
   const densePermissionOverlay = (overlayEdges ?? []).filter((edge) => edge.className?.includes("archmap-permission-edge")).length > 8;
   const edgeVisuals = buildEdgeVisuals([...layout.edges, ...overlayPlan.drawables]);
   const edgePaths = new Map([...edgeVisuals.entries()].map(([id, visual]) => [id, visual.d]));
+  const edgeAnnotationAnchors = new Map<string, { at: { x: number; y: number }; orient: "h" | "v" }>();
   const reservedEdgeBadges: Box[] = [];
+  for (const e of layout.edges) {
+    const visual = edgeVisuals.get(e.id);
+    const anchor = e.label || edgeBadges?.has(e.id) ? visualEdgeAnnotationAnchor(e, visual?.points) : { at: e.labelAt, orient: e.labelOrient ?? "h" as const };
+    edgeAnnotationAnchors.set(e.id, anchor);
+    if (e.label) reservedEdgeBadges.push(inflateBox(textBox(e.label, anchor.at.x, anchor.at.y), 10));
+  }
   const edgesSvg = layout.edges
     .map((e) => {
       const emph = emphasizeEdges?.has(e.id) ?? false;
@@ -601,7 +612,7 @@ export function renderDiagram(spec: DiagramSpec): string {
       const style = edgeStyles?.get(e.id);
       const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
       const visual = edgeVisuals.get(e.id);
-      const anchor = e.label || edgeBadges?.has(e.id) ? visualEdgeAnnotationAnchor(e, visual?.points) : { at: e.labelAt, orient: e.labelOrient ?? "h" as const };
+      const anchor = edgeAnnotationAnchors.get(e.id) ?? { at: e.labelAt, orient: e.labelOrient ?? "h" as const };
       const path = edgePathFromD(visual?.d ?? "", emph ? "archmap-arrow-emph" : "archmap-arrow");
       const startpoint = edgeStartpointSvg(visual?.points[0] ?? e.points[0]);
       const label = e.label ? edgeLabelSvg(e.label, anchor.at) : "";

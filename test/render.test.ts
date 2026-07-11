@@ -73,6 +73,14 @@ function containsArea(outer: { x0: number; x1: number; y0: number; y1: number },
   return inner.x0 >= outer.x0 && inner.x1 <= outer.x1 && inner.y0 >= outer.y0 && inner.y1 <= outer.y1;
 }
 
+function svgRectBox(match: RegExpMatchArray): { x0: number; x1: number; y0: number; y1: number; w: number; h: number } {
+  const x = Number(match[1]);
+  const y = Number(match[2]);
+  const w = Number(match[3]);
+  const h = Number(match[4]);
+  return { x0: x, x1: x + w, y0: y, y1: y + h, w, h };
+}
+
 function pathSegments(d: string): Array<[{ x: number; y: number }, { x: number; y: number }]> {
   const tokens = [...d.matchAll(/[ML]|-?\d+(?:\.\d+)?/g)].map((m) => m[0]);
   const segments: Array<[{ x: number; y: number }, { x: number; y: number }]> = [];
@@ -590,6 +598,34 @@ describe("render", () => {
     expect(svg).toContain("issuer: FirebaseAuth");
     expect(svg).toContain("validator: APIGW");
     expect(svg).toContain(".archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }");
+  });
+
+  it("keeps auth edge badges clear of ordinary edge labels and covers badge text", () => {
+    const m = parse(`graph LR
+      FirebaseAuth[Firebase Auth] -->|issues JWT| Login[Login]
+      ---
+      nodes:
+        FirebaseAuth: { kind: identity_provider }
+        Login: { kind: form }
+      edges:
+        FirebaseAuth->Login:
+          auth: { token: JWT, issuer: FirebaseAuth, validatedBy: Login }
+    `);
+    const svg = render(m, { baseView: "overview", overlays: ["auth"] }).svg!;
+    const labelMatch = svg.match(
+      /<g class="archmap-edge-label"><rect class="archmap-edge-label-bg" x="(-?[0-9.]+)" y="(-?[0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"[\s\S]*?>issues JWT<\/text>/,
+    );
+    const badgeMatch = svg.match(
+      /<g class="archmap-edge-badge[^"]*archmap-auth-edge-badge[^"]*"[^>]*><rect x="(-?[0-9.]+)" y="(-?[0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"[\s\S]*?<text x="(-?[0-9.]+)" y="(-?[0-9.]+)"[^>]*>JWT<\/text>/,
+    );
+    expect(labelMatch).toBeTruthy();
+    expect(badgeMatch).toBeTruthy();
+    const labelBox = svgRectBox(labelMatch!);
+    const badgeBox = svgRectBox(badgeMatch!);
+
+    expect(overlaps(labelBox, badgeBox)).toBe(false);
+    expect(badgeBox.w).toBeGreaterThanOrEqual(62);
+    expect(Number(badgeMatch![5]) + "JWT".length * 6.8).toBeLessThan(badgeBox.x1 - 8);
   });
 
   it("exposes PNG and SVG export methods on render results", () => {
