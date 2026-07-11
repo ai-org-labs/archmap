@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { attachPanZoom, computeFitTransform, isInteractiveTarget, shouldStartPanFromPointerTarget } from "../src/views/interaction.js";
+import {
+  attachLabelPopups,
+  attachPanZoom,
+  computeFitTransform,
+  computePopupAnchorRect,
+  isInteractiveTarget,
+  shouldStartPanFromPointerTarget,
+} from "../src/views/interaction.js";
 
 describe("computeFitTransform (TASK-006)", () => {
   it("scales content to fit the container with padding and centers it", () => {
@@ -62,6 +69,150 @@ describe("computeFitTransform (TASK-006)", () => {
     expect(panZoom.get()).toEqual({ scale: 1.75, x: -120, y: 42 });
     expect(svg.style.transform).toBe("translate(-120.00px, 42.00px) scale(1.75)");
     panZoom.dispose();
+  });
+
+  it("derives popup anchor bounds from SVG children when a group reports a zero rect", () => {
+    const trigger = {
+      getBoundingClientRect: () => ({ left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 }),
+      children: [
+        { getBoundingClientRect: () => ({ left: 100, right: 140, top: 50, bottom: 70, width: 40, height: 20 }) },
+        { getBoundingClientRect: () => ({ left: 88, right: 132, top: 72, bottom: 92, width: 44, height: 20 }) },
+      ],
+    } as unknown as Element;
+
+    expect(computePopupAnchorRect(trigger)).toEqual({ left: 88, right: 140, top: 50, bottom: 92, width: 52, height: 42 });
+  });
+
+  it("registers popup activation in capture phase before selection-style bubble handlers", () => {
+    const registrations: Array<{ type: string; capture: boolean }> = [];
+    const removals: Array<{ type: string; capture: boolean }> = [];
+    const doc = {
+      removeEventListener() {},
+    } as unknown as Document;
+    const container = {
+      ownerDocument: doc,
+      addEventListener(type: string, _listener: EventListener, options?: boolean | AddEventListenerOptions) {
+        registrations.push({ type, capture: options === true || !!(options as AddEventListenerOptions | undefined)?.capture });
+      },
+      removeEventListener(type: string, _listener: EventListener, options?: boolean | EventListenerOptions) {
+        removals.push({ type, capture: options === true || !!(options as EventListenerOptions | undefined)?.capture });
+      },
+    } as unknown as HTMLElement;
+
+    const handle = attachLabelPopups(container);
+
+    expect(registrations).toEqual([
+      { type: "click", capture: true },
+      { type: "keydown", capture: true },
+    ]);
+
+    handle.dispose();
+    expect(removals).toEqual([
+      { type: "click", capture: true },
+      { type: "keydown", capture: true },
+    ]);
+  });
+
+  it("opens a popup from a captured label click and stops competing click handlers", () => {
+    class FakeElement {
+      attributes = new Map<string, string>();
+      children: FakeElement[] = [];
+      className = "";
+      style: Record<string, string> = {};
+      textContent = "";
+      offsetWidth = 260;
+      offsetHeight = 120;
+      removed = false;
+
+      constructor(private rect = { left: 120, right: 200, top: 80, bottom: 104, width: 80, height: 24 }) {}
+
+      getBoundingClientRect() {
+        return this.rect;
+      }
+
+      getAttribute(name: string) {
+        return this.attributes.get(name) ?? null;
+      }
+
+      setAttribute(name: string, value: string) {
+        this.attributes.set(name, value);
+      }
+
+      removeAttribute(name: string) {
+        this.attributes.delete(name);
+      }
+
+      append(...nodes: FakeElement[]) {
+        this.children.push(...nodes);
+      }
+
+      remove() {
+        this.removed = true;
+      }
+
+      contains(target: unknown): boolean {
+        return target === this || this.children.some((child) => child.contains(target));
+      }
+
+      closest(selector: string) {
+        return selector === ".archmap-popup-trigger" && this.className.includes("archmap-popup-trigger") ? this : null;
+      }
+    }
+
+    const listeners = new Map<string, EventListener>();
+    const body = new FakeElement();
+    const doc = {
+      body,
+      documentElement: { clientWidth: 1024, clientHeight: 768 },
+      defaultView: { innerWidth: 1024, innerHeight: 768 },
+      createElement: () => new FakeElement(),
+      addEventListener() {},
+      removeEventListener() {},
+    } as unknown as Document;
+    const container = new FakeElement() as unknown as HTMLElement & FakeElement;
+    Object.defineProperty(container, "ownerDocument", { value: doc });
+    container.addEventListener = (type: string, listener: EventListener) => {
+      listeners.set(type, listener);
+    };
+    container.removeEventListener = () => {};
+    container.contains = () => true;
+
+    const trigger = new FakeElement() as unknown as Element & FakeElement;
+    trigger.className = "archmap-popup-trigger";
+    trigger.setAttribute("data-archmap-popup-title", "1 warning");
+    trigger.setAttribute("data-archmap-popup-detail", "level: warning\ncode: zone_crossing_without_boundary");
+    container.children.push(trigger);
+
+    attachLabelPopups(container);
+
+    const eventTarget = {
+      closest: () => trigger,
+    };
+    const event = {
+      target: eventTarget,
+      preventDefaultCalled: false,
+      stopPropagationCalled: false,
+      stopImmediatePropagationCalled: false,
+      preventDefault() {
+        this.preventDefaultCalled = true;
+      },
+      stopPropagation() {
+        this.stopPropagationCalled = true;
+      },
+      stopImmediatePropagation() {
+        this.stopImmediatePropagationCalled = true;
+      },
+    };
+
+    expect(listeners.get("click")).toBeTypeOf("function");
+    listeners.get("click")?.(event as unknown as Event);
+
+    expect(event.preventDefaultCalled).toBe(true);
+    expect(event.stopPropagationCalled).toBe(true);
+    expect(event.stopImmediatePropagationCalled).toBe(true);
+    expect(body.children).toHaveLength(1);
+    expect(body.children[0].className).toBe("archmap-label-popup");
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("uses ordinary wheel for vertical camera movement and ctrl-wheel for zoom", () => {

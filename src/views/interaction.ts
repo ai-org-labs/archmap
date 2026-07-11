@@ -112,8 +112,32 @@ function stylePopup(popup: HTMLElement): void {
   });
 }
 
-function positionPopup(popup: HTMLElement, trigger: Element, doc: Document): void {
+type PopupRect = Pick<DOMRect, "left" | "right" | "top" | "bottom" | "width" | "height">;
+
+export function computePopupAnchorRect(trigger: Element): PopupRect {
   const rect = trigger.getBoundingClientRect();
+  if (rect.width > 0 || rect.height > 0) return rect;
+
+  const childRects = Array.from(trigger.children)
+    .map((child) => child.getBoundingClientRect())
+    .filter((childRect) => childRect.width > 0 || childRect.height > 0);
+  if (!childRects.length) return rect;
+
+  const left = Math.min(...childRects.map((childRect) => childRect.left));
+  const right = Math.max(...childRects.map((childRect) => childRect.right));
+  const top = Math.min(...childRects.map((childRect) => childRect.top));
+  const bottom = Math.max(...childRects.map((childRect) => childRect.bottom));
+  return { left, right, top, bottom, width: right - left, height: bottom - top };
+}
+
+function stopPopupActivation(event: Event): void {
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+}
+
+function positionPopup(popup: HTMLElement, trigger: Element, doc: Document): void {
+  const rect = computePopupAnchorRect(trigger);
   const viewportW = doc.documentElement.clientWidth || doc.defaultView?.innerWidth || 1024;
   const viewportH = doc.documentElement.clientHeight || doc.defaultView?.innerHeight || 768;
   let left = rect.left;
@@ -215,8 +239,7 @@ export function attachLabelPopups(container: HTMLElement): LabelPopupHandle {
     if (!isElement(event.target)) return;
     const trigger = event.target.closest(".archmap-popup-trigger");
     if (!trigger || !container.contains(trigger)) return;
-    event.preventDefault();
-    event.stopPropagation();
+    stopPopupActivation(event);
     if (trigger === activeTrigger && popup) close();
     else open(trigger);
   };
@@ -226,19 +249,19 @@ export function attachLabelPopups(container: HTMLElement): LabelPopupHandle {
     if (!isElement(event.target)) return;
     const trigger = event.target.closest(".archmap-popup-trigger");
     if (!trigger || !container.contains(trigger)) return;
-    event.preventDefault();
+    stopPopupActivation(event);
     if (trigger === activeTrigger && popup) close();
     else open(trigger);
   };
 
-  container.addEventListener("click", onClick);
-  container.addEventListener("keydown", onKeyDown);
+  container.addEventListener("click", onClick, true);
+  container.addEventListener("keydown", onKeyDown, true);
 
   return {
     dispose() {
       close();
-      container.removeEventListener("click", onClick);
-      container.removeEventListener("keydown", onKeyDown);
+      container.removeEventListener("click", onClick, true);
+      container.removeEventListener("keydown", onKeyDown, true);
     },
   };
 }
