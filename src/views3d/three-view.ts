@@ -138,7 +138,11 @@ function buildSceneGraph(ctx: ViewContext, scene3d: Scene3D, icons: Map<string, 
   };
   const phaseId = ctx.options.phase ? resolvePhaseId(ctx.model, ctx.options.phase) : undefined;
   const presence = phaseId ? computePhasePresence(ctx.model, phaseId) : undefined;
-  const projection = buildOverlayProjection(ctx.model, ctx.layout, ctx.options.overlays ?? [], phaseId ? { phase: phaseId } : undefined);
+  const projection = buildOverlayProjection(ctx.model, ctx.layout, ctx.options.overlays ?? [], {
+    ...(phaseId ? { phase: phaseId } : {}),
+    baseView: ctx.options.baseView,
+    view: ctx.options.renderMode === "3d" || ctx.options.renderMode === "isometric" ? "3d" : ctx.options.baseView,
+  });
   const emphasizeNodes = projection.emphasizeNodes ?? new Set<string>();
   const emphasizeEdges = projection.emphasizeEdges ?? new Set<string>();
   const badges = projection.nodeBadges ?? new Map<string, string>();

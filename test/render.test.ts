@@ -860,6 +860,44 @@ describe("render", () => {
     expect(svg).toContain("zone_crossing_marked_false");
   });
 
+  it("scopes prototype-only diagnostics out of overview and layer validation displays", () => {
+    const m = parse(`graph LR
+      Home[Home] --> Checkout[Checkout]
+      Checkout --> Payment[Payment]
+      ---
+      mode: screenflow
+      nodes:
+        Home: { kind: page, zone: web }
+        Checkout: { kind: form, zone: web }
+        Payment: { kind: external_page, zone: external_payment }
+      zones:
+        web: { kind: app_boundary, contains: [Home, Checkout] }
+        external_payment: { kind: external, contains: [Payment] }
+      edges:
+        Home->Checkout: { flow: navigate }
+        Checkout->Payment: { flow: redirect }
+    `);
+
+    expect(m.diagnostics.some((d) => d.code === "screen_node_without_image")).toBe(true);
+    expect(m.diagnostics.some((d) => d.code === "transition_without_trigger")).toBe(true);
+    expect(m.diagnostics.some((d) => d.code === "external_transition_without_boundary")).toBe(true);
+
+    const overview = render(m, { baseView: "overview", overlays: ["validation"] }).svg!;
+    const layer = render(m, { baseView: "layer", overlays: ["validation"] }).svg!;
+    const overviewDiagnostics = diagnosticsHtml(m, { baseView: "overview" });
+    const prototypeDiagnostics = diagnosticsHtml(m, { baseView: "prototype" });
+
+    for (const html of [overview, layer, overviewDiagnostics]) {
+      expect(html).not.toContain("screen_node_without_image");
+      expect(html).not.toContain("transition_without_trigger");
+      expect(html).not.toContain("Prototype View will render a fallback card");
+    }
+    expect(overview).toContain("external_transition_without_boundary");
+    expect(overviewDiagnostics).toContain("external_transition_without_boundary");
+    expect(prototypeDiagnostics).toContain("screen_node_without_image");
+    expect(prototypeDiagnostics).toContain("transition_without_trigger");
+  });
+
   it("collapses dense permission overlay labels into target summaries", () => {
     const permissions = Array.from({ length: 9 }, (_, i) => `        p${i}: { principal: app-sa, action: a${i}, resource: DB, role: role-${i} }`).join("\n");
     const m = parse(`graph LR

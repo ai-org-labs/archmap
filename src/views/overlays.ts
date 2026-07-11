@@ -2,6 +2,7 @@ import type { LayoutResult } from "../layout.js";
 import type { ArchMapModel, BoundaryCrossing, Diagnostic, GraphSubgraph, Permission } from "../types.js";
 import type { Box } from "./base.js";
 import { computePhasePresence, presenceInterval, timelinePhaseIndex } from "../time-projection.js";
+import { diagnosticsForView } from "../diagnostics.js";
 
 export const OVERLAY_NAMES = new Set(["subgraph", "zone", "auth", "dataflow", "boundary", "permission", "validation", "timeline"]);
 
@@ -9,6 +10,10 @@ export const OVERLAY_NAMES = new Set(["subgraph", "zone", "auth", "dataflow", "b
 export interface OverlayContext {
   /** Active timeline phase id, when the render has one. */
   phase?: string;
+  /** Requested base view, used to scope view-specific validation diagnostics. */
+  baseView?: string;
+  /** Actual renderer view, such as 3d for renderMode-driven renders. */
+  view?: string;
 }
 
 export interface OverlayEdgeBadge {
@@ -380,7 +385,7 @@ export function buildOverlayProjection(model: ArchMapModel, layout: LayoutResult
   }
 
   if (active.includes("validation")) {
-    const diagnostics = model.diagnostics.length ? model.diagnostics : [...model.errors, ...model.warnings];
+    const diagnostics = diagnosticsForView(model.diagnostics.length ? model.diagnostics : [...model.errors, ...model.warnings], context);
     const diagnosticsByTarget = new Map<string, typeof diagnostics>();
     for (const diagnostic of diagnostics) {
       const target = diagnostic.target ?? (diagnostic.ref ? { type: diagnostic.ref.kind, id: diagnostic.ref.id } : undefined);

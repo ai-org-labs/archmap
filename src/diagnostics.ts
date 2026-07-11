@@ -110,6 +110,32 @@ export interface ConsoleReportOptions {
   logger?: ((diagnostic: Diagnostic, message: string) => void) | Partial<Record<DiagnosticLevel, (message: string) => void>>;
 }
 
+export interface DiagnosticDisplayContext {
+  /** Requested base view, such as overview, layer, or prototype. */
+  baseView?: string;
+  /** Actual renderer view, for example 3d when renderMode is 3d. */
+  view?: string;
+}
+
+const PROTOTYPE_ONLY_DIAGNOSTICS = new Set([
+  "screen_node_without_image",
+  "transition_without_trigger",
+  "unreachable_screen",
+  "ambiguous_transition",
+  "hotspot_out_of_bounds",
+  "scenario_unknown_start",
+  "scenario_unknown_step",
+]);
+
+export function diagnosticAppliesToView(diagnostic: Diagnostic, context?: DiagnosticDisplayContext): boolean {
+  if (!PROTOTYPE_ONLY_DIAGNOSTICS.has(diagnostic.code)) return true;
+  return context?.baseView === "prototype" || context?.view === "prototype";
+}
+
+export function diagnosticsForView(diagnostics: Diagnostic[], context?: DiagnosticDisplayContext): Diagnostic[] {
+  return diagnostics.filter((diagnostic) => diagnosticAppliesToView(diagnostic, context));
+}
+
 /**
  * Report diagnostics to the console (or a custom sink). Configurable per spec
  * 02 §23: by default engines log warnings and errors as

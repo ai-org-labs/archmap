@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Auth edge-badge dedup slice completed: user observed non-clickable JWT auth badges below Login/Checkout even though the same auth information was already on the connector. The auth overlay no longer emits node-level auth badges for edge.auth.token; auth token/issuer/validator/recipient stays on the clickable edge badge popup. Updated docs/aof/AUTH-EDGE-BADGE-DEDUP-QIF-CHECK-2026-07-12.md. Verification: npm test -- --run test/render.test.ts (56 passing); npx tsc --noEmit; npm test (235 passing); npm run build; in-app browser smoke on http://127.0.0.1:5173/ sample release-checkout with auth enabled found node auth badge count 0, edge auth badge count 3, all edge auth badges popup-triggered. Existing untracked reports/ remains untouched.",
-  "updated_at": "2026-07-12T01:36:00.000+09:00",
+  "content": "Validation view-scoping slice completed: Prototype-only diagnostics such as screen_node_without_image, transition_without_trigger, unreachable_screen, ambiguous_transition, hotspot_out_of_bounds, scenario_unknown_start, and scenario_unknown_step remain in the canonical model but are suppressed from Overview/Layer/3D validation overlay and diagnostics-panel display unless the requested base view is prototype. Global diagnostics such as external_transition_without_boundary and image_url_disallowed remain visible. Updated docs/aof/VALIDATION-VIEW-SCOPING-QIF-CHECK-2026-07-12.md. Verification: npm test -- --run test/render.test.ts (57 passing); npx tsc --noEmit; npm test (236 passing); npm run build; in-app browser smoke on http://127.0.0.1:5173/ sample release-checkout with Overview + validation found no screen_node_without_image or Prototype fallback-card message in page text. Existing untracked reports/ remains untouched.",
+  "updated_at": "2026-07-12T01:58:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

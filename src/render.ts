@@ -8,8 +8,8 @@
 
 import { computeLayout, getLastLayoutTimings } from "./layout.js";
 import type { LayoutOptions, LayoutResult, LayoutTimings } from "./layout.js";
-import { diagnostic, syncDiagnostics, reportDiagnosticsToConsole } from "./diagnostics.js";
-import type { ConsoleReportOptions } from "./diagnostics.js";
+import { diagnostic, diagnosticAppliesToView, syncDiagnostics, reportDiagnosticsToConsole } from "./diagnostics.js";
+import type { ConsoleReportOptions, DiagnosticDisplayContext } from "./diagnostics.js";
 import { parse } from "./parser-entry.js";
 import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
@@ -303,8 +303,12 @@ async function downloadBlob(blob: Blob, filename: string, extension = "png"): Pr
   }
 }
 
-function diagnosticLabel(model: ArchMapModel): string {
-  return `Errors ${model.errors.length} / Warnings ${model.warnings.length} / Suggestions ${model.suggestions.length} / Infos ${model.infos.length}`;
+function diagnosticLabel(items: ArchMapModel["diagnostics"]): string {
+  const errors = items.filter((d) => d.level === "error").length;
+  const warnings = items.filter((d) => d.level === "warning").length;
+  const suggestions = items.filter((d) => d.level === "suggestion").length;
+  const infos = items.filter((d) => d.level === "info").length;
+  return `Errors ${errors} / Warnings ${warnings} / Suggestions ${suggestions} / Infos ${infos}`;
 }
 
 function diagnosticTarget(target: Element | string | null | undefined): Element | undefined {
@@ -471,10 +475,13 @@ function attachAbstractionToggles(target: Element, collapse: (key: string) => vo
   return () => target.removeEventListener("click", handler, { capture: true });
 }
 
-export function diagnosticsHtml(model: ArchMapModel): string {
+export function diagnosticsHtml(model: ArchMapModel, context?: DiagnosticDisplayContext): string {
   syncDiagnostics(model);
   const items = model.diagnostics
-    .map((d, index) => {
+    .map((d, index) => ({ d, index }))
+    .filter(({ d }) => diagnosticAppliesToView(d, context));
+  const listItems = items
+    .map(({ d, index }) => {
       const target = d.target ? ` ${d.target.type}:${d.target.id}` : "";
       const targetAttrs = d.target
         ? ` data-target-type="${escapeXml(d.target.type)}" data-target-id="${escapeXml(d.target.id)}"`
@@ -488,14 +495,14 @@ export function diagnosticsHtml(model: ArchMapModel): string {
     .join("");
   return (
     `<div class="archmap-diagnostics" role="status">` +
-    `<div class="archmap-diagnostics-summary">${escapeXml(diagnosticLabel(model))}</div>` +
-    `<ul>${items}</ul>` +
+    `<div class="archmap-diagnostics-summary">${escapeXml(diagnosticLabel(items.map(({ d }) => d)))}</div>` +
+    `<ul>${listItems}</ul>` +
     `</div>`
   );
 }
 
-export function renderDiagnostics(model: ArchMapModel, target: Element | string | null | undefined): string {
-  const html = diagnosticsHtml(model);
+export function renderDiagnostics(model: ArchMapModel, target: Element | string | null | undefined, context?: DiagnosticDisplayContext): string {
+  const html = diagnosticsHtml(model, context);
   const el = diagnosticTarget(target);
   if (el && "innerHTML" in el) el.innerHTML = html;
   return html;
@@ -589,7 +596,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
   // An active timeline phase routes zero-overlay renders through this shared
   // path too, so time decoration lands in the same renderDiagram spec.
   if ((overlays.length === 0 && !presence) || (view !== "overview" && view !== "zone" && view !== "layer")) return undefined;
-  const projection = buildOverlayProjection(model, layout, overlays, presence ? { phase: presence.phaseId } : undefined);
+  const projection = buildOverlayProjection(model, layout, overlays, presence ? { phase: presence.phaseId, baseView: view, view } : { baseView: view, view });
   const timeDecoration = presence ? buildTimeDecoration(presence) : undefined;
   const collapsedZoneIds = new Set(model.nodes
     .filter((node) => node.abstraction?.target === "zone")
@@ -742,6 +749,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     // mode would have to join the projection key instead.)
     const presence = state.phase ? computePhasePresence(effectiveModel, state.phase) : undefined;
     const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget, phase: state.phase };
+    const diagnosticContext = { baseView: state.requestedView, view: state.view };
     const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays, presence);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
     const viewDone = nowMs();
@@ -767,7 +775,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
         state.abstractionLocked,
       );
       syncDiagnostics(effectiveModel);
-      renderDiagnostics(effectiveModel, options.diagnosticsTarget);
+      renderDiagnostics(effectiveModel, options.diagnosticsTarget, diagnosticContext);
       renderInspector(effectiveModel, options.selection ?? null, options.inspectorTarget);
       if (options.console !== undefined) reportDiagnosticsToConsole(effectiveModel, options.console);
       if (options.target && "innerHTML" in options.target) {
@@ -823,7 +831,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     finishTimings();
     preservePanZoomOnNextRender = false;
     syncDiagnostics(effectiveModel);
-    renderDiagnostics(effectiveModel, options.diagnosticsTarget);
+    renderDiagnostics(effectiveModel, options.diagnosticsTarget, diagnosticContext);
     renderInspector(effectiveModel, options.selection ?? null, options.inspectorTarget);
     if (options.console !== undefined) reportDiagnosticsToConsole(effectiveModel, options.console);
     return { view: state.view, layout, model: effectiveModel, handle, svg: undefined };
