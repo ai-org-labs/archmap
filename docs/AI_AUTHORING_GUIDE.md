@@ -90,8 +90,8 @@ clearly marked assumption.
 
 | Concept | Use it for | Do not use it for |
 | --- | --- | --- |
-| `subgraph` | Authoring hierarchy, abstraction, collapse/expand | Physical or trust grouping by itself |
-| `zone` | Physical/ownership/component area; nested zones are allowed | Layer partitions |
+| `subgraph` | Authoring hierarchy, abstraction, collapse/expand; structural groups may intersect | Physical or trust grouping by itself |
+| `zone` | Exclusive physical/ownership/component area; sibling zones do not intersect, while nested parent-child zones are allowed | Layer partitions or overlapping structural concerns |
 | `boundary` | Logical, trust, policy, network, SaaS, or external crossing area; nested boundaries are allowed | Runtime placement |
 | `layer` | Layer view partition such as app/framework/library/kernel/data | Zone or boundary semantics |
 | `auth` overlay | Token, issuer, validator, login/auth checks | General request labels |
@@ -102,6 +102,32 @@ clearly marked assumption.
 Base views are `overview`, `topology`, `layer`, and `prototype`. Render modes are `2d` and
 `3d`. Add info overlays are `subgraph`, `zone`, `auth`, `dataflow`, `boundary`,
 `permission`, and `validation`.
+
+### Zone vs Subgraph
+
+Use this question first:
+
+> If two rendered groups overlap, would a reader misunderstand where a component
+> belongs or which deployment/ownership area it occupies?
+
+- **Yes: use `zone`.** A zone is a placement or ownership region whose boundary
+  carries architectural meaning. Sibling zones are mutually exclusive and the
+  Topology view keeps them non-intersecting with visible clearance. Parent-child
+  zones are the intentional exception: they overlap by containment because the
+  child belongs inside the parent.
+- **No: use `subgraph`.** A subgraph is an authoring and abstraction group. Its
+  unfilled dashed outline may cross another subgraph because it communicates a
+  structural relationship, not exclusive spatial membership.
+
+Typical `zone` examples are cloud regions, availability zones, accounts,
+projects, VPCs, subnets, on-premises sites, environments, and ownership areas.
+Typical `subgraph` examples are request paths, feature slices, processing
+pipelines, scenarios, related services, and source-level organization.
+
+The two can be used together. For example, define Tokyo and Virginia as sibling
+zones, then use a `CheckoutFlow` subgraph for components participating in the
+same flow across both zones. Do not replace the zones with overlapping
+subgraphs when the diagram must communicate exclusive placement.
 
 ## Useful Vocabulary
 
@@ -236,6 +262,11 @@ Collect or infer: actors, clients, entry points, runtimes, data stores,
 external systems, auth, dataflow, boundaries, permissions, and unknowns.
 Use zone for physical/ownership grouping, boundary for logical/trust/policy
 grouping, layer only for Layer view, and subgraph only for authoring hierarchy.
+Sibling zones represent exclusive areas and must not overlap; nested
+parent-child zones may overlap by containment. Subgraphs are structural,
+unfilled dashed groups and may intersect. If overlapping groups would create
+ambiguity about placement or ownership, model them as zones rather than
+subgraphs.
 
 Choose `topology` for containment-first deployment or cloud diagrams with
 repeated regions, availability zones, subnets, or ownership blocks. Use

@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-064 completed Topology zone clearance: sibling zone regions retain at least 24 layout units of visible space, while nested parent-child containment remains intentional. Browser evidence on golden-topology: zero overlaps and no sibling pair below the threshold. Next: broaden nested-zone and real-world Topology fixtures before deciding v0.3.0 release scope.",
-  "updated_at": "2026-07-13T00:30:00.000+09:00",
+  "content": "TASK-065 documented the AI authoring distinction: sibling zones are exclusive non-intersecting placement/ownership areas, nested zones overlap only by containment, and subgraphs are non-exclusive structural groups that may intersect. Next: apply this rule while broadening nested-zone and real-world Topology fixtures before deciding v0.3.0 release scope.",
+  "updated_at": "2026-07-13T00:45:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

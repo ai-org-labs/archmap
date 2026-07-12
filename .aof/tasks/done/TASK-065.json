@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-065",
+  "title": "Clarify zone and subgraph authoring semantics",
+  "description": "Document when AI authors should use exclusive zones versus intersecting structural subgraphs.",
+  "status": "done",
+  "origin": "human-design-decision",
+  "created_at": "2026-07-13T00:35:00.000+09:00",
+  "done_at": "2026-07-13T00:45:00.000+09:00",
+  "decision_notes": [
+    "Sibling zones represent exclusive placement or ownership regions and must not intersect.",
+    "Nested parent-child zones overlap intentionally by containment.",
+    "Subgraphs express structural or authoring groups and may intersect.",
+    "When overlap would create placement or ownership ambiguity, authors must use zones."
+  ],
+  "verification": [
+    "docs/AI_AUTHORING_GUIDE.md concept table and dedicated Zone vs Subgraph section",
+    "README links the guide and package.json includes it in the published package",
+    "docs/aof/ZONE-SUBGRAPH-AUTHORING-QIF-CHECK-2026-07-13.md"
+  ]
+}
