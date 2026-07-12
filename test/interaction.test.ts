@@ -146,6 +146,18 @@ describe("computeFitTransform (TASK-006)", () => {
       nodeType = 1;
       parentElement: FakeElement | null = null;
       parentNode: FakeElement | null = null;
+      classList = {
+        add: (...names: string[]) => {
+          const classes = new Set(this.className.split(/\s+/).filter(Boolean));
+          names.forEach((name) => classes.add(name));
+          this.className = [...classes].join(" ");
+        },
+        remove: (...names: string[]) => {
+          const removed = new Set(names);
+          this.className = this.className.split(/\s+/).filter((name) => name && !removed.has(name)).join(" ");
+        },
+        contains: (name: string) => this.className.split(/\s+/).includes(name),
+      };
 
       constructor(private rect = { left: 120, right: 200, top: 80, bottom: 104, width: 80, height: 24 }) {}
 
@@ -182,19 +194,37 @@ describe("computeFitTransform (TASK-006)", () => {
       }
 
       matches(selector: string) {
-        return selector === ".archmap-popup-trigger" && this.className.includes("archmap-popup-trigger");
+        if (selector === ".archmap-popup-trigger") return this.classList.contains("archmap-popup-trigger");
+        if (selector === ".archmap-edge") return this.classList.contains("archmap-edge");
+        if (selector === ".archmap-overlay-edge") return this.classList.contains("archmap-overlay-edge");
+        if (selector === ".archmap-node[data-id]") return this.classList.contains("archmap-node") && this.attributes.has("data-id");
+        return false;
+      }
+
+      querySelectorAll(selector: string): FakeElement[] {
+        const matches: FakeElement[] = [];
+        for (const child of this.children) {
+          if (child.matches(selector)) matches.push(child);
+          matches.push(...child.querySelectorAll(selector));
+        }
+        return matches;
       }
     }
 
     const listeners = new Map<string, EventListener>();
+    const docListeners = new Map<string, EventListener>();
     const body = new FakeElement();
     const doc = {
       body,
       documentElement: { clientWidth: 1024, clientHeight: 768 },
       defaultView: { innerWidth: 1024, innerHeight: 768 },
       createElement: () => new FakeElement(),
-      addEventListener() {},
-      removeEventListener() {},
+      addEventListener(type: string, listener: EventListener) {
+        docListeners.set(type, listener);
+      },
+      removeEventListener(type: string) {
+        docListeners.delete(type);
+      },
     } as unknown as Document;
     const container = new FakeElement() as unknown as HTMLElement & FakeElement;
     Object.defineProperty(container, "ownerDocument", { value: doc });
@@ -204,13 +234,30 @@ describe("computeFitTransform (TASK-006)", () => {
     container.removeEventListener = () => {};
     container.contains = () => true;
 
-    const trigger = new FakeElement() as unknown as Element & FakeElement;
+    const sourceNode = new FakeElement();
+    sourceNode.className = "archmap-node";
+    sourceNode.setAttribute("data-id", "Source");
+    sourceNode.parentElement = container;
+    sourceNode.parentNode = container;
+    const targetNode = new FakeElement();
+    targetNode.className = "archmap-node";
+    targetNode.setAttribute("data-id", "Target");
+    targetNode.parentElement = container;
+    targetNode.parentNode = container;
+    const edge = new FakeElement();
+    edge.className = "archmap-edge";
+    edge.setAttribute("data-from", "Source");
+    edge.setAttribute("data-to", "Target");
+    edge.parentElement = container;
+    edge.parentNode = container;
+    const trigger = new FakeElement();
     trigger.className = "archmap-popup-trigger";
     trigger.setAttribute("data-archmap-popup-title", "1 warning");
     trigger.setAttribute("data-archmap-popup-detail", "level: warning\ncode: zone_crossing_without_boundary");
-    trigger.parentElement = container;
-    trigger.parentNode = container;
-    container.children.push(trigger);
+    trigger.parentElement = edge;
+    trigger.parentNode = edge;
+    edge.children.push(trigger);
+    container.children.push(sourceNode, targetNode, edge);
 
     attachLabelPopups(container);
 
@@ -245,6 +292,12 @@ describe("computeFitTransform (TASK-006)", () => {
     expect(body.children).toHaveLength(1);
     expect(body.children[0].className).toBe("archmap-label-popup");
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(sourceNode.classList.contains("archmap-label-endpoint")).toBe(true);
+    expect(targetNode.classList.contains("archmap-label-endpoint")).toBe(true);
+
+    docListeners.get("pointerdown")?.({ target: body } as unknown as Event);
+    expect(sourceNode.classList.contains("archmap-label-endpoint")).toBe(false);
+    expect(targetNode.classList.contains("archmap-label-endpoint")).toBe(false);
   });
 
   it("uses ordinary wheel for vertical camera movement and ctrl-wheel for zoom", () => {

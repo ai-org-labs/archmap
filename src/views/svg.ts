@@ -579,6 +579,9 @@ export const DEFAULT_STYLE = `
 .archmap-emphasis .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); }
 .archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }
 .archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis, #b3261e); }
+.archmap-node.archmap-label-endpoint .archmap-node-shape,
+.archmap-node.archmap-label-endpoint .archmap-node-shape-top { stroke: var(--archmap-label-endpoint, #2563eb); stroke-width: 3; filter: drop-shadow(0 0 5px rgba(37,99,235,0.32)); }
+.archmap-node.archmap-label-endpoint .archmap-node-label { fill: var(--archmap-label-endpoint, #1d4ed8); font-weight: 800; }
 .archmap-arrowhead-emph { fill: var(--archmap-emphasis, #b3261e); }
 .archmap-badge { fill: var(--archmap-badge, #7a4f9a); font: 600 10px var(--archmap-font, system-ui, sans-serif); }
 .archmap-auth-badge rect { fill: var(--archmap-auth-badge-fill, #fff7ed); stroke: var(--archmap-auth-badge-stroke, #b3261e); stroke-width: 1.2; }

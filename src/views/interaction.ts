@@ -174,12 +174,31 @@ export function attachLabelPopups(container: HTMLElement): LabelPopupHandle {
   const doc = container.ownerDocument ?? document;
   let popup: HTMLElement | undefined;
   let activeTrigger: Element | undefined;
+  let highlightedEndpoints: Element[] = [];
+
+  const clearEndpointHighlights = () => {
+    for (const node of highlightedEndpoints) node.classList.remove("archmap-label-endpoint");
+    highlightedEndpoints = [];
+  };
+
+  const highlightEdgeEndpoints = (trigger: Element) => {
+    clearEndpointHighlights();
+    const edge = closestMatchingElement(trigger, ".archmap-edge", container) ??
+      closestMatchingElement(trigger, ".archmap-overlay-edge", container);
+    const from = edge?.getAttribute("data-from");
+    const to = edge?.getAttribute("data-to");
+    if (!from || !to || typeof container.querySelectorAll !== "function") return;
+    highlightedEndpoints = Array.from(container.querySelectorAll(".archmap-node[data-id]"))
+      .filter((node) => node.getAttribute("data-id") === from || node.getAttribute("data-id") === to);
+    for (const node of highlightedEndpoints) node.classList.add("archmap-label-endpoint");
+  };
 
   const close = () => {
     popup?.remove();
     popup = undefined;
     activeTrigger?.removeAttribute("aria-expanded");
     activeTrigger = undefined;
+    clearEndpointHighlights();
     doc.removeEventListener("pointerdown", onDocumentPointerDown, true);
     doc.removeEventListener("keydown", onDocumentKeyDown, true);
   };
@@ -201,6 +220,7 @@ export function attachLabelPopups(container: HTMLElement): LabelPopupHandle {
     close();
     activeTrigger = trigger;
     trigger.setAttribute("aria-expanded", "true");
+    highlightEdgeEndpoints(trigger);
 
     const el = doc.createElement("div");
     el.className = "archmap-label-popup";

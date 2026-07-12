@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-059 increased ordinary wheel and trackpad camera movement to 1.35x across 2D, Prototype, and 3D while leaving pinch/ctrl-wheel zoom unchanged. Browser verification measured an 80px input as 108px camera movement with stable scale; typecheck, 237 tests, and build pass. TASK-058 endpoint-border clearance also remains verified. Release v0.2.0 is complete on GitHub; npm publication still requires a human npm account with @archmap/core ownership, followed by npm/jsDelivr verification.",
-  "updated_at": "2026-07-12T11:22:07.000+09:00",
+  "content": "TASK-060 now highlights both source and target components when an interactive edge label popup is opened. The behavior is shared by auth, dataflow, boundary, permission, and validation edge badges and clears with the popup. Browser verification on Login-to-Checkout JWT highlighted exactly Login and Checkout; typecheck, 237 tests, and build pass. TASK-059 wheel sensitivity and TASK-058 endpoint-border clearance remain verified. Release v0.2.0 is complete on GitHub; npm publication still requires a human npm account with @archmap/core ownership, followed by npm/jsDelivr verification.",
+  "updated_at": "2026-07-12T11:35:58.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
