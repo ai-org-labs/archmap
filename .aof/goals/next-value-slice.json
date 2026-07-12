@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Release v0.2.0 checkpoint completed for GitHub: main was clean at 19cfa3b, local verification passed (npm run typecheck; npm test = 236 passing; npm run build; npm pack --dry-run = 71 files / 316.0 kB; npm publish --access public --dry-run), GitHub Pages workflow on main was already green, annotated tag v0.2.0 was pushed, and public GitHub Release was created at https://github.com/ai-org-labs/archmap/releases/tag/v0.2.0. npm registry currently has 0.1.0/0.1.1/0.1.2 only; @archmap/core@0.2.0 is not published because this environment is not authenticated to npm (npm whoami returned E401). Next human action: run npm login if needed, then npm publish --access public, then verify npm view @archmap/core@0.2.0 and jsDelivr URLs.",
-  "updated_at": "2026-07-12T02:32:00.000+09:00",
+  "content": "TASK-058 fixed endpoint-component border overlap: after the required perpendicular source/target stub, routes now reject segments that run parallel within 8px of their own component border. The supplied AOF governance graph now places the Orchestrator-to-Runtime horizontal track at y=160.4, clear of the Orchestrator bottom border at y=117.6. Verification passed: typecheck, 237 tests, build, and browser coordinate inspection. Release v0.2.0 remains complete on GitHub; npm publication is still a human action requiring an npm account with @archmap/core ownership, followed by npm/jsDelivr verification.",
+  "updated_at": "2026-07-12T10:06:35.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

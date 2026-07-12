@@ -1201,6 +1201,8 @@ function routeEdges(
     return hits;
   };
   const routeBorderCoincidence = (points: LayoutPoint[], from: string, to: string): number => {
+    const ENDPOINT_BORDER_CLEARANCE = 8;
+    const ENDPOINT_BORDER_REACH = 20;
     let hits = 0;
     for (let i = 0; i < points.length - 1; i++) {
       const a = points[i];
@@ -1209,18 +1211,31 @@ function routeEdges(
       const verticalSeg = Math.abs(a.x - b.x) < 0.5;
       if (!horizontalSeg && !verticalSeg) continue;
       for (const node of laid.values()) {
-        if (node.id === from || node.id === to) continue;
+        const endpointNode = node.id === from || node.id === to;
+        const endpointNormalSegment =
+          (node.id === from && i === 0) ||
+          (node.id === to && i === points.length - 2);
         if (horizontalSeg) {
           const x0 = Math.min(a.x, b.x);
           const x1 = Math.max(a.x, b.x);
           const overlap = Math.min(x1, node.x + node.w) - Math.max(x0, node.x);
-          if (overlap > 1 && (Math.abs(a.y - node.y) < 0.5 || Math.abs(a.y - (node.y + node.h)) < 0.5)) hits++;
+          if (!endpointNode && overlap > 1 && (Math.abs(a.y - node.y) < 0.5 || Math.abs(a.y - (node.y + node.h)) < 0.5)) hits++;
+          if (endpointNode && !endpointNormalSegment) {
+            const axisGap = Math.max(0, node.x - x1, x0 - (node.x + node.w));
+            const borderDistance = Math.min(Math.abs(a.y - node.y), Math.abs(a.y - (node.y + node.h)));
+            if (axisGap <= ENDPOINT_BORDER_REACH && borderDistance < ENDPOINT_BORDER_CLEARANCE) hits++;
+          }
         }
         if (verticalSeg) {
           const y0 = Math.min(a.y, b.y);
           const y1 = Math.max(a.y, b.y);
           const overlap = Math.min(y1, node.y + node.h) - Math.max(y0, node.y);
-          if (overlap > 1 && (Math.abs(a.x - node.x) < 0.5 || Math.abs(a.x - (node.x + node.w)) < 0.5)) hits++;
+          if (!endpointNode && overlap > 1 && (Math.abs(a.x - node.x) < 0.5 || Math.abs(a.x - (node.x + node.w)) < 0.5)) hits++;
+          if (endpointNode && !endpointNormalSegment) {
+            const axisGap = Math.max(0, node.y - y1, y0 - (node.y + node.h));
+            const borderDistance = Math.min(Math.abs(a.x - node.x), Math.abs(a.x - (node.x + node.w)));
+            if (axisGap <= ENDPOINT_BORDER_REACH && borderDistance < ENDPOINT_BORDER_CLEARANCE) hits++;
+          }
         }
       }
     }

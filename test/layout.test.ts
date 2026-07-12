@@ -117,6 +117,32 @@ function segmentCoincidesWithNodeBorder(
   return false;
 }
 
+function segmentRunsAlongEndpointBorder(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  node: { x: number; y: number; w: number; h: number },
+  clearance = 8,
+  reach = 20,
+): boolean {
+  const horizontal = Math.abs(a.y - b.y) < 0.5;
+  const vertical = Math.abs(a.x - b.x) < 0.5;
+  if (horizontal) {
+    const x0 = Math.min(a.x, b.x);
+    const x1 = Math.max(a.x, b.x);
+    const axisGap = Math.max(0, node.x - x1, x0 - (node.x + node.w));
+    const borderDistance = Math.min(Math.abs(a.y - node.y), Math.abs(a.y - (node.y + node.h)));
+    return axisGap <= reach && borderDistance < clearance;
+  }
+  if (vertical) {
+    const y0 = Math.min(a.y, b.y);
+    const y1 = Math.max(a.y, b.y);
+    const axisGap = Math.max(0, node.y - y1, y0 - (node.y + node.h));
+    const borderDistance = Math.min(Math.abs(a.x - node.x), Math.abs(a.x - (node.x + node.w)));
+    return axisGap <= reach && borderDistance < clearance;
+  }
+  return false;
+}
+
 function closestRectSide(
   node: { x: number; y: number; w: number; h: number },
   point: { x: number; y: number },
@@ -477,6 +503,47 @@ describe("computeLayout", () => {
       }
       if (target.shape === "rectangle") {
         expect(endpointLeavesFaceCleanly(target, edge.points[edge.points.length - 1], edge.points[edge.points.length - 2])).toBe(true);
+      }
+    }
+  });
+
+  it("keeps routed segments clear of their own component border after the endpoint stub", () => {
+    const m = parse(`graph LR
+      User[Human Operator] --> Orchestrator[AOF Orchestrator]
+      Orchestrator --> Runtime[AOF Runtime CLI]
+      Runtime --> Artifacts[(AOF Artifacts)]
+      Runtime --> MissionControl[Mission Control]
+      Runtime --> QIF[QIF Provider]
+      QIF --> QualityLedger[Executable Quality Ledger]
+      QualityLedger --> Runtime
+      Runtime --> Archmap[Archmap Source]
+      Runtime --> ArchmapImpactAudit[Archmap Impact Audit]
+      Runtime --> ReviewProvenanceAudit[Review Provenance Audit]
+      Runtime --> EvidenceIndependenceAudit[Evidence Independence Audit]
+      Runtime --> ReleaseStateAudit[Release State Audit]
+      ReleaseStateAudit --> GovernanceAudits[Verifiable Governance Audits]
+      GovernanceAudits --> ReleaseSignOff[Release Sign-off]
+      ReleaseSignOff --> ReleaseV67[v6.7 Verifiable Governance]
+      Archmap --> MissionControl
+      Runtime --> Icons[Archmap Icons]
+      Builder[Builder Actor] --> Artifacts
+      Guardian[Guardian Actor] --> Artifacts
+      Council[Council] --> Artifacts
+      Orchestrator --> Builder
+      Orchestrator --> Guardian
+      Builder --> Council
+      Guardian --> Council
+    `);
+    const layout = computeLayout(m);
+
+    for (const edge of layout.edges) {
+      const source = layout.nodes.find((node) => node.id === edge.from)!;
+      const target = layout.nodes.find((node) => node.id === edge.to)!;
+      for (let i = 1; i < edge.points.length - 1; i++) {
+        expect(segmentRunsAlongEndpointBorder(edge.points[i], edge.points[i + 1], source)).toBe(false);
+      }
+      for (let i = 0; i < edge.points.length - 2; i++) {
+        expect(segmentRunsAlongEndpointBorder(edge.points[i], edge.points[i + 1], target)).toBe(false);
       }
     }
   });

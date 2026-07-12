@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-058",
+  "title": "Keep routes clear of endpoint component borders",
+  "description": "Reject routed segments that run parallel within 8px of their own source or target component border after the required normal endpoint stub.",
+  "status": "done",
+  "origin": "human-browser-comment-component-border-overlap",
+  "created_at": "2026-07-12T09:55:00.000+09:00",
+  "done_at": "2026-07-12T10:06:35.000+09:00",
+  "decision_notes": [
+    "The source and target normal endpoint segments remain allowed because they must cross the component boundary perpendicularly.",
+    "Subsequent segments are rejected when they are less than 8px from a parallel endpoint border and begin within 20px of that component, preventing border-extension artifacts.",
+    "The supplied AOF governance graph is represented by a focused regression case covering the Orchestrator-to-Runtime failure shape."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test = 237 passing",
+    "npm run build",
+    "Browser smoke on http://127.0.0.1:5173/: Orchestrator bottom border y=117.6 and routed horizontal segment y=160.4"
+  ]
+}
