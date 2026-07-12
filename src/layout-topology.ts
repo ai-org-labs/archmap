@@ -19,6 +19,7 @@ const PAD_Y = 40;
 const PAD_X = PAD_Y * GOLDEN_RATIO;
 const CELL_INSET_Y = 24;
 const CELL_INSET_X = CELL_INSET_Y * GOLDEN_RATIO;
+export const TOPOLOGY_ZONE_CLEARANCE = 24;
 
 interface Span {
   row: number;
@@ -264,7 +265,8 @@ function zoneGeometry(model: ArchMapModel, placements: Map<string, Span>): Layou
   };
   return model.zones.flatMap((zone) => {
     const nodeIds = nodeIdsFor(zone.id).filter((id) => nodeById.has(id) && placements.has(id));
-    const box = spanBox(nodeIds.map((id) => placements.get(id)!), Math.min(GAP_X, GAP_Y) / 2 - 2);
+    const zoneInset = Math.max(0, (Math.min(GAP_X, GAP_Y) - TOPOLOGY_ZONE_CLEARANCE) / 2);
+    const box = spanBox(nodeIds.map((id) => placements.get(id)!), zoneInset);
     if (!box) return [];
     return [{ id: zone.id, label: zone.label ?? zone.id, parent: zone.parent, kind: zone.kind, depth: depthOf(zone.id), z: 0, nodeIds, ...box }];
   });

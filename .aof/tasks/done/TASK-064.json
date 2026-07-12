@@ -1,0 +1,21 @@
+{
+  "task_id": "TASK-064",
+  "title": "Add Topology zone clearance",
+  "description": "Guarantee visible spacing between sibling zone regions in the Topology view while preserving intentional parent-child containment.",
+  "status": "done",
+  "origin": "human-visual-review",
+  "created_at": "2026-07-13T00:15:00.000+09:00",
+  "done_at": "2026-07-13T00:30:00.000+09:00",
+  "decision_notes": [
+    "Sibling Topology zones have a minimum 24 layout-unit clearance.",
+    "Parent-child zones may overlap by containment because nesting is intentional.",
+    "Zone padding remains sufficient to contain member components while leaving the grid gap visible."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test = 246 passing",
+    "npm run build",
+    "Browser: golden-topology has 0 overlaps and no sibling pair below the 24-unit clearance threshold",
+    "docs/aof/TOPOLOGY-ZONE-CLEARANCE-QIF-CHECK-2026-07-13.md"
+  ]
+}

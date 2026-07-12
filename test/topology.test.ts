@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "../src/parser-entry.js";
-import { computeTopologyLayout, GOLDEN_RATIO } from "../src/layout-topology.js";
+import { computeTopologyLayout, GOLDEN_RATIO, TOPOLOGY_ZONE_CLEARANCE } from "../src/layout-topology.js";
 import { listViews, render } from "../src/render.js";
 import { validateRenderedSvgPorts } from "../src/render-validation.js";
 
@@ -43,6 +43,12 @@ view:
 
 function overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean {
   return Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
+}
+
+function clearance(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): number {
+  const horizontal = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), 0);
+  const vertical = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h), 0);
+  return Math.max(horizontal, vertical);
 }
 
 describe("Topology view", () => {
@@ -100,7 +106,10 @@ describe("Topology view", () => {
     }
     expect(layout.grid!.subgraphs.map((group) => group.id)).toEqual(expect.arrayContaining(["RegionA", "RegionB"]));
     for (let i = 0; i < layout.zones.length; i++) {
-      for (let j = i + 1; j < layout.zones.length; j++) expect(overlaps(layout.zones[i], layout.zones[j])).toBe(false);
+      for (let j = i + 1; j < layout.zones.length; j++) {
+        expect(overlaps(layout.zones[i], layout.zones[j])).toBe(false);
+        expect(clearance(layout.zones[i], layout.zones[j])).toBeGreaterThanOrEqual(TOPOLOGY_ZONE_CLEARANCE);
+      }
     }
   });
 
