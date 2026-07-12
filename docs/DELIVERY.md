@@ -108,7 +108,7 @@ examples/screenflow-map.html
 It loads `examples/screenflow.archmap`, starts in the `prototype` Map view, and
 shows screen capture SVGs connected by transition arrows. The same HTML can be
 made CDN-only by changing its import map to
-`https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/archmap.js`.
+`https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/archmap.js`.
 
 ### CDN Pattern
 
@@ -120,9 +120,9 @@ can use an npm CDN URL instead.
 <script type="importmap">
 {
   "imports": {
-    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/archmap.js",
-    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/controls/diagram-tags.js",
-    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/views3d/three-view.js",
+    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/archmap.js",
+    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/controls/diagram-tags.js",
+    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/views3d/three-view.js",
     "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
     "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
     "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
@@ -187,15 +187,15 @@ npm publish --access public
 After publishing, verify the package and CDN paths:
 
 ```bash
-npm view @archmap/core@0.2.0 version license files
+npm view @archmap/core@0.2.1 version license files
 ```
 
 Then open:
 
 ```text
-https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/archmap.js
-https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/controls/diagram-tags.js
-https://cdn.jsdelivr.net/npm/@archmap/core@0.2.0/dist/views3d/three-view.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/archmap.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/controls/diagram-tags.js
+https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/views3d/three-view.js
 ```
 
 ## Security Posture
