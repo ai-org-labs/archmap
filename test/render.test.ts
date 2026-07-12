@@ -185,7 +185,7 @@ describe("render", () => {
     expect(svg).toContain('data-id="gcp_db" data-from="GCPApp" data-to="CloudSQL" style="--archmap-edge-stroke:#d17732;--archmap-edge-label:#7a3f12"');
 
     const overlaid = render(m, { baseView: "overview", overlays: ["zone"] }).svg!;
-    expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:#fff4e8;--archmap-zone-stroke:#d17732;--archmap-zone-label:#7a3f12"');
+    expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:rgba(255,244,232,0.3);--archmap-zone-stroke:#d17732;--archmap-zone-label:#7a3f12"');
   });
 
   it("fills database cylinder tops with the node fill color", () => {

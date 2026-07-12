@@ -26,6 +26,14 @@ function paletteForZones(model: ArchMapModel): Map<string, (typeof ZONE_PALETTE)
   return new Map(model.zones.map((zone, index) => [zone.id, ZONE_PALETTE[index % ZONE_PALETTE.length]]));
 }
 
+function translucent(hex: string, alpha = 0.3): string {
+  const value = hex.replace(/^#/, "");
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red},${green},${blue},${alpha})`;
+}
+
 export function overviewZoneColorStyles(model: ArchMapModel, layout: LayoutResult): {
   nodeStyles: Map<string, string>;
   edgeStyles: Map<string, string>;
@@ -62,7 +70,7 @@ export function overviewZoneColorStyles(model: ArchMapModel, layout: LayoutResul
     const color = zonePalette.get(zone.id);
     if (!color) continue;
     boxStyles.set(zone.id, [
-      `--archmap-zone-fill:${color.fill}`,
+      `--archmap-zone-fill:${translucent(color.fill)}`,
       `--archmap-zone-stroke:${color.stroke}`,
       `--archmap-zone-label:${color.text}`,
     ].join(";"));

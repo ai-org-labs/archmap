@@ -642,6 +642,7 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     layout,
     viewClass: view,
     preserveLayoutExtent: view === "topology",
+    preserveBoxGeometry: view === "topology",
     boxGroups: [
       ...baseBoxGroups,
       ...(projectionBoxGroups ?? []),

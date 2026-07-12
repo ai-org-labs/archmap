@@ -70,6 +70,8 @@ export interface DiagramSpec {
   boxExtraClasses?: Map<string, string>;
   /** Keep the declared layout extent as the SVG canvas (used by ratio-constrained views). */
   preserveLayoutExtent?: boolean;
+  /** Draw area boxes at their computed geometry without the overview visual outset. */
+  preserveBoxGeometry?: boolean;
 }
 
 const BOX_GROUP_DEPTH_ORDER = new Map([
@@ -99,7 +101,10 @@ function visualBox(groupClass: string, box: Box): Box {
   };
 }
 
-function orderedBoxGroups(groups: Array<{ boxes: Box[]; boxClass: string }>): Array<{ boxes: Box[]; boxClass: string }> {
+function orderedBoxGroups(
+  groups: Array<{ boxes: Box[]; boxClass: string }>,
+  preserveGeometry = false,
+): Array<{ boxes: Box[]; boxClass: string }> {
   return groups
     .map((group, index) => ({ group, index }))
     .sort((a, b) => {
@@ -111,7 +116,7 @@ function orderedBoxGroups(groups: Array<{ boxes: Box[]; boxClass: string }>): Ar
       ...group,
       boxes: [...group.boxes]
         .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0))
-        .map((box) => visualBox(group.boxClass, box)),
+        .map((box) => preserveGeometry ? { ...box } : visualBox(group.boxClass, box)),
     }));
 }
 
@@ -549,7 +554,10 @@ export function renderDiagram(spec: DiagramSpec): string {
     edgeExtraClasses,
     boxExtraClasses,
   } = spec;
-  const boxGroups = orderedBoxGroups(spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []));
+  const boxGroups = orderedBoxGroups(
+    spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []),
+    spec.preserveBoxGeometry,
+  );
   const boxExtent = boxGroups.flatMap((group) => group.boxes.map((box) => ({ x: box.x + box.w, y: box.y + box.h })));
   const svgWidth = spec.preserveLayoutExtent ? layout.width : Math.max(layout.width, ...boxExtent.map((p) => p.x + 24));
   const svgHeight = spec.preserveLayoutExtent ? layout.height : Math.max(layout.height, ...boxExtent.map((p) => p.y + 24));

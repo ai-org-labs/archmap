@@ -9,6 +9,7 @@ export function topologyView(ctx: ViewContext): string {
     layout: ctx.layout,
     viewClass: "topology",
     preserveLayoutExtent: true,
+    preserveBoxGeometry: true,
     nodeIcons: resolveNodeIcons(ctx.model),
     ...overviewZoneColorStyles(ctx.model, ctx.layout),
   });

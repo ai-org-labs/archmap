@@ -99,6 +99,9 @@ describe("Topology view", () => {
       }
     }
     expect(layout.grid!.subgraphs.map((group) => group.id)).toEqual(expect.arrayContaining(["RegionA", "RegionB"]));
+    for (let i = 0; i < layout.zones.length; i++) {
+      for (let j = i + 1; j < layout.zones.length; j++) expect(overlaps(layout.zones[i], layout.zones[j])).toBe(false);
+    }
   });
 
   it("renders transparent dashed subgraphs and stable geometry across overlay toggles", () => {
@@ -108,6 +111,7 @@ describe("Topology view", () => {
     expect(plain.svg).toContain('class="archmap archmap-view-topology"');
     expect(grouped.svg).toContain(".archmap-subgraph-box { fill: none;");
     expect(grouped.svg).toContain("stroke-dasharray: 7 5");
+    expect(grouped.svg).toMatch(/--archmap-zone-fill:rgba\(\d+,\d+,\d+,0\.3\)/);
     expect(grouped.layout.width).toBe(plain.layout.width);
     expect(grouped.layout.height).toBe(plain.layout.height);
     expect(grouped.layout.nodes.map(({ id, x, y }) => ({ id, x, y }))).toEqual(plain.layout.nodes.map(({ id, x, y }) => ({ id, x, y })));

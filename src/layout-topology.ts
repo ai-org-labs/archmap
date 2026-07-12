@@ -84,6 +84,23 @@ function mark(occupied: boolean[][], span: Span): void {
   }
 }
 
+function unionSpan(current: Span | undefined, next: Span): Span {
+  if (!current) return { ...next };
+  const row = Math.min(current.row, next.row);
+  const column = Math.min(current.column, next.column);
+  return {
+    row,
+    column,
+    rowSpan: Math.max(current.row + current.rowSpan, next.row + next.rowSpan) - row,
+    columnSpan: Math.max(current.column + current.columnSpan, next.column + next.columnSpan) - column,
+  };
+}
+
+function spansOverlap(a: Span, b: Span): boolean {
+  return a.row < b.row + b.rowSpan && a.row + a.rowSpan > b.row
+    && a.column < b.column + b.columnSpan && a.column + a.columnSpan > b.column;
+}
+
 function tryPack(model: ArchMapModel, base: LayoutResult, size: number): Map<string, Span> | undefined {
   const horizontal = model.direction === "LR";
   const flowAxis = uniqueAxis(base.nodes, horizontal);
@@ -101,6 +118,7 @@ function tryPack(model: ArchMapModel, base: LayoutResult, size: number): Map<str
     return (horizontal ? a.x - b.x || a.y - b.y : a.y - b.y || a.x - b.x) || a.id.localeCompare(b.id);
   });
   const zoneCenters = new Map<string, Array<{ row: number; column: number }>>();
+  const zoneBounds = new Map<string, Span>();
 
   for (const node of ordered) {
     const required = requiredSpan(node);
@@ -116,6 +134,11 @@ function tryPack(model: ArchMapModel, base: LayoutResult, size: number): Map<str
       if (canPlace(occupied, span)) {
         mark(occupied, span);
         placed.set(node.id, span);
+        const zone = nodeMeta.get(node.id)?.resolvedZone ?? nodeMeta.get(node.id)?.zone;
+        if (zone) {
+          zoneCenters.set(zone, [...(zoneCenters.get(zone) ?? []), { row: span.row, column: span.column }]);
+          zoneBounds.set(zone, unionSpan(zoneBounds.get(zone), span));
+        }
         continue;
       }
     }
@@ -139,6 +162,11 @@ function tryPack(model: ArchMapModel, base: LayoutResult, size: number): Map<str
         const flowCost = horizontal ? Math.abs(column - desiredColumn) : Math.abs(row - desiredRow);
         const crossCost = horizontal ? Math.abs(row - desiredRow) : Math.abs(column - desiredColumn);
         const zoneCost = zonePoints.length === 0 ? 0 : Math.min(...zonePoints.map((point) => Math.abs(point.row - row) + Math.abs(point.column - column)));
+        const nextZoneBounds = zone ? unionSpan(zoneBounds.get(zone), span) : undefined;
+        const overlapsAnotherZone = nextZoneBounds
+          ? [...zoneBounds.entries()].some(([other, bounds]) => other !== zone && spansOverlap(nextZoneBounds, bounds))
+          : false;
+        if (overlapsAnotherZone) continue;
         candidates.push({ ...span, cost: flowCost * 80 + crossCost * 24 + zoneCost * 18 + centerCost });
       }
     }
@@ -147,7 +175,10 @@ function tryPack(model: ArchMapModel, base: LayoutResult, size: number): Map<str
     const span = { row: best.row, column: best.column, rowSpan: best.rowSpan, columnSpan: best.columnSpan };
     mark(occupied, span);
     placed.set(node.id, span);
-    if (zone) zoneCenters.set(zone, [...zonePoints, { row: span.row, column: span.column }]);
+    if (zone) {
+      zoneCenters.set(zone, [...zonePoints, { row: span.row, column: span.column }]);
+      zoneBounds.set(zone, unionSpan(zoneBounds.get(zone), span));
+    }
   }
   return placed;
 }
@@ -233,7 +264,7 @@ function zoneGeometry(model: ArchMapModel, placements: Map<string, Span>): Layou
   };
   return model.zones.flatMap((zone) => {
     const nodeIds = nodeIdsFor(zone.id).filter((id) => nodeById.has(id) && placements.has(id));
-    const box = spanBox(nodeIds.map((id) => placements.get(id)!), 20);
+    const box = spanBox(nodeIds.map((id) => placements.get(id)!), Math.min(GAP_X, GAP_Y) / 2 - 2);
     if (!box) return [];
     return [{ id: zone.id, label: zone.label ?? zone.id, parent: zone.parent, kind: zone.kind, depth: depthOf(zone.id), z: 0, nodeIds, ...box }];
   });
