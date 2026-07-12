@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-065 documented the AI authoring distinction: sibling zones are exclusive non-intersecting placement/ownership areas, nested zones overlap only by containment, and subgraphs are non-exclusive structural groups that may intersect. Next: apply this rule while broadening nested-zone and real-world Topology fixtures before deciding v0.3.0 release scope.",
-  "updated_at": "2026-07-13T00:45:00.000+09:00",
+  "content": "TASK-066 updated the curated Android platform stack sample to graph LR while keeping Layer as its recommended view, improving horizontal stack readability. Next: continue visual review of curated samples and broaden nested-zone and real-world Topology fixtures before deciding v0.3.0 release scope.",
+  "updated_at": "2026-07-13T01:00:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

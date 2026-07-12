@@ -31,4 +31,11 @@ describe("default samples", () => {
       expect(result.layout.nodes.length, sample.id).toBeGreaterThan(0);
     }
   });
+
+  it("authors the Android platform stack left-to-right for readable layer flow", () => {
+    const sample = DEFAULT_ARCHMAP_SAMPLES.find((entry) => entry.id === "android-platform-stack");
+    expect(sample).toBeDefined();
+    expect(parse(sample!.source).direction).toBe("LR");
+    expect(sample!.recommendation.baseView).toBe("layer");
+  });
 });

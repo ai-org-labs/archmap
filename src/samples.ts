@@ -602,7 +602,7 @@ view:
       overlays: ["zone", "boundary", "dataflow", "permission"],
     },
     source: source(`
-graph TB
+graph LR
   App[Phone App] -->|binder call| Telephony[Telephony Manager]
   Telephony -->|RIL request| RIL[Radio Interface Layer]
   RIL -->|native socket| RadioDaemon[Radio Daemon]
