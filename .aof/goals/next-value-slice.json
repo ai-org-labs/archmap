@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-066 updated the curated Android platform stack sample to graph LR while keeping Layer as its recommended view, improving horizontal stack readability. Next: continue visual review of curated samples and broaden nested-zone and real-world Topology fixtures before deciding v0.3.0 release scope.",
-  "updated_at": "2026-07-13T01:00:00.000+09:00",
+  "content": "TASK-067 released ArchMap v0.3.0 with the Topology base view, golden-grid layout, translucent non-intersecting zones with clearance, explicit zone/subgraph semantics, and curated sample improvements. Next: collect post-release feedback and broaden real-world Topology fixtures.",
+  "updated_at": "2026-07-13T08:30:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

@@ -1,0 +1,22 @@
+{
+  "task_id": "TASK-067",
+  "title": "Release ArchMap v0.3.0",
+  "description": "Prepare, verify, tag, publish, and announce the Topology feature release.",
+  "status": "done",
+  "origin": "human-release-request",
+  "created_at": "2026-07-13T08:10:00.000+09:00",
+  "done_at": "2026-07-13T08:30:00.000+09:00",
+  "decision_notes": [
+    "Topology is a new base view, so the release increments the minor version from 0.2.1 to 0.3.0.",
+    "Generated AOF runtime snapshots remain untracked and are excluded from the release.",
+    "The release includes Topology, zone/subgraph authoring guidance, and curated sample improvements."
+  ],
+  "verification": [
+    "npm test = 247 passing",
+    "npm run build",
+    "npm pack --dry-run = 75 files",
+    "npm registry latest before release = 0.2.1",
+    "GitHub latest before release = v0.2.1",
+    "docs/releases/v0.3.0.md"
+  ]
+}
