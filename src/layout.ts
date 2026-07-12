@@ -82,6 +82,19 @@ export interface LayoutResult {
   zones: LayoutZone[];
   boundaries: LayoutBoundary[];
   edges: LayoutEdge[];
+  /** Golden-ratio grid geometry, present for the Topology view. */
+  grid?: {
+    ratio: number;
+    size: number;
+    cellWidth: number;
+    cellHeight: number;
+    gapX: number;
+    gapY: number;
+    paddingX: number;
+    paddingY: number;
+    placements: Record<string, { row: number; column: number; rowSpan: number; columnSpan: number }>;
+    subgraphs: Array<{ id: string; label?: string; depth?: number; x: number; y: number; w: number; h: number }>;
+  };
 }
 
 export interface LayoutOptions {

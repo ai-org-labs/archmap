@@ -7,6 +7,7 @@
  */
 
 import { computeLayout, getLastLayoutTimings } from "./layout.js";
+import { computeTopologyLayout } from "./layout-topology.js";
 import type { LayoutOptions, LayoutResult, LayoutTimings } from "./layout.js";
 import { diagnostic, diagnosticAppliesToView, syncDiagnostics, reportDiagnosticsToConsole } from "./diagnostics.js";
 import type { ConsoleReportOptions, DiagnosticDisplayContext } from "./diagnostics.js";
@@ -15,6 +16,7 @@ import { extractArchMapBlocks } from "./parser/sections.js";
 import type { ArchMapModel, Direction } from "./types.js";
 import { resolveNodeIcons } from "./icons.js";
 import { overviewView, layerBoxes, layerView } from "./views/overview.js";
+import { topologyView } from "./views/topology.js";
 import { zoneView } from "./views/zone.js";
 import { authView } from "./views/auth.js";
 import { dataflowView } from "./views/dataflow.js";
@@ -208,9 +210,9 @@ function prototypePlaceholderLayout(model: ArchMapModel): LayoutResult {
 }
 
 function layoutForRenderState(model: ArchMapModel, state: { requestedView: string; view: string }, options: RenderOptions): LayoutResult {
-  return state.view === "prototype"
-    ? prototypePlaceholderLayout(model)
-    : computeLayout(model, layoutOptionsForState(state, options));
+  if (state.view === "prototype") return prototypePlaceholderLayout(model);
+  if (state.requestedView === "topology" && state.view !== "3d") return computeTopologyLayout(model);
+  return computeLayout(model, layoutOptionsForState(state, options));
 }
 
 export function listViews(): string[] {
@@ -510,6 +512,7 @@ export function renderDiagnostics(model: ArchMapModel, target: Element | string 
 
 // Built-in views.
 registerView("overview", overviewView);
+registerView("topology", topologyView);
 registerView("zone", zoneView);
 registerView("layer", layerView);
 registerView("auth", authView);
@@ -595,7 +598,7 @@ function metadataOverlays(model: ArchMapModel): string[] {
 function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[], presence?: PhasePresence): string | undefined {
   // An active timeline phase routes zero-overlay renders through this shared
   // path too, so time decoration lands in the same renderDiagram spec.
-  if ((overlays.length === 0 && !presence) || (view !== "overview" && view !== "zone" && view !== "layer")) return undefined;
+  if ((overlays.length === 0 && !presence) || (view !== "overview" && view !== "topology" && view !== "zone" && view !== "layer")) return undefined;
   const projection = buildOverlayProjection(model, layout, overlays, presence ? { phase: presence.phaseId, baseView: view, view } : { baseView: view, view });
   const timeDecoration = presence ? buildTimeDecoration(presence) : undefined;
   const collapsedZoneIds = new Set(model.nodes
@@ -634,10 +637,11 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
         ? { ...group, boxes: visibleSubgraphBoxes(group.boxes) }
       : group
   ));
-  const zoneStyles = view === "overview" ? overviewZoneColorStyles(model, layout) : undefined;
+  const zoneStyles = view === "overview" || view === "topology" ? overviewZoneColorStyles(model, layout) : undefined;
   return renderDiagram({
     layout,
     viewClass: view,
+    preserveLayoutExtent: view === "topology",
     boxGroups: [
       ...baseBoxGroups,
       ...(projectionBoxGroups ?? []),
@@ -1074,9 +1078,10 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
 }
 
 /** Semantic views offered by the controls toolbar: what the user wants to inspect. */
-export const BASE_VIEWS = ["overview", "layer", "prototype"] as const;
+export const BASE_VIEWS = ["overview", "topology", "layer", "prototype"] as const;
 const BASE_VIEW_LABELS: Record<(typeof BASE_VIEWS)[number], string> = {
   overview: "Overview",
+  topology: "Topology",
   layer: "Layer",
   prototype: "Prototype",
 };

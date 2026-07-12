@@ -63,6 +63,7 @@ export interface DiagramTagsHandle {
 
 export const DEFAULT_DIAGRAM_TAG_VIEWS: DiagramTagOption[] = [
   { value: "overview", label: "Overview" },
+  { value: "topology", label: "Topology" },
   { value: "layer", label: "Layer" },
   { value: "prototype", label: "Prototype" },
 ];

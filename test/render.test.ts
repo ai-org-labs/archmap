@@ -721,7 +721,7 @@ describe("render", () => {
     expect(svg).toContain("Private Boundary");
   });
 
-  it("shows subgraph area overlays as borderless translucent backgrounds when requested", () => {
+  it("shows subgraph area overlays as transparent dashed structural guides when requested", () => {
     const m = parse(`graph LR
       subgraph Runtime
         App[App]
@@ -736,8 +736,8 @@ describe("render", () => {
     expect(withSubgraph).toContain("archmap-overlay-subgraph");
     expect(withSubgraph).toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Runtime"');
     expect(withSubgraph).toContain('class="archmap-subgraph-box"');
-    expect(withSubgraph).toContain(".archmap-subgraph-box { fill:");
-    expect(withSubgraph.match(/\.archmap-subgraph-box \{[^}]*stroke: none/)).toBeTruthy();
+    expect(withSubgraph).toContain(".archmap-subgraph-box { fill: none;");
+    expect(withSubgraph.match(/\.archmap-subgraph-box \{[^}]*stroke-dasharray: 7 5/)).toBeTruthy();
 
     const collapsed = render(m, { baseView: "overview", overlays: ["subgraph"], collapsedAbstractions: ["subgraph:Runtime"] }).svg!;
     expect(collapsed).toContain('data-abstraction-key="subgraph:Runtime"');

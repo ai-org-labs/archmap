@@ -520,9 +520,9 @@ export const DEFAULT_STYLE = `
 .archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); stroke: var(--archmap-zone-stroke-depth-3, #8fbf9c); }
 .archmap-zone-label { fill: var(--archmap-zone-label, #687486); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-zone { cursor: pointer; }
-.archmap-subgraph-box { fill: var(--archmap-subgraph-fill, rgba(100,116,139,0.11)); stroke: none; }
-.archmap-subgraph-depth-1 .archmap-subgraph-box { fill: var(--archmap-subgraph-fill-depth-1, rgba(148,163,184,0.11)); }
-.archmap-subgraph-depth-2 .archmap-subgraph-box { fill: var(--archmap-subgraph-fill-depth-2, rgba(71,85,105,0.08)); }
+.archmap-subgraph-box { fill: none; stroke: var(--archmap-subgraph-stroke, #94a3b8); stroke-width: 1.2; stroke-dasharray: 7 5; }
+.archmap-subgraph-depth-1 .archmap-subgraph-box { stroke: var(--archmap-subgraph-stroke-depth-1, #a8b3c2); }
+.archmap-subgraph-depth-2 .archmap-subgraph-box { stroke: var(--archmap-subgraph-stroke-depth-2, #748297); }
 .archmap-subgraph-label { fill: var(--archmap-subgraph-label, #64748b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-subgraph { cursor: pointer; }
 .archmap-layer-box { fill: var(--archmap-layer-fill, rgba(236,241,248,0.72)); stroke: var(--archmap-layer-stroke, #b8c5d6); stroke-width: 1.1; }

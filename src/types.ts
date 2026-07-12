@@ -199,6 +199,20 @@ export interface Layout {
   nodes?: Record<string, { x: number; y: number }>;
   zones?: Record<string, { x: number; y: number }>;
   boundaries?: Record<string, { x: number; y: number }>;
+  /** Optional integer-cell hints for the containment-first Topology view. */
+  grid?: {
+    aspect?: "golden";
+    size?: "auto" | number;
+    align?: "center";
+    packing?: "balanced";
+    placements?: Array<{
+      target: { type: "node"; id: string };
+      row: number;
+      column: number;
+      rowSpan?: number;
+      columnSpan?: number;
+    }>;
+  };
 }
 
 export interface ViewConfig {

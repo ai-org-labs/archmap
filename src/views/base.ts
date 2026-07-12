@@ -68,6 +68,8 @@ export interface DiagramSpec {
   edgeExtraClasses?: Map<string, string>;
   /** Extra per-box classes keyed by box id (e.g. timeline ghost decoration). */
   boxExtraClasses?: Map<string, string>;
+  /** Keep the declared layout extent as the SVG canvas (used by ratio-constrained views). */
+  preserveLayoutExtent?: boolean;
 }
 
 const BOX_GROUP_DEPTH_ORDER = new Map([
@@ -549,8 +551,8 @@ export function renderDiagram(spec: DiagramSpec): string {
   } = spec;
   const boxGroups = orderedBoxGroups(spec.boxGroups ?? (boxes ? [{ boxes, boxClass }] : []));
   const boxExtent = boxGroups.flatMap((group) => group.boxes.map((box) => ({ x: box.x + box.w, y: box.y + box.h })));
-  const svgWidth = Math.max(layout.width, ...boxExtent.map((p) => p.x + 24));
-  const svgHeight = Math.max(layout.height, ...boxExtent.map((p) => p.y + 24));
+  const svgWidth = spec.preserveLayoutExtent ? layout.width : Math.max(layout.width, ...boxExtent.map((p) => p.x + 24));
+  const svgHeight = spec.preserveLayoutExtent ? layout.height : Math.max(layout.height, ...boxExtent.map((p) => p.y + 24));
   const reservedBoxLabels: Box[] = [];
   const boxLabelBlockers: Box[] = [
     ...layout.nodes.map((n) => ({ id: n.id, x: n.x - 4, y: n.y - 4, w: n.w + 8, h: n.h + 8 })),

@@ -149,6 +149,7 @@ function subgraphMembers(sg: GraphSubgraph, childrenByParent: Map<string | undef
 }
 
 function subgraphBoxes(model: ArchMapModel, layout: LayoutResult): Box[] {
+  if (layout.grid?.subgraphs) return layout.grid.subgraphs;
   const subgraphs = Object.values(model.graph.subgraphs);
   if (subgraphs.length === 0) return [];
   const nodesById = new Map(layout.nodes.map((node) => [node.id, node]));

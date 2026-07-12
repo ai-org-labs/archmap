@@ -1,4 +1,4 @@
-export type ArchMapSampleBaseView = "overview" | "layer" | "prototype";
+export type ArchMapSampleBaseView = "overview" | "topology" | "layer" | "prototype";
 export type ArchMapSampleRenderMode = "2d" | "3d";
 
 export interface ArchMapSampleRecommendation {
@@ -230,6 +230,83 @@ view:
   default:
     base: overview
     overlays: [subgraph, zone, auth, dataflow, boundary, permission, validation]
+`),
+  },
+  {
+    id: "golden-topology",
+    title: "Golden-grid multi-region topology",
+    category: "Cloud topology",
+    description: "Containment-first multi-region AWS topology arranged on the golden-ratio grid.",
+    recommendation: {
+      baseView: "topology",
+      renderMode: "2d",
+      overlays: ["subgraph", "zone", "boundary"],
+    },
+    source: source(`
+graph LR
+  Users[Users] --> DNS[Route 53]
+  subgraph Tokyo
+    APITokyo[API Gateway] --> LambdaTokyo[AWS Lambda]
+    LambdaTokyo --> DDBTokyo[(DynamoDB)]
+  end
+  subgraph Virginia
+    LBVirginia[Application Load Balancer] --> ECVirginia[Amazon EC2]
+    ECVirginia --> RDSVirginia[(Amazon RDS)]
+    APIVirginia[API Gateway] --> LambdaVirginia[AWS Lambda]
+    LambdaVirginia --> DDBVirginia[(DynamoDB)]
+  end
+  DNS --> APITokyo
+  DNS --> LBVirginia
+  DNS --> APIVirginia
+---
+title: "Golden-grid multi-region topology"
+nodes:
+  Users: { kind: user, zone: external }
+  DNS: { kind: dns, provider: aws, zone: edge }
+  APITokyo: { kind: api_gateway, provider: aws, zone: tokyo_public }
+  LambdaTokyo: { kind: function, provider: aws, zone: tokyo_private }
+  DDBTokyo: { kind: nosql_database, provider: aws, zone: tokyo_private }
+  LBVirginia: { kind: load_balancer, provider: aws, zone: virginia_public }
+  ECVirginia: { kind: vm, provider: aws, zone: virginia_private }
+  RDSVirginia: { kind: relational_database, provider: aws, zone: virginia_private }
+  APIVirginia: { kind: api_gateway, provider: aws, zone: virginia_public }
+  LambdaVirginia: { kind: function, provider: aws, zone: virginia_private }
+  DDBVirginia: { kind: nosql_database, provider: aws, zone: virginia_private }
+zones:
+  external: { label: External users, kind: client, contains: [Users] }
+  edge: { label: Global edge, kind: network, contains: [DNS] }
+  tokyo_public: { label: Tokyo public subnet, kind: network, contains: [APITokyo] }
+  tokyo_private: { label: Tokyo private subnet, kind: network, contains: [LambdaTokyo, DDBTokyo] }
+  virginia_public: { label: Virginia public subnet, kind: network, contains: [LBVirginia, APIVirginia] }
+  virginia_private: { label: Virginia private subnet, kind: network, contains: [ECVirginia, RDSVirginia, LambdaVirginia, DDBVirginia] }
+boundaries:
+  aws_cloud:
+    label: AWS Cloud
+    kind: network_boundary
+    contains:
+      - zone: edge
+      - zone: tokyo_public
+      - zone: tokyo_private
+      - zone: virginia_public
+      - zone: virginia_private
+edges:
+  Users->DNS: { boundaryCrossing: true }
+  APITokyo->LambdaTokyo: { boundaryCrossing: true }
+  LBVirginia->ECVirginia: { boundaryCrossing: true }
+  APIVirginia->LambdaVirginia: { boundaryCrossing: true }
+  DNS->APITokyo: { boundaryCrossing: true }
+  DNS->LBVirginia: { boundaryCrossing: true }
+  DNS->APIVirginia: { boundaryCrossing: true }
+layout:
+  grid:
+    aspect: golden
+    size: auto
+    align: center
+    packing: balanced
+view:
+  default:
+    base: topology
+    overlays: [subgraph, zone, boundary]
 `),
   },
   {

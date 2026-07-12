@@ -19,6 +19,7 @@ export type {
   LayoutTimings,
 } from "./layout.js";
 export { computeLayout, getLastLayoutTimings } from "./layout.js";
+export { computeTopologyLayout, GOLDEN_RATIO } from "./layout-topology.js";
 export {
   buildTimeDecoration,
   computePhasePresence,

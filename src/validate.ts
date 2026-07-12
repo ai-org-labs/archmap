@@ -88,6 +88,38 @@ export function validate(model: ArchMapModel): ArchMapModel {
     ...identityIds,
   ]);
 
+  const gridPlacements = model.layout?.grid?.placements ?? [];
+  const gridTargets = new Set<string>();
+  const explicitNodeCells = new Map<string, string>();
+  for (const placement of gridPlacements) {
+    const key = `${placement.target.type}:${placement.target.id}`;
+    const known = placement.target.type === "node"
+      ? nodeIds.has(placement.target.id)
+      : placement.target.type === "zone"
+        ? zoneIds.has(placement.target.id)
+        : Object.prototype.hasOwnProperty.call(model.graph.subgraphs, placement.target.id);
+    if (!known) {
+      warnings.push(diagnostic("topology_grid_unknown_target", `Topology grid placement references unknown ${placement.target.type} "${placement.target.id}".`, { type: "view", id: key }));
+    }
+    const values = [placement.row, placement.column, placement.rowSpan ?? 1, placement.columnSpan ?? 1];
+    if (values.some((value) => !Number.isInteger(value) || value < 1) || gridTargets.has(key)) {
+      warnings.push(diagnostic("topology_grid_invalid_placement", `Topology grid placement "${key}" must use unique positive integer row, column, rowSpan, and columnSpan values.`, { type: "view", id: key }));
+    }
+    gridTargets.add(key);
+    if (placement.target.type !== "node") continue;
+    for (let row = placement.row; row < placement.row + (placement.rowSpan ?? 1); row++) {
+      for (let column = placement.column; column < placement.column + (placement.columnSpan ?? 1); column++) {
+        const cell = `${row}:${column}`;
+        const owner = explicitNodeCells.get(cell);
+        if (owner && owner !== key) {
+          errors.push(diagnostic("topology_grid_placement_overlap", `Topology grid placements "${owner}" and "${key}" overlap at cell ${cell}.`, { type: "view", id: key }));
+        } else {
+          explicitNodeCells.set(cell, key);
+        }
+      }
+    }
+  }
+
   // §23.1 — edges must reference known nodes.
   for (const e of model.edges) {
     if (!nodeIds.has(e.from)) {
