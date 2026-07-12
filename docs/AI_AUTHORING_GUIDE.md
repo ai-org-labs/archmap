@@ -99,7 +99,7 @@ clearly marked assumption.
 | `permission` overlay | Principal, action, resource, role | Authentication token details |
 | `validation` overlay | Warnings/errors/assumptions and model quality | Business status |
 
-Base views are `overview`, `layer`, and `prototype`. Render modes are `2d` and
+Base views are `overview`, `topology`, `layer`, and `prototype`. Render modes are `2d` and
 `3d`. Add info overlays are `subgraph`, `zone`, `auth`, `dataflow`, `boundary`,
 `permission`, and `validation`.
 
@@ -236,6 +236,12 @@ Collect or infer: actors, clients, entry points, runtimes, data stores,
 external systems, auth, dataflow, boundaries, permissions, and unknowns.
 Use zone for physical/ownership grouping, boundary for logical/trust/policy
 grouping, layer only for Layer view, and subgraph only for authoring hierarchy.
+
+Choose `topology` for containment-first deployment or cloud diagrams with
+repeated regions, availability zones, subnets, or ownership blocks. Use
+`subgraph` for unfilled dashed structural grouping and `zone` for lightly filled
+physical/ownership areas. The golden grid is automatic; add integer-cell
+`layout.grid.placements` only when a stable editorial anchor is required.
 Prefer standard node kind and flow vocabulary from docs/AI_AUTHORING_GUIDE.md.
 Do not invent secrets or exact cloud roles. Mark assumptions explicitly.
 Before finalizing, check that ids resolve, auth references real nodes, external

@@ -219,14 +219,25 @@ data:
     description: "…"
 ```
 
-### 2.8 `layout` and `view` (parsed, partially applied)
+### 2.8 `layout` and `view`
 ```yaml
 layout:
   mode: auto
   direction: LR       # LR or TD; manual node positions are parsed but ignored
+  grid:               # optional Topology View hints
+    aspect: golden
+    size: auto
+    align: center
+    packing: balanced
+    placements:       # optional; rows/columns are 1-based integer cells
+      - target: { type: node, id: Users }
+        row: 1
+        column: 3
+        rowSpan: 1
+        columnSpan: 2
 view:
   default:
-    base: overview    # overview, layer, or prototype
+    base: overview    # overview, topology, layer, or prototype
     overlays: [zone]  # additive information layers
   enabled: [...]      # parsed, not applied yet
   filters: { zones: [...], layers: [...] }  # parsed, not applied yet
@@ -376,6 +387,7 @@ open/close clicks when a read-only view is desired.
 | View | Shows |
 | --- | --- |
 | `overview` | structural nodes/edges only until Add info overlays are enabled |
+| `topology` / UI `Topology` | containment-first golden-ratio grid; components occupy or span integer cells and remain centered with stable overlay-independent geometry |
 | `layer` / UI `Layer` | fixed stack bands from `nodes.*.layer`; zone and boundary do not change the stack partition |
 | `zone` overlay | physical component areas from explicit `zones` metadata |
 | `boundary` overlay | logical component areas from explicit `boundaries` metadata, plus boundary/zone-crossing edges; rest faded |
@@ -387,7 +399,7 @@ open/close clicks when a read-only view is desired.
 | `prototype` | ScreenFlow current screen, transitions, hotspots, scenario playback, and overlay summaries |
 | `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
 
-**Layout behavior:** overview and layer views use automatic placement plus
+**Layout behavior:** overview, topology, and layer views use automatic placement plus
 component-safe orthogonal routing. Endpoints are distributed across component
 sides, parallel lanes are offset, component intersections are repaired when
 possible, and rendered SVG validation checks endpoint overlap, port spacing,
@@ -396,6 +408,17 @@ long segment overlap, component intersections, and perpendicular incidence.
 **2D rendering order:** when multiple area overlays are enabled, areas are
 drawn from back to front as zone → boundary → subgraph so more specific
 grouping remains visible. Nested zones/boundaries are allowed.
+Subgraphs are structural guides: they have no fill and use a dashed outline.
+Zones retain a low-opacity semantic fill.
+
+### 5.1 Topology golden grid
+
+Topology uses a square `N x N` logical lattice whose cells are horizontal
+golden rectangles. Horizontal gap and padding dimensions are the golden-ratio
+counterparts of their vertical dimensions, so the complete SVG canvas also
+keeps the golden ratio. `rowSpan` and `columnSpan` merge adjacent cells into a
+rectangular placement. Omit placements for deterministic automatic packing.
+Overlay changes do not recompute this grid.
 
 ---
 

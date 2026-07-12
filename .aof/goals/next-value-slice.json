@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-061 released ArchMap v0.2.1 from commit d21a142. The annotated v0.2.1 tag and public GitHub release are published, and GitHub Pages workflow 29181811643 completed successfully. Typecheck, 237 tests, build, npm pack dry-run, and npm publish dry-run all pass. The package contains 72 files and is 316.8 kB packed. Remaining human action: publish @archmap/core@0.2.1 with npm package-owner credentials, then verify npm metadata and jsDelivr endpoints; npm latest remains 0.2.0 until that action completes.",
-  "updated_at": "2026-07-12T14:58:10.000+09:00",
+  "content": "TASK-062 completed the golden-grid Topology view. The UI/API name is Topology/topology; the complete SVG canvas, cells, gaps, and padding preserve the golden ratio; large components merge integer cells; zones, boundaries, and subgraphs derive cell-aligned containment geometry; subgraphs are fixed to transparent dashed guides; and Topology routing passes component and endpoint-incidence validation. Browser evidence: 1340x828 viewBox (1.61836), zero node overlaps, and no curated-sample diagnostics. Next: decide whether Topology should enter a v0.3.0 feature release after broader real-world fixture evaluation.",
+  "updated_at": "2026-07-12T23:35:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

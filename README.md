@@ -16,7 +16,7 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 - [SPEC.md](./SPEC.md) — the v0.1 language design
 
 > **Status:** v0.2 developer preview. The current product surface is
-> overview/layer/prototype renderers with additive semantic overlays, optional
+> overview/topology/layer/prototype renderers with additive semantic overlays, optional
 > abstraction collapse/expand, an opt-in vendor-icon registry, and an opt-in
 > three.js 3D view. The core bundle ships none of the optional assets (no vendor
 > icons, no three.js). Edges use orthogonal component-safe routing with
@@ -51,6 +51,17 @@ const model = parse(source);            // ArchMapModel (spec §28)
 const { svg } = render(model, { view: "overview" });
 // computeLayout(model) -> pure geometry (x, y, z) for any renderer
 // registerView("my3d", ctx => ...)     // ctx.layout has z for three.js
+```
+
+Containment-first cloud and deployment diagrams can use the golden-grid
+Topology view. It keeps an exact golden-ratio canvas, places components on
+integer cells, and supports automatic rectangular cell spans for larger nodes:
+
+```ts
+const { svg } = render(model, {
+  baseView: "topology",
+  overlays: ["subgraph", "zone", "boundary"],
+});
 ```
 
 Curated starter diagrams are exported for playgrounds and AI-assisted authoring:
