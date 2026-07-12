@@ -92,6 +92,7 @@ describe("three-view mount behavior", () => {
     expect(source).toContain("controls.enableZoom = false");
     expect(source).toContain('renderer.domElement.addEventListener("wheel", onWheel');
     expect(source).toContain("event.ctrlKey");
+    expect(source).toContain("WHEEL_PAN_SENSITIVITY");
     expect(source).toContain("camera.position.add(movement)");
     expect(source).toContain("controls.target.add(movement)");
   });

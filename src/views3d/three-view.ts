@@ -22,6 +22,7 @@ import type { Scene3D } from "./scene.js";
 import { buildOverlayProjection } from "../views/overlays.js";
 import { computePhasePresence, resolvePhaseId } from "../time-projection.js";
 import type { Box } from "../views/base.js";
+import { WHEEL_PAN_SENSITIVITY, wheelUnit } from "../views/wheel.js";
 
 /** Per-layer color ramp (client → external), tuned to the soft station-map palette used by isometric SVG. */
 const LAYER_COLORS = [
@@ -38,12 +39,6 @@ const SCENE_SCALE = 0.02;
 const OVERLAY_EDGE_COLOR = 0x7a4f9a;
 const EMPHASIS_EDGE_COLOR = 0xb3261e;
 const BOUNDARY_COLOR = 0xc0a044;
-
-function wheelUnit(event: WheelEvent, pageSize: number): number {
-  if (event.deltaMode === 1) return 16;
-  if (event.deltaMode === 2) return Math.max(1, pageSize);
-  return 1;
-}
 
 function layerColor(layer: number): number {
   return LAYER_COLORS[layer % LAYER_COLORS.length];
@@ -450,7 +445,9 @@ function mountScene(target: Element, ctx: ViewContext): ViewHandle {
     const panScale = Math.max(0.004, size * 0.0015);
     const screenRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
     const screenUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
-    const movement = screenRight.multiplyScalar(-xDelta * panScale).add(screenUp.multiplyScalar(-dy * panScale));
+    const movement = screenRight
+      .multiplyScalar(-xDelta * panScale * WHEEL_PAN_SENSITIVITY)
+      .add(screenUp.multiplyScalar(-dy * panScale * WHEEL_PAN_SENSITIVITY));
     camera.position.add(movement);
     controls.target.add(movement);
     controls.update();

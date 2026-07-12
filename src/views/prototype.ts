@@ -1,6 +1,7 @@
 import type { ArchEdge, ArchMapModel, ArchNode, DataObject, Diagnostic, Scenario } from "../types.js";
 import type { MountableView, ViewContext, ViewHandle } from "../render.js";
 import { buildEdgePaths } from "./svg.js";
+import { WHEEL_PAN_SENSITIVITY, wheelUnit } from "./wheel.js";
 
 const SCREEN_KINDS = new Set([
   "screen", "page", "modal", "webview", "form", "external_page", "error_screen", "completion_screen",
@@ -61,12 +62,6 @@ function flowMapEdgeColor(edge: ArchEdge, outgoingIndex: number, outgoingCount: 
 
 function markerIdForColor(color: string): string {
   return `archmap-prototype-arrow-${color.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-}
-
-function wheelUnit(event: WheelEvent, pageSize: number): number {
-  if (event.deltaMode === 1) return 16;
-  if (event.deltaMode === 2) return Math.max(1, pageSize);
-  return 1;
 }
 
 function scenarioById(model: ArchMapModel, id: string | undefined): Scenario | undefined {
@@ -818,7 +813,10 @@ export function prototypeView({ model, options }: ViewContext): MountableView {
             return;
           }
           const xDelta = event.shiftKey && Math.abs(dx) < Math.abs(dy) ? dy : dx;
-          mapPan = { x: mapPan.x - xDelta, y: mapPan.y - dy };
+          mapPan = {
+            x: mapPan.x - xDelta * WHEEL_PAN_SENSITIVITY,
+            y: mapPan.y - dy * WHEEL_PAN_SENSITIVITY,
+          };
           applyMapTransform();
         }, { passive: false, signal: mapInteractionController.signal });
       };

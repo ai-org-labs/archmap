@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-058 fixed endpoint-component border overlap: after the required perpendicular source/target stub, routes now reject segments that run parallel within 8px of their own component border. The supplied AOF governance graph now places the Orchestrator-to-Runtime horizontal track at y=160.4, clear of the Orchestrator bottom border at y=117.6. Verification passed: typecheck, 237 tests, build, and browser coordinate inspection. Release v0.2.0 remains complete on GitHub; npm publication is still a human action requiring an npm account with @archmap/core ownership, followed by npm/jsDelivr verification.",
-  "updated_at": "2026-07-12T10:06:35.000+09:00",
+  "content": "TASK-059 increased ordinary wheel and trackpad camera movement to 1.35x across 2D, Prototype, and 3D while leaving pinch/ctrl-wheel zoom unchanged. Browser verification measured an 80px input as 108px camera movement with stable scale; typecheck, 237 tests, and build pass. TASK-058 endpoint-border clearance also remains verified. Release v0.2.0 is complete on GitHub; npm publication still requires a human npm account with @archmap/core ownership, followed by npm/jsDelivr verification.",
+  "updated_at": "2026-07-12T11:22:07.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

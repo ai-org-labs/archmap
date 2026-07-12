@@ -8,6 +8,8 @@
  * `target.innerHTML` keep working.
  */
 
+import { WHEEL_PAN_SENSITIVITY, wheelUnit } from "./wheel.js";
+
 export interface PanZoomTransform {
   scale: number;
   x: number;
@@ -27,12 +29,6 @@ export interface LabelPopupHandle {
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
-
-function wheelUnit(e: WheelEvent, pageSize: number): number {
-  if (e.deltaMode === 1) return 16;
-  if (e.deltaMode === 2) return Math.max(1, pageSize);
-  return 1;
-}
 
 /** Transform that fits `content` centered within `container` (with padding). */
 export function computeFitTransform(
@@ -350,7 +346,11 @@ export function attachPanZoom(container: HTMLElement, initial?: PanZoomTransform
       return;
     }
     const xDelta = e.shiftKey && Math.abs(dx) < Math.abs(dy) ? dy : dx;
-    t = { ...t, x: t.x - xDelta, y: t.y - dy };
+    t = {
+      ...t,
+      x: t.x - xDelta * WHEEL_PAN_SENSITIVITY,
+      y: t.y - dy * WHEEL_PAN_SENSITIVITY,
+    };
     apply();
   };
 

@@ -280,7 +280,7 @@ describe("computeFitTransform (TASK-006)", () => {
     const scrolled = panZoom.get();
 
     expect(scrolled.scale).toBe(fitted.scale);
-    expect(scrolled.y).toBeCloseTo(fitted.y - 50);
+    expect(scrolled.y).toBeCloseTo(fitted.y - 67.5);
 
     listeners.get("wheel")?.({
       preventDefault() {},
