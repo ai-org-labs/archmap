@@ -1,0 +1,23 @@
+{
+  "task_id": "TASK-061",
+  "title": "Release ArchMap v0.2.1",
+  "description": "Prepare, verify, tag, publish, and deploy the v0.2.1 patch release while leaving npm publication to the package owner.",
+  "status": "done",
+  "origin": "human-release-request",
+  "created_at": "2026-07-12T14:40:00.000+09:00",
+  "done_at": "2026-07-12T14:58:10.000+09:00",
+  "decision_notes": [
+    "Release the routing, camera sensitivity, and interactive edge-label endpoint highlighting fixes as patch version 0.2.1.",
+    "Keep npm publication as a human-owned action because registry authentication and @archmap/core ownership cannot be delegated safely.",
+    "Keep the v0.2.1 tag on release commit d21a142; the following AOF handoff commit is operational metadata only."
+  ],
+  "verification": [
+    "npm run typecheck",
+    "npm test = 237 passing",
+    "npm run build",
+    "npm pack --dry-run = 72 files, 316.8 kB package, 1.1 MB unpacked",
+    "npm publish --access public --dry-run = @archmap/core@0.2.1 accepted",
+    "GitHub release: https://github.com/ai-org-labs/archmap/releases/tag/v0.2.1",
+    "GitHub Pages workflow 29181811643 completed successfully"
+  ]
+}
