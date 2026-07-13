@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-099 baselined v0.4 as a plugin-first Requirements and Lifecycle Graph. Core stays compact and gains isolated plugin/element/relation/validator/query foundations; @archmap/lifecycle installs Schema + Relations + Validation + Views. The vertical slice is delivered through TASK-100 Core registry, TASK-101 lifecycle package, TASK-102 parse/normalize, TASK-103 diagnostics, TASK-104 query/trace, TASK-105 three lifecycle views, TASK-106 acceptance, and TASK-107 periodic QIF. GitHub v0.3.0 is released; npm 0.3.0 remains deferred for later OTP completion.",
-  "updated_at": "2026-07-13T09:00:00.000+09:00",
+  "content": "TASK-100 completed the isolated Core plugin registry and inert ExtensionGraph foundation with the legacy top-level API preserved. Next, TASK-101 creates @archmap/lifecycle as one installable Schema + Relations + Validation + Views plugin; plugin-owned YAML parsing remains TASK-102. GitHub v0.3.0 is released; npm 0.3.0 remains deferred for later OTP completion.",
+  "updated_at": "2026-07-13T13:40:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

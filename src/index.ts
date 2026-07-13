@@ -28,6 +28,32 @@ export {
 } from "./time-projection.js";
 export type { PhasePresence, PresenceInterval, TimeDecoration } from "./time-projection.js";
 export { parse } from "./parser-entry.js";
+export {
+  createArchMap,
+  defaultArchMap,
+  use,
+  registerElementType,
+  registerRelationType,
+  registerValidator,
+  registerPolicy,
+  registerSerializer,
+  registerImporter,
+  registerExporter,
+  registerOverlay,
+  registerTheme,
+} from "./plugin.js";
+export type {
+  ArchMapInstance,
+  ArchMapPlugin,
+  ElementTypeDefinition,
+  RelationTypeDefinition,
+  ValidatorDefinition,
+  ValidatorContext,
+  ViewDefinition,
+  NamedDefinition,
+  PluginContext,
+  PluginCleanup,
+} from "./plugin.js";
 export { toCanonicalModel } from "./canonical.js";
 export {
   registerIcon,

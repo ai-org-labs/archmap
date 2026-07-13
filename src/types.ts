@@ -5,7 +5,7 @@
  * this shape, and a future GUI editor exports back to DSL from it.
  */
 
-export const ARCHMAP_VERSION = "0.2.0";
+export const ARCHMAP_VERSION = "0.3.0";
 
 export type Direction = "LR" | "TD";
 
@@ -13,7 +13,7 @@ export type NodeShape = "rectangle" | "database" | "circle" | "diamond";
 
 export type DiagnosticSeverity = "error" | "warning" | "info";
 export type DiagnosticLevel = "error" | "warning" | "suggestion" | "info";
-export type DiagnosticKind = "node" | "edge" | "zone" | "boundary" | "identity" | "permission" | "data" | "view";
+export type DiagnosticKind = "node" | "edge" | "zone" | "boundary" | "identity" | "permission" | "data" | "view" | "extension";
 
 export interface DiagnosticTarget {
   type: DiagnosticKind;
@@ -281,6 +281,31 @@ export interface Lifecycle {
   states?: Record<string, LifecycleState>;
 }
 
+/** Domain-neutral records owned by optional plugins rather than Core. */
+export interface ExtensionElement {
+  id: string;
+  type: string;
+  title?: string;
+  extensions?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ExtensionRelation {
+  id: string;
+  type: string;
+  from: string;
+  to: string;
+  extensions?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ExtensionGraph {
+  elements: ExtensionElement[];
+  relations: ExtensionRelation[];
+  /** Unknown plugin-owned YAML is retained as inert data until its plugin is installed. */
+  sections?: Record<string, unknown>;
+}
+
 export interface ArchMapModel {
   version: string;
   direction: Direction;
@@ -307,6 +332,7 @@ export interface ArchMapModel {
   timeline?: Timeline;
   layout?: Layout;
   view?: ViewConfig;
+  extensions?: ExtensionGraph;
   diagnostics: Diagnostic[];
   warnings: Diagnostic[];
   errors: Diagnostic[];
@@ -340,6 +366,7 @@ export interface CanonicalArchMapModel {
   timeline?: Timeline;
   layout?: Layout;
   view?: ViewConfig;
+  extensions?: ExtensionGraph;
   diagnostics: Diagnostic[];
   errors: Diagnostic[];
   warnings: Diagnostic[];

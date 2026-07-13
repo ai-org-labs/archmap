@@ -33,6 +33,7 @@ export function toCanonicalModel(model: ArchMapModel): CanonicalArchMapModel {
     timeline: model.timeline,
     layout: model.layout,
     view: model.view,
+    extensions: model.extensions,
     diagnostics,
     errors: model.errors,
     warnings: model.warnings,

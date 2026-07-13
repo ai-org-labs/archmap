@@ -178,6 +178,11 @@ export interface RenderResult {
 
 const registry = new Map<string, ViewRenderer>();
 
+/** Internal bridge used by the default plugin instance. Independent instances clone this map. */
+export function getDefaultViewRegistry(): Map<string, ViewRenderer> {
+  return registry;
+}
+
 export function registerView(name: string, renderer: ViewRenderer): void {
   registry.set(name, renderer);
 }
@@ -681,7 +686,7 @@ function decorateSvgWithAbstractionLock(svg: string, locked: boolean): string {
 }
 
 /** Render a model into an SVG string, optionally injecting it into a target. */
-export function render(model: ArchMapModel, options: RenderOptions = {}): RenderResult {
+export function render(model: ArchMapModel, options: RenderOptions = {}, viewRegistry: ReadonlyMap<string, ViewRenderer> = registry): RenderResult {
   const requestedView = options.baseView ?? options.view ?? metadataBaseView(model) ?? "overview";
   const renderMode = options.renderMode ?? "2d";
   const state = {
@@ -739,11 +744,12 @@ export function render(model: ArchMapModel, options: RenderOptions = {}): Render
     const effectiveModel = effectiveModelNow();
     const projectionDone = nowMs();
     validateOverlays(effectiveModel, state.overlays);
-    const renderer = registry.get(state.view);
+    const renderer = viewRegistry.get(state.view);
     if (!renderer) {
-      effectiveModel.warnings.push(diagnostic("unknown_base_view", `Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`, { type: "view", id: state.view }));
+      const registeredViews = [...viewRegistry.keys()];
+      effectiveModel.warnings.push(diagnostic("unknown_base_view", `Unknown view "${state.view}". Registered views: ${registeredViews.join(", ") || "(none)"}.`, { type: "view", id: state.view }));
       syncDiagnostics(effectiveModel);
-      throw new Error(`Unknown view "${state.view}". Registered views: ${listViews().join(", ") || "(none)"}.`);
+      throw new Error(`Unknown view "${state.view}". Registered views: ${registeredViews.join(", ") || "(none)"}.`);
     }
     const knownOverlays = state.overlays.filter((overlay) => OVERLAY_NAMES.has(overlay));
     const layout = layoutNow(effectiveModel);

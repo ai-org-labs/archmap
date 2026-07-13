@@ -1,0 +1,22 @@
+{
+  "task_id": "TASK-100",
+  "title": "Core plugin registry and graph extension API",
+  "description": "Add isolated plugin, element type, relation type, validator, and generic extension graph registries without embedding lifecycle vocabulary in Core.",
+  "status": "done",
+  "origin": "v0.4-mvp-stage-a",
+  "created_at": "2026-07-13T09:00:00.000+09:00",
+  "done_at": "2026-07-13T13:40:00.000+09:00",
+  "decision_notes": [
+    "Independent createArchMap instances clone the built-in view registry; the default instance shares the legacy top-level registry.",
+    "Core stores plugin-owned records as inert ExtensionGraph data and does not import lifecycle vocabulary.",
+    "Plugin installation is versioned, idempotent for the same version, conflict-aware, dependency-aware, reversible, and isolated.",
+    "Policies, serializers, importers, exporters, overlays, and themes receive additive registry foundations without domain behavior in Core."
+  ],
+  "verification": [
+    "npm test = 18 files / 251 tests passing",
+    "npm run typecheck",
+    "npm run build",
+    "test/plugin.test.ts = 5 passing",
+    "docs/aof/V0_4-PLUGIN-REGISTRY-QIF-CHECK-2026-07-13.md"
+  ]
+}
