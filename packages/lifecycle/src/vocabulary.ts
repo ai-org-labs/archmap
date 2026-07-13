@@ -19,6 +19,7 @@ export const LIFECYCLE_RELATION_TYPES = [
   relation("satisfies"),
   relation("implemented_by"),
   relation("realized_by"),
+  relation("allocated_to"),
   relation("verified_by"),
   relation("evidenced_by"),
   relation("mitigated_by"),

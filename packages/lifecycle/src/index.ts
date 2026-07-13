@@ -24,4 +24,4 @@ export * from "./vocabulary.js";
 export * from "./serialize.js";
 export * from "./validate.js";
 export * from "./query.js";
-export { LIFECYCLE_VIEWS } from "./views.js";
+export * from "./views.js";

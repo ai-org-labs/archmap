@@ -78,6 +78,8 @@ export interface MountableView {
 export type ViewRenderer = (ctx: ViewContext) => string | MountableView;
 
 export interface RenderOptions {
+  /** Plugin-owned view settings keyed by plugin or domain name. Core keeps these values opaque. */
+  viewOptions?: Record<string, unknown>;
   /** What semantic structure to inspect: overview, zone, or layer. */
   baseView?: string;
   /** How to display the selected semantic view. */

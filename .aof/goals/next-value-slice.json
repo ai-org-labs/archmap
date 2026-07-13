@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-104 completed deterministic generic query plus forward/reverse trace APIs over architecture and extension relations, with lifecycle status/owner filters and no render/DOM dependency. Next, TASK-105 replaces preliminary lifecycle cards with Requirements, Traceability, and Quality views over explicit filtered projections.",
-  "updated_at": "2026-07-13T22:29:25.000+09:00",
+  "content": "TASK-105 completed Requirements, Traceability, and Quality views over explicit canonical projections, including lifecycle filters, result/freshness metadata, inferred canonical links, and orthogonal component-safe connectors. Next, TASK-106 completes the lightweight login requirement-to-evidence browser vertical slice, authoring/API docs, and AC-01..AC-12 acceptance matrix.",
+  "updated_at": "2026-07-13T22:48:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
