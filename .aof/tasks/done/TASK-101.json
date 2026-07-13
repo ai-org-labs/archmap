@@ -1,0 +1,24 @@
+{
+  "task_id": "TASK-101",
+  "title": "Create @archmap/lifecycle plugin",
+  "description": "Create the lifecycle workspace package and installer that registers the MVP schema, relation vocabulary, validators, and view definitions as one plugin.",
+  "status": "done",
+  "origin": "v0.4-mvp-stage-b",
+  "created_at": "2026-07-13T09:00:00.000+09:00",
+  "done_at": "2026-07-13T15:38:00.000+09:00",
+  "depends_on": ["TASK-100"],
+  "decision_notes": [
+    "Lifecycle is an Apache-2.0 workspace package with @archmap/core as a peer dependency; Core imports no lifecycle vocabulary.",
+    "installLifecycle() targets the backward-compatible default instance while createArchMap().use(lifecycle) remains isolated.",
+    "Schema, relations, one validator extension point, and three preliminary views install as one versioned plugin.",
+    "YAML parsing, actionable diagnostics, and relation-aware final views remain TASK-102, TASK-103, and TASK-105 respectively."
+  ],
+  "verification": [
+    "npm test = 19 files / 255 tests passing",
+    "npm run typecheck",
+    "npm run build",
+    "npm run build:lifecycle",
+    "isolated packed Core + Lifecycle Node ESM consumer = consumer ESM OK",
+    "docs/aof/V0_4-LIFECYCLE-PACKAGE-QIF-CHECK-2026-07-13.md"
+  ]
+}

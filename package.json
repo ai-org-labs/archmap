@@ -12,6 +12,9 @@
     "url": "https://github.com/ai-org-labs/archmap/issues"
   },
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "main": "./dist/archmap.umd.cjs",
   "module": "./dist/archmap.js",
   "types": "./dist/index.d.ts",
@@ -51,6 +54,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json",
+    "build:lifecycle": "npm run build --workspace @archmap/lifecycle",
     "bench:render": "node tools/bench-render.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
