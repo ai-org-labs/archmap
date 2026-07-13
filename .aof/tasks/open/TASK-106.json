@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-106",
+  "title": "Login lifecycle vertical slice",
+  "description": "Complete the login requirement-to-evidence sample, docs, browser controls, and v0.4 acceptance matrix.",
+  "status": "open",
+  "origin": "v0.4-mvp-stage-f",
+  "created_at": "2026-07-13T09:00:00.000+09:00",
+  "updated_at": "2026-07-13T09:00:00.000+09:00",
+  "depends_on": ["TASK-105"],
+  "completion_criteria": [
+    "Provide a lightweight login sample covering Requirement -> Criterion -> Login/API -> Playwright Test -> Evidence.",
+    "Update syntax, API, delivery, and AI authoring docs.",
+    "Publish an AC-01..AC-12 acceptance matrix with evidence links."
+  ],
+  "success_criteria": [
+    "All v0.4 MVP acceptance criteria pass.",
+    "Typecheck, full tests, build, browser smoke, and compatibility matrix are green."
+  ]
+}

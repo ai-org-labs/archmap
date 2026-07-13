@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-102",
+  "title": "Lifecycle YAML parse and normalization",
+  "description": "Use lifecycle schema registrations to parse MVP sections and normalize typed relations across lifecycle and architecture endpoints.",
+  "status": "open",
+  "origin": "v0.4-mvp-stage-b",
+  "created_at": "2026-07-13T09:00:00.000+09:00",
+  "updated_at": "2026-07-13T09:00:00.000+09:00",
+  "depends_on": ["TASK-101"],
+  "completion_criteria": [
+    "Parse requirements, acceptanceCriteria, decisions, risks, tests, evidence, and relations when lifecycle is installed.",
+    "Preserve extensions/source provenance and preserve unknown plugin sections as inert data.",
+    "Resolve relation endpoints against lifecycle and architecture IDs with deterministic endpoint kinds.",
+    "Provide deterministic lifecycle JSON output."
+  ],
+  "success_criteria": [
+    "MVP AC-02, AC-10, and AC-11 pass.",
+    "Core-only parsing produces a useful plugin-required diagnostic rather than silently interpreting lifecycle vocabulary."
+  ]
+}

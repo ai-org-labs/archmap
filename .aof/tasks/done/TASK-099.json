@@ -1,0 +1,24 @@
+{
+  "task_id": "TASK-099",
+  "title": "Baseline v0.4 lifecycle requirements",
+  "description": "Convert the approved Requirements and Lifecycle Graph direction into normative v0.4 specifications, an MVP vertical slice, acceptance criteria, and staged implementation tasks.",
+  "status": "done",
+  "origin": "human-requirements-definition",
+  "created_at": "2026-07-13T08:35:00.000+09:00",
+  "done_at": "2026-07-13T09:00:00.000+09:00",
+  "decision_notes": [
+    "v0.4 extends ArchMap through installable plugins and does not replace the v0.3 architecture model.",
+    "Core owns generic extension/registry/query foundations; @archmap/lifecycle owns lifecycle schema, relations, validators, and views.",
+    "The first vertical slice is Requirement -> AcceptanceCriterion -> Architecture Node -> Test -> Evidence.",
+    "The first implementation types are Requirement, AcceptanceCriterion, Decision, Risk, Test, Evidence, and LifecycleRelation.",
+    "Release/readiness, full project management, WorkLens integration, and GraphPatch are follow-on work after the core model stabilizes."
+  ],
+  "verification": [
+    "docs/specs/v0.4/08-requirements-lifecycle-graph.md",
+    "docs/specs/v0.4/09-v0.4-mvp-vertical-slice.md",
+    "docs/specs/v0.4/10-plugin-architecture.md",
+    "docs/aof/V0_4-LIFECYCLE-BASELINE-QIF-CHECK-2026-07-13.md",
+    "MVP acceptance criteria AC-01 through AC-12",
+    "AOF tasks TASK-100 through TASK-107"
+  ]
+}

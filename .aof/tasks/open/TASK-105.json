@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-105",
+  "title": "Lifecycle Requirements, Traceability, and Quality Views",
+  "description": "Register all three MVP views from @archmap/lifecycle over filtered canonical graph projections.",
+  "status": "open",
+  "origin": "v0.4-mvp-stage-e",
+  "created_at": "2026-07-13T09:00:00.000+09:00",
+  "updated_at": "2026-07-13T09:00:00.000+09:00",
+  "depends_on": ["TASK-103", "TASK-104"],
+  "completion_criteria": [
+    "Requirements view shows hierarchy, state, priority, owner, acceptance, and related architecture elements.",
+    "Traceability view expands a chosen start element with type/status/depth filters.",
+    "Quality view shows Requirement, AcceptanceCriterion, Test, Evidence, result, and freshness state.",
+    "Both views render only their projected subgraph."
+  ],
+  "success_criteria": [
+    "MVP AC-07, AC-08, and AC-09 pass.",
+    "Rendered lifecycle connectors retain component-safe routing invariants."
+  ]
+}

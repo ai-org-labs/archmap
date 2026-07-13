@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-104",
+  "title": "Generic query and lifecycle trace APIs",
+  "description": "Add Core deterministic query/reverse traversal foundations and lifecycle trace helpers across extension and architecture elements.",
+  "status": "open",
+  "origin": "v0.4-mvp-stage-d",
+  "created_at": "2026-07-13T09:00:00.000+09:00",
+  "updated_at": "2026-07-13T09:00:00.000+09:00",
+  "depends_on": ["TASK-102"],
+  "completion_criteria": [
+    "Core queries generic elements by registered type and explicit IDs without importing lifecycle.",
+    "Lifecycle helpers filter by status/owner and trace forward or reverse with relation filters and maximum depth.",
+    "Return deterministic paths without requiring render or DOM creation."
+  ],
+  "success_criteria": [
+    "MVP AC-03 passes for Requirement -> Architecture -> Test -> Evidence.",
+    "One-to-many, many-to-many, cycles, and depth limits have focused tests."
+  ]
+}

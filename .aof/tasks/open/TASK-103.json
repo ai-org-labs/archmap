@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-103",
+  "title": "Lifecycle validation and gap diagnostics",
+  "description": "Validate lifecycle structure and emit object-targeted traceability gap diagnostics through plugin validators and the existing four-level diagnostic model.",
+  "status": "open",
+  "origin": "v0.4-mvp-stage-c",
+  "created_at": "2026-07-13T09:00:00.000+09:00",
+  "updated_at": "2026-07-13T09:00:00.000+09:00",
+  "depends_on": ["TASK-102"],
+  "completion_criteria": [
+    "Core validators detect duplicate IDs, missing refs, invalid registered relations, schema mismatch, cycles, and self-dependency.",
+    "Lifecycle validators warn on Requirement without AcceptanceCriterion, AcceptanceCriterion without Test, and required Test without Evidence.",
+    "Every lifecycle diagnostic targets the responsible object ID."
+  ],
+  "success_criteria": [
+    "MVP AC-04, AC-05, AC-06, and AC-12 pass.",
+    "Lifecycle warnings are absent unless lifecycle is installed and never block legacy architecture rendering."
+  ]
+}
