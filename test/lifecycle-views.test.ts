@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createArchMap } from "../src/index.js";
+import { DEFAULT_ARCHMAP_SAMPLES } from "../src/samples.js";
 import lifecycle, {
+  LIFECYCLE_DIAGRAM_TAG_VIEWS,
   qualityProjection,
   renderQualityView,
   renderRequirementsView,
@@ -11,6 +13,7 @@ import lifecycle, {
 
 const source = `graph LR
   Login[Login API] --> Audit[Audit Store]
+  Login --> Checkout[Checkout]
   Other[Unrelated component]
 ---
 requirements:
@@ -42,6 +45,14 @@ function pathSegments(svg: string): Array<Array<[number, number]>> {
 }
 
 describe("lifecycle projection views", () => {
+  it("contributes the three lifecycle views to a host toolbar", () => {
+    expect(LIFECYCLE_DIAGRAM_TAG_VIEWS).toEqual([
+      { value: "requirements", label: "Requirements" },
+      { value: "traceability", label: "Traceability" },
+      { value: "quality", label: "Quality" },
+    ]);
+  });
+
   it("renders requirement hierarchy, metadata, acceptance, and allocated architecture only", () => {
     const parsed = model();
     const projection = requirementsProjection(parsed);
@@ -56,7 +67,9 @@ describe("lifecycle projection views", () => {
     expect(svg).toContain("status: approved");
     expect(svg).toContain("priority: must");
     expect(svg).toContain("owner: product");
-    expect(svg).toContain("accepted_by");
+    expect(svg).toContain("accepted when");
+    expect(svg).toContain("Successful login opens Home");
+    expect(svg.match(/>AC-LOGIN<\/text>/g)?.length).toBe(1);
     expect(svg).toContain("Login API");
   });
 
@@ -73,6 +86,7 @@ describe("lifecycle projection views", () => {
     expect(filtered.elements.map(({ id }) => id)).toEqual(expect.arrayContaining(["REQ-ROOT", "REQ-LOGIN"]));
     expect(filtered.elements.map(({ id }) => id)).not.toContain("Login");
     expect(renderTraceabilityView(parsed, { start: "REQ-ROOT", maxDepth: 1 })).not.toContain("Audit Store");
+    expect(renderTraceabilityView(parsed, { start: "REQ-LOGIN", maxDepth: 5 })).not.toContain(">Checkout<");
   });
 
   it("renders quality status, result, freshness, and no unrelated graph records", () => {
@@ -82,6 +96,7 @@ describe("lifecycle projection views", () => {
     ]));
     const svg = renderQualityView(parsed, { now: "2026-07-13T00:00:00Z" });
     expect(svg).toContain("result: passed");
+    expect(svg).toContain("Each row is a quality chain");
     expect(svg).toContain(">fresh<");
     expect(svg).not.toContain("Unrelated component");
     expect(svg).not.toContain("Unrelated risk");
@@ -106,5 +121,20 @@ describe("lifecycle projection views", () => {
     expect(archmap.render(parsed, { baseView: "overview" }).svg).toContain("Login API");
     expect(archmap.render(parsed, { baseView: "requirements" }).svg).toContain("Users can sign in");
     expect(archmap.render(parsed, { baseView: "quality" }).svg).toContain("Login end-to-end");
+  });
+
+  it("renders lifecycle projections for the curated vertical-slice samples", () => {
+    const archmap = createArchMap().use(lifecycle);
+    for (const id of ["release-checkout", "cicd-supply-chain", "incident-response"]) {
+      const sample = DEFAULT_ARCHMAP_SAMPLES.find((entry) => entry.id === id);
+      expect(sample, id).toBeDefined();
+      const parsed = archmap.parse(sample!.source);
+      expect(parsed.extensions?.elements.length, id).toBeGreaterThanOrEqual(4);
+      expect(parsed.extensions?.relations.length, id).toBeGreaterThanOrEqual(4);
+      for (const baseView of ["requirements", "traceability", "quality"]) {
+        const result = archmap.render(parsed, { baseView });
+        expect(result.svg, `${id}:${baseView}`).toContain(`archmap-view-${baseView}`);
+      }
+    }
   });
 });

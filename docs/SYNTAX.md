@@ -411,7 +411,72 @@ grouping remains visible. Nested zones/boundaries are allowed.
 Subgraphs are structural guides: they have no fill and use a dashed outline.
 Zones retain a low-opacity semantic fill.
 
-### 5.1 Topology golden grid
+### 5.1 Lifecycle plugin views
+
+The optional `@archmap/lifecycle` plugin adds lifecycle YAML sections without
+changing the architecture graph or the v0.3 core grammar:
+
+```archmap
+graph LR
+  User[User] --> Login[Login Screen]
+  Login --> API[Auth API]
+---
+requirements:
+  REQ-LOGIN:
+    title: User can sign in
+    type: functional
+    status: approved
+    priority: must
+acceptanceCriteria:
+  AC-LOGIN:
+    requirement: REQ-LOGIN
+    statement: Successful sign-in displays Home
+tests:
+  TEST-LOGIN:
+    title: Login end-to-end test
+    type: end_to_end
+    framework: Playwright
+    required: true
+evidence:
+  EVD-LOGIN:
+    type: test_result
+    status: passed
+    producedBy: TEST-LOGIN
+    source: artifacts/login-report.json
+relations:
+  - { from: REQ-LOGIN, to: Login, type: realized_by }
+  - { from: REQ-LOGIN, to: API, type: implemented_by }
+  - { from: AC-LOGIN, to: TEST-LOGIN, type: verified_by }
+  - { from: TEST-LOGIN, to: EVD-LOGIN, type: evidenced_by }
+```
+
+Implemented lifecycle sections are `requirements`, `acceptanceCriteria`,
+`decisions`, `risks`, `tests`, `evidence`, and `relations`. IDs are preserved
+verbatim. Relation endpoints may reference either lifecycle IDs or existing
+architecture node IDs. Install the plugin before parsing so these sections are
+normalized and validated:
+
+```js
+import { createArchMap } from "@archmap/core";
+import lifecycle from "@archmap/lifecycle";
+
+const archmap = createArchMap().use(lifecycle);
+const model = archmap.parse(source);
+const requirements = archmap.render(model, { baseView: "requirements" });
+const trace = archmap.render(model, {
+  baseView: "traceability",
+  viewOptions: { lifecycle: { start: "REQ-LOGIN", maxDepth: 4 } },
+});
+const quality = archmap.render(model, { baseView: "quality" });
+```
+
+The three views are projections of the same canonical model:
+
+- `requirements`: requirement hierarchy, acceptance, metadata, and allocated architecture.
+- `traceability`: bounded typed-relation traversal from an optional start ID.
+- `quality`: requirements, acceptance criteria, tests, evidence, status, and freshness.
+
+### 5.2 Topology golden grid
 
 Topology uses a square `N x N` logical lattice whose cells are horizontal
 golden rectangles. Horizontal gap and padding dimensions are the golden-ratio

@@ -279,6 +279,7 @@ view:
   {
     "imports": {
       "@archmap/core": "../dist/archmap.js",
+      "@archmap/lifecycle": "../packages/lifecycle/dist/index.js",
       "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
       "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
       "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
@@ -286,13 +287,16 @@ view:
   }
   </script>
   <script type="module">
-    import { DEFAULT_ARCHMAP_SAMPLE_ID, DEFAULT_ARCHMAP_SAMPLES, createDiagramTags, parse, render, registerIcon } from "@archmap/core";
+    import { DEFAULT_ARCHMAP_SAMPLE_ID, DEFAULT_ARCHMAP_SAMPLES, DEFAULT_DIAGRAM_TAG_VIEWS, createDiagramTags, parse, render, registerIcon } from "@archmap/core";
+    import { LIFECYCLE_DIAGRAM_TAG_VIEWS, installLifecycle } from "@archmap/lifecycle";
     import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "../dist/views3d/three-view.js";
 
     installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons
     installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
+    installLifecycle(); // requirements, traceability, and quality projections
     installThreeView(); // 3D view (three.js from CDN)
+    const demoViews = [...DEFAULT_DIAGRAM_TAG_VIEWS, ...LIFECYCLE_DIAGRAM_TAG_VIEWS];
 
     const $ = (id) => document.getElementById(id);
     const selectedRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
@@ -437,6 +441,7 @@ view:
     }
     tags = createDiagramTags({
       target: $("diagram-tags"),
+      views: demoViews,
       state: { ...(defaultSample?.recommendation ?? { baseView: "overview", renderMode: "2d", overlays: [] }), abstractionLocked },
       actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
       onChange: (_state, event) => {

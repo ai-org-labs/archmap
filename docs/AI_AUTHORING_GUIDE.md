@@ -235,6 +235,34 @@ view:
     overlays: [dataflow, boundary, validation]
 ```
 
+### Requirements and lifecycle traceability
+
+When the request includes requirements, acceptance, quality evidence, risk, or
+traceability, write stable lifecycle IDs and connect them to existing
+architecture nodes. Prefer one complete vertical slice over many disconnected
+records:
+
+```yaml
+requirements:
+  REQ-LOGIN: { title: User can sign in, type: functional, status: approved }
+acceptanceCriteria:
+  AC-LOGIN: { requirement: REQ-LOGIN, statement: Valid sign-in opens Home }
+tests:
+  TEST-LOGIN: { title: Login E2E, type: end_to_end, required: true }
+evidence:
+  EVD-LOGIN: { type: test_result, status: passed, producedBy: TEST-LOGIN, source: artifacts/login.json }
+relations:
+  - { from: REQ-LOGIN, to: Login, type: realized_by }
+  - { from: AC-LOGIN, to: TEST-LOGIN, type: verified_by }
+  - { from: TEST-LOGIN, to: EVD-LOGIN, type: evidenced_by }
+```
+
+Use `requirements`, `acceptanceCriteria`, `decisions`, `risks`, `tests`,
+`evidence`, and `relations` only when `@archmap/lifecycle` is available. Never
+invent passed Evidence, approvals, owners, or dates. Unknown facts remain
+omitted or explicitly proposed; evidence must refer to a real inert artifact
+location supplied by the user or tool output.
+
 ## Quality Checklist Before Answering
 
 - Every graph node that matters has `nodes.*` metadata.
@@ -247,6 +275,8 @@ view:
 - Permissions identify principal, action, resource, and role when known.
 - The diagram uses semantic metadata instead of pixel positioning.
 - Unknown facts are marked as assumptions/TODOs, not silently invented.
+- Lifecycle IDs are stable, relation endpoints exist, and each claimed
+  Requirement -> Acceptance Criterion -> Test -> Evidence chain is truthful.
 - If tooling is available, run the source through `parse(source)` or the
   playground and fix diagnostics.
 

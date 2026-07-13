@@ -17,6 +17,21 @@ import { installLifecycle } from "@archmap/lifecycle";
 installLifecycle();
 ```
 
-The initial package registers lifecycle schema names, typed relations,
-validation and view extension points. YAML parsing and complete lifecycle view
-behavior are delivered by the subsequent v0.4 implementation stages.
+The plugin registers lifecycle YAML sections, typed relations, validation, and
+three canonical projections: `requirements`, `traceability`, and `quality`.
+
+Hosts that use ArchMap's diagram-tags toolbar can append the plugin entries:
+
+```ts
+import { DEFAULT_DIAGRAM_TAG_VIEWS, createDiagramTags } from "@archmap/core";
+import { LIFECYCLE_DIAGRAM_TAG_VIEWS } from "@archmap/lifecycle";
+
+createDiagramTags({
+  target,
+  views: [...DEFAULT_DIAGRAM_TAG_VIEWS, ...LIFECYCLE_DIAGRAM_TAG_VIEWS],
+});
+```
+
+The built-in demo follows this pattern. Its Checkout, CI/CD supply-chain, and
+Incident-response samples contain small Requirement -> Acceptance Criterion ->
+Architecture -> Test -> Evidence slices.

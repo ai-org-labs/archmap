@@ -5,7 +5,7 @@
   "status": "open",
   "origin": "governance-periodic-qif",
   "created_at": "2026-07-13T09:00:00.000+09:00",
-  "updated_at": "2026-07-13T09:00:00.000+09:00",
+  "updated_at": "2026-07-14T01:00:00.000+09:00",
   "completion_criteria": [
     "Record plugin isolation, compatibility, reference integrity, traceability coverage, determinism, performance, and security evidence after TASK-100 through TASK-106.",
     "Block v0.4 release on failed AC-01..AC-12, untrusted evidence handling, nondeterministic traces, or legacy regressions.",
@@ -14,5 +14,8 @@
   "success_criteria": [
     "Each stage has a dated docs/aof QIF evidence document.",
     "Final v0.4 readiness report links every acceptance criterion to reproducible evidence."
+  ],
+  "evidence": [
+    "docs/aof/V0_4-LIFECYCLE-VERTICAL-SLICE-QIF-CHECK-2026-07-14.md"
   ]
 }

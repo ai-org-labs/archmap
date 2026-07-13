@@ -67,6 +67,32 @@ examples/demo.html
 The static demo imports the built local ArchMap bundle and uses jsDelivr for
 `three` and `@archmap/icons`.
 
+### Lifecycle Plugin
+
+Install the optional workspace/package beside Core, then register it before
+parsing lifecycle sections:
+
+```ts
+import { DEFAULT_DIAGRAM_TAG_VIEWS, createArchMap, createDiagramTags } from "@archmap/core";
+import lifecycle, { LIFECYCLE_DIAGRAM_TAG_VIEWS } from "@archmap/lifecycle";
+
+const archmap = createArchMap().use(lifecycle);
+const model = archmap.parse(source);
+archmap.render(model, { baseView: "requirements", target: diagram });
+
+createDiagramTags({
+  target: toolbar,
+  views: [...DEFAULT_DIAGRAM_TAG_VIEWS, ...LIFECYCLE_DIAGRAM_TAG_VIEWS],
+  onChange: ({ baseView }) => archmap.render(model, { baseView, target: diagram }),
+});
+```
+
+For a static local build, `npm run build` produces both `dist/` and
+`packages/lifecycle/dist/`; `examples/demo.html` maps `@archmap/lifecycle` to
+that local output. A CDN page can map the same specifier to the published
+`@archmap/lifecycle` ESM entry once that package is released. Plugin-provided
+views remain optional and do not increase the Core runtime unless installed.
+
 ### Prototype View / ScreenFlow
 
 Prototype View is part of `@archmap/core` and uses the existing

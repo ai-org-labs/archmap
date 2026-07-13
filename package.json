@@ -43,6 +43,7 @@
     "docs/DELIVERY.md",
     "docs/AI_AUTHORING_GUIDE.md",
     "docs/V0_1_ACCEPTANCE_MATRIX.md",
+    "docs/V0_4_ACCEPTANCE_MATRIX.md",
     "docs/specs/v0.1",
     "docs/specs/v0.2",
     "examples",
@@ -53,7 +54,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json",
+    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json && npm run build:lifecycle",
     "build:lifecycle": "npm run build --workspace @archmap/lifecycle",
     "bench:render": "node tools/bench-render.mjs",
     "typecheck": "tsc --noEmit",

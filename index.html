@@ -270,12 +270,15 @@ view:
   </script>
 
   <script type="module">
-    import { DEFAULT_ARCHMAP_SAMPLE_ID, DEFAULT_ARCHMAP_SAMPLES, createDiagramTags, parse, render, registerIcon } from "/src/index.ts";
+    import { DEFAULT_ARCHMAP_SAMPLE_ID, DEFAULT_ARCHMAP_SAMPLES, DEFAULT_DIAGRAM_TAG_VIEWS, createDiagramTags, parse, render, registerIcon } from "/src/index.ts";
+    import { LIFECYCLE_DIAGRAM_TAG_VIEWS, installLifecycle } from "/packages/lifecycle/src/index.ts";
     import { installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
     import { installThreeView } from "/src/views3d/three-view.ts";
     installCloudProviderIcons(registerIcon); // real AWS/GCP/Azure icons (opt-in)
     installFamousServiceIcons(registerIcon); // Datadog/Wiz/Firebase/etc.
+    installLifecycle(); // requirements, traceability, and quality projections
     installThreeView(); // opt-in 3D view; core does not bundle three.js
+    const demoViews = [...DEFAULT_DIAGRAM_TAG_VIEWS, ...LIFECYCLE_DIAGRAM_TAG_VIEWS];
     const $ = (id) => document.getElementById(id);
     const selectedRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value;
     const samples = DEFAULT_ARCHMAP_SAMPLES;
@@ -442,6 +445,7 @@ view:
       const previous = tags?.getState() ?? { ...(defaultSample?.recommendation ?? { baseView: "overview", renderMode: "2d", overlays: [] }) };
       tags = createDiagramTags({
         target: $("diagram-tags"),
+        views: demoViews,
         state: { ...previous, abstractionLocked, phase: result?.getPhase() ?? undefined },
         timeline: phases.length > 0
           ? { phases: phases.map((phase) => ({ value: phase.id, label: phase.label ?? phase.id })) }

@@ -226,6 +226,114 @@ scenarios:
       - Checkout->APIGW
       - APIGW->Payment
       - Payment->Complete
+requirements:
+  REQ-CHECKOUT-LOGIN:
+    title: Shopper can sign in before checkout
+    type: functional
+    status: approved
+    priority: must
+    owner: product
+  REQ-CHECKOUT-ORDER:
+    title: Checkout persists a confirmed order
+    type: functional
+    status: approved
+    priority: must
+    owner: checkout
+  REQ-CHECKOUT-PAYMENT:
+    title: Checkout completes payment through the provider
+    type: interface
+    status: approved
+    priority: must
+    owner: payments
+  REQ-CHECKOUT-OBSERVABILITY:
+    title: Checkout operations expose actionable metrics
+    type: operational
+    status: approved
+    priority: should
+    owner: operations
+acceptanceCriteria:
+  AC-CHECKOUT-LOGIN:
+    requirement: REQ-CHECKOUT-LOGIN
+    statement: Valid credentials open the checkout form
+    given: Shopper is signed out
+    when: Shopper submits valid credentials
+    then: Checkout is displayed
+  AC-CHECKOUT-ORDER:
+    requirement: REQ-CHECKOUT-ORDER
+    statement: A confirmed checkout creates one durable order
+    status: approved
+  AC-CHECKOUT-PAYMENT:
+    requirement: REQ-CHECKOUT-PAYMENT
+    statement: Successful provider payment opens the completion screen
+    status: approved
+  AC-CHECKOUT-OBSERVABILITY:
+    requirement: REQ-CHECKOUT-OBSERVABILITY
+    statement: Order API latency and failures are emitted as metrics
+    status: approved
+tests:
+  TEST-CHECKOUT-LOGIN-E2E:
+    title: Checkout login end-to-end test
+    type: end_to_end
+    framework: Playwright
+    automated: true
+    status: passed
+  TEST-CHECKOUT-ORDER-INTEGRATION:
+    title: Order persistence integration test
+    type: integration
+    automated: true
+    status: passed
+  TEST-CHECKOUT-PAYMENT-CONTRACT:
+    title: Payment provider contract test
+    type: contract
+    automated: true
+    status: passed
+  TEST-CHECKOUT-METRICS:
+    title: Checkout metrics verification
+    type: system
+    automated: true
+    status: passed
+evidence:
+  EVD-CHECKOUT-LOGIN:
+    type: test_result
+    status: passed
+    producedBy: TEST-CHECKOUT-LOGIN-E2E
+    source: artifacts/checkout-login-report.json
+  EVD-CHECKOUT-ORDER:
+    type: test_result
+    status: passed
+    producedBy: TEST-CHECKOUT-ORDER-INTEGRATION
+    source: artifacts/order-integration-report.json
+  EVD-CHECKOUT-PAYMENT:
+    type: test_result
+    status: passed
+    producedBy: TEST-CHECKOUT-PAYMENT-CONTRACT
+    source: artifacts/payment-contract-report.json
+  EVD-CHECKOUT-METRICS:
+    type: metric
+    status: passed
+    producedBy: TEST-CHECKOUT-METRICS
+    source: artifacts/checkout-metrics.json
+relations:
+  - { from: REQ-CHECKOUT-LOGIN, to: Home, type: realized_by }
+  - { from: REQ-CHECKOUT-LOGIN, to: Login, type: realized_by }
+  - { from: REQ-CHECKOUT-LOGIN, to: APIGW, type: implemented_by }
+  - { from: REQ-CHECKOUT-LOGIN, to: FirebaseAuth, type: implemented_by }
+  - { from: AC-CHECKOUT-LOGIN, to: TEST-CHECKOUT-LOGIN-E2E, type: verified_by }
+  - { from: TEST-CHECKOUT-LOGIN-E2E, to: EVD-CHECKOUT-LOGIN, type: evidenced_by }
+  - { from: REQ-CHECKOUT-ORDER, to: Checkout, type: realized_by }
+  - { from: REQ-CHECKOUT-ORDER, to: APIGW, type: implemented_by }
+  - { from: REQ-CHECKOUT-ORDER, to: OrdersDB, type: implemented_by }
+  - { from: AC-CHECKOUT-ORDER, to: TEST-CHECKOUT-ORDER-INTEGRATION, type: verified_by }
+  - { from: TEST-CHECKOUT-ORDER-INTEGRATION, to: EVD-CHECKOUT-ORDER, type: evidenced_by }
+  - { from: REQ-CHECKOUT-PAYMENT, to: APIGW, type: implemented_by }
+  - { from: REQ-CHECKOUT-PAYMENT, to: Payment, type: realized_by }
+  - { from: REQ-CHECKOUT-PAYMENT, to: Complete, type: realized_by }
+  - { from: AC-CHECKOUT-PAYMENT, to: TEST-CHECKOUT-PAYMENT-CONTRACT, type: verified_by }
+  - { from: TEST-CHECKOUT-PAYMENT-CONTRACT, to: EVD-CHECKOUT-PAYMENT, type: evidenced_by }
+  - { from: REQ-CHECKOUT-OBSERVABILITY, to: APIGW, type: implemented_by }
+  - { from: REQ-CHECKOUT-OBSERVABILITY, to: Monitor, type: realized_by }
+  - { from: AC-CHECKOUT-OBSERVABILITY, to: TEST-CHECKOUT-METRICS, type: verified_by }
+  - { from: TEST-CHECKOUT-METRICS, to: EVD-CHECKOUT-METRICS, type: evidenced_by }
 view:
   default:
     base: overview
@@ -739,6 +847,34 @@ zones:
 boundaries:
   external_vcs: { label: External VCS Boundary, kind: trust_boundary, contains: [zone: vcs] }
   runtime_policy: { label: Runtime Policy Boundary, kind: policy_boundary, contains: [zone: runtime] }
+requirements:
+  REQ-SUPPLY-CHAIN:
+    title: Only verified images reach production
+    type: security
+    status: approved
+    priority: must
+    owner: platform
+acceptanceCriteria:
+  AC-IMAGE-SCAN:
+    requirement: REQ-SUPPLY-CHAIN
+    statement: A release image passes security scanning before rollout
+tests:
+  TEST-IMAGE-POLICY:
+    title: Artifact admission policy test
+    type: integration
+    automated: true
+    status: passed
+evidence:
+  EVD-IMAGE-POLICY:
+    type: test_result
+    status: passed
+    producedBy: TEST-IMAGE-POLICY
+    source: artifacts/image-policy.json
+relations:
+  - { from: REQ-SUPPLY-CHAIN, to: Scanner, type: implemented_by }
+  - { from: REQ-SUPPLY-CHAIN, to: Deploy, type: realized_by }
+  - { from: AC-IMAGE-SCAN, to: TEST-IMAGE-POLICY, type: verified_by }
+  - { from: TEST-IMAGE-POLICY, to: EVD-IMAGE-POLICY, type: evidenced_by }
 view:
   default:
     base: overview
@@ -963,6 +1099,35 @@ zones:
   audit: { label: Audit Evidence, kind: project, contains: [Evidence] }
 boundaries:
   human_boundary: { label: Human Response Boundary, kind: policy_boundary, contains: [zone: operations] }
+requirements:
+  REQ-INCIDENT-ROLLBACK:
+    title: On-call can safely roll back production
+    type: operational
+    status: approved
+    priority: must
+    owner: sre
+acceptanceCriteria:
+  AC-ROLLBACK-RTO:
+    requirement: REQ-INCIDENT-ROLLBACK
+    statement: A rollback completes within fifteen minutes and preserves evidence
+    threshold: 15 minutes
+tests:
+  TEST-RUNBOOK-ROLLBACK:
+    title: Incident rollback drill
+    type: disaster_recovery
+    automated: false
+    status: passed
+evidence:
+  EVD-RUNBOOK-ROLLBACK:
+    type: report
+    status: passed
+    producedBy: TEST-RUNBOOK-ROLLBACK
+    source: artifacts/rollback-drill.md
+relations:
+  - { from: REQ-INCIDENT-ROLLBACK, to: Runbook, type: implemented_by }
+  - { from: REQ-INCIDENT-ROLLBACK, to: Deploy, type: realized_by }
+  - { from: AC-ROLLBACK-RTO, to: TEST-RUNBOOK-ROLLBACK, type: verified_by }
+  - { from: TEST-RUNBOOK-ROLLBACK, to: EVD-RUNBOOK-ROLLBACK, type: evidenced_by }
 view:
   default:
     base: layer

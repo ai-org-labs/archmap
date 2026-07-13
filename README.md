@@ -9,8 +9,8 @@ DSL that compiles to a rich semantic model and multiple architecture views.
   information-gathering checklist and prompt template for AI agents writing
   ArchMap DSL
 - [docs/DELIVERY.md](./docs/DELIVERY.md) — npm/local/CDN delivery and security notes
-- [docs/specs/v0.4/](./docs/specs/v0.4/) — approved plugin-first Requirements
-  and Lifecycle Graph direction and v0.4 MVP contract (planned, not yet implemented)
+- [docs/specs/v0.4/](./docs/specs/v0.4/) — plugin-first Requirements and
+  Lifecycle Graph contract plus the implemented MVP vertical slice
 - [docs/V0_1_ACCEPTANCE_MATRIX.md](./docs/V0_1_ACCEPTANCE_MATRIX.md) —
   v0.1 acceptance status and remaining release decisions
 - [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) — third-party dependency,
@@ -29,8 +29,10 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 > ghosted absent elements. See
 > [docs/specs/v0.2/06-timeline-4d.md](./docs/specs/v0.2/06-timeline-4d.md).
 >
-> **Planned for v0.4:** Core plugin registries plus an optional
-> `@archmap/lifecycle` package. See
+> **In development for v0.4:** Core plugin registries and the optional
+> `@archmap/lifecycle` workspace now provide Requirement, Acceptance Criterion,
+> Decision, Risk, Test, Evidence, typed relations, lifecycle diagnostics, and
+> Requirements/Traceability/Quality projections. See
 > [the plugin architecture](./docs/specs/v0.4/10-plugin-architecture.md).
 
 ## Install / dev
