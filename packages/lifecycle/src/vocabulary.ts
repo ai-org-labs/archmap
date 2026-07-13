@@ -24,6 +24,7 @@ export const LIFECYCLE_RELATION_TYPES = [
   relation("mitigated_by"),
   relation("released_in"),
   relation("monitored_by"),
+  relation("related_to"),
 ] as const satisfies readonly RelationTypeDefinition[];
 
 export const REQUIREMENT_STATUSES = [

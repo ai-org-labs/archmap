@@ -55,6 +55,8 @@ export type {
   PluginCleanup,
 } from "./plugin.js";
 export { toCanonicalModel } from "./canonical.js";
+export { graphElements, query, trace } from "./query.js";
+export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {
   registerIcon,
   getIcon,
