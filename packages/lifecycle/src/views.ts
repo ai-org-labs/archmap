@@ -13,6 +13,7 @@ export interface LifecycleViewOptions extends LifecycleTraceOptions {
 }
 
 interface PositionedElement extends GraphElementRef {
+  modelId?: string;
   x: number;
   y: number;
   width: number;
@@ -29,13 +30,17 @@ interface Projection {
   relations: Array<{ id: string; type: string; from: string; to: string }>;
   columns: string[][];
   options?: LifecycleViewOptions;
+  positioned?: PositionedElement[];
+  routing?: "default" | "branch";
 }
 
 const CARD_WIDTH = 240;
-const GAP_X = 86;
+const GAP_X = 150;
 const GAP_Y = 36;
 const PAD_X = 34;
-const PAD_TOP = 92;
+const PAD_TOP = 112;
+const PORT_GAP = 14;
+const LABEL_GAP = 10;
 
 const TYPE_LABELS: Record<string, string> = {
   requirement: "Requirement",
@@ -181,6 +186,40 @@ function displayTitle(element: GraphElementRef): string {
   return String(value.title ?? value.label ?? value.statement ?? element.id);
 }
 
+function positionedElement(element: GraphElementRef, x: number, y: number, id = element.id): PositionedElement {
+  const title = displayTitle(element);
+  const titleLines = wrapText(title);
+  const showId = title !== element.id;
+  const rows = metadata(element);
+  const height = Math.max(118, 64 + titleLines.length * 18 + (showId ? 16 : 0) + rows.length * 14 + 10);
+  return {
+    ...element,
+    id,
+    modelId: element.id,
+    x,
+    y,
+    width: CARD_WIDTH,
+    height,
+    titleLines,
+    showId,
+    rows,
+  };
+}
+
+function stackElements(
+  elements: GraphElementRef[],
+  x: number,
+  startY: number,
+  idFor: (element: GraphElementRef) => string,
+): PositionedElement[] {
+  let y = startY;
+  return elements.map((element) => {
+    const positioned = positionedElement(element, x, y, idFor(element));
+    y += positioned.height + GAP_Y;
+    return positioned;
+  });
+}
+
 function wrapText(value: string, maxCharacters = 30, maxLines = 3): string[] {
   const words = value.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [""];
@@ -207,41 +246,130 @@ function position(projection: Projection): PositionedElement[] {
   projection.columns.forEach((types, index) => types.forEach((type) => columnByType.set(type, index)));
   const grouped = projection.columns.map(() => [] as GraphElementRef[]);
   for (const element of projection.elements) grouped[columnByType.get(element.type) ?? 0].push(element);
-  return grouped.flatMap((elements, column) => {
-    let y = PAD_TOP;
-    return elements.map((element) => {
-      const title = displayTitle(element);
-      const titleLines = wrapText(title);
-      const showId = title !== element.id;
-      const rows = metadata(element, projection.options);
-      const height = Math.max(118, 64 + titleLines.length * 18 + (showId ? 16 : 0) + rows.length * 14 + 10);
-      const positioned = {
-        ...element,
-        x: PAD_X + column * (CARD_WIDTH + GAP_X),
-        y,
-        width: CARD_WIDTH,
-        height,
-        titleLines,
-        showId,
-        rows,
+  const upstreamCenters = new Map<string, number>();
+  const incoming = new Map<string, Projection["relations"]>();
+  for (const relation of projection.relations) {
+    incoming.set(relation.to, [...(incoming.get(relation.to) ?? []), relation]);
+  }
+  const positioned: PositionedElement[] = [];
+  grouped.forEach((elements, column) => {
+    elements.sort((left, right) => {
+      const score = (element: GraphElementRef): number => {
+        const centers = (incoming.get(element.id) ?? [])
+          .map((relation) => upstreamCenters.get(relation.from))
+          .filter((value): value is number => value !== undefined);
+        return centers.length > 0
+          ? centers.reduce((total, value) => total + value, 0) / centers.length
+          : Number.POSITIVE_INFINITY;
       };
-      y += height + GAP_Y;
-      return positioned;
+      const difference = score(left) - score(right);
+      return Number.isFinite(difference) && difference !== 0
+        ? difference
+        : left.id.localeCompare(right.id, "en");
     });
+    let y = PAD_TOP;
+    for (const element of elements) {
+      const placed = positionedElement(element, PAD_X + column * (CARD_WIDTH + GAP_X), y);
+      placed.rows = metadata(element, projection.options);
+      positioned.push(placed);
+      upstreamCenters.set(element.id, y + placed.height / 2);
+      y += placed.height + GAP_Y;
+    }
   });
+  return positioned;
 }
 
-function connector(from: PositionedElement, to: PositionedElement, id: string, type: string): string {
+function portY(element: PositionedElement, index: number, count: number): number {
+  const available = Math.max(0, element.height - 42);
+  const gap = Math.min(PORT_GAP, count > 1 ? available / (count - 1) : PORT_GAP);
+  return element.y + element.height / 2 + (index - (count - 1) / 2) * gap;
+}
+
+function relationLabel(points: Array<[number, number]>, type: string): string {
+  const label = RELATION_LABELS[type] ?? type.replace(/_/g, " ");
+  const width = Math.max(54, label.length * 6.4 + 16);
+  const horizontal = points.slice(0, -1)
+    .map((point, index) => ({ from: point, to: points[index + 1] }))
+    .filter(({ from, to }) => from[1] === to[1])
+    .sort((left, right) => Math.abs(right.to[0] - right.from[0]) - Math.abs(left.to[0] - left.from[0]))[0];
+  if (!horizontal) return "";
+  const x = (horizontal.from[0] + horizontal.to[0]) / 2;
+  const y = horizontal.from[1] - LABEL_GAP;
+  return `<g class="archmap-lifecycle-relation-label"><rect x="${x - width / 2}" y="${y - 15}" width="${width}" height="20" rx="4" fill="#fbfcfd" stroke="#d8e0e7" stroke-width="0.75"/><text x="${x}" y="${y}" text-anchor="middle" font-size="11" fill="#53687a">${escapeXml(label)}</text></g>`;
+}
+
+function crossColumnCorridor(
+  from: PositionedElement,
+  to: PositionedElement,
+  elements: PositionedElement[],
+  preferredY: number,
+  laneIndex: number,
+): number {
+  const minX = Math.min(from.x, to.x);
+  const maxX = Math.max(from.x, to.x);
+  const blockers = elements.filter((element) => element.x > minX && element.x < maxX);
+  const clearance = 14;
+  const orderedBlockers = blockers.sort((left, right) => left.y - right.y);
+  const safeBands: Array<{ start: number; end: number }> = [];
+  let bandStart = PAD_TOP - 34;
+  for (const blocker of orderedBlockers) {
+    const bandEnd = blocker.y - clearance;
+    if (bandEnd >= bandStart) safeBands.push({ start: bandStart, end: bandEnd });
+    bandStart = Math.max(bandStart, blocker.y + blocker.height + clearance);
+  }
+  safeBands.push({ start: bandStart, end: bandStart + GAP_Y });
+  const candidates = safeBands.flatMap(({ start, end }) => {
+    const center = (start + end) / 2;
+    const usable = Math.max(0, end - start);
+    const lanes = Math.max(1, Math.floor(usable / PORT_GAP));
+    return Array.from({ length: lanes }, (_, index) =>
+      center + (index - (lanes - 1) / 2) * PORT_GAP,
+    );
+  });
+  const ordered = (candidates.length > 0 ? candidates : [PAD_TOP - 24]).sort((left, right) => {
+    const leftScore = Math.abs(left - preferredY);
+    const rightScore = Math.abs(right - preferredY);
+    return leftScore - rightScore || left - right;
+  });
+  return ordered[laneIndex % ordered.length] ?? ordered[0];
+}
+
+function connector(
+  from: PositionedElement,
+  to: PositionedElement,
+  id: string,
+  type: string,
+  fromPort: { index: number; count: number },
+  toPort: { index: number; count: number },
+  laneIndex: number,
+  elements: PositionedElement[],
+): string {
   const forward = to.x > from.x;
   const reverse = to.x < from.x;
   let points: Array<[number, number]>;
   if (forward || reverse) {
     const startX = forward ? from.x + from.width : from.x;
     const endX = forward ? to.x : to.x + to.width;
-    const startY = from.y + from.height / 2;
-    const endY = to.y + to.height / 2;
-    const middleX = (startX + endX) / 2;
-    points = [[startX, startY], [middleX, startY], [middleX, endY], [endX, endY]];
+    const startY = portY(from, fromPort.index, fromPort.count);
+    const endY = portY(to, toPort.index, toPort.count);
+    const columnDistance = Math.round(Math.abs(to.x - from.x) / (CARD_WIDTH + GAP_X));
+    const direction = forward ? 1 : -1;
+    const sourceLaneX = startX + direction * (42 + (laneIndex % 4) * 12);
+    const targetLaneX = endX - direction * (42 + (laneIndex % 4) * 12);
+    if (columnDistance <= 1) {
+      const middleX = (sourceLaneX + targetLaneX) / 2;
+      points = [[startX, startY], [middleX, startY], [middleX, endY], [endX, endY]];
+    } else {
+      const corridorY = crossColumnCorridor(from, to, elements, (startY + endY) / 2, laneIndex);
+      points = [
+        [startX, startY],
+        [sourceLaneX, startY],
+        [sourceLaneX, corridorY],
+        [targetLaneX, corridorY],
+        [targetLaneX, endY],
+        [endX, endY],
+      ];
+    }
   } else {
     const downward = to.y >= from.y;
     const startY = downward ? from.y + from.height : from.y;
@@ -261,20 +389,59 @@ function connector(from: PositionedElement, to: PositionedElement, id: string, t
     ];
   }
   const path = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ");
-  const labelX = (points[1][0] + points[2][0]) / 2 + 6;
-  const labelY = (points[1][1] + points[2][1]) / 2 - 6;
-  return `<g class="archmap-lifecycle-relation" data-id="${escapeXml(id)}" data-type="${escapeXml(type)}"><path d="${path}" fill="none" stroke="#708497" stroke-width="1.5" marker-end="url(#lifecycle-arrow)"/><text x="${labelX}" y="${labelY}" font-size="11" fill="#53687a">${escapeXml(RELATION_LABELS[type] ?? type.replace(/_/g, " "))}</text></g>`;
+  return `<g class="archmap-lifecycle-relation" data-id="${escapeXml(id)}" data-type="${escapeXml(type)}"><path d="${path}" fill="none" stroke="#708497" stroke-width="1.5" marker-end="url(#lifecycle-arrow)"/>${relationLabel(points, type)}</g>`;
+}
+
+function branchConnector(
+  from: PositionedElement,
+  to: PositionedElement,
+  id: string,
+  type: string,
+  fromPort: { index: number; count: number },
+  toPort: { index: number; count: number },
+  laneIndex: number,
+): string {
+  const forward = to.x >= from.x;
+  const startX = forward ? from.x + from.width : from.x;
+  const endX = forward ? to.x : to.x + to.width;
+  const startY = portY(from, fromPort.index, fromPort.count);
+  const endY = portY(to, toPort.index, toPort.count);
+  const direction = forward ? 1 : -1;
+  const available = Math.max(48, Math.abs(endX - startX));
+  const laneOffset = (laneIndex % 5) * 8;
+  const turnX = startX + direction * Math.min(available * 0.46 + laneOffset, available - 26);
+  const points: Array<[number, number]> = [
+    [startX, startY],
+    [turnX, startY],
+    [turnX, endY],
+    [endX, endY],
+  ];
+  const path = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ");
+  return `<g class="archmap-lifecycle-relation" data-id="${escapeXml(id)}" data-type="${escapeXml(type)}"><path d="${path}" fill="none" stroke="#708497" stroke-width="1.5" marker-end="url(#lifecycle-arrow)"/>${relationLabel(points, type)}</g>`;
 }
 
 export function renderLifecycleProjection(projection: Projection, className: string): string {
-  const positioned = position(projection);
+  const positioned = projection.positioned ?? position(projection);
   const positions = new Map(positioned.map((element) => [element.id, element]));
+  const outgoing = new Map<string, Projection["relations"]>();
+  const incoming = new Map<string, Projection["relations"]>();
+  for (const relation of projection.relations) {
+    outgoing.set(relation.from, [...(outgoing.get(relation.from) ?? []), relation]);
+    incoming.set(relation.to, [...(incoming.get(relation.to) ?? []), relation]);
+  }
   const width = PAD_X * 2 + projection.columns.length * CARD_WIDTH + Math.max(0, projection.columns.length - 1) * GAP_X;
   const height = Math.max(230, ...positioned.map((element) => element.y + element.height + 34));
-  const connectors = projection.relations.map((relation) => {
+  const connectors = projection.relations.map((relation, laneIndex) => {
     const from = positions.get(relation.from);
     const to = positions.get(relation.to);
-    return from && to ? connector(from, to, relation.id, relation.type) : "";
+    const fromRelations = outgoing.get(relation.from) ?? [];
+    const toRelations = incoming.get(relation.to) ?? [];
+    if (!from || !to) return "";
+    const fromPort = { index: fromRelations.indexOf(relation), count: fromRelations.length };
+    const toPort = { index: toRelations.indexOf(relation), count: toRelations.length };
+    return projection.routing === "branch"
+      ? branchConnector(from, to, relation.id, relation.type, fromPort, toPort, laneIndex)
+      : connector(from, to, relation.id, relation.type, fromPort, toPort, laneIndex, positioned);
   }).join("");
   const cards = positioned.map((element) => {
     const color = COLORS[element.type] ?? { fill: "#f4f6f8", stroke: "#687b8b" };
@@ -283,14 +450,68 @@ export function renderLifecycleProjection(projection: Projection, className: str
     const idY = titleEnd + 19;
     const rowsStart = (element.showId ? idY : titleEnd) + 19;
     const title = element.titleLines.map((line, index) => `<tspan x="${element.x + 14}" y="${titleStart + index * 18}">${escapeXml(line)}</tspan>`).join("");
-    return `<g class="archmap-lifecycle-element archmap-lifecycle-${escapeXml(element.type)}" data-id="${escapeXml(element.id)}"><rect x="${element.x}" y="${element.y}" width="${element.width}" height="${element.height}" rx="6" fill="${color.fill}" stroke="${color.stroke}" stroke-width="1.5"/><text x="${element.x + 14}" y="${element.y + 25}" font-size="11" font-weight="700" fill="${color.stroke}">${escapeXml(TYPE_LABELS[element.type] ?? element.type)}</text><text font-size="15" font-weight="600" fill="#16232f">${title}</text>${element.showId ? `<text x="${element.x + 14}" y="${idY}" font-size="11" fill="#617283">${escapeXml(element.id)}</text>` : ""}${element.rows.map((row, index) => `<text x="${element.x + 14}" y="${rowsStart + index * 14}" font-size="10" fill="#526577">${escapeXml(row)}</text>`).join("")}</g>`;
+    const modelId = element.modelId ?? element.id;
+    return `<g class="archmap-lifecycle-element archmap-lifecycle-${escapeXml(element.type)}" data-id="${escapeXml(modelId)}"><rect x="${element.x}" y="${element.y}" width="${element.width}" height="${element.height}" rx="6" fill="${color.fill}" stroke="${color.stroke}" stroke-width="1.5"/><text x="${element.x + 14}" y="${element.y + 25}" font-size="11" font-weight="700" fill="${color.stroke}">${escapeXml(TYPE_LABELS[element.type] ?? element.type)}</text><text font-size="15" font-weight="600" fill="#16232f">${title}</text>${element.showId ? `<text x="${element.x + 14}" y="${idY}" font-size="11" fill="#617283">${escapeXml(modelId)}</text>` : ""}${element.rows.map((row, index) => `<text x="${element.x + 14}" y="${rowsStart + index * 14}" font-size="10" fill="#526577">${escapeXml(row)}</text>`).join("")}</g>`;
   }).join("");
   const empty = positioned.length === 0 ? '<text x="34" y="92" font-size="14" fill="#617283">No lifecycle elements in the current projection.</text>' : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" class="archmap ${className}" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"><defs><marker id="lifecycle-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#708497"/></marker></defs><rect width="100%" height="100%" fill="#fbfcfd"/><text x="34" y="36" font-size="20" font-weight="700" fill="#16232f">${escapeXml(projection.title)}</text><text x="34" y="61" font-size="12" fill="#617283">${escapeXml(projection.description)}</text>${connectors}${empty}${cards}</svg>`;
 }
 
 export function renderRequirementsView(model: ArchMapModel): string {
-  return renderLifecycleProjection(requirementsProjection(model), "archmap-view-requirements");
+  const source = requirementsProjection(model);
+  const byId = new Map(source.elements.map((element) => [element.id, element]));
+  const requirements = source.elements.filter((element) => element.type === "requirement");
+  const positioned: PositionedElement[] = [];
+  const relations: Projection["relations"] = [];
+  let groupY = PAD_TOP;
+  for (const requirement of requirements) {
+    const accepted = source.relations.filter((relation) => relation.from === requirement.id && relation.type === "accepted_by");
+    const acceptance = accepted.map((relation) => byId.get(relation.to)).filter((element): element is GraphElementRef => Boolean(element));
+    const branchSources = new Set([requirement.id, ...acceptance.map((element) => element.id)]);
+    const architectureRelations = source.relations.filter((relation) =>
+      branchSources.has(relation.from) && !branchSources.has(relation.to) && byId.has(relation.to),
+    );
+    const architecture = unique(architectureRelations.map((relation) => byId.get(relation.to)!).filter(Boolean));
+    const acceptanceCards = stackElements(
+      acceptance,
+      PAD_X + CARD_WIDTH + GAP_X,
+      groupY,
+      (element) => `${requirement.id}:acceptance:${element.id}`,
+    );
+    const architectureCards = stackElements(
+      architecture,
+      PAD_X + 2 * (CARD_WIDTH + GAP_X),
+      groupY,
+      (element) => `${requirement.id}:architecture:${element.id}`,
+    );
+    const requirementDraft = positionedElement(requirement, PAD_X, groupY, `${requirement.id}:requirement`);
+    const groupBottom = Math.max(
+      groupY + requirementDraft.height,
+      ...acceptanceCards.map((element) => element.y + element.height),
+      ...architectureCards.map((element) => element.y + element.height),
+    );
+    const requirementCard = {
+      ...requirementDraft,
+      y: groupY + (groupBottom - groupY - requirementDraft.height) / 2,
+    };
+    positioned.push(requirementCard, ...acceptanceCards, ...architectureCards);
+    const occurrence = new Map<string, string>([[requirement.id, requirementCard.id]]);
+    acceptanceCards.forEach((card) => occurrence.set(card.modelId!, card.id));
+    architectureCards.forEach((card) => occurrence.set(card.modelId!, card.id));
+    for (const relation of [...accepted, ...architectureRelations]) {
+      const from = occurrence.get(relation.from);
+      const to = occurrence.get(relation.to);
+      if (from && to) relations.push({ ...relation, id: `${requirement.id}:${relation.id}`, from, to });
+    }
+    groupY = groupBottom + 72;
+  }
+  return renderLifecycleProjection({
+    ...source,
+    description: "Mind map: each requirement branches to its acceptance conditions and implementing architecture.",
+    relations,
+    positioned,
+    routing: "branch",
+  }, "archmap-view-requirements");
 }
 
 export function renderTraceabilityView(model: ArchMapModel, options: LifecycleViewOptions = {}): string {

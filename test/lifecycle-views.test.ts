@@ -68,6 +68,8 @@ describe("lifecycle projection views", () => {
     expect(svg).toContain("priority: must");
     expect(svg).toContain("owner: product");
     expect(svg).toContain("accepted when");
+    expect(svg).toContain('class="archmap-lifecycle-relation-label"');
+    expect(svg).toContain('text-anchor="middle"');
     expect(svg).toContain("Successful login opens Home");
     expect(svg.match(/>AC-LOGIN<\/text>/g)?.length).toBe(1);
     expect(svg).toContain("Login API");
@@ -113,6 +115,16 @@ describe("lifecycle projection views", () => {
         }
       }
     }
+  });
+
+  it("separates relation labels from paths and distributes shared card ports", () => {
+    const svg = renderRequirementsView(model());
+    const labels = [...svg.matchAll(/<g class="archmap-lifecycle-relation-label"><rect[^>]+><\/rect>|<g class="archmap-lifecycle-relation-label"><rect[^>]+\/>/g)];
+    expect(labels.length).toBeGreaterThan(0);
+
+    const paths = pathSegments(svg);
+    const starts = paths.map((points) => points[0]).filter(Boolean);
+    expect(new Set(starts.map(([x, y]) => `${x},${y}`)).size).toBe(starts.length);
   });
 
   it("renders architecture and lifecycle projections independently from one canonical model", () => {
