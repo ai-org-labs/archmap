@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-101 completed @archmap/lifecycle as an independently built Schema + Relations + Validation + Views workspace plugin with isolated/default installers and verified packed Node ESM consumption. Next, TASK-102 adds plugin-owned YAML section parsing and normalization while preserving v0.3 behavior and keeping Core free of lifecycle vocabulary. GitHub v0.3.0 is released; npm 0.3.0 remains deferred for later OTP completion.",
-  "updated_at": "2026-07-13T15:38:00.000+09:00",
+  "content": "TASK-102 completed registration-driven lifecycle YAML normalization, stable lifecycle/architecture relation endpoint kinds, inert unknown-section preservation, plugin-required diagnostics, and deterministic lifecycle JSON output without importing lifecycle vocabulary into Core. Next, TASK-103 adds object-targeted structural and traceability gap diagnostics through plugin validators while preserving legacy rendering. GitHub v0.3.0 is released; npm 0.3.0 remains deferred for later OTP completion.",
+  "updated_at": "2026-07-13T15:56:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

@@ -98,4 +98,13 @@ describe("plugin registry", () => {
     expect(model.extensions?.elements[0]?.type).toBe("custom");
     expect(model.extensions?.relations[0]?.to).toBe("A");
   });
+
+  it("preserves unconfigured YAML sections and reports the missing plugin", () => {
+    const model = createArchMap().parse(`${source}\n---\nrequirements:\n  REQ-1:\n    title: Sign in`);
+    expect(model.extensions?.sections?.requirements).toEqual({ "REQ-1": { title: "Sign in" } });
+    expect(model.warnings).toContainEqual(expect.objectContaining({
+      code: "plugin_required",
+      target: { type: "extension", id: "requirements" },
+    }));
+  });
 });

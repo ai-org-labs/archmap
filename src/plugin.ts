@@ -1,4 +1,5 @@
 import { syncDiagnostics } from "./diagnostics.js";
+import { normalizeRegisteredExtensions } from "./extensions.js";
 import { parse as parseCore } from "./parser-entry.js";
 import {
   getDefaultViewRegistry,
@@ -211,7 +212,7 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
     listPlugins: () => [...plugins.values()].map(({ plugin }) => ({ name: plugin.name, version: plugin.version })),
     parse(source) {
       const model = parseCore(source);
-      model.extensions ??= { elements: [], relations: [] };
+      normalizeRegisteredExtensions(model, elementTypes.values(), relationTypes.values());
       for (const validator of validators.values()) {
         const diagnostics = validator.validate(model, { instance });
         for (const item of diagnostics ?? []) {
@@ -279,6 +280,10 @@ export const defaultArchMap = createArchMapWithViews(getDefaultViewRegistry());
 
 export function use(plugin: ArchMapPlugin): ArchMapInstance {
   return defaultArchMap.use(plugin);
+}
+
+export function parse(source: string): ArchMapModel {
+  return defaultArchMap.parse(source);
 }
 
 export const registerElementType = defaultArchMap.registerElementType;

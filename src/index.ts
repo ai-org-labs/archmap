@@ -27,10 +27,10 @@ export {
   resolvePhaseId,
 } from "./time-projection.js";
 export type { PhasePresence, PresenceInterval, TimeDecoration } from "./time-projection.js";
-export { parse } from "./parser-entry.js";
 export {
   createArchMap,
   defaultArchMap,
+  parse,
   use,
   registerElementType,
   registerRelationType,

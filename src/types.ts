@@ -287,6 +287,7 @@ export interface ExtensionElement {
   type: string;
   title?: string;
   extensions?: Record<string, unknown>;
+  provenance?: { section: string; id: string };
   [key: string]: unknown;
 }
 
@@ -296,6 +297,10 @@ export interface ExtensionRelation {
   from: string;
   to: string;
   extensions?: Record<string, unknown>;
+  fromKind?: string;
+  toKind?: string;
+  registeredType?: boolean;
+  provenance?: { section: "relations"; index: number };
   [key: string]: unknown;
 }
 

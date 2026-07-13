@@ -30,4 +30,5 @@ export default lifecyclePlugin;
 
 export * from "./types.js";
 export * from "./vocabulary.js";
+export * from "./serialize.js";
 export { LIFECYCLE_VIEWS } from "./views.js";
