@@ -34,6 +34,11 @@ interface Projection {
   routing?: "default" | "branch";
 }
 
+interface CompleteTracePath {
+  elements: string[];
+  relations: string[];
+}
+
 const CARD_WIDTH = 240;
 const GAP_X = 150;
 const GAP_Y = 36;
@@ -106,6 +111,64 @@ function relationsFor(model: ArchMapModel, ids: Set<string>): Projection["relati
     }
   }
   return relations.sort((left, right) => left.id.localeCompare(right.id, "en"));
+}
+
+function completeTracePaths(
+  model: ArchMapModel,
+  start: string,
+  options: LifecycleViewOptions,
+): { elements: GraphElementRef[]; relations: Projection["relations"]; paths: CompleteTracePath[] } {
+  const allElements = query(model);
+  const byId = new Map(allElements.map((element) => [element.id, element]));
+  if (!byId.has(start)) return { elements: [], relations: [], paths: [] };
+  const allRelations = relationsFor(model, new Set(allElements.map((element) => element.id)));
+  const allowedTypes = options.relationTypes ? new Set(options.relationTypes) : undefined;
+  const relations = allRelations.filter((relation) => !allowedTypes || allowedTypes.has(relation.type));
+  const direction = options.direction ?? "forward";
+  const maxDepth = Math.max(0, options.maxDepth ?? 8);
+  const matches = (element: GraphElementRef): boolean =>
+    (!options.types || options.types.includes(element.type)) &&
+    (!options.statuses || options.statuses.includes(String(element.value.status ?? ""))) &&
+    (!options.owners || options.owners.includes(String(element.value.owner ?? "")));
+  const paths: CompleteTracePath[] = [];
+  const visit = (path: CompleteTracePath): void => {
+    const current = path.elements[path.elements.length - 1];
+    const candidates = relations.flatMap((relation) => {
+      const next: Array<{ id: string; relationId: string }> = [];
+      if ((direction === "forward" || direction === "both") && relation.from === current) {
+        next.push({ id: relation.to, relationId: relation.id });
+      }
+      if ((direction === "reverse" || direction === "both") && relation.to === current) {
+        next.push({ id: relation.from, relationId: relation.id });
+      }
+      return next;
+    }).filter(({ id }) => {
+      const element = byId.get(id);
+      return Boolean(element && matches(element) && !path.elements.includes(id));
+    });
+    if (path.relations.length >= maxDepth || candidates.length === 0) {
+      if (path.relations.length > 0) paths.push(path);
+      return;
+    }
+    for (const candidate of candidates) {
+      visit({
+        elements: [...path.elements, candidate.id],
+        relations: [...path.relations, candidate.relationId],
+      });
+    }
+  };
+  visit({ elements: [start], relations: [] });
+  const uniquePaths = [...new Map(paths.map((path) => [
+    `${path.elements.join("\0")}\x01${path.relations.join("\0")}`,
+    path,
+  ])).values()];
+  const visibleIds = new Set(uniquePaths.flatMap((path) => path.elements));
+  const visibleRelationIds = new Set(uniquePaths.flatMap((path) => path.relations));
+  return {
+    elements: allElements.filter((element) => visibleIds.has(element.id)),
+    relations: relations.filter((relation) => visibleRelationIds.has(relation.id)),
+    paths: uniquePaths,
+  };
 }
 
 function lifecycleOptions(value: unknown): LifecycleViewOptions {
@@ -400,6 +463,7 @@ function branchConnector(
   fromPort: { index: number; count: number },
   toPort: { index: number; count: number },
   laneIndex: number,
+  elements: PositionedElement[],
 ): string {
   const forward = to.x >= from.x;
   const startX = forward ? from.x + from.width : from.x;
@@ -409,13 +473,31 @@ function branchConnector(
   const direction = forward ? 1 : -1;
   const available = Math.max(48, Math.abs(endX - startX));
   const laneOffset = (laneIndex % 5) * 8;
-  const turnX = startX + direction * Math.min(available * 0.46 + laneOffset, available - 26);
-  const points: Array<[number, number]> = [
-    [startX, startY],
-    [turnX, startY],
-    [turnX, endY],
-    [endX, endY],
-  ];
+  const columnDistance = Math.round(Math.abs(to.x - from.x) / (CARD_WIDTH + GAP_X));
+  let points: Array<[number, number]>;
+  if (columnDistance > 1) {
+    const branchPrefix = from.id.split(":", 1)[0];
+    const branchElements = elements.filter((element) => element.id.startsWith(`${branchPrefix}:`));
+    const corridorY = Math.min(from.y, to.y, ...branchElements.map((element) => element.y)) - 28 - laneOffset;
+    const sourceLaneX = startX + direction * (34 + laneOffset);
+    const targetLaneX = endX - direction * (34 + laneOffset);
+    points = [
+      [startX, startY],
+      [sourceLaneX, startY],
+      [sourceLaneX, corridorY],
+      [targetLaneX, corridorY],
+      [targetLaneX, endY],
+      [endX, endY],
+    ];
+  } else {
+    const turnX = startX + direction * Math.min(available * 0.46 + laneOffset, available - 26);
+    points = [
+      [startX, startY],
+      [turnX, startY],
+      [turnX, endY],
+      [endX, endY],
+    ];
+  }
   const path = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ");
   return `<g class="archmap-lifecycle-relation" data-id="${escapeXml(id)}" data-type="${escapeXml(type)}"><path d="${path}" fill="none" stroke="#708497" stroke-width="1.5" marker-end="url(#lifecycle-arrow)"/>${relationLabel(points, type)}</g>`;
 }
@@ -440,7 +522,7 @@ export function renderLifecycleProjection(projection: Projection, className: str
     const fromPort = { index: fromRelations.indexOf(relation), count: fromRelations.length };
     const toPort = { index: toRelations.indexOf(relation), count: toRelations.length };
     return projection.routing === "branch"
-      ? branchConnector(from, to, relation.id, relation.type, fromPort, toPort, laneIndex)
+      ? branchConnector(from, to, relation.id, relation.type, fromPort, toPort, laneIndex, positioned)
       : connector(from, to, relation.id, relation.type, fromPort, toPort, laneIndex, positioned);
   }).join("");
   const cards = positioned.map((element) => {
@@ -515,7 +597,45 @@ export function renderRequirementsView(model: ArchMapModel): string {
 }
 
 export function renderTraceabilityView(model: ArchMapModel, options: LifecycleViewOptions = {}): string {
-  return renderLifecycleProjection(traceabilityProjection(model, options), "archmap-view-traceability");
+  const start = options.start ?? query(model, { types: ["requirement"] })[0]?.id;
+  const traced = start
+    ? completeTracePaths(model, start, options)
+    : { elements: [], relations: [], paths: [] };
+  const byId = new Map(traced.elements.map((element) => [element.id, element]));
+  const relationById = new Map(traced.relations.map((relation) => [relation.id, relation]));
+  const positioned: PositionedElement[] = [];
+  const relations: Projection["relations"] = [];
+  let rowY = PAD_TOP;
+  traced.paths.forEach((path, pathIndex) => {
+    const cards = path.elements.map((id, depth) => {
+      const element = byId.get(id);
+      return element
+        ? positionedElement(element, PAD_X + depth * (CARD_WIDTH + GAP_X), rowY, `trace-${pathIndex}:${element.id}`)
+        : undefined;
+    }).filter((element): element is PositionedElement => Boolean(element));
+    const rowHeight = Math.max(...cards.map((card) => card.height), 118);
+    cards.forEach((card) => { card.y = rowY + (rowHeight - card.height) / 2; });
+    positioned.push(...cards);
+    path.relations.forEach((relationId, relationIndex) => {
+      const relation = relationById.get(relationId);
+      const from = cards[relationIndex];
+      const to = cards[relationIndex + 1];
+      if (relation && from && to) relations.push({ ...relation, id: `trace-${pathIndex}:${relation.id}`, from: from.id, to: to.id });
+    });
+    rowY += rowHeight + 58;
+  });
+  const maxDepth = Math.max(1, ...traced.paths.map((path) => path.elements.length));
+  return renderLifecycleProjection({
+    title: "Traceability",
+    description: start
+      ? `One row per complete outcome from ${start}; unrelated elements are omitted.`
+      : "Select a requirement to show its complete trace paths.",
+    elements: traced.elements,
+    relations,
+    columns: Array.from({ length: maxDepth }, () => []),
+    positioned,
+    routing: "branch",
+  }, "archmap-view-traceability");
 }
 
 export function renderQualityView(model: ArchMapModel, options: LifecycleViewOptions = {}): string {

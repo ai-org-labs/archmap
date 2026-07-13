@@ -44,6 +44,11 @@ function pathSegments(svg: string): Array<Array<[number, number]>> {
   );
 }
 
+function cardRects(svg: string): Array<{ id: string; x: number; y: number; width: number; height: number }> {
+  return [...svg.matchAll(/<g class="archmap-lifecycle-element[^"]*" data-id="([^"]+)"><rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+    .map((match) => ({ id: match[1], x: Number(match[2]), y: Number(match[3]), width: Number(match[4]), height: Number(match[5]) }));
+}
+
 describe("lifecycle projection views", () => {
   it("contributes the three lifecycle views to a host toolbar", () => {
     expect(LIFECYCLE_DIAGRAM_TAG_VIEWS).toEqual([
@@ -89,6 +94,13 @@ describe("lifecycle projection views", () => {
     expect(filtered.elements.map(({ id }) => id)).not.toContain("Login");
     expect(renderTraceabilityView(parsed, { start: "REQ-ROOT", maxDepth: 1 })).not.toContain("Audit Store");
     expect(renderTraceabilityView(parsed, { start: "REQ-LOGIN", maxDepth: 5 })).not.toContain(">Checkout<");
+    const traceSvg = renderTraceabilityView(parsed, { start: "REQ-ROOT", maxDepth: 5 });
+    expect(traceSvg).toContain("One row per complete outcome from REQ-ROOT");
+    expect(traceSvg).toContain("Successful login opens Home");
+    expect(traceSvg).toContain("Login end-to-end");
+    expect(traceSvg).toContain("EVD-LOGIN");
+    expect(traceSvg).not.toContain("Unrelated component");
+    expect(traceSvg).not.toContain("Unrelated risk");
   });
 
   it("renders quality status, result, freshness, and no unrelated graph records", () => {
@@ -125,6 +137,30 @@ describe("lifecycle projection views", () => {
     const paths = pathSegments(svg);
     const starts = paths.map((points) => points[0]).filter(Boolean);
     expect(new Set(starts.map(([x, y]) => `${x},${y}`)).size).toBe(starts.length);
+  });
+
+  it("routes requirement branches around every non-endpoint card", () => {
+    const svg = renderRequirementsView(model());
+    const cards = cardRects(svg);
+    const paths = pathSegments(svg);
+    expect(cards.length).toBeGreaterThan(2);
+    for (const points of paths) {
+      const endpoints = [points[0], points[points.length - 1]];
+      for (const card of cards) {
+        const ownsEndpoint = endpoints.some(([x, y]) =>
+          x >= card.x && x <= card.x + card.width && y >= card.y && y <= card.y + card.height,
+        );
+        if (ownsEndpoint) continue;
+        for (let index = 1; index < points.length; index += 1) {
+          const [ax, ay] = points[index - 1];
+          const [bx, by] = points[index];
+          const overlaps = ax === bx
+            ? ax > card.x && ax < card.x + card.width && Math.max(Math.min(ay, by), card.y) < Math.min(Math.max(ay, by), card.y + card.height)
+            : ay > card.y && ay < card.y + card.height && Math.max(Math.min(ax, bx), card.x) < Math.min(Math.max(ax, bx), card.x + card.width);
+          expect(overlaps, `path segment ${ax},${ay} -> ${bx},${by} crosses ${card.id}`).toBe(false);
+        }
+      }
+    }
   });
 
   it("renders architecture and lifecycle projections independently from one canonical model", () => {
