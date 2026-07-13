@@ -1,16 +1,7 @@
-import {
-  defaultArchMap,
-  type ArchMapInstance,
-  type ArchMapPlugin,
-  type ValidatorDefinition,
-} from "@archmap/core";
+import { defaultArchMap, type ArchMapInstance, type ArchMapPlugin } from "@archmap/core";
 import { LIFECYCLE_ELEMENT_TYPES, LIFECYCLE_RELATION_TYPES } from "./vocabulary.js";
 import { LIFECYCLE_VIEWS } from "./views.js";
-
-const lifecycleRegistrationValidator: ValidatorDefinition = {
-  name: "lifecycle_registered_schema",
-  validate: () => [],
-};
+import { lifecycleValidator } from "./validate.js";
 
 export const lifecyclePlugin: ArchMapPlugin = {
   name: "@archmap/lifecycle",
@@ -18,7 +9,7 @@ export const lifecyclePlugin: ArchMapPlugin = {
   requires: { "@archmap/core": "^0.3.0" },
   elementTypes: [...LIFECYCLE_ELEMENT_TYPES],
   relationTypes: [...LIFECYCLE_RELATION_TYPES],
-  validators: [lifecycleRegistrationValidator],
+  validators: [lifecycleValidator],
   views: [...LIFECYCLE_VIEWS],
 };
 
@@ -31,4 +22,5 @@ export default lifecyclePlugin;
 export * from "./types.js";
 export * from "./vocabulary.js";
 export * from "./serialize.js";
+export * from "./validate.js";
 export { LIFECYCLE_VIEWS } from "./views.js";

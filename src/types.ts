@@ -284,7 +284,10 @@ export interface Lifecycle {
 /** Domain-neutral records owned by optional plugins rather than Core. */
 export interface ExtensionElement {
   id: string;
-  type: string;
+  /** Registered plugin element type. Kept separate from domain fields such as Requirement.type. */
+  elementType?: string;
+  /** Domain-owned type/category. Legacy manually-created extension elements may use this as the element type. */
+  type?: string;
   title?: string;
   extensions?: Record<string, unknown>;
   provenance?: { section: string; id: string };

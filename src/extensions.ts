@@ -3,6 +3,7 @@ import { diagnostic } from "./diagnostics.js";
 import type { ElementTypeDefinition, RelationTypeDefinition } from "./plugin.js";
 import type {
   ArchMapModel,
+  Diagnostic,
   ExtensionElement,
   ExtensionRelation,
 } from "./types.js";
@@ -17,6 +18,64 @@ const CORE_METADATA_SECTIONS = new Set([
 
 function isObject(value: unknown): value is Dict {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function validateRegisteredExtensions(
+  model: ArchMapModel,
+  elementTypes: Iterable<ElementTypeDefinition>,
+  relationTypes: Iterable<RelationTypeDefinition>,
+): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  const definitions = new Map([...elementTypes].map((definition) => [definition.name, definition]));
+  const relationDefinitions = new Map([...relationTypes].map((definition) => [definition.name, definition]));
+  const ids = architectureKinds(model);
+  for (const element of model.extensions?.elements ?? []) {
+    if (ids.has(element.id)) {
+      diagnostics.push(diagnostic("extension_duplicate_id", `Extension element "${element.id}" duplicates another graph element.`, { type: "extension", id: element.id }, "error"));
+    }
+    const elementType = element.elementType ?? element.type ?? "extension";
+    ids.set(element.id, elementType);
+    const definition = definitions.get(elementType);
+    for (const field of definition?.required ?? []) {
+      if (element[field] === undefined || element[field] === null || element[field] === "") {
+        diagnostics.push(diagnostic("extension_schema_mismatch", `${elementType} "${element.id}" requires field "${field}".`, { type: "extension", id: element.id }, "error"));
+      }
+    }
+  }
+
+  const acyclic = new Map<string, Map<string, string[]>>();
+  for (const relation of model.extensions?.relations ?? []) {
+    const definition = relationDefinitions.get(relation.type);
+    if (!definition) diagnostics.push(diagnostic("extension_invalid_relation", `Relation "${relation.id}" uses unregistered type "${relation.type}".`, { type: "extension", id: relation.id }, "error"));
+    if (!ids.has(relation.from)) diagnostics.push(diagnostic("extension_missing_reference", `Relation "${relation.id}" references unknown source "${relation.from}".`, { type: "extension", id: relation.id }, "error"));
+    if (!ids.has(relation.to)) diagnostics.push(diagnostic("extension_missing_reference", `Relation "${relation.id}" references unknown target "${relation.to}".`, { type: "extension", id: relation.id }, "error"));
+    if (relation.from === relation.to && definition?.allowSelf !== true) diagnostics.push(diagnostic("extension_self_dependency", `Relation "${relation.id}" connects "${relation.from}" to itself.`, { type: "extension", id: relation.id }, "error"));
+    if (definition?.acyclic) {
+      const graph = acyclic.get(relation.type) ?? new Map<string, string[]>();
+      graph.set(relation.from, [...(graph.get(relation.from) ?? []), relation.to]);
+      acyclic.set(relation.type, graph);
+    }
+  }
+  for (const [type, graph] of acyclic) {
+    const visiting = new Set<string>();
+    const visited = new Set<string>();
+    const visit = (id: string): boolean => {
+      if (visiting.has(id)) return true;
+      if (visited.has(id)) return false;
+      visiting.add(id);
+      const cyclic = (graph.get(id) ?? []).some(visit);
+      visiting.delete(id);
+      visited.add(id);
+      return cyclic;
+    };
+    for (const id of graph.keys()) {
+      if (visit(id)) {
+        diagnostics.push(diagnostic("extension_relation_cycle", `Relation type "${type}" contains a cycle at "${id}".`, { type: "extension", id }, "error"));
+        break;
+      }
+    }
+  }
+  return diagnostics;
 }
 
 function parseMetadata(metadata: string | undefined): Dict {
@@ -68,7 +127,7 @@ export function normalizeRegisteredExtensions(
       elements.push({
         ...value,
         id,
-        type: definition.name,
+        elementType: definition.name,
         title: typeof value.title === "string" ? value.title : undefined,
         provenance: { section, id },
       });
@@ -76,7 +135,7 @@ export function normalizeRegisteredExtensions(
   }
 
   const endpointKinds = architectureKinds(model);
-  for (const element of elements) endpointKinds.set(element.id, element.type);
+  for (const element of elements) endpointKinds.set(element.id, element.elementType ?? element.type ?? "extension");
   const relations: ExtensionRelation[] = [];
   const rawRelations = metadata.relations;
   if (registeredRelations.size > 0 && Array.isArray(rawRelations)) {

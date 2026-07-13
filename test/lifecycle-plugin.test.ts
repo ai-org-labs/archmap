@@ -40,7 +40,7 @@ describe("@archmap/lifecycle plugin", () => {
     const archmap = createArchMap().use(lifecycle);
     expect(archmap.listElementTypes()).toEqual(LIFECYCLE_ELEMENT_TYPES.map(({ name }) => name));
     expect(archmap.listRelationTypes()).toEqual(LIFECYCLE_RELATION_TYPES.map(({ name }) => name));
-    expect(archmap.listValidators()).toContain("lifecycle_registered_schema");
+    expect(archmap.listValidators()).toContain("lifecycle_traceability_gaps");
     expect(archmap.listViews()).toEqual(expect.arrayContaining(["requirements", "traceability", "quality"]));
     expect(createArchMap().listElementTypes()).toEqual([]);
   });
@@ -71,7 +71,8 @@ describe("@archmap/lifecycle plugin", () => {
     expect(first.extensions?.elements).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: "REQ-LOGIN",
-        type: "requirement",
+        elementType: "requirement",
+        type: "functional",
         title: "User can sign in",
         provenance: { section: "requirements", id: "REQ-LOGIN" },
         extensions: { sourceSystem: "product" },
@@ -90,9 +91,38 @@ describe("@archmap/lifecycle plugin", () => {
     expect(JSON.stringify(first.extensions)).toBe(JSON.stringify(second.extensions));
     expect(serializeLifecycle(first)).toBe(serializeLifecycle(second));
     expect(JSON.parse(serializeLifecycle(first))).toMatchObject({
-      elements: expect.arrayContaining([expect.objectContaining({ id: "REQ-LOGIN", type: "requirement" })]),
+      elements: expect.arrayContaining([expect.objectContaining({ id: "REQ-LOGIN", elementType: "requirement", type: "functional" })]),
       relations: expect.arrayContaining([expect.objectContaining({ id: "REQ-LOGIN__realized_by__Login__0" })]),
     });
     expect(first.warnings.some((item) => item.code === "plugin_required" && item.target?.id === "requirements")).toBe(false);
+  });
+
+  it("targets structural and traceability gap diagnostics at responsible IDs", () => {
+    const model = createArchMap().use(lifecycle).parse(`${source}
+---
+requirements:
+  Login: { title: Duplicate architecture ID, type: functional }
+  REQ-GAP: { title: Missing acceptance, type: functional }
+  REQ-BAD: { title: Missing type }
+acceptanceCriteria:
+  AC-GAP: { requirement: REQ-GAP, statement: Must work }
+tests:
+  TEST-GAP: { title: Required test, type: acceptance }
+relations:
+  - { from: AC-GAP, to: MISSING, type: verified_by }
+  - { from: REQ-GAP, to: REQ-GAP, type: refines }
+  - { from: REQ-GAP, to: REQ-BAD, type: refines }
+  - { from: REQ-BAD, to: REQ-GAP, type: refines }
+  - { from: REQ-GAP, to: Login, type: made_up }`);
+    const codes = new Set(model.diagnostics.map((item) => item.code));
+    const expectedCodes = [
+      "extension_duplicate_id", "extension_schema_mismatch", "extension_missing_reference",
+      "extension_invalid_relation", "extension_self_dependency", "extension_relation_cycle",
+      "requirement_without_acceptance", "acceptance_without_test", "test_without_evidence",
+    ];
+    expect([...codes]).toEqual(expect.arrayContaining(expectedCodes));
+    expect(model.diagnostics
+      .filter((item) => expectedCodes.includes(item.code))
+      .every((item) => Boolean(item.target?.id))).toBe(true);
   });
 });

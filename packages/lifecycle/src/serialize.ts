@@ -12,7 +12,7 @@ function compareText(left: string, right: string): number {
 export function lifecycleJson(model: ArchMapModel): LifecycleJson {
   return {
     elements: [...(model.extensions?.elements ?? [])].sort((left, right) =>
-      compareText(`${left.type}\u0000${left.id}`, `${right.type}\u0000${right.id}`),
+      compareText(`${left.elementType ?? left.type}\u0000${left.id}`, `${right.elementType ?? right.type}\u0000${right.id}`),
     ),
     relations: [...(model.extensions?.relations ?? [])].sort((left, right) =>
       compareText(

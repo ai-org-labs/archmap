@@ -12,7 +12,7 @@ function escapeXml(value: unknown): string {
 }
 
 function elementsFor(model: ArchMapModel, allowed: Set<string>): ExtensionElement[] {
-  return (model.extensions?.elements ?? []).filter((element) => allowed.has(element.type));
+  return (model.extensions?.elements ?? []).filter((element) => allowed.has(element.elementType ?? element.type ?? ""));
 }
 
 function projectionView(name: string, title: string, allowed: Set<string>): ViewDefinition {

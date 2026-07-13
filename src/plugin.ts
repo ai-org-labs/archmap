@@ -1,5 +1,5 @@
 import { syncDiagnostics } from "./diagnostics.js";
-import { normalizeRegisteredExtensions } from "./extensions.js";
+import { normalizeRegisteredExtensions, validateRegisteredExtensions } from "./extensions.js";
 import { parse as parseCore } from "./parser-entry.js";
 import {
   getDefaultViewRegistry,
@@ -15,6 +15,7 @@ export interface ElementTypeDefinition {
   name: string;
   section?: string;
   description?: string;
+  required?: string[];
 }
 
 export interface RelationTypeDefinition {
@@ -23,6 +24,8 @@ export interface RelationTypeDefinition {
   to?: string[];
   inverse?: string;
   description?: string;
+  allowSelf?: boolean;
+  acyclic?: boolean;
 }
 
 export interface ValidatorContext {
@@ -213,6 +216,7 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
     parse(source) {
       const model = parseCore(source);
       normalizeRegisteredExtensions(model, elementTypes.values(), relationTypes.values());
+      model.warnings.push(...validateRegisteredExtensions(model, elementTypes.values(), relationTypes.values()));
       for (const validator of validators.values()) {
         const diagnostics = validator.validate(model, { instance });
         for (const item of diagnostics ?? []) {

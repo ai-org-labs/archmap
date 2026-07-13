@@ -1,21 +1,21 @@
 import type { ElementTypeDefinition, RelationTypeDefinition } from "@archmap/core";
 
 export const LIFECYCLE_ELEMENT_TYPES = [
-  { name: "requirement", section: "requirements", description: "A condition the system or delivery must satisfy." },
-  { name: "acceptanceCriterion", section: "acceptanceCriteria", description: "An observable condition used to accept a requirement." },
-  { name: "decision", section: "decisions", description: "A recorded product, architecture, or operational decision." },
-  { name: "risk", section: "risks", description: "An uncertain event with potential impact." },
-  { name: "test", section: "tests", description: "A defined verification activity." },
-  { name: "evidence", section: "evidence", description: "Inert evidence metadata supporting a verification result." },
+  { name: "requirement", section: "requirements", required: ["title", "type"], description: "A condition the system or delivery must satisfy." },
+  { name: "acceptanceCriterion", section: "acceptanceCriteria", required: ["requirement", "statement"], description: "An observable condition used to accept a requirement." },
+  { name: "decision", section: "decisions", required: ["title", "status"], description: "A recorded product, architecture, or operational decision." },
+  { name: "risk", section: "risks", required: ["title"], description: "An uncertain event with potential impact." },
+  { name: "test", section: "tests", required: ["title", "type"], description: "A defined verification activity." },
+  { name: "evidence", section: "evidence", required: ["type", "status"], description: "Inert evidence metadata supporting a verification result." },
   { name: "lifecycleRelation", section: "relations", description: "A typed relation across lifecycle and architecture records." },
 ] as const satisfies readonly ElementTypeDefinition[];
 
-const relation = (name: string, inverse?: string): RelationTypeDefinition => ({ name, inverse });
+const relation = (name: string, inverse?: string, acyclic = false): RelationTypeDefinition => ({ name, inverse, acyclic });
 
 export const LIFECYCLE_RELATION_TYPES = [
-  relation("derives"),
-  relation("refines"),
-  relation("decomposes"),
+  relation("derives", undefined, true),
+  relation("refines", undefined, true),
+  relation("decomposes", undefined, true),
   relation("satisfies"),
   relation("implemented_by"),
   relation("realized_by"),
