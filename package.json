@@ -57,6 +57,7 @@
     "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json && npm run build:lifecycle",
     "build:lifecycle": "npm run build --workspace @archmap/lifecycle",
     "bench:render": "node tools/bench-render.mjs",
+    "bench:runtime": "node tools/bench-runtime.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify:pattern-samples": "node tools/verify-pattern-samples.mjs",

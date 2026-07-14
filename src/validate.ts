@@ -479,6 +479,35 @@ export function validate(model: ArchMapModel): ArchMapModel {
     }
   }
 
+  if (model.runtime) {
+    const runtimeServiceIds = new Set(model.runtime.services.map((service) => service.id));
+    const runtimeTargets = new Set([...nodeIds, ...runtimeServiceIds]);
+    const validSources = new Set(["measured", "estimated", "declared"]);
+    for (const service of model.runtime.services) {
+      if (!nodeIds.has(service.node)) {
+        errors.push(diagnostic("runtime_unknown_node", `Runtime service "${service.id}" references unknown node "${service.node}".`, { type: "node", id: service.node }, "error"));
+      }
+      if (service.source && !validSources.has(service.source)) {
+        warnings.push(diagnostic("runtime_invalid_source", `Runtime service "${service.id}" uses invalid source "${service.source}".`, { type: "node", id: service.node }));
+      }
+      for (const [metric, value] of Object.entries(service.metrics)) {
+        if (!Number.isFinite(value.value) || value.value < 0) warnings.push(diagnostic("runtime_invalid_metric", `Runtime service "${service.id}" metric "${metric}" must be a non-negative finite number.`, { type: "node", id: service.node }));
+      }
+    }
+    for (const dependency of model.runtime.dependencies) {
+      if (!runtimeTargets.has(dependency.from) || !runtimeTargets.has(dependency.to)) {
+        errors.push(diagnostic("runtime_unknown_dependency_endpoint", `Runtime dependency "${dependency.id}" references an unknown endpoint (${dependency.from} -> ${dependency.to}).`, { type: "edge", id: dependency.id }, "error"));
+      }
+      if (dependency.source && !validSources.has(dependency.source)) warnings.push(diagnostic("runtime_invalid_source", `Runtime dependency "${dependency.id}" uses invalid source "${dependency.source}".`, { type: "edge", id: dependency.id }));
+      for (const [metric, value] of Object.entries(dependency.metrics)) {
+        if (!Number.isFinite(value.value) || value.value < 0) warnings.push(diagnostic("runtime_invalid_metric", `Runtime dependency "${dependency.id}" metric "${metric}" must be a non-negative finite number.`, { type: "edge", id: dependency.id }));
+      }
+    }
+    for (const event of model.runtime.events) {
+      if (event.target && !runtimeTargets.has(event.target)) warnings.push(diagnostic("runtime_unknown_event_target", `Runtime event "${event.id}" references unknown target "${event.target}".`, { type: "view", id: event.id }));
+    }
+  }
+
   syncDiagnostics(model);
   return model;
 }

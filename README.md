@@ -35,6 +35,12 @@ DSL that compiles to a rich semantic model and multiple architecture views.
 > Requirements/Traceability/Quality projections. See
 > [the plugin architecture](./docs/specs/v0.4/10-plugin-architecture.md).
 
+The **Runtime View** remains DSL-first: authored operational snapshots are
+projected from the same canonical model in Design, Runtime, or Diff mode. It
+supports provenance-aware metrics (`measured`, `estimated`, or `declared`),
+event timelines, deterministic grouping, inspection, and JSON/CSV/SVG/PNG
+export without requiring or implying a live telemetry or vendor connector.
+
 ## Install / dev
 
 ```bash

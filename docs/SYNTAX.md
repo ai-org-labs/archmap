@@ -739,7 +739,54 @@ result.back?.();
 result.goToScreen?.("Cart");
 ```
 
-### 6.4 CDN / GitHub Pages viewer
+### 6.4 Runtime snapshots
+
+`runtime:` adds an authored operational snapshot to the same architecture
+model. It does not connect to a telemetry backend. Values are written by a
+person or AI and must declare whether they are measured, estimated, or simply
+declared.
+
+```yaml
+runtime:
+  capturedAt: 2026-07-15T10:00:00Z
+  window: { from: 2026-07-15T09:55:00Z, to: 2026-07-15T10:00:00Z }
+  services:
+    API:
+      health: warning
+      source: measured
+      environment: production
+      team: checkout
+      region: asia-northeast1
+      metrics:
+        requests: { value: 820, unit: rpm, source: measured }
+        errorRate: { value: 2.4, unit: percent, source: measured }
+        latencyP95: { value: 310, unit: ms, source: measured }
+  dependencies:
+    api_database:
+      from: API
+      to: Database
+      health: normal
+      source: declared
+      protocol: SQL
+  events:
+    deploy_42:
+      target: API
+      at: 2026-07-15T09:57:00Z
+      type: deployment
+      severity: info
+      label: release 42
+view:
+  default:
+    base: runtime
+```
+
+Runtime health values are `normal`, `warning`, `critical`, `no-data`, and
+`unknown`. Runtime source values are `measured`, `estimated`, and `declared`.
+Service ids and dependency endpoints refer to architecture node ids. Runtime
+View can switch among Design, Runtime, and Diff, group large maps, inspect an
+immediate dependency neighborhood, and export JSON, CSV, SVG, or PNG.
+
+### 6.5 CDN / GitHub Pages viewer
 
 For a static viewer page, use an import map. After npm publication, replace
 `0.2.1` with the published version you want to pin:

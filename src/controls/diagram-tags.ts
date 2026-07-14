@@ -66,6 +66,7 @@ export const DEFAULT_DIAGRAM_TAG_VIEWS: DiagramTagOption[] = [
   { value: "topology", label: "Topology" },
   { value: "layer", label: "Layer" },
   { value: "prototype", label: "Prototype" },
+  { value: "runtime", label: "Runtime" },
 ];
 
 export const DEFAULT_DIAGRAM_TAG_RENDER_MODES: DiagramTagOption[] = [

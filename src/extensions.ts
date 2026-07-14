@@ -13,7 +13,7 @@ type Dict = Record<string, unknown>;
 const CORE_METADATA_SECTIONS = new Set([
   "title", "description", "mode", "profile", "architecture",
   "nodes", "edges", "zones", "boundaries", "identities", "permissions",
-  "data", "scenarios", "timeline", "layout", "view",
+  "data", "scenarios", "timeline", "runtime", "layout", "view",
 ]);
 
 function isObject(value: unknown): value is Dict {

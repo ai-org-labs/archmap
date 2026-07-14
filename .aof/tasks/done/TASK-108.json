@@ -1,0 +1,29 @@
+{
+  "task_id": "TASK-108",
+  "title": "DSL-authored Runtime View",
+  "description": "Deliver a Datadog-grade visual Runtime workspace derived entirely from human/AI-authored ArchMap DSL. No OpenTelemetry or vendor connector is required.",
+  "status": "done",
+  "origin": "human-datadog-visual-evolution",
+  "created_at": "2026-07-14T12:00:00.000+09:00",
+  "updated_at": "2026-07-15T01:25:00.000+09:00",
+  "completed_at": "2026-07-15T01:25:00.000+09:00",
+  "completion_criteria": [
+    "The parser and canonical model retain DSL-authored runtime services, dependencies, metrics, events, time windows, health, and provenance.",
+    "Runtime View provides query controls, canvas, inspector, timeline, minimap, health rings, metric edge encoding, selection, filtering, and deterministic grouping.",
+    "Design, Runtime, and Diff modes preserve measured, estimated, declared, unknown, and no-data semantics without implying a live connector.",
+    "JSON, CSV, SVG, and PNG exports work, and node selection is keyboard accessible.",
+    "100/1000/10000 element projection, browser visual behavior, docs, tests, QIF, and AOF handoff are verified."
+  ],
+  "success_criteria": [
+    "The runtime map is immediately legible at operational information density and large authored models can be grouped before rendering.",
+    "Users can pivot from observed behavior to authored architecture and lifecycle evidence without confusing observation with intent.",
+    "The product uses original ArchMap visual components and does not copy third-party branding, proprietary assets, or pixel-identical UI."
+  ],
+  "evidence": [
+    "docs/specs/v0.5/11-observed-topology.md",
+    "docs/aof/V0_5-RUNTIME-VIEW-QIF-CHECK-2026-07-15.md",
+    "test/runtime.test.ts",
+    "tools/bench-runtime.mjs"
+  ],
+  "triage_notes": "ArchMap remains DSL-first. Do not add OpenTelemetry, Datadog, or other connector dependencies. Runtime facts are authored snapshots with explicit provenance."
+}

@@ -58,6 +58,21 @@ export { toCanonicalModel } from "./canonical.js";
 export { graphElements, query, trace } from "./query.js";
 export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {
+  buildRuntimeGraph,
+  projectRuntimeGraph,
+  runtimeGraphToCsv,
+  runtimeGraphToJson,
+  runtimeMetricValue,
+} from "./runtime.js";
+export type {
+  RuntimeGraph,
+  RuntimeGraphEdge,
+  RuntimeGraphMode,
+  RuntimeGraphNode,
+  RuntimeGroupBy,
+  RuntimeMeasure,
+} from "./runtime.js";
+export {
   registerIcon,
   getIcon,
   listIcons,

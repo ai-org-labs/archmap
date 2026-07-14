@@ -25,6 +25,12 @@ import type {
   Scenario,
   Timeline,
   TimelinePhase,
+  RuntimeDependency,
+  RuntimeEvent,
+  RuntimeHealth,
+  RuntimeMetric,
+  RuntimeModel,
+  RuntimeService,
   ViewConfig,
   Zone,
 } from "../types.js";
@@ -40,6 +46,11 @@ function isObject(v: unknown): v is Dict {
 
 function asString(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
+}
+
+function asTimestamp(v: unknown): string | undefined {
+  if (v instanceof Date && Number.isFinite(v.getTime())) return v.toISOString();
+  return asString(v);
 }
 
 function asNumber(v: unknown): number | undefined {
@@ -131,6 +142,91 @@ function parseLifecycle(v: unknown): Lifecycle | undefined {
   return lifecycle.added !== undefined || lifecycle.removed !== undefined || lifecycle.states !== undefined
     ? lifecycle
     : undefined;
+}
+
+const RUNTIME_HEALTH = new Set<RuntimeHealth>(["normal", "warning", "critical", "no-data", "unknown"]);
+
+function parseRuntimeMetric(value: unknown): RuntimeMetric | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return { value };
+  if (!isObject(value)) return undefined;
+  const metricValue = asNumber(value.value);
+  if (metricValue === undefined) return undefined;
+  const source = asString(value.source);
+  return {
+    value: metricValue,
+    unit: asString(value.unit),
+    previous: asNumber(value.previous),
+    source: source === "measured" || source === "estimated" || source === "declared" ? source : undefined,
+  };
+}
+
+function parseRuntimeMetrics(value: unknown): Record<string, RuntimeMetric> {
+  if (!isObject(value)) return {};
+  return Object.fromEntries(Object.entries(value).flatMap(([id, body]) => {
+    const metric = parseRuntimeMetric(body);
+    return metric ? [[id, metric]] : [];
+  }));
+}
+
+function runtimeHealth(value: unknown): RuntimeHealth {
+  const health = asString(value) as RuntimeHealth | undefined;
+  return health && RUNTIME_HEALTH.has(health) ? health : "no-data";
+}
+
+function parseRuntime(value: unknown, warnings: Diagnostic[]): RuntimeModel | undefined {
+  if (value === undefined) return undefined;
+  if (!isObject(value)) {
+    warnings.push(diagnostic("runtime_invalid", "runtime must be a mapping.", { type: "view", id: "runtime" }));
+    return undefined;
+  }
+  const services: RuntimeService[] = [];
+  for (const [id, body] of Object.entries(isObject(value.services) ? value.services : {})) {
+    if (!isObject(body)) continue;
+    services.push({
+      id,
+      node: asString(body.node) ?? id,
+      health: runtimeHealth(body.health),
+      metrics: parseRuntimeMetrics(body.metrics),
+      environment: asString(body.environment),
+      region: asString(body.region),
+      team: asString(body.team),
+      version: asString(body.version),
+      source: asString(body.source) as RuntimeService["source"],
+      description: asString(body.description),
+      tags: asStringRecord(body.tags),
+    });
+  }
+  const dependencies: RuntimeDependency[] = [];
+  for (const [id, body] of Object.entries(isObject(value.dependencies) ? value.dependencies : {})) {
+    if (!isObject(body)) continue;
+    const from = asString(body.from); const to = asString(body.to);
+    if (!from || !to) warnings.push(diagnostic("runtime_dependency_incomplete", `Runtime dependency "${id}" is missing from or to.`, { type: "edge", id }));
+    dependencies.push({
+      id,
+      edge: asString(body.edge),
+      from: from ?? "",
+      to: to ?? "",
+      health: runtimeHealth(body.health),
+      metrics: parseRuntimeMetrics(body.metrics),
+      protocol: asString(body.protocol),
+      source: asString(body.source) as RuntimeDependency["source"],
+      description: asString(body.description),
+    });
+  }
+  const events: RuntimeEvent[] = [];
+  for (const [id, body] of Object.entries(isObject(value.events) ? value.events : {})) {
+    if (!isObject(body)) continue;
+    const at = asTimestamp(body.at);
+    if (!at) warnings.push(diagnostic("runtime_event_missing_time", `Runtime event "${id}" has no at timestamp.`, { type: "view", id }));
+    events.push({ id, type: asString(body.type) ?? "change", target: asString(body.target), at: at ?? "", label: asString(body.label), description: asString(body.description), severity: asString(body.severity) });
+  }
+  const windowBody = isObject(value.window) ? value.window : undefined;
+  return {
+    window: windowBody ? { label: asString(windowBody.label), from: asTimestamp(windowBody.from), to: asTimestamp(windowBody.to), observedAt: asTimestamp(windowBody.observedAt), compareFrom: asTimestamp(windowBody.compareFrom), compareTo: asTimestamp(windowBody.compareTo) } : undefined,
+    services,
+    dependencies,
+    events,
+  };
 }
 
 export interface MergeResult {
@@ -484,6 +580,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
   // --- Layout / View / Title ------------------------------------------------
   const layout = isObject(meta.layout) ? (meta.layout as unknown as Layout) : undefined;
   const view = isObject(meta.view) ? (meta.view as unknown as ViewConfig) : undefined;
+  const runtime = parseRuntime(meta.runtime, warnings);
 
   const model: ArchMapModel = {
     version: ARCHMAP_VERSION,
@@ -508,6 +605,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     data,
     scenarios,
     timeline,
+    runtime,
     layout,
     view,
     diagnostics: [],

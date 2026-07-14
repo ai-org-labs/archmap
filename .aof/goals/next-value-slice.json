@@ -1,9 +1,9 @@
 {
   "goal_type": "next-value-slice",
-  "content": "Complete and release the current v0.4 lifecycle vertical slice without folding observability into Core. Then start TASK-108 Stage O1: prove the original ArchMap Runtime workspace and Observed Topology visual experience with deterministic synthetic telemetry before implementing connector breadth.",
-  "updated_at": "2026-07-14T12:00:00.000+09:00",
+  "content": "TASK-108 is complete: ArchMap now projects human/AI-authored runtime snapshots into an original Runtime workspace without OTel or vendor connectors. The next value slice should deepen DSL-authored operational comparison and lifecycle traceability while preserving provenance and partial rendering.",
+  "updated_at": "2026-07-15T01:25:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
-  "declared_complete_at": null
+  "declared_complete_at": "2026-07-15T01:25:00.000+09:00"
 }

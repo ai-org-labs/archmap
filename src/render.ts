@@ -23,6 +23,7 @@ import { dataflowView } from "./views/dataflow.js";
 import { boundaryView } from "./views/boundary.js";
 import { validationView } from "./views/validation.js";
 import { prototypeView } from "./views/prototype.js";
+import { runtimeView } from "./views/runtime.js";
 import { renderDiagram } from "./views/base.js";
 import type { Box } from "./views/base.js";
 import { escapeXml } from "./views/svg.js";
@@ -527,6 +528,7 @@ registerView("dataflow", dataflowView);
 registerView("boundary", boundaryView);
 registerView("validation", validationView);
 registerView("prototype", prototypeView);
+registerView("runtime", runtimeView);
 registerView("3d", ({ model }) => {
   model.warnings.push(diagnostic("view_3d_unavailable", "3D renderer is not installed. Import @archmap/core/views3d/three-view and call installThreeView() to enable it.", { type: "view", id: "3d" }));
   return (
@@ -1087,12 +1089,13 @@ export function viewerOptionsFromAttributes(attrs: Pick<Element, "getAttribute">
 }
 
 /** Semantic views offered by the controls toolbar: what the user wants to inspect. */
-export const BASE_VIEWS = ["overview", "topology", "layer", "prototype"] as const;
+export const BASE_VIEWS = ["overview", "topology", "layer", "prototype", "runtime"] as const;
 const BASE_VIEW_LABELS: Record<(typeof BASE_VIEWS)[number], string> = {
   overview: "Overview",
   topology: "Topology",
   layer: "Layer",
   prototype: "Prototype",
+  runtime: "Runtime",
 };
 /** Render modes offered by the controls toolbar: how to display the selected view. */
 export const RENDER_MODES = ["2d", "3d"] as const;

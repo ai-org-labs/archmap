@@ -264,6 +264,71 @@ export interface Timeline {
   default?: string;
 }
 
+export type RuntimeHealth = "normal" | "warning" | "critical" | "no-data" | "unknown";
+export type RuntimeValueSource = "measured" | "estimated" | "declared";
+
+export interface RuntimeMetric {
+  value: number;
+  unit?: string;
+  previous?: number;
+  source?: RuntimeValueSource;
+}
+
+export interface RuntimeWindow {
+  label?: string;
+  from?: string;
+  to?: string;
+  observedAt?: string;
+  compareFrom?: string;
+  compareTo?: string;
+}
+
+export interface RuntimeService {
+  id: string;
+  /** Existing architecture node id. Defaults to the runtime service id. */
+  node: string;
+  health: RuntimeHealth;
+  metrics: Record<string, RuntimeMetric>;
+  environment?: string;
+  region?: string;
+  team?: string;
+  version?: string;
+  source?: RuntimeValueSource;
+  description?: string;
+  tags?: Record<string, string>;
+}
+
+export interface RuntimeDependency {
+  id: string;
+  /** Existing architecture edge id, when one is explicitly known. */
+  edge?: string;
+  from: string;
+  to: string;
+  health: RuntimeHealth;
+  metrics: Record<string, RuntimeMetric>;
+  protocol?: string;
+  source?: RuntimeValueSource;
+  description?: string;
+}
+
+export interface RuntimeEvent {
+  id: string;
+  type: "deployment" | "incident" | "monitor" | "change" | (string & {});
+  target?: string;
+  at: string;
+  label?: string;
+  description?: string;
+  severity?: string;
+}
+
+/** Author-written operational snapshot used by the Runtime view. */
+export interface RuntimeModel {
+  window?: RuntimeWindow;
+  services: RuntimeService[];
+  dependencies: RuntimeDependency[];
+  events: RuntimeEvent[];
+}
+
 export type LifecycleState = "planned" | "active" | "deprecated" | "removing" | (string & {});
 
 /**
@@ -338,6 +403,7 @@ export interface ArchMapModel {
   data: DataObject[];
   scenarios: Scenario[];
   timeline?: Timeline;
+  runtime?: RuntimeModel;
   layout?: Layout;
   view?: ViewConfig;
   extensions?: ExtensionGraph;
@@ -372,6 +438,7 @@ export interface CanonicalArchMapModel {
   scenarios: Record<string, Scenario>;
   /** Ordered timeline; order is semantic, so phases stay an array here too. */
   timeline?: Timeline;
+  runtime?: RuntimeModel;
   layout?: Layout;
   view?: ViewConfig;
   extensions?: ExtensionGraph;

@@ -24,6 +24,8 @@ const REGISTRY_LEVELS: Record<string, DiagnosticLevel> = {
   lifecycle_unknown_phase: "error",
   lifecycle_removed_before_added: "error",
   topology_grid_placement_overlap: "error",
+  runtime_unknown_node: "error",
+  runtime_unknown_dependency_endpoint: "error",
 
   unknown_base_view: "warning",
   unknown_overlay: "warning",
@@ -40,6 +42,12 @@ const REGISTRY_LEVELS: Record<string, DiagnosticLevel> = {
   unknown_lifecycle_state: "warning",
   topology_grid_unknown_target: "warning",
   topology_grid_invalid_placement: "warning",
+  runtime_invalid: "warning",
+  runtime_dependency_incomplete: "warning",
+  runtime_event_missing_time: "warning",
+  runtime_unknown_event_target: "warning",
+  runtime_invalid_source: "warning",
+  runtime_invalid_metric: "warning",
 
   missing_direction: "info",
   inferred_protocol: "info",

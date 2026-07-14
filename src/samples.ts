@@ -1,4 +1,4 @@
-export type ArchMapSampleBaseView = "overview" | "topology" | "layer" | "prototype";
+export type ArchMapSampleBaseView = "overview" | "topology" | "layer" | "prototype" | "runtime";
 export type ArchMapSampleRenderMode = "2d" | "3d";
 
 export interface ArchMapSampleRecommendation {
@@ -334,6 +334,120 @@ relations:
   - { from: REQ-CHECKOUT-OBSERVABILITY, to: Monitor, type: realized_by }
   - { from: AC-CHECKOUT-OBSERVABILITY, to: TEST-CHECKOUT-METRICS, type: verified_by }
   - { from: TEST-CHECKOUT-METRICS, to: EVD-CHECKOUT-METRICS, type: evidenced_by }
+runtime:
+  window:
+    label: Release candidate smoke window
+    from: 2026-07-15T09:00:00+09:00
+    to: 2026-07-15T09:15:00+09:00
+    observedAt: 2026-07-15T09:15:00+09:00
+  services:
+    Home:
+      health: normal
+      source: measured
+      environment: production
+      team: web
+      region: asia-northeast1
+      metrics:
+        requests: { value: 18420, unit: req }
+        errors: { value: 0.18, unit: "%" }
+        latencyP95: { value: 84, unit: ms }
+    Login:
+      health: warning
+      source: measured
+      environment: production
+      team: identity
+      region: asia-northeast1
+      metrics:
+        requests: { value: 4860, unit: req }
+        errors: { value: 2.4, unit: "%" }
+        latencyP95: { value: 410, unit: ms }
+    APIGW:
+      health: normal
+      source: measured
+      environment: production
+      team: checkout
+      region: asia-northeast1
+      metrics:
+        requests: { value: 17320, unit: req }
+        errors: { value: 0.42, unit: "%" }
+        latencyP95: { value: 126, unit: ms }
+    OrdersDB:
+      health: normal
+      source: estimated
+      environment: production
+      team: checkout
+      region: asia-northeast1
+      metrics:
+        throughput: { value: 940, unit: ops/min }
+        saturation: { value: 61, unit: "%" }
+    Payment:
+      health: warning
+      source: declared
+      environment: external
+      team: payments
+      region: global
+      metrics:
+        errors: { value: 1.8, unit: "%" }
+        latencyP95: { value: 780, unit: ms }
+    Monitor:
+      health: normal
+      source: declared
+      environment: production
+      team: operations
+      region: global
+      metrics:
+        requests: { value: 21500, unit: events }
+  dependencies:
+    home_login_runtime:
+      from: Home
+      to: Login
+      health: normal
+      source: measured
+      protocol: HTTPS
+      metrics: { requests: { value: 4860, unit: req } }
+    login_api_runtime:
+      from: Login
+      to: APIGW
+      health: warning
+      source: measured
+      protocol: HTTPS
+      metrics:
+        requests: { value: 4622, unit: req }
+        latencyP95: { value: 410, unit: ms }
+    api_db_runtime:
+      from: APIGW
+      to: OrdersDB
+      health: normal
+      source: estimated
+      protocol: SQL
+      metrics: { throughput: { value: 940, unit: ops/min } }
+    api_payment_runtime:
+      from: APIGW
+      to: Payment
+      health: warning
+      source: declared
+      protocol: HTTPS
+      metrics: { latencyP95: { value: 780, unit: ms } }
+    api_monitor_runtime:
+      from: APIGW
+      to: Monitor
+      health: normal
+      source: declared
+      protocol: events
+      metrics: { requests: { value: 21500, unit: events } }
+  events:
+    deploy_checkout_031:
+      type: deployment
+      target: APIGW
+      at: 2026-07-15T09:03:00+09:00
+      label: checkout-api v0.3.1 deployed
+      severity: info
+    login_latency_warning:
+      type: monitor
+      target: Login
+      at: 2026-07-15T09:11:00+09:00
+      label: Login p95 exceeded 400 ms
+      severity: warning
 view:
   default:
     base: overview

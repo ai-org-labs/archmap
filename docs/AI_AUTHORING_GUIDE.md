@@ -235,6 +235,26 @@ view:
     overlays: [dataflow, boundary, validation]
 ```
 
+### Runtime View
+
+Use `runtime:` when the document needs an operational snapshot without leaving
+the ArchMap DSL. Runtime View is not a live observability connector. A person or
+AI writes the snapshot and identifies the provenance of every value:
+
+- `measured`: copied from a real measurement or report.
+- `estimated`: inferred or calculated; do not present it as observed fact.
+- `declared`: intentional design/operational metadata with no measurement claim.
+
+Reference existing architecture node ids from `runtime.services` and
+`runtime.dependencies`. Prefer a bounded `window`, include `capturedAt`, and
+use `no-data` instead of inventing a value. Do not claim that values are live,
+and do not fabricate evidence. Runtime events should include `target`, `at`,
+`type`, and a concise `label`.
+
+Use Runtime View for health, traffic, latency, saturation, recent events, and
+Design/Runtime/Diff comparison. Use Overview or Topology for intended
+structure. The same DSL remains the source of truth for both.
+
 ### Requirements and lifecycle traceability
 
 When the request includes requirements, acceptance, quality evidence, risk, or
