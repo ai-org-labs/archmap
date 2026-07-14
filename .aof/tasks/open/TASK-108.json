@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-108",
+  "title": "Observed Topology runtime explorer",
+  "description": "Deliver the post-v0.4 observability-grade Runtime workspace defined in docs/specs/v0.5/11-observed-topology.md, beginning with an original ArchMap visual shell and synthetic observation fixture before live connectors.",
+  "status": "open",
+  "origin": "human-datadog-visual-evolution",
+  "created_at": "2026-07-14T12:00:00.000+09:00",
+  "updated_at": "2026-07-14T12:00:00.000+09:00",
+  "completion_criteria": [
+    "Stage O1 provides Runtime query controls, Observed Topology canvas, inspector, timeline rail, minimap, health rings, metric edge encoding, selection, and clustering over a synthetic fixture.",
+    "Stage O2 provides canonical observation records, streaming patches, deterministic aggregation, topology geometry caching, and 100/1000/10000 element benchmarks.",
+    "Stage O3 provides Design, Observed, and Diff reconciliation with provenance and no-data semantics.",
+    "Stage O4 proves the connector contract with OpenTelemetry data.",
+    "Stage O5 passes accessibility, export, security, large-graph, browser visual, and QIF acceptance."
+  ],
+  "success_criteria": [
+    "The runtime map is immediately legible at operational information density and remains interactive under the documented performance budgets.",
+    "Users can pivot from observed behavior to authored architecture and lifecycle evidence without confusing observation with intent.",
+    "The product uses original ArchMap visual components and does not copy third-party branding, proprietary assets, or pixel-identical UI."
+  ],
+  "evidence": [
+    "docs/specs/v0.5/11-observed-topology.md",
+    "docs/aof/V0_5-OBSERVED-TOPOLOGY-DESIGN-QIF-CHECK-2026-07-14.md"
+  ],
+  "triage_notes": "Do not start connector breadth first. Implement Stage O1 as a visual/product proof using deterministic synthetic data, then Stage O2 model/performance foundations. Keep current v0.4 lifecycle work releasable and isolated."
+}

@@ -1,7 +1,7 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-105 completed Requirements, Traceability, and Quality views over explicit canonical projections, including lifecycle filters, result/freshness metadata, inferred canonical links, and orthogonal component-safe connectors. Next, TASK-106 completes the lightweight login requirement-to-evidence browser vertical slice, authoring/API docs, and AC-01..AC-12 acceptance matrix.",
-  "updated_at": "2026-07-13T22:48:00.000+09:00",
+  "content": "Complete and release the current v0.4 lifecycle vertical slice without folding observability into Core. Then start TASK-108 Stage O1: prove the original ArchMap Runtime workspace and Observed Topology visual experience with deterministic synthetic telemetry before implementing connector breadth.",
+  "updated_at": "2026-07-14T12:00:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
