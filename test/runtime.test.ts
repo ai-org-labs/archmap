@@ -66,8 +66,24 @@ describe("runtime DSL", () => {
   it("projects Design, Runtime, and Diff from the same canonical graph", () => {
     const model = parse(source);
     expect(buildRuntimeGraph(model, "design").nodes).toHaveLength(3);
-    expect(buildRuntimeGraph(model, "runtime").edges[0].source).toBe("measured");
+    const runtime = buildRuntimeGraph(model, "runtime");
+    expect(runtime.edges[0].source).toBe("measured");
+    expect(runtime.edges.find((edge) => edge.from === "API" && edge.to === "DB")).toMatchObject({
+      health: "no-data",
+      source: "declared",
+    });
     expect(buildRuntimeGraph(model, "diff").nodes.find((node) => node.id === "API")?.diff).toBe("degraded");
+  });
+
+  it("keeps unobserved design components visible as No data", () => {
+    const model = parse(source);
+    model.runtime!.services = model.runtime!.services.filter((service) => service.node !== "DB");
+    const runtime = buildRuntimeGraph(model, "runtime");
+    expect(runtime.nodes.find((node) => node.id === "DB")).toMatchObject({
+      health: "no-data",
+      source: "declared",
+      diff: "design_only",
+    });
   });
 
   it("clusters large authored graphs without expanding every node", () => {

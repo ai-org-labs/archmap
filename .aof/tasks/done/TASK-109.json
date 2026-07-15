@@ -1,0 +1,30 @@
+{
+  "task_id": "TASK-109",
+  "title": "Topology-backed Runtime geometry",
+  "description": "Share Topology placement, zone spacing, orthogonal routing, and design-only no-data semantics with Runtime.",
+  "status": "done",
+  "origin": "human-topology-runtime-convergence",
+  "created_at": "2026-07-16T00:00:00.000+09:00",
+  "updated_at": "2026-07-16T00:00:00.000+09:00",
+  "completed_at": "2026-07-16T00:00:00.000+09:00",
+  "completion_criteria": [
+    "Runtime uses Topology golden-grid placement and zone clearance.",
+    "Runtime edges use component-safe orthogonal routes.",
+    "Unobserved authored nodes and edges remain visible as declared no-data structure.",
+    "Canvas, minimap, SVG, and PNG consume the same geometry.",
+    "Targeted tests, typecheck, and production build pass."
+  ],
+  "success_criteria": [
+    "Runtime presents the complete authored system architecture.",
+    "Spacing and routing remain deterministic across Topology and Runtime.",
+    "Missing observations are explicit and never fabricated."
+  ],
+  "evidence": [
+    "docs/aof/V0_5-RUNTIME-TOPOLOGY-INTEGRATION-QIF-CHECK-2026-07-16.md",
+    "src/runtime.ts",
+    "src/views/runtime.ts",
+    "test/runtime.test.ts",
+    "test/topology.test.ts"
+  ],
+  "triage_notes": "Runtime remains DSL-authored and connector-free. Topology is the geometry authority; Runtime adds operational state."
+}

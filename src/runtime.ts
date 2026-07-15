@@ -74,7 +74,6 @@ export function buildRuntimeGraph(model: ArchMapModel, mode: RuntimeGraphMode = 
 
   for (const node of model.nodes) {
     const service = servicesByNode.get(node.id);
-    if (mode === "runtime" && runtime?.services.length && !service) continue;
     const health = fallbackHealth(service?.health);
     nodes.push({
       id: node.id,
@@ -113,35 +112,42 @@ export function buildRuntimeGraph(model: ArchMapModel, mode: RuntimeGraphMode = 
   const visible = new Set(nodes.map((node) => node.id));
   const runtimeEdges = runtime?.dependencies ?? [];
   const edges: RuntimeGraphEdge[] = [];
-  if (mode !== "design" && runtimeEdges.length > 0) {
-    for (const edge of runtimeEdges) {
-      const from = serviceIds.get(edge.from) ?? edge.from;
-      const to = serviceIds.get(edge.to) ?? edge.to;
-      if (!visible.has(from) || !visible.has(to)) continue;
+  const observed = runtimeEdges.map((edge) => ({
+    edge,
+    from: serviceIds.get(edge.from) ?? edge.from,
+    to: serviceIds.get(edge.to) ?? edge.to,
+  }));
+  const consumed = new Set<string>();
+  for (const edge of model.edges) {
+    if (!visible.has(edge.from) || !visible.has(edge.to)) continue;
+    const match = mode === "design" ? undefined : observed.find((candidate) =>
+      !consumed.has(candidate.edge.id)
+      && (candidate.edge.id === edge.id || (candidate.from === edge.from && candidate.to === edge.to)));
+    if (match) consumed.add(match.edge.id);
+    edges.push({
+      id: match?.edge.id ?? edge.id,
+      from: edge.from,
+      to: edge.to,
+      label: match?.edge.description ?? edge.label,
+      protocol: match?.edge.protocol ?? edge.protocol,
+      health: match ? fallbackHealth(match.edge.health) : "no-data",
+      source: match ? fallbackSource(match.edge.source) : "declared",
+      metrics: match?.edge.metrics ?? EMPTY_METRICS,
+      count: 1,
+    });
+  }
+  if (mode !== "design") {
+    for (const candidate of observed) {
+      if (consumed.has(candidate.edge.id) || !visible.has(candidate.from) || !visible.has(candidate.to)) continue;
       edges.push({
-        id: edge.id,
-        from,
-        to,
-        label: edge.description,
-        protocol: edge.protocol,
-        health: fallbackHealth(edge.health),
-        source: fallbackSource(edge.source),
-        metrics: edge.metrics ?? EMPTY_METRICS,
-        count: 1,
-      });
-    }
-  } else {
-    for (const edge of model.edges) {
-      if (!visible.has(edge.from) || !visible.has(edge.to)) continue;
-      edges.push({
-        id: edge.id,
-        from: edge.from,
-        to: edge.to,
-        label: edge.label,
-        protocol: edge.protocol,
-        health: "no-data",
-        source: "declared",
-        metrics: EMPTY_METRICS,
+        id: candidate.edge.id,
+        from: candidate.from,
+        to: candidate.to,
+        label: candidate.edge.description,
+        protocol: candidate.edge.protocol,
+        health: fallbackHealth(candidate.edge.health),
+        source: fallbackSource(candidate.edge.source),
+        metrics: candidate.edge.metrics ?? EMPTY_METRICS,
         count: 1,
       });
     }
