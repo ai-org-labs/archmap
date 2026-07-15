@@ -116,7 +116,7 @@ function graphSvg(graph: RuntimeGraph, measure: RuntimeMeasure, selected: string
   return `<svg class="archmap-runtime-graph" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" xmlns="http://www.w3.org/2000/svg"><defs><style>
     .runtime-edge path{fill:none;stroke:#728399;stroke-width:var(--edge-width);vector-effect:non-scaling-stroke}.runtime-edge.is-faded{opacity:.12}
     .runtime-node rect{fill:#fff;stroke:#9aa9ba;stroke-width:1.5}.runtime-node .health-ring{fill:none;stroke:#94a3b8;stroke-width:4}.runtime-node.health-normal .health-ring{stroke:#26a269}.runtime-node.health-warning .health-ring{stroke:#d59b22}.runtime-node.health-critical .health-ring{stroke:#d64242}.runtime-node.health-no-data .health-ring{stroke-dasharray:2 2}.runtime-node.is-selected rect{stroke:#2563eb;stroke-width:3}.runtime-node.is-faded{opacity:.16}.node-title{font:700 13px system-ui,sans-serif;fill:#172536}.node-kind,.node-source{font:10px system-ui,sans-serif;fill:#64748b}.node-metric{font:700 17px system-ui,sans-serif;fill:#172536}#runtime-arrow path{fill:#728399}
-  </style><marker id="runtime-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7Z"/></marker></defs><g class="runtime-world">${edges}${nodes}</g></svg>`;
+  </style><marker id="runtime-arrow" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z"/></marker></defs><g class="runtime-world">${edges}${nodes}</g></svg>`;
 }
 
 function svgToPng(svg: string): Promise<Blob> {
