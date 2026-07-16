@@ -98,6 +98,31 @@ are user-controlled.
 | Subgraph | `subgraph Name … end` | authoring hierarchy; can be shown by the `subgraph` overlay or collapsed as an abstraction |
 | Comment | `%% …` | stripped |
 
+### Multi-line component labels
+
+Use `\n` inside a graph label when a component name reads better on multiple
+lines. Node width follows the longest line and node height follows the number
+of lines.
+
+```archmap
+graph LR
+  API[Checkout API\n(public)]
+  DB[(Orders\nDatabase)]
+  API --> DB
+```
+
+Metadata labels may contain real newlines, including YAML block scalars:
+
+```yaml
+nodes:
+  API:
+    label: |-
+      Checkout API
+      (public)
+```
+
+Keep the node ID (`API`) stable and use line breaks only in its display label.
+
 **Node IDs**: start with an ASCII letter; then letters, digits, `_`, `-`.
 A node is *defined* by a token carrying a shape (`A[…]`); repeating a definition
 is a `duplicate_node` error. One arrow per line.

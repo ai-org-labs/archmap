@@ -59,12 +59,28 @@ describe("icons in rendering", () => {
     expect(Number(nodeMatch?.[3])).toBeGreaterThan(90);
     expect(Number(nodeMatch?.[3])).toBeLessThan(120);
     const iconMatch = svg!.match(/href="#archmap-icon-gcp" x="([0-9.]+)" y="([0-9.]+)" width="32"/);
-    const labelMatch = svg!.match(/<text class="archmap-node-label" x="([0-9.]+)" y="([0-9.]+)"[^>]*>a<\/text>/);
+    const labelMatch = svg!.match(/<text class="archmap-node-label"[^>]*><tspan x="([0-9.]+)" y="([0-9.]+)">a<\/tspan><\/text>/);
     const nodeY = Number(nodeMatch?.[2]);
     const nodeH = Number(nodeMatch?.[4]);
     expect(Number(labelMatch?.[1])).toBeGreaterThan(Number(iconMatch?.[1]) + 44);
     expect(Number(iconMatch?.[2]) + 16).toBeCloseTo(nodeY + nodeH / 2, 1);
     expect(Number(labelMatch?.[2])).toBeCloseTo(nodeY + nodeH / 2, 1);
+  });
+
+  it("centers multiline labels beside icons with readable spacing", () => {
+    registerIcon("gcp", dot);
+    const m = parse(String.raw`graph LR
+      A[API\nGateway]
+      ---
+      nodes:
+        A: { provider: gcp, kind: api_gateway }
+    `);
+    const { svg } = render(m, { view: "overview" });
+    const iconMatch = svg!.match(/href="#archmap-icon-gcp" x="([0-9.]+)" y="([0-9.]+)" width="32"/);
+    const labelMatch = svg!.match(/<text class="archmap-node-label"[^>]*><tspan x="([0-9.]+)" y="([0-9.]+)">API<\/tspan><tspan x="([0-9.]+)" y="([0-9.]+)">Gateway<\/tspan><\/text>/);
+    expect(Number(labelMatch?.[1])).toBeGreaterThan(Number(iconMatch?.[1]) + 44);
+    expect(Number(labelMatch?.[1])).toBeCloseTo(Number(labelMatch?.[3]), 1);
+    expect((Number(labelMatch?.[2]) + Number(labelMatch?.[4])) / 2).toBeCloseTo(Number(iconMatch?.[2]) + 16, 1);
   });
 
   it("renders every available member icon inside a collapsed abstraction node", () => {

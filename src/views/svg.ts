@@ -25,10 +25,24 @@ function popupAttrs(label: string, detail: string | undefined): string {
   );
 }
 
+const NODE_LABEL_LINE_HEIGHT = 16;
+
+function labelLines(label: string): string[] {
+  return label.replace(/\r\n/g, "\n").split("\n");
+}
+
+function multilineText(cls: string, lines: string[], x: number, centerY: number, anchor: "middle" | "start"): string {
+  const firstY = centerY - ((lines.length - 1) * NODE_LABEL_LINE_HEIGHT) / 2;
+  const spans = lines.map((line, index) =>
+    `<tspan x="${x.toFixed(1)}" y="${(firstY + index * NODE_LABEL_LINE_HEIGHT).toFixed(1)}">${escapeXml(line || " ")}</tspan>`,
+  ).join("");
+  return `<text class="${cls}" text-anchor="${anchor}" dominant-baseline="central">${spans}</text>`;
+}
+
 function centeredLabel(n: LayoutNode, cls = "archmap-node-label", yOffset = 0): string {
   const cx = n.x + n.w / 2;
   const cy = n.y + n.h / 2 + yOffset;
-  return `<text class="${cls}" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(n.label)}</text>`;
+  return multilineText(cls, labelLines(n.label), cx, cy, "middle");
 }
 
 const NODE_ICON_SIZE = 32;
@@ -36,17 +50,20 @@ const NODE_ICON_LABEL_GAP = 14;
 const NODE_ICON_TEXT_CHAR_W = 6.5;
 
 function leadingIconLabel(n: LayoutNode, cls = "archmap-node-label"): string {
-  const estimatedLabelWidth = Math.max(NODE_ICON_TEXT_CHAR_W, n.label.length * NODE_ICON_TEXT_CHAR_W);
+  const lines = labelLines(n.label);
+  const longestLine = Math.max(1, ...lines.map((line) => line.length));
+  const estimatedLabelWidth = Math.max(NODE_ICON_TEXT_CHAR_W, longestLine * NODE_ICON_TEXT_CHAR_W);
   const groupWidth = NODE_ICON_SIZE + NODE_ICON_LABEL_GAP + estimatedLabelWidth;
   const groupX = n.x + Math.max(10, (n.w - groupWidth) / 2);
   const labelX = groupX + NODE_ICON_SIZE + NODE_ICON_LABEL_GAP;
   const cy = n.y + n.h / 2;
-  return `<text class="${cls}" x="${labelX.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="start" dominant-baseline="central">${escapeXml(n.label)}</text>`;
+  return multilineText(cls, lines, labelX, cy, "start");
 }
 
 /** A small vendor/provider icon aligned with the node label row. */
 function iconBadgeSvg(n: LayoutNode, iconKey: string): string {
-  const estimatedLabelWidth = Math.max(NODE_ICON_TEXT_CHAR_W, n.label.length * NODE_ICON_TEXT_CHAR_W);
+  const longestLine = Math.max(1, ...labelLines(n.label).map((line) => line.length));
+  const estimatedLabelWidth = Math.max(NODE_ICON_TEXT_CHAR_W, longestLine * NODE_ICON_TEXT_CHAR_W);
   const groupWidth = NODE_ICON_SIZE + NODE_ICON_LABEL_GAP + estimatedLabelWidth;
   const x = n.x + Math.max(10, (n.w - groupWidth) / 2);
   const y = n.y + n.h / 2 - NODE_ICON_SIZE / 2;

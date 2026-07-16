@@ -78,6 +78,8 @@ clearly marked assumption.
 - Start with `graph LR` for most architecture diagrams.
 - Use stable ASCII ids such as `Web`, `APIGW`, `CloudSQL`, `PaymentProvider`.
 - Put human-readable names in labels: `APIGW[API Gateway]`.
+- For a deliberately multi-line component name, write `APIGW[API Gateway\n(public)]`.
+  Keep the stable ID unchanged and use line breaks sparingly for readability.
 - Separate graph and metadata with a line containing only `---`.
 - Prefer one real component per node. Do not encode layout with coordinates.
 - Add explicit metadata for every important node and edge.

@@ -41,6 +41,11 @@ export interface GraphParseResult {
 
 const NODE_ID = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
+/** Decode compact escapes that keep a graph declaration on one source line. */
+function decodeGraphLabel(label: string): string {
+  return label.replace(/\\n/g, "\n");
+}
+
 /** Strip `%% ...` comments and trailing whitespace. */
 function stripComment(line: string): string {
   const idx = line.indexOf("%%");
@@ -66,10 +71,10 @@ function parseNodeToken(
   // Order matters: the database form `[(...)]` must be tested before `[...]`,
   // and the circle form `((...))` before any single-paren handling.
   let m: RegExpExecArray | null;
-  if ((m = /^\[\((.*)\)\]$/.exec(rest))) return { id, label: m[1], shape: "database" };
-  if ((m = /^\(\((.*)\)\)$/.exec(rest))) return { id, label: m[1], shape: "circle" };
-  if ((m = /^\[(.*)\]$/.exec(rest))) return { id, label: m[1], shape: "rectangle" };
-  if ((m = /^\{(.*)\}$/.exec(rest))) return { id, label: m[1], shape: "diamond" };
+  if ((m = /^\[\((.*)\)\]$/.exec(rest))) return { id, label: decodeGraphLabel(m[1]), shape: "database" };
+  if ((m = /^\(\((.*)\)\)$/.exec(rest))) return { id, label: decodeGraphLabel(m[1]), shape: "circle" };
+  if ((m = /^\[(.*)\]$/.exec(rest))) return { id, label: decodeGraphLabel(m[1]), shape: "rectangle" };
+  if ((m = /^\{(.*)\}$/.exec(rest))) return { id, label: decodeGraphLabel(m[1]), shape: "diamond" };
 
   return null;
 }

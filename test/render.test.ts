@@ -142,6 +142,20 @@ function expectRenderedZonesContainMembers(svg: string, model: ReturnType<typeof
 }
 
 describe("render", () => {
+  it("renders multiline component labels as centered tspans and grows node height", () => {
+    const model = parse(String.raw`graph LR
+      A[Checkout\nAPI] --> B[(Orders\nDatabase)]
+    `);
+    const svg = render(model, { baseView: "overview" }).svg!;
+    expect(svg).toContain(">Checkout</tspan>");
+    expect(svg).toContain(">API</tspan>");
+    expect(svg).toContain(">Orders</tspan>");
+    expect(svg).toContain(">Database</tspan>");
+    const heights = [...svg.matchAll(/data-id="(?:A|B)"[^>]*data-h="([0-9.]+)"/g)].map((match) => Number(match[1]));
+    expect(heights).toHaveLength(2);
+    expect(heights.every((height) => height > 48)).toBe(true);
+  });
+
   it("registers the overview view by default", () => {
     expect(listViews()).toContain("overview");
     expect(listViews()).toContain("layer");

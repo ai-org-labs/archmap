@@ -36,6 +36,21 @@ describe("graph section", () => {
     expect(m.edges.find((e) => e.from === "API" && e.to === "App")).toBeTruthy();
   });
 
+  it("decodes escaped newlines in every graph node shape", () => {
+    const m = parse(String.raw`graph LR
+      A[Checkout\nAPI]
+      B[(Orders\nDatabase)]
+      C((External\nUser))
+      D{Payment\napproved?}
+    `);
+    expect(Object.fromEntries(m.nodes.map((node) => [node.id, node.label]))).toEqual({
+      A: "Checkout\nAPI",
+      B: "Orders\nDatabase",
+      C: "External\nUser",
+      D: "Payment\napproved?",
+    });
+  });
+
   it("defaults to LR with a warning when no directive is present", () => {
     const m = parse(`A[a] --> B[b]`);
     expect(m.direction).toBe("LR");
@@ -57,6 +72,19 @@ describe("metadata merge", () => {
     const app = m.nodes.find((n) => n.id === "App")!;
     expect(app.zone).toBe("gcp");
     expect(app.kind).toBe("serverless_service");
+  });
+
+  it("preserves YAML block scalar newlines in node labels", () => {
+    const m = parse(`graph LR
+      App[App]
+      ---
+      nodes:
+        App:
+          label: |-
+            Checkout API
+            public endpoint
+    `);
+    expect(m.nodes[0].label).toBe("Checkout API\npublic endpoint");
   });
 
   it("reconciles metadata edges with graph edges by endpoints and adopts the id", () => {
