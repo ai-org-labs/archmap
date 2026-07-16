@@ -551,11 +551,11 @@ export const DEFAULT_STYLE = `
 .archmap-subgraph-depth-2 .archmap-subgraph-box { stroke: var(--archmap-subgraph-stroke-depth-2, #748297); }
 .archmap-subgraph-label { fill: var(--archmap-subgraph-label, #64748b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-subgraph { cursor: pointer; }
-.archmap-layer-box { fill: var(--archmap-layer-fill, rgba(236,241,248,0.72)); stroke: var(--archmap-layer-stroke, #b8c5d6); stroke-width: 1.1; }
-.archmap-layer-depth-1 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-1, rgba(247,239,222,0.68)); }
-.archmap-layer-depth-2 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-2, rgba(232,243,232,0.66)); }
-.archmap-layer-depth-3 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-3, rgba(239,233,248,0.66)); }
-.archmap-layer-depth-4 .archmap-layer-box { fill: var(--archmap-layer-fill-depth-4, rgba(248,235,235,0.62)); }
+.archmap-layer-box { fill: var(--archmap-layer-fill, var(--archmap-layer-fill-default, rgba(236,241,248,0.72))); stroke: var(--archmap-layer-stroke, #b8c5d6); stroke-width: 1.1; }
+.archmap-layer-depth-1 { --archmap-layer-fill-default: var(--archmap-layer-fill-depth-1, rgba(247,239,222,0.68)); }
+.archmap-layer-depth-2 { --archmap-layer-fill-default: var(--archmap-layer-fill-depth-2, rgba(232,243,232,0.66)); }
+.archmap-layer-depth-3 { --archmap-layer-fill-default: var(--archmap-layer-fill-depth-3, rgba(239,233,248,0.66)); }
+.archmap-layer-depth-4 { --archmap-layer-fill-default: var(--archmap-layer-fill-depth-4, rgba(248,235,235,0.62)); }
 .archmap-layer-label { fill: var(--archmap-layer-label, #5f6d7b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-node-shape { fill: var(--archmap-node-fill, #ffffff); stroke: var(--archmap-node-stroke, #3a4a63); stroke-width: 1.5; }
 .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); stroke: none; }

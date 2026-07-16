@@ -1,0 +1,32 @@
+{
+  "task_id": "TASK-113",
+  "title": "Configurable Layer backgrounds",
+  "description": "Allow Layer swimlane backgrounds to use the theme palette, one solid color, alternating colors, or no fill.",
+  "status": "done",
+  "origin": "human-layer-background-request",
+  "created_at": "2026-07-17T00:00:00.000+09:00",
+  "updated_at": "2026-07-17T00:00:00.000+09:00",
+  "completed_at": "2026-07-17T00:00:00.000+09:00",
+  "completion_criteria": [
+    "Layer backgrounds support default, solid, alternate, and none modes.",
+    "Alternating mode can render color/no-color lanes using transparent.",
+    "Existing Layer documents retain the built-in palette.",
+    "Unsafe CSS paint values are not emitted into generated SVG.",
+    "Syntax documentation and focused tests cover the public contract.",
+    "Targeted tests, typecheck, and production build pass."
+  ],
+  "success_criteria": [
+    "Authors can style business-flow swimlanes without manual coordinates.",
+    "Background styling does not alter lane membership, geometry, borders, or labels.",
+    "The same setting works for horizontal and vertical Layer orientation."
+  ],
+  "evidence": [
+    "docs/aof/V0_5-LAYER-BACKGROUND-QIF-CHECK-2026-07-17.md",
+    "src/types.ts",
+    "src/views/overview.ts",
+    "src/views/svg.ts",
+    "test/render.test.ts",
+    "docs/SYNTAX.md"
+  ],
+  "triage_notes": "Gradients and arbitrary CSS variables remain out of scope because ArchMap source is untrusted text."
+}

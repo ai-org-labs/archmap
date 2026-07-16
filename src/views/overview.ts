@@ -10,6 +10,33 @@ import type { Box } from "./base.js";
 import { renderDiagram } from "./base.js";
 import { overviewZoneColorStyles } from "./zone-colors.js";
 
+const SAFE_COLOR = /^(?:#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla)\([0-9.%+\-, /]+\)|[a-z]+)$/i;
+
+function safeLayerFill(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized || !SAFE_COLOR.test(normalized)) return undefined;
+  return normalized === "none" ? "transparent" : normalized;
+}
+
+function layerBackgroundStyles(ctx: ViewContext, boxes: Box[]): Map<string, string> | undefined {
+  const background = ctx.model.view?.layer?.background;
+  const mode = background?.mode ?? "default";
+  if (mode === "default") return undefined;
+
+  const solid = safeLayerFill(background?.color);
+  const alternating = background?.colors?.map(safeLayerFill);
+  const styles = new Map<string, string>();
+  for (const [index, box] of boxes.entries()) {
+    const fill = mode === "none"
+      ? "transparent"
+      : mode === "solid"
+        ? solid
+        : alternating?.[index % 2];
+    if (fill) styles.set(box.id, `--archmap-layer-fill:${fill}`);
+  }
+  return styles.size > 0 ? styles : undefined;
+}
+
 const ANDROID_LAYER_LABELS: Record<string, string> = {
   applications: "Applications",
   application_framework: "Application Framework",
@@ -90,10 +117,12 @@ export function overviewView(ctx: ViewContext): string {
 }
 
 export function layerView(ctx: ViewContext): string {
+  const boxes = layerBoxes(ctx);
   return renderDiagram({
     layout: ctx.layout,
     viewClass: "layer",
-    boxGroups: [{ boxes: layerBoxes(ctx), boxClass: "archmap-layer" }],
+    boxGroups: [{ boxes, boxClass: "archmap-layer" }],
+    boxStyles: layerBackgroundStyles(ctx, boxes),
     nodeIcons: resolveNodeIcons(ctx.model),
     preserveBoxGeometry: true,
   });

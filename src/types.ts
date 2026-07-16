@@ -225,6 +225,17 @@ export interface ViewConfig {
     zones?: string[];
     layers?: string[];
   };
+  /** Presentation options used only by the Layer view. */
+  layer?: {
+    background?: {
+      /** Keep the theme palette, use one color, alternate two colors, or remove fills. */
+      mode?: "default" | "solid" | "alternate" | "none";
+      /** Fill used by solid mode. */
+      color?: string;
+      /** Even/odd lane fills used by alternate mode. Use transparent for an unfilled lane. */
+      colors?: [string, string];
+    };
+  };
 }
 
 export interface GraphSubgraph {

@@ -285,9 +285,20 @@ view:
   default:
     base: overview    # overview, topology, layer, or prototype
     overlays: [zone]  # additive information layers
+  layer:
+    background:
+      mode: alternate # default, solid, alternate, or none
+      colors: ["#eef6ff", transparent] # even/odd Layer lanes
   enabled: [...]      # parsed, not applied yet
   filters: { zones: [...], layers: [...] }  # parsed, not applied yet
 ```
+
+Layer lane backgrounds are presentation settings and do not change layer
+semantics or layout. Use `mode: solid` with `color`, `mode: alternate` with two
+`colors`, `mode: none` for unfilled lanes, or omit the setting (`default`) to
+retain the built-in palette. `transparent` can be used as either alternating
+color to produce color/no-color rows or columns. Layer orientation still
+follows `graph LR` (horizontal lanes) or `graph TD`/`TB` (vertical lanes).
 
 ### 2.9 `timeline` and element `lifecycle` (4D, v0.2)
 

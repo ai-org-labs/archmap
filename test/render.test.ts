@@ -729,6 +729,31 @@ describe("render", () => {
     expect(new Set(boxes.map((box) => box[span]))).toEqual(new Set([layout[span]]));
   });
 
+  it("supports solid, alternating, and unfilled Layer backgrounds", () => {
+    const source = (background: string) => `graph LR
+      Start[Start] --> Review[Review]
+      Review --> Finish[Finish]
+      ---
+      nodes:
+        Start: { layer: requester }
+        Review: { layer: approver }
+        Finish: { layer: accounting }
+      view:
+        layer:
+          background: ${background}
+    `;
+
+    const solid = render(parse(source('{ mode: solid, color: "#e8f3ff" }')), { baseView: "layer" }).svg!;
+    expect(solid.match(/style="--archmap-layer-fill:#e8f3ff"/g)).toHaveLength(3);
+
+    const alternate = render(parse(source('{ mode: alternate, colors: ["#eef6ff", transparent] }')), { baseView: "layer" }).svg!;
+    expect(alternate.match(/style="--archmap-layer-fill:#eef6ff"/g)).toHaveLength(2);
+    expect(alternate.match(/style="--archmap-layer-fill:transparent"/g)).toHaveLength(1);
+
+    const none = render(parse(source("{ mode: none }")), { baseView: "layer" }).svg!;
+    expect(none.match(/style="--archmap-layer-fill:transparent"/g)).toHaveLength(3);
+  });
+
   it("renders Android platform stacks as fixed layer bands", () => {
     const m = parse(androidDriverStack);
     const { svg } = render(m, { baseView: "layer" });
