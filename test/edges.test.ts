@@ -137,9 +137,11 @@ describe("label collision avoidance", () => {
     const boxes = layout.edges
       .filter((e) => e.label)
       .map((e) => {
-        const w = e.label!.length * 6.5 + 8;
-        const x0 = e.labelOrient === "v" ? e.labelAt.x - 2 : e.labelAt.x - w / 2;
-        return { x0, x1: x0 + w, y0: e.labelAt.y - 9, y1: e.labelAt.y + 9 };
+        const lines = e.label!.split("\n");
+        const w = Math.max(...lines.map((line) => line.length), 1) * 6.5 + 8;
+        const h = 18 + (lines.length - 1) * 14;
+        const x0 = e.labelAt.x - w / 2;
+        return { x0, x1: x0 + w, y0: e.labelAt.y - h / 2, y1: e.labelAt.y + h / 2 };
       });
     for (let i = 0; i < boxes.length; i++) {
       for (let j = i + 1; j < boxes.length; j++) {

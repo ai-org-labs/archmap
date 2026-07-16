@@ -22,9 +22,12 @@ const localFirstUi = readFileSync(
 );
 
 function labelBox(label: string, at: { x: number; y: number }, orient: "h" | "v" = "h") {
-  const w = label.length * 6.5 + 8;
-  const x0 = orient === "v" ? at.x - 2 : at.x - w / 2;
-  return { x0, x1: x0 + w, y0: at.y - 9, y1: at.y + 9 };
+  void orient;
+  const lines = label.split("\n");
+  const w = Math.max(...lines.map((line) => line.length), 1) * 6.5 + 8;
+  const h = 18 + (lines.length - 1) * 14;
+  const x0 = at.x - w / 2;
+  return { x0, x1: x0 + w, y0: at.y - h / 2, y1: at.y + h / 2 };
 }
 
 function overlaps(a: { x0: number; x1: number; y0: number; y1: number }, b: { x0: number; x1: number; y0: number; y1: number }): boolean {

@@ -1,0 +1,37 @@
+{
+  "task_id": "TASK-112",
+  "title": "Multi-line connector labels",
+  "description": "Support intentional line breaks in graph and metadata connector labels with collision-aware SVG sizing.",
+  "status": "done",
+  "origin": "human-multiline-label-follow-up",
+  "created_at": "2026-07-17T00:00:00.000+09:00",
+  "updated_at": "2026-07-17T00:00:00.000+09:00",
+  "completed_at": "2026-07-17T00:00:00.000+09:00",
+  "completion_criteria": [
+    "Graph connector labels accept an escaped newline without changing the line-oriented graph grammar.",
+    "Metadata connector labels preserve real YAML newlines.",
+    "SVG connector labels render one centered tspan per visual line.",
+    "Connector label backgrounds fit the longest line and complete line stack.",
+    "Collision geometry reserves the same multiline bounds that SVG renders.",
+    "Syntax and AI authoring guidance document the contract.",
+    "Targeted tests, typecheck, and production build pass."
+  ],
+  "success_criteria": [
+    "Authors can split long connector descriptions without fixed coordinates or manual dimensions.",
+    "Multi-line connector labels remain associated with their routed edge and reserve readable clearance.",
+    "Existing single-line labels and compact semantic overlay badges remain compatible."
+  ],
+  "evidence": [
+    "docs/aof/V0_5-MULTILINE-EDGE-LABEL-QIF-CHECK-2026-07-17.md",
+    "src/parser/graph.ts",
+    "src/layout.ts",
+    "src/views/svg.ts",
+    "test/parser.test.ts",
+    "test/render.test.ts",
+    "test/edges.test.ts",
+    "test/layout.test.ts",
+    "docs/SYNTAX.md",
+    "docs/AI_AUTHORING_GUIDE.md"
+  ],
+  "triage_notes": "Automatic wrapping and multi-line semantic overlay badges remain out of scope; authors explicitly choose ordinary connector-label line breaks."
+}

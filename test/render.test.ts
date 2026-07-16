@@ -156,6 +156,19 @@ describe("render", () => {
     expect(heights.every((height) => height > 48)).toBe(true);
   });
 
+  it("renders multiline connector labels as tspans with a fitted background", () => {
+    const model = parse(String.raw`graph LR
+      A[Client] -->|request\nvalidated| B[API]
+    `);
+    const svg = render(model, { baseView: "overview" }).svg!;
+    const match = svg.match(
+      /<g class="archmap-edge-label"><rect class="archmap-edge-label-bg"[^>]*width="([0-9.]+)" height="([0-9.]+)"[^>]*>[\s\S]*?<tspan[^>]*>request<\/tspan><tspan[^>]*>validated<\/tspan>/,
+    );
+    expect(match).toBeTruthy();
+    expect(Number(match![1])).toBeCloseTo(66.5);
+    expect(Number(match![2])).toBe(32);
+  });
+
   it("registers the overview view by default", () => {
     expect(listViews()).toContain("overview");
     expect(listViews()).toContain("layer");
@@ -184,7 +197,7 @@ describe("render", () => {
       { id: "sync_preview_window", label: "live preview update message" },
     ];
     for (const item of cases) {
-      const match = svg!.match(new RegExp(`data-id="${item.id}"[\\s\\S]*?<path class="archmap-edge-path" d="([^"]+)"[\\s\\S]*?<text x="([0-9.]+)" y="([0-9.]+)"[^>]*>${item.label}</text>`));
+      const match = svg!.match(new RegExp(`data-id="${item.id}"[\\s\\S]*?<path class="archmap-edge-path" d="([^"]+)"[\\s\\S]*?<text[^>]*><tspan x="([0-9.]+)" y="([0-9.]+)"[^>]*>${item.label}</tspan>`));
       expect(match, `${item.id} label should render`).toBeTruthy();
       const labelPoint = { x: Number(match?.[2]), y: Number(match?.[3]) };
       const nearest = Math.min(...pathSegments(match![1]).map(([a, b]) => pointSegmentDistance(labelPoint, a, b)));
@@ -627,7 +640,7 @@ describe("render", () => {
     `);
     const svg = render(m, { baseView: "overview", overlays: ["auth"] }).svg!;
     const labelMatch = svg.match(
-      /<g class="archmap-edge-label"><rect class="archmap-edge-label-bg" x="(-?[0-9.]+)" y="(-?[0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"[\s\S]*?>issues JWT<\/text>/,
+      /<g class="archmap-edge-label"><rect class="archmap-edge-label-bg" x="(-?[0-9.]+)" y="(-?[0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"[\s\S]*?>issues JWT<\/tspan><\/text>/,
     );
     const badgeMatch = svg.match(
       /<g class="archmap-edge-badge[^"]*archmap-auth-edge-badge[^"]*"[^>]*><rect x="(-?[0-9.]+)" y="(-?[0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"[\s\S]*?<text x="(-?[0-9.]+)" y="(-?[0-9.]+)"[^>]*>JWT<\/text>/,

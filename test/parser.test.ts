@@ -51,6 +51,13 @@ describe("graph section", () => {
     });
   });
 
+  it("decodes escaped newlines in graph edge labels", () => {
+    const m = parse(String.raw`graph LR
+      A[Client] -->|request\nvalidated| B[API]
+    `);
+    expect(m.edges[0].label).toBe("request\nvalidated");
+  });
+
   it("defaults to LR with a warning when no directive is present", () => {
     const m = parse(`A[a] --> B[b]`);
     expect(m.direction).toBe("LR");
@@ -85,6 +92,21 @@ describe("metadata merge", () => {
             public endpoint
     `);
     expect(m.nodes[0].label).toBe("Checkout API\npublic endpoint");
+  });
+
+  it("preserves YAML block scalar newlines in edge labels", () => {
+    const m = parse(`graph LR
+      A[Client] --> B[API]
+      ---
+      edges:
+        client_api:
+          from: A
+          to: B
+          label: |-
+            request
+            validated
+    `);
+    expect(m.edges[0].label).toBe("request\nvalidated");
   });
 
   it("reconciles metadata edges with graph edges by endpoints and adopts the id", () => {

@@ -80,6 +80,8 @@ clearly marked assumption.
 - Put human-readable names in labels: `APIGW[API Gateway]`.
 - For a deliberately multi-line component name, write `APIGW[API Gateway\n(public)]`.
   Keep the stable ID unchanged and use line breaks sparingly for readability.
+- Connector labels follow the same rule: write `Client -->|request\nvalidated| APIGW`,
+  or use a YAML block scalar in `edges.*.label`. Keep compact graph edges on one source line.
 - Separate graph and metadata with a line containing only `---`.
 - Prefer one real component per node. Do not encode layout with coordinates.
 - Add explicit metadata for every important node and edge.

@@ -165,7 +165,7 @@ export function parseGraph(graphSource: string): GraphParseResult {
       const okFrom = registerNode(lhs);
       const okTo = registerNode(rhs);
       if (okFrom && okTo) {
-        edges.push({ from: lhs.id, to: rhs.id, label: label || undefined });
+        edges.push({ from: lhs.id, to: rhs.id, label: label ? decodeGraphLabel(label) : undefined });
       }
       continue;
     }

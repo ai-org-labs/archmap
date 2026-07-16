@@ -508,12 +508,21 @@ export function edgeBadgesSvg(badges: EdgeBadgeSpec[], at: { x: number; y: numbe
 }
 
 export function edgeLabelSvg(text: string, at: { x: number; y: number }): string {
-  const w = text.length * 6.5 + 8;
+  const lines = labelLines(text);
+  const longestLine = Math.max(1, ...lines.map((line) => line.length));
+  const lineHeight = 14;
+  const w = longestLine * 6.5 + 8;
+  const h = 18 + (lines.length - 1) * lineHeight;
   const bgX = at.x - w / 2;
+  const bgY = at.y - h / 2;
+  const firstY = at.y - ((lines.length - 1) * lineHeight) / 2;
+  const spans = lines.map((line, index) =>
+    `<tspan x="${at.x.toFixed(1)}" y="${(firstY + index * lineHeight).toFixed(1)}">${escapeXml(line || " ")}</tspan>`,
+  ).join("");
   return (
     `<g class="archmap-edge-label">` +
-    `<rect class="archmap-edge-label-bg" x="${bgX.toFixed(1)}" y="${(at.y - 9).toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="3" />` +
-    `<text x="${at.x.toFixed(1)}" y="${at.y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(text)}</text>` +
+    `<rect class="archmap-edge-label-bg" x="${bgX.toFixed(1)}" y="${bgY.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" />` +
+    `<text text-anchor="middle" dominant-baseline="central">${spans}</text>` +
     `</g>`
   );
 }

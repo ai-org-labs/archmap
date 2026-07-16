@@ -123,6 +123,27 @@ nodes:
 
 Keep the node ID (`API`) stable and use line breaks only in its display label.
 
+Connector labels use the same explicit line-break syntax:
+
+```archmap
+Client -->|request\nvalidated| API
+```
+
+Metadata edge labels may use a YAML block scalar:
+
+```yaml
+edges:
+  client_api:
+    from: Client
+    to: API
+    label: |-
+      request
+      validated
+```
+
+The renderer sizes the connector-label background from the longest line and
+reserves the complete multi-line area during collision avoidance.
+
 **Node IDs**: start with an ASCII letter; then letters, digits, `_`, `-`.
 A node is *defined* by a token carrying a shape (`A[…]`); repeating a definition
 is a `duplicate_node` error. One arrow per line.

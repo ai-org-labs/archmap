@@ -752,13 +752,16 @@ function toXY(flow: number, cross: number, horizontal: boolean): LayoutPoint {
 const LABEL_CHAR_W = 6.5;
 const LABEL_PAD = 8;
 const LABEL_H = 18;
+const LABEL_LINE_H = 14;
 
 interface LabelBox { x0: number; x1: number; y0: number; y1: number }
 
-function labelBox(label: string, at: LayoutPoint, orient: "h" | "v" = "h"): LabelBox {
-  const w = label.length * LABEL_CHAR_W + LABEL_PAD;
-  const x0 = orient === "v" ? at.x - 2 : at.x - w / 2;
-  return { x0, x1: x0 + w, y0: at.y - LABEL_H / 2, y1: at.y + LABEL_H / 2 };
+function labelBox(label: string, at: LayoutPoint, _orient: "h" | "v" = "h"): LabelBox {
+  const lines = label.replace(/\r\n/g, "\n").split("\n");
+  const longestLine = Math.max(1, ...lines.map((line) => line.length));
+  const w = longestLine * LABEL_CHAR_W + LABEL_PAD;
+  const h = LABEL_H + (lines.length - 1) * LABEL_LINE_H;
+  return { x0: at.x - w / 2, x1: at.x + w / 2, y0: at.y - h / 2, y1: at.y + h / 2 };
 }
 
 function inflateBox(box: LabelBox, pad: number): LabelBox {
