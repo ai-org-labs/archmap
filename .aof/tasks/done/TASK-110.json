@@ -1,0 +1,32 @@
+{
+  "task_id": "TASK-110",
+  "title": "Contiguous bidirectional Layer swimlanes",
+  "description": "Render Layer view as contiguous swimlanes with orientation derived from graph direction.",
+  "status": "done",
+  "origin": "human-layer-business-workflow",
+  "created_at": "2026-07-17T00:00:00.000+09:00",
+  "updated_at": "2026-07-17T00:00:00.000+09:00",
+  "completed_at": "2026-07-17T00:00:00.000+09:00",
+  "completion_criteria": [
+    "Layer bands share borders without visible gutters.",
+    "LR graphs render horizontal lanes with left-to-right flow.",
+    "TD and TB graphs render vertical lanes with top-to-bottom flow.",
+    "Connectors cross lane boundaries orthogonally.",
+    "Syntax and AI authoring guidance explain the orientation contract.",
+    "Targeted tests, typecheck, and production build pass."
+  ],
+  "success_criteria": [
+    "Business workflows can be expressed as conventional horizontal or vertical swimlanes.",
+    "Lane geometry remains deterministic and independent from zone and boundary overlays.",
+    "Existing Layer-view documents remain compatible."
+  ],
+  "evidence": [
+    "docs/aof/V0_5-LAYER-SWIMLANE-QIF-CHECK-2026-07-17.md",
+    "src/views/overview.ts",
+    "src/views/base.ts",
+    "test/render.test.ts",
+    "docs/SYNTAX.md",
+    "docs/AI_AUTHORING_GUIDE.md"
+  ],
+  "triage_notes": "The internal node placement gap remains separate from the rendered lane bands so nodes retain breathing room while lane backgrounds stay contiguous."
+}

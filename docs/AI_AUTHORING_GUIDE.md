@@ -93,7 +93,12 @@ clearly marked assumption.
 | `subgraph` | Authoring hierarchy, abstraction, collapse/expand; structural groups may intersect | Physical or trust grouping by itself |
 | `zone` | Exclusive physical/ownership/component area; sibling zones do not intersect, while nested parent-child zones are allowed | Layer partitions or overlapping structural concerns |
 | `boundary` | Logical, trust, policy, network, SaaS, or external crossing area; nested boundaries are allowed | Runtime placement |
-| `layer` | Layer view partition such as app/framework/library/kernel/data | Zone or boundary semantics |
+| `layer` | Contiguous Layer-view swimlane such as actor/team/system or app/framework/library/kernel/data | Zone or boundary semantics |
+
+For a horizontal business-flow table, use `graph LR`; Layer renders horizontal
+lanes with no gutter. For a vertical-column swimlane, use `graph TD` (or `TB`);
+Layer renders contiguous vertical lanes. Assign every participating node a
+`layer` and let the graph edges describe the workflow across lane boundaries.
 | `auth` overlay | Token, issuer, validator, login/auth checks | General request labels |
 | `dataflow` overlay | Data objects, classification, storage, producer/consumer | Every ordinary request |
 | `permission` overlay | Principal, action, resource, role | Authentication token details |

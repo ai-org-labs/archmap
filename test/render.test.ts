@@ -675,6 +675,33 @@ describe("render", () => {
     expect(new Set(layout.nodes.map((n) => n.z)).size).toBeGreaterThan(1);
   });
 
+  it.each([
+    { direction: "LR", axis: "y", span: "width" },
+    { direction: "TD", axis: "x", span: "height" },
+  ] as const)("renders contiguous $direction layer swimlanes", ({ direction, axis, span }) => {
+    const model = parse(`graph ${direction}
+      Start[Start] --> Review[Review]
+      Review --> Finish[Finish]
+      ---
+      nodes:
+        Start: { layer: requester }
+        Review: { layer: approver }
+        Finish: { layer: accounting }
+    `);
+    const { svg, layout } = render(model, { baseView: "layer" });
+    const boxes = [...svg!.matchAll(/<rect class="archmap-layer-box" x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)" rx="0" ry="0"/g)]
+      .map((match) => ({ x: Number(match[1]), y: Number(match[2]), width: Number(match[3]), height: Number(match[4]) }))
+      .sort((a, b) => a[axis] - b[axis]);
+
+    expect(boxes).toHaveLength(3);
+    for (let index = 1; index < boxes.length; index++) {
+      const previousEnd = boxes[index - 1][axis] + boxes[index - 1][axis === "x" ? "width" : "height"];
+      expect(boxes[index][axis]).toBeCloseTo(previousEnd, 5);
+    }
+    expect(new Set(boxes.map((box) => box[axis === "x" ? "y" : "x"]))).toEqual(new Set([0]));
+    expect(new Set(boxes.map((box) => box[span]))).toEqual(new Set([layout[span]]));
+  });
+
   it("renders Android platform stacks as fixed layer bands", () => {
     const m = parse(androidDriverStack);
     const { svg } = render(m, { baseView: "layer" });

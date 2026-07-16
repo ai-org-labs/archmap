@@ -590,9 +590,10 @@ export function renderDiagram(spec: DiagramSpec): string {
           const style = boxStyles?.get(b.id);
           const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
           const extraClass = boxExtraClasses?.get(b.id);
+          const radius = group.boxClass === "archmap-layer" ? 0 : 14;
           return (
             `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}${extraClass ? ` ${extraClass}` : ""}" data-id="${escapeXml(b.id)}" data-depth="${depth}"${styleAttr}>` +
-            `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14" ry="14" />` +
+            `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="${radius}" ry="${radius}" />` +
             `<text class="${resolvedLabelClass}" x="${placedLabel.x}" y="${placedLabel.y}">${escapeXml(label)}</text>` +
             `</g>`
           );

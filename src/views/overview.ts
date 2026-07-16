@@ -54,17 +54,27 @@ export function layerBoxes(ctx: ViewContext): Box[] {
     const key = node ? layerKey(node) : "unknown";
     groups.set(key, [...(groups.get(key) ?? []), layoutNode]);
   }
-  return [...groups.entries()].map(([key, nodes], depth) => {
-    const minY = Math.min(...nodes.map((node) => node.y));
-    const maxY = Math.max(...nodes.map((node) => node.y + node.h));
+  const horizontalFlow = ctx.layout.direction === "LR";
+  const lanes = [...groups.entries()]
+    .map(([key, nodes]) => ({
+      key,
+      nodes,
+      center: nodes.reduce((sum, node) => sum + (horizontalFlow ? node.y + node.h / 2 : node.x + node.w / 2), 0) / nodes.length,
+    }))
+    .sort((a, b) => a.center - b.center || a.key.localeCompare(b.key));
+
+  return lanes.map((lane, depth) => {
+    const crossExtent = horizontalFlow ? ctx.layout.height : ctx.layout.width;
+    const before = crossExtent * depth / lanes.length;
+    const after = crossExtent * (depth + 1) / lanes.length;
     return {
-      id: key,
-      label: ANDROID_LAYER_LABELS[key] ?? STANDARD_LAYER_LABELS[key] ?? key,
+      id: lane.key,
+      label: ANDROID_LAYER_LABELS[lane.key] ?? STANDARD_LAYER_LABELS[lane.key] ?? lane.key,
       depth,
-      x: 20,
-      y: minY - 34,
-      w: Math.max(80, ctx.layout.width - 40),
-      h: maxY - minY + 68,
+      x: horizontalFlow ? 0 : before,
+      y: horizontalFlow ? before : 0,
+      w: horizontalFlow ? ctx.layout.width : after - before,
+      h: horizontalFlow ? after - before : ctx.layout.height,
     };
   });
 }
@@ -85,5 +95,6 @@ export function layerView(ctx: ViewContext): string {
     viewClass: "layer",
     boxGroups: [{ boxes: layerBoxes(ctx), boxClass: "archmap-layer" }],
     nodeIcons: resolveNodeIcons(ctx.model),
+    preserveBoxGeometry: true,
   });
 }

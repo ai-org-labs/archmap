@@ -388,7 +388,12 @@ open/close clicks when a read-only view is desired.
 | --- | --- |
 | `overview` | structural nodes/edges only until Add info overlays are enabled |
 | `topology` / UI `Topology` | containment-first golden-ratio grid; components occupy or span integer cells and remain centered with stable overlay-independent geometry |
-| `layer` / UI `Layer` | fixed stack bands from `nodes.*.layer`; zone and boundary do not change the stack partition |
+| `layer` / UI `Layer` | contiguous swimlane bands from `nodes.*.layer`; zone and boundary do not change the lane partition |
+
+Layer lanes share their borders without gutters. `graph LR` produces horizontal
+lanes with left-to-right flow; `graph TD`/`graph TB` produces vertical lanes
+with top-to-bottom flow. Nodes remain centered inside their lane and connectors
+cross lane borders orthogonally.
 | `zone` overlay | physical component areas from explicit `zones` metadata |
 | `boundary` overlay | logical component areas from explicit `boundaries` metadata, plus boundary/zone-crossing edges; rest faded |
 | `auth` | auth-related components/connectors and token/auth labels |

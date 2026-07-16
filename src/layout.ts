@@ -161,6 +161,8 @@ const ICON_RESERVED_W = 42;
 const RANK_GAP = 170; // gap between bands along the flow axis
 const NODE_GAP = 72; // gap between nodes within a band
 const LANE_GAP = 128; // gap between zone lanes on the cross axis (clears zone boxes)
+// Keep breathing room around lane contents; the rendered swimlane bands share
+// boundaries independently of this internal placement gap.
 const LAYER_LANE_GAP = 28;
 const LAYER_LANE_EXTENT = 116;
 const MARGIN = 40;
