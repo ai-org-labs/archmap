@@ -123,7 +123,8 @@ Use this question first:
   carries architectural meaning. Sibling zones are mutually exclusive and the
   Topology view keeps them non-intersecting with visible clearance. Parent-child
   zones are the intentional exception: they overlap by containment because the
-  child belongs inside the parent.
+  child belongs inside the parent. Zone overlays render as lightly filled,
+  borderless areas; use a `boundary` if the visual outline is meaningful.
 - **No: use `subgraph`.** A subgraph is an authoring and abstraction group. Its
   unfilled dashed outline may cross another subgraph because it communicates a
   structural relationship, not exclusive spatial membership.

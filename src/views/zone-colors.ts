@@ -71,7 +71,6 @@ export function overviewZoneColorStyles(model: ArchMapModel, layout: LayoutResul
     if (!color) continue;
     boxStyles.set(zone.id, [
       `--archmap-zone-fill:${translucent(color.fill)}`,
-      `--archmap-zone-stroke:${color.stroke}`,
       `--archmap-zone-label:${color.text}`,
     ].join(";"));
   }

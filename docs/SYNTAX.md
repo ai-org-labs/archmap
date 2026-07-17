@@ -69,8 +69,8 @@ Authoring rule of thumb:
 | --- | --- | --- | --- |
 | Component / node | Graph node plus `nodes.*` metadata | A thing in the architecture | Always rendered unless collapsed into an abstraction component |
 | Connector / edge | Graph arrow plus `edges.*` metadata | A relationship or flow between components | Rendered as component-safe orthogonal routes |
-| Subgraph | `subgraph ... end` in graph section | Authoring hierarchy and optional abstraction | Add info `subgraph` shows a translucent grouping; collapsed subgraphs become one component |
-| Zone | `zones.*` metadata | Physical or ownership area, such as client, GCP, AWS, on-prem | Add info `zone` shows nested areas; collapsed zones become one component |
+| Subgraph | `subgraph ... end` in graph section | Authoring hierarchy and optional abstraction | Add info `subgraph` shows an unfilled dashed guide; collapsed subgraphs become one component |
+| Zone | `zones.*` metadata | Physical or ownership area, such as client, GCP, AWS, on-prem | Add info `zone` shows borderless translucent areas; collapsed zones become one component |
 | Boundary | `boundaries.*` metadata | Logical/trust/policy boundary | Add info `boundary` shows nested boundary areas and crossing context |
 | Layer | `nodes.*.layer` | Layer view partition, such as application/framework/kernel | Used only by Layer view; it does not affect zone or boundary meaning |
 | Add info overlay | `render(..., { overlays })` or viewer checkboxes | Adds semantic information to the base diagram | Additive; it should not replace the base component diagram |
@@ -471,7 +471,8 @@ long segment overlap, component intersections, and perpendicular incidence.
 drawn from back to front as zone → boundary → subgraph so more specific
 grouping remains visible. Nested zones/boundaries are allowed.
 Subgraphs are structural guides: they have no fill and use a dashed outline.
-Zones retain a low-opacity semantic fill.
+Zones retain a low-opacity semantic fill without a normal outline; use
+`boundary` when the outline itself carries trust, policy, or crossing meaning.
 
 ### 5.1 Lifecycle plugin views
 

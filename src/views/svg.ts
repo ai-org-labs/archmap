@@ -540,10 +540,10 @@ export const MARKERS = ARROW_MARKER + ARROW_MARKER_EMPH;
 
 /** Default theme: CSS variables with sensible fallbacks so the SVG renders standalone. */
 export const DEFAULT_STYLE = `
-.archmap-zone-box { fill: var(--archmap-zone-fill, rgba(226,238,250,0.62)); stroke: var(--archmap-zone-stroke, #8aa8cc); stroke-width: 1.2; }
-.archmap-zone-depth-1 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-1, rgba(249,240,218,0.55)); stroke: var(--archmap-zone-stroke-depth-1, #c7b474); }
-.archmap-zone-depth-2 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-2, rgba(235,229,248,0.5)); stroke: var(--archmap-zone-stroke-depth-2, #a799cc); }
-.archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); stroke: var(--archmap-zone-stroke-depth-3, #8fbf9c); }
+.archmap-zone-box { fill: var(--archmap-zone-fill, rgba(226,238,250,0.62)); stroke: none; stroke-width: 0; }
+.archmap-zone-depth-1 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-1, rgba(249,240,218,0.55)); }
+.archmap-zone-depth-2 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-2, rgba(235,229,248,0.5)); }
+.archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); }
 .archmap-zone-label { fill: var(--archmap-zone-label, #687486); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-zone { cursor: pointer; }
 .archmap-subgraph-box { fill: none; stroke: var(--archmap-subgraph-stroke, #94a3b8); stroke-width: 1.2; stroke-dasharray: 7 5; }
@@ -566,7 +566,8 @@ export const DEFAULT_STYLE = `
 .archmap-node-abstraction .archmap-node-label { font-weight: 700; }
 .archmap-node-abstraction:hover .archmap-node-shape, .archmap-node-abstraction:hover .archmap-node-shape-top { filter: drop-shadow(0 3px 7px rgba(37,99,235,0.22)); stroke-width: 4; }
 .archmap-node-abstraction:hover .archmap-node-label { text-decoration: underline; }
-.archmap-zone[data-id]:hover .archmap-zone-box, .archmap-subgraph[data-id]:hover .archmap-subgraph-box { filter: drop-shadow(0 3px 7px rgba(37,99,235,0.18)); stroke-width: 2.6; }
+.archmap-zone[data-id]:hover .archmap-zone-box { filter: drop-shadow(0 3px 7px rgba(37,99,235,0.18)); }
+.archmap-subgraph[data-id]:hover .archmap-subgraph-box { filter: drop-shadow(0 3px 7px rgba(37,99,235,0.18)); stroke-width: 2.6; }
 .archmap-zone[data-id]:hover .archmap-zone-label, .archmap-subgraph[data-id]:hover .archmap-subgraph-label { text-decoration: underline; }
 .archmap-abstraction-locked .archmap-node-abstraction, .archmap-abstraction-locked .archmap-zone[data-id], .archmap-abstraction-locked .archmap-subgraph[data-id] { cursor: grab; }
 .archmap-abstraction-locked .archmap-node-abstraction:hover .archmap-node-shape, .archmap-abstraction-locked .archmap-node-abstraction:hover .archmap-node-shape-top, .archmap-abstraction-locked .archmap-zone[data-id]:hover .archmap-zone-box, .archmap-abstraction-locked .archmap-subgraph[data-id]:hover .archmap-subgraph-box { filter: none; }
@@ -589,11 +590,9 @@ export const DEFAULT_STYLE = `
 .archmap-lifecycle-deprecated .archmap-node-shape-top-fill { fill: var(--archmap-lifecycle-deprecated-fill, #fef3c7); }
 .archmap-lifecycle-deprecated .archmap-edge-path { stroke: var(--archmap-lifecycle-deprecated, #b45309); }
 .archmap-lifecycle-deprecated .archmap-edge-startpoint { fill: var(--archmap-lifecycle-deprecated, #b45309); }
-.archmap-lifecycle-deprecated .archmap-zone-box { stroke: var(--archmap-lifecycle-deprecated, #b45309); }
 .archmap-lifecycle-removing .archmap-node-shape, .archmap-lifecycle-removing .archmap-node-shape-top { stroke: var(--archmap-lifecycle-removing, #b91c1c); stroke-dasharray: 5 4; }
 .archmap-lifecycle-removing .archmap-edge-path { stroke: var(--archmap-lifecycle-removing, #b91c1c); stroke-dasharray: 5 4; }
 .archmap-lifecycle-removing .archmap-edge-startpoint { fill: var(--archmap-lifecycle-removing, #b91c1c); }
-.archmap-lifecycle-removing .archmap-zone-box { stroke: var(--archmap-lifecycle-removing, #b91c1c); }
 .archmap-boundary-box { fill: var(--archmap-boundary-fill, rgba(247,240,220,0.48)); stroke: var(--archmap-boundary-stroke, #c0a044); stroke-width: 1.8; }
 .archmap-boundary-label { fill: var(--archmap-boundary-label, #7d704b); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-selected .archmap-node-shape, .archmap-selected .archmap-node-shape-top { stroke: var(--archmap-selected, #2563eb); stroke-width: 3; }

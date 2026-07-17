@@ -1,0 +1,32 @@
+{
+  "task_id": "TASK-114",
+  "title": "Borderless zone overlays",
+  "description": "Render zone overlays as translucent semantic areas without normal border strokes, while preserving boundary outlines and subgraph dashed guides.",
+  "status": "done",
+  "origin": "human-zone-border-request",
+  "created_at": "2026-07-17T00:00:00.000+09:00",
+  "updated_at": "2026-07-17T00:00:00.000+09:00",
+  "completed_at": "2026-07-17T00:00:00.000+09:00",
+  "completion_criteria": [
+    "Zone overlay boxes have translucent fill and no normal stroke.",
+    "Zone palette styles no longer emit zone stroke CSS variables.",
+    "Boundary boxes remain outlined and subgraphs remain unfilled dashed guides.",
+    "Selected zones can still show an interaction outline.",
+    "Syntax and AI authoring documentation describe the updated visual semantics.",
+    "Focused render tests, typecheck, and production build pass."
+  ],
+  "success_criteria": [
+    "Zone overlays reduce visual noise in dense diagrams.",
+    "Authors can distinguish placement/ownership zones from trust/policy boundaries.",
+    "Existing zone layout, collapse/expand behavior, and selection behavior remain intact."
+  ],
+  "evidence": [
+    "docs/aof/ZONE-BORDERLESS-QIF-CHECK-2026-07-17.md",
+    "src/views/svg.ts",
+    "src/views/zone-colors.ts",
+    "test/render.test.ts",
+    "docs/SYNTAX.md",
+    "docs/AI_AUTHORING_GUIDE.md"
+  ],
+  "triage_notes": "Normal zone borders are removed; selected zones may still draw a temporary outline for usability."
+}

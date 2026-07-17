@@ -212,7 +212,7 @@ describe("render", () => {
     expect(svg).toContain('data-id="gcp_db" data-from="GCPApp" data-to="CloudSQL" style="--archmap-edge-stroke:#d17732;--archmap-edge-label:#7a3f12"');
 
     const overlaid = render(m, { baseView: "overview", overlays: ["zone"] }).svg!;
-    expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:rgba(255,244,232,0.3);--archmap-zone-stroke:#d17732;--archmap-zone-label:#7a3f12"');
+    expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:rgba(255,244,232,0.3);--archmap-zone-label:#7a3f12"');
   });
 
   it("fills database cylinder tops with the node fill color", () => {
@@ -536,11 +536,13 @@ describe("render", () => {
     }
   });
 
-  it("draws zone and boundary containers as solid area panels", () => {
+  it("draws zone containers as borderless area panels and boundaries as outlined panels", () => {
     const m = parse(example);
     const svg = render(m, { baseView: "overview", overlays: ["zone", "boundary"] }).svg!;
     const style = svg.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? "";
     expect(style).toContain(".archmap-zone-box { fill:");
+    expect(style.match(/\.archmap-zone-box \{[^}]*stroke: none/)).toBeTruthy();
+    expect(svg).not.toContain("--archmap-zone-stroke:");
     expect(style).toContain(".archmap-boundary-box { fill:");
     expect(style.match(/\.archmap-zone-box \{[^}]*stroke-dasharray/)).toBeNull();
     expect(style.match(/\.archmap-boundary-box \{[^}]*stroke-dasharray/)).toBeNull();
