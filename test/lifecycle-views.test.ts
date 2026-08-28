@@ -52,9 +52,9 @@ function cardRects(svg: string): Array<{ id: string; x: number; y: number; width
 describe("lifecycle projection views", () => {
   it("contributes the three lifecycle views to a host toolbar", () => {
     expect(LIFECYCLE_DIAGRAM_TAG_VIEWS).toEqual([
-      { value: "requirements", label: "Requirements" },
-      { value: "traceability", label: "Traceability" },
-      { value: "quality", label: "Quality" },
+      { value: "requirements", label: "Requirements", controls: "view-only" },
+      { value: "traceability", label: "Traceability", controls: "view-only" },
+      { value: "quality", label: "Quality", controls: "view-only" },
     ]);
   });
 
@@ -78,6 +78,8 @@ describe("lifecycle projection views", () => {
     expect(svg).toContain("Successful login opens Home");
     expect(svg.match(/>AC-LOGIN<\/text>/g)?.length).toBe(1);
     expect(svg).toContain("Login API");
+    expect(svg).toContain("Implementation");
+    expect(svg).toContain("1 component");
   });
 
   it("traces from a selected start with depth, type, and status filters", () => {

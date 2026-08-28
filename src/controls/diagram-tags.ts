@@ -3,6 +3,8 @@ export type DiagramTagAction = "toggleSize" | "expand" | "minimize" | "fit" | "r
 export interface DiagramTagOption {
   value: string;
   label: string;
+  /** View-only projections hide render-mode and additive-overlay controls. */
+  controls?: "full" | "view-only";
 }
 
 export interface DiagramTagsState {
@@ -124,6 +126,7 @@ export function injectDiagramTagsStyle(doc: Document = document): void {
 .archmap-diagram-tags-panel.is-minimized .archmap-diagram-tags-group{display:none}
 .archmap-diagram-tags-panel.is-expanded{width:min(960px,calc(100vw - 420px))}
 .archmap-diagram-tags-group{display:inline-flex;align-items:center;gap:5px;border:0;padding:0;margin:0 4px 0 0;min-width:0}
+.archmap-diagram-tags-group[hidden]{display:none}
 .archmap-diagram-tags-label{font-size:11px;font-weight:700;color:#64748b;margin-right:2px;white-space:nowrap}
 .archmap-diagram-tag{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:3px 8px;border:1px solid #cbd5e1;border-radius:999px;background:#f8fafc;color:#334155;font:600 12px system-ui,sans-serif;white-space:nowrap;cursor:pointer}
 .archmap-diagram-tag input{margin:0;accent-color:#34507a}
@@ -206,6 +209,11 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
     panel.querySelectorAll<HTMLButtonElement>("[data-archmap-action]").forEach((button) => {
       renderIcon(button, button.dataset.archmapAction as DiagramTagAction);
     });
+    const selectedView = views.find((view) => view.value === state.baseView);
+    const viewOnly = selectedView?.controls === "view-only";
+    panel.querySelectorAll<HTMLElement>("[data-archmap-tag-kind]").forEach((group) => {
+      group.hidden = viewOnly && group.dataset.archmapTagKind !== "baseView";
+    });
     if (timeline) {
       const index = Math.max(0, timeline.phases.findIndex((phase) => phase.value === state.phase));
       const phase = timeline.phases[index];
@@ -242,6 +250,7 @@ export function createDiagramTags(options: DiagramTagsOptions): DiagramTagsHandl
   const addGroup = (label: string, kind: "baseView" | "renderMode" | "overlay", entries: DiagramTagOption[]): void => {
     const group = doc.createElement("fieldset");
     group.className = "archmap-diagram-tags-group";
+    group.dataset.archmapTagKind = kind;
     const labelEl = doc.createElement("span");
     labelEl.className = "archmap-diagram-tags-label";
     labelEl.textContent = label;

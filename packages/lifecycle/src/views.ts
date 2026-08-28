@@ -58,6 +58,7 @@ const TYPE_LABELS: Record<string, string> = {
   edge: "Architecture connection",
   zone: "Architecture zone",
   boundary: "Architecture boundary",
+  implementationSummary: "Implementation",
 };
 
 const RELATION_LABELS: Record<string, string> = {
@@ -80,6 +81,7 @@ const COLORS: Record<string, { fill: string; stroke: string }> = {
   decision: { fill: "#fff6df", stroke: "#a77a24" },
   risk: { fill: "#fff0ea", stroke: "#ba6845" },
   node: { fill: "#fff7e7", stroke: "#b2812d" },
+  implementationSummary: { fill: "#fff7e7", stroke: "#b2812d" },
 };
 
 function escapeXml(value: unknown): string {
@@ -560,36 +562,61 @@ export function renderRequirementsView(model: ArchMapModel): string {
       groupY,
       (element) => `${requirement.id}:acceptance:${element.id}`,
     );
-    const architectureCards = stackElements(
-      architecture,
-      PAD_X + 2 * (CARD_WIDTH + GAP_X),
-      groupY,
-      (element) => `${requirement.id}:architecture:${element.id}`,
-    );
+    const architectureCard = architecture.length > 0
+      ? (() => {
+          const targetNames = architecture.map(displayTitle);
+          const summary: GraphElementRef = {
+            id: `${requirement.id}:implementation`,
+            kind: "extension",
+            type: "implementationSummary",
+            value: { title: targetNames.join(" · ") },
+          };
+          const card = positionedElement(
+            summary,
+            PAD_X + 2 * (CARD_WIDTH + GAP_X),
+            groupY,
+            summary.id,
+          );
+          card.showId = false;
+          card.rows = [`${architecture.length} component${architecture.length === 1 ? "" : "s"}`];
+          return card;
+        })()
+      : undefined;
     const requirementDraft = positionedElement(requirement, PAD_X, groupY, `${requirement.id}:requirement`);
     const groupBottom = Math.max(
       groupY + requirementDraft.height,
       ...acceptanceCards.map((element) => element.y + element.height),
-      ...architectureCards.map((element) => element.y + element.height),
+      architectureCard ? architectureCard.y + architectureCard.height : groupY,
     );
     const requirementCard = {
       ...requirementDraft,
       y: groupY + (groupBottom - groupY - requirementDraft.height) / 2,
     };
-    positioned.push(requirementCard, ...acceptanceCards, ...architectureCards);
+    if (architectureCard) {
+      architectureCard.y = groupY + (groupBottom - groupY - architectureCard.height) / 2;
+    }
+    positioned.push(requirementCard, ...acceptanceCards, ...(architectureCard ? [architectureCard] : []));
     const occurrence = new Map<string, string>([[requirement.id, requirementCard.id]]);
     acceptanceCards.forEach((card) => occurrence.set(card.modelId!, card.id));
-    architectureCards.forEach((card) => occurrence.set(card.modelId!, card.id));
-    for (const relation of [...accepted, ...architectureRelations]) {
+    for (const relation of accepted) {
       const from = occurrence.get(relation.from);
       const to = occurrence.get(relation.to);
       if (from && to) relations.push({ ...relation, id: `${requirement.id}:${relation.id}`, from, to });
+    }
+    if (architectureCard && architectureRelations.length > 0) {
+      const sourceId = acceptanceCards[0]?.id ?? requirementCard.id;
+      relations.push({
+        id: `${requirement.id}:implementation-summary`,
+        type: "realized_by",
+        from: sourceId,
+        to: architectureCard.id,
+      });
     }
     groupY = groupBottom + 72;
   }
   return renderLifecycleProjection({
     ...source,
-    description: "Mind map: each requirement branches to its acceptance conditions and implementing architecture.",
+    description: `${requirements.length} requirement branches · acceptance conditions · implementation summaries.`,
     relations,
     positioned,
     routing: "branch",
@@ -650,7 +677,7 @@ export const LIFECYCLE_VIEWS: readonly ViewDefinition[] = [
 
 /** Toolbar entries contributed by the lifecycle plugin. */
 export const LIFECYCLE_DIAGRAM_TAG_VIEWS: readonly DiagramTagOption[] = [
-  { value: "requirements", label: "Requirements" },
-  { value: "traceability", label: "Traceability" },
-  { value: "quality", label: "Quality" },
+  { value: "requirements", label: "Requirements", controls: "view-only" },
+  { value: "traceability", label: "Traceability", controls: "view-only" },
+  { value: "quality", label: "Quality", controls: "view-only" },
 ];
