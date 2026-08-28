@@ -402,8 +402,16 @@ view:
       if (result) { result.destroy(); result = null; }
       updateLineNumbers();
       const model = parse($("src").value);
-      result = render(model, { baseView: selectedRadio("base-view"), renderMode: selectedRadio("render-mode"), overlays: selectedOverlays(), abstractionLocked, target: $("diagram") });
+      result = render(model, {
+        baseView: selectedRadio("base-view"),
+        renderMode: selectedRadio("render-mode"),
+        overlays: selectedOverlays(),
+        abstractionLocked,
+        phase: tags?.getState().phase,
+        target: $("diagram"),
+      });
       updateLog(result.model);
+      rebuildTags(model);
     }
     function updateOverlay(input) {
       updateOverlayValue(input.value, input.checked);
@@ -439,40 +447,65 @@ view:
       tags?.setState({ ...sample.recommendation, abstractionLocked });
       updateLineNumbers();
     }
-    tags = createDiagramTags({
-      target: $("diagram-tags"),
-      views: demoViews,
-      state: { ...(defaultSample?.recommendation ?? { baseView: "overview", renderMode: "2d", overlays: [] }), abstractionLocked },
-      actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
-      onChange: (_state, event) => {
-        if (event.kind === "baseView") updateBaseView();
-        if (event.kind === "renderMode") updateRenderMode();
-        if (event.kind === "overlay") updateOverlayValue(event.value, event.checked);
-      },
-      onAction: (action) => {
-        if (action === "fit") {
-          if (!result) return;
-          if (zoomFitted) {
-            result.reset();
-            zoomFitted = false;
-          } else {
-            result.fit();
-            zoomFitted = true;
+    function rebuildTags(model) {
+      const previousState = tags?.getState();
+      const phases = model?.timeline?.phases ?? [];
+      tags?.destroy();
+      tags = createDiagramTags({
+        target: $("diagram-tags"),
+        views: demoViews,
+        timeline: phases.length > 0
+          ? {
+              label: model.timeline?.label ?? "Time",
+              phases: phases.map((phase) => ({
+                value: phase.id,
+                label: phase.at ? `${phase.label ?? phase.id} · ${phase.at}` : phase.label ?? phase.id,
+              })),
+            }
+          : undefined,
+        state: {
+          ...(previousState ?? defaultSample?.recommendation ?? { baseView: "overview", renderMode: "2d", overlays: [] }),
+          abstractionLocked,
+          phase: result?.getPhase() ?? previousState?.phase,
+        },
+        actions: ["toggleSize", "fit", "lock", "download", "fullscreen"],
+        onChange: (_state, event) => {
+          if (event.kind === "baseView") updateBaseView();
+          if (event.kind === "renderMode") updateRenderMode();
+          if (event.kind === "overlay") updateOverlayValue(event.value, event.checked);
+          if (event.kind === "phase") {
+            renderWithLoading(() => {
+              result?.setPhase(event.value);
+              updateLog(result?.model ?? model);
+            });
           }
-        }
-        if (action === "lock") {
-          abstractionLocked = !abstractionLocked;
-          result?.setAbstractionLocked(abstractionLocked);
-        }
-        if (action === "download" && result) {
-          void result.downloadPng("archmap.png").catch((error) => console.error("ArchMap PNG export failed.", error));
-        }
-        if (action === "fullscreen") {
-          $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
-          requestAnimationFrame(() => result?.fit());
-        }
-      },
-    });
+        },
+        onAction: (action) => {
+          if (action === "fit") {
+            if (!result) return;
+            if (zoomFitted) {
+              result.reset();
+              zoomFitted = false;
+            } else {
+              result.fit();
+              zoomFitted = true;
+            }
+          }
+          if (action === "lock") {
+            abstractionLocked = !abstractionLocked;
+            result?.setAbstractionLocked(abstractionLocked);
+          }
+          if (action === "download" && result) {
+            void result.downloadPng("archmap.png").catch((error) => console.error("ArchMap PNG export failed.", error));
+          }
+          if (action === "fullscreen") {
+            $("diagram-tags").parentElement.classList.toggle("is-fullscreen");
+            requestAnimationFrame(() => result?.fit());
+          }
+        },
+      });
+    }
+    rebuildTags();
     $("sample-select").addEventListener("change", () => {
       const sample = sampleById($("sample-select").value);
       if (!sample) return;
