@@ -72,7 +72,18 @@ export type {
   TopologyExtensions,
   TopologyModel,
   TopologyTraversal,
+  TopologyProvenance,
+  LegacyTopologyElementType,
 } from "./topology.js";
+export { normalizeTopology } from "./topology-normalize.js";
+export type {
+  LegacyBoundaryCrossingAssertion,
+  LegacyCrossingExpectation,
+  TopologyNormalizationDiagnostic,
+  TopologyNormalizationDiagnosticCode,
+  TopologyNormalizationDiagnosticLevel,
+  TopologyNormalizationResult,
+} from "./topology-normalize.js";
 export { graphElements, query, trace } from "./query.js";
 export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {

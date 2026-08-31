@@ -8,6 +8,15 @@
 
 export type TopologyExtensions = Record<string, unknown>;
 
+export type LegacyTopologyElementType = "node" | "zone" | "boundary" | "edge";
+
+/** Stable pointer back to the released model element used for migration. */
+export interface TopologyProvenance {
+  source: "legacy";
+  type: LegacyTopologyElementType;
+  id: string;
+}
+
 /** An endpoint-capable entity in the authored topology. */
 export interface Resource {
   id: string;
@@ -17,6 +26,7 @@ export interface Resource {
   parent: string | null;
   note?: string;
   extensions?: TopologyExtensions;
+  provenance?: TopologyProvenance[];
 }
 
 /** A single-parent structural boundary. Containers form a forest. */
@@ -30,10 +40,11 @@ export interface ContainerBoundary {
   enforcedBy?: string[];
   note?: string;
   extensions?: TopologyExtensions;
+  provenance?: TopologyProvenance[];
 }
 
 export interface OverlayMember {
-  type: "resource" | "container";
+  type: "resource" | "container" | "overlay";
   id: string;
 }
 
@@ -49,6 +60,7 @@ export interface OverlayBoundary {
   render?: OverlayRenderHint;
   note?: string;
   extensions?: TopologyExtensions;
+  provenance?: TopologyProvenance[];
 }
 
 export type TopologyEdgeDirection = "directed" | "bidirectional";
@@ -63,6 +75,7 @@ export interface TopologyEdge {
   port?: number | string;
   note?: string;
   extensions?: TopologyExtensions;
+  provenance?: TopologyProvenance[];
 }
 
 /** Author-controlled facts. Derived crossings never belong in this object. */
