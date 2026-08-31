@@ -139,6 +139,27 @@ zones, then use a `CheckoutFlow` subgraph for components participating in the
 same flow across both zones. Do not replace the zones with overlapping
 subgraphs when the diagram must communicate exclusive placement.
 
+### ArchMap Next Canonical Terms
+
+ArchMap Next separates authored compatibility syntax from the canonical model
+used for topology analysis. Use these meanings when generating or reviewing a
+document:
+
+| Authored syntax | Next canonical meaning | Analysis rule |
+| --- | --- | --- |
+| `nodes` | Resources | The only valid communication endpoints |
+| `zone` / `zones` | Container Boundaries | Actual containment; one direct parent; siblings are non-intersecting |
+| `boundary` / `boundaries` | Overlay Boundaries | Semantic sets; membership and visual regions may overlap |
+| `subgraph` | Authoring/abstraction group | No containment or crossing semantics |
+| `layer` | Layer-view partition | No containment or crossing semantics |
+
+An Edge describes one direct Resource-to-Resource communication. Do not use a
+Container or Overlay as an endpoint, and do not skip a real intermediary such
+as a gateway or load balancer. Container Crossings and Overlay Transitions are
+derived by ArchMap; authors must not encode them as substitute edges. Legacy
+`boundaryCrossing` remains only a compatibility assertion checked against the
+derived result.
+
 ## Useful Vocabulary
 
 Prefer standard vocabulary when possible because it improves validation and

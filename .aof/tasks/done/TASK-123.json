@@ -2,15 +2,16 @@
   "task_id": "TASK-123",
   "title": "ArchMap Next migration and QIF release gate",
   "description": "Verify released samples, deterministic analysis, routing legibility, performance, security, exports, and AI authoring guidance before declaring the first Next release ready.",
-  "status": "open",
+  "status": "done",
   "origin": "archmap-next-baseline",
   "created_at": "2026-08-31T12:00:00.000+09:00",
-  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-09-01T02:53:00+09:00",
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "completion_criteria": [
     "Released documents parse and render without required rewrites.",
     "All spec acceptance fixtures and recurring QIF checks pass.",
     "AI authoring guidance distinguishes Container, Overlay, subgraph, and layer.",
     "Performance evidence covers representative and large topology models."
-  ]
+  ],
+  "triage_notes": "Added the repeatable verify:next gate, deterministic 120/1000-Resource topology fixtures, non-synthesizing projection and hidden-Container crossing contracts, measured benchmark evidence, npm inclusion of Next specifications, and explicit AI authoring mappings from released DSL terms to Resource, Container Boundary, Overlay Boundary, subgraph, and layer semantics. Verified 326 tests, typecheck, production builds, and topology benchmark."
 }

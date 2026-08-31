@@ -15,9 +15,10 @@ The normative documents are:
 - [13-compatibility-and-migration.md](13-compatibility-and-migration.md)
   defines how existing ArchMap documents map into the Next model without a
   flag-day rewrite.
+- [14-release-gate.md](14-release-gate.md) defines the repeatable compatibility,
+  determinism, performance-evidence, packaging, and QIF release decision.
 
 Earlier specifications remain valid for their released surfaces. Where a
 legacy architecture term conflicts with the Next canonical model, the
 compatibility document governs ingestion and diagnostics; the Next model
 governs analysis.
-
