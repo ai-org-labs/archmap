@@ -102,6 +102,15 @@ export type {
   TopologyDerivationDiagnosticLevel,
   TopologyDerivationOptions,
 } from "./topology-analysis.js";
+export { projectTopology } from "./topology-projection.js";
+export type {
+  ProjectedTopology,
+  TopologyCrossingFilter,
+  TopologyEdgeFilter,
+  TopologyIdFilter,
+  TopologyProjectionView,
+  TopologyTransitionFilter,
+} from "./topology-projection.js";
 export { graphElements, query, trace } from "./query.js";
 export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {
