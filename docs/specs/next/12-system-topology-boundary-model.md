@@ -277,6 +277,29 @@ Container name, direction, and selected role while de-emphasizing unrelated
 topology. It must preserve the component-safe routing rules used by Overview
 and Topology views.
 
+Overview and Topology expose this as an additive render option:
+
+```ts
+render(model, {
+  baseView: "topology",
+  overlays: ["zone"],
+  crossingFocus: {
+    roles: ["network"],
+    showLabels: true,
+  },
+});
+```
+
+`roles`, `edgeIds`, and `boundaryIds` narrow the already-derived crossing
+facts; they do not rewrite canonical Edges. `showLabels: false` keeps the
+crossing markers and selection targets while hiding their compact labels.
+
+The marker projection is computed from the final routed polyline used by the
+SVG. Consequently pan, zoom, minimap, selection, SVG export, and PNG export
+all observe the same geometry. Clicking a marker selects its canonical Edge;
+the marker also retains its crossing, boundary, direction, and role IDs as
+SVG data attributes for inspectors and integrations.
+
 ## 9. Required purpose-specific projections
 
 The same canonical topology must support at least:
@@ -305,4 +328,3 @@ The implementation is not complete until automated fixtures prove:
 8. hidden Container plus visible crossing remains renderable;
 9. sibling Container boxes do not overlap and descendants remain contained;
 10. crossing output is unchanged by node coordinates, pan, zoom, or drag.
-

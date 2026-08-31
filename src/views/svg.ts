@@ -604,6 +604,13 @@ export const DEFAULT_STYLE = `
 .archmap-emphasis .archmap-node-shape-top-fill { fill: var(--archmap-node-fill, #ffffff); }
 .archmap-emphasis .archmap-edge-path { stroke: var(--archmap-emphasis, #b3261e); stroke-width: 1.8; }
 .archmap-emphasis .archmap-edge-startpoint { fill: var(--archmap-emphasis, #b3261e); }
+.archmap-crossing { cursor: pointer; }
+.archmap-crossing-marker { fill: #ffffff; stroke: var(--archmap-crossing, #b3261e); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
+.archmap-crossing-enter .archmap-crossing-marker { fill: #ecfdf5; stroke: #047857; }
+.archmap-crossing-exit .archmap-crossing-marker { fill: #fff7ed; stroke: #c2410c; }
+.archmap-crossing-label-bg { fill: rgba(255,255,255,0.96); stroke: #cbd5e1; stroke-width: 0.8; vector-effect: non-scaling-stroke; }
+.archmap-crossing-label { fill: #334155; font: 700 10px var(--archmap-font, system-ui, sans-serif); pointer-events: none; }
+.archmap-crossing:hover .archmap-crossing-marker, .archmap-crossing:focus .archmap-crossing-marker { stroke-width: 3.2; }
 .archmap-node.archmap-label-endpoint .archmap-node-shape,
 .archmap-node.archmap-label-endpoint .archmap-node-shape-top { stroke: var(--archmap-label-endpoint, #2563eb); stroke-width: 3; filter: drop-shadow(0 0 5px rgba(37,99,235,0.32)); }
 .archmap-node.archmap-label-endpoint .archmap-node-label { fill: var(--archmap-label-endpoint, #1d4ed8); font-weight: 800; }

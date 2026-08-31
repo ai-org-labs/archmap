@@ -111,6 +111,14 @@ export type {
   TopologyProjectionView,
   TopologyTransitionFilter,
 } from "./topology-projection.js";
+export { buildCrossingVisuals } from "./topology-crossing-view.js";
+export type {
+  CrossingFocusOptions,
+  CrossingPoint,
+  CrossingRect,
+  CrossingVisual,
+  CrossingVisualInput,
+} from "./topology-crossing-view.js";
 export { graphElements, query, trace } from "./query.js";
 export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {

@@ -10,6 +10,8 @@
 import type { LayoutEdge, LayoutNode, LayoutResult } from "../layout.js";
 import type { ResolvedIcon } from "../icons.js";
 import { iconDomId } from "../icons.js";
+import { buildCrossingVisuals } from "../topology-crossing-view.js";
+import type { ContainerBoundary, Crossing } from "../topology.js";
 import {
   DEFAULT_STYLE,
   MARKERS,
@@ -72,6 +74,13 @@ export interface DiagramSpec {
   preserveLayoutExtent?: boolean;
   /** Draw area boxes at their computed geometry without the overview visual outset. */
   preserveBoxGeometry?: boolean;
+  /** Derived crossing facts projected onto the final routed Edge geometry. */
+  crossingFocus?: {
+    crossings: readonly Crossing[];
+    containers: readonly ContainerBoundary[];
+    visibleContainerIds: ReadonlySet<string>;
+    showLabels?: boolean;
+  };
 }
 
 const BOX_GROUP_DEPTH_ORDER = new Map([
@@ -637,6 +646,31 @@ export function renderDiagram(spec: DiagramSpec): string {
 
   const overlayEdgesSvg = renderOverlayEdges(overlayPlan, edgePaths, densePermissionOverlay);
 
+  const crossingVisuals = spec.crossingFocus ? buildCrossingVisuals({
+    crossings: spec.crossingFocus.crossings,
+    containers: spec.crossingFocus.containers,
+    visibleContainerIds: spec.crossingFocus.visibleContainerIds,
+    containerBoxes: new Map(boxGroups
+      .filter((group) => group.boxClass === "archmap-zone")
+      .flatMap((group) => group.boxes.map((box) => [box.id, box] as const))),
+    edgePoints: new Map([...edgeVisuals].map(([id, visual]) => [id, visual.points])),
+    blockers: [
+      ...layout.nodes.map((node) => ({ id: node.id, x: node.x - 8, y: node.y - 8, w: node.w + 16, h: node.h + 16 })),
+      ...reservedEdgeBadges,
+    ],
+  }) : [];
+  const crossingsSvg = crossingVisuals.map((visual) => {
+    const x = visual.point.x.toFixed(1);
+    const y = visual.point.y.toFixed(1);
+    const title = `${visual.boundaryLabel} ${visual.direction}; roles: ${visual.roles.join(", ") || "none"}`;
+    const label = `${visual.boundaryLabel} ${visual.direction.toUpperCase()}${visual.roles.length ? ` - ${visual.roles.join("/")}` : ""}`;
+    const labelSvg = spec.crossingFocus?.showLabels === false ? "" : (
+      `<rect class="archmap-crossing-label-bg" x="${visual.labelBox.x.toFixed(1)}" y="${visual.labelBox.y.toFixed(1)}" width="${visual.labelBox.w.toFixed(1)}" height="${visual.labelBox.h.toFixed(1)}" rx="4" />` +
+      `<text class="archmap-crossing-label" x="${visual.labelPoint.x.toFixed(1)}" y="${visual.labelPoint.y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${escapeXml(label)}</text>`
+    );
+    return `<g class="archmap-crossing archmap-crossing-${visual.direction}${visual.visibleBoundary ? " archmap-crossing-visible-boundary" : " archmap-crossing-hidden-boundary"}" data-id="${escapeXml(visual.edgeId)}" data-crossing-id="${escapeXml(visual.id)}" data-edge-id="${escapeXml(visual.edgeId)}" data-boundary-id="${escapeXml(visual.boundaryId)}" data-direction="${visual.direction}" data-roles="${escapeXml(visual.roles.join(","))}" role="button" tabindex="0"><title>${escapeXml(title)}</title><path class="archmap-crossing-marker" d="M ${x} ${(visual.point.y - 6).toFixed(1)} L ${(visual.point.x + 6).toFixed(1)} ${y} L ${x} ${(visual.point.y + 6).toFixed(1)} L ${(visual.point.x - 6).toFixed(1)} ${y} Z" />${labelSvg}</g>`;
+  }).join("");
+
   const nodesSvg = layout.nodes
     .map((n) => {
       const nodeIcon = nodeIcons?.get(n.id);
@@ -667,6 +701,7 @@ export function renderDiagram(spec: DiagramSpec): string {
     `<g class="archmap-boxes">${boxesSvg}</g>` +
     `<g class="archmap-edges">${edgesSvg}</g>` +
     `<g class="archmap-overlay-edges">${overlayEdgesSvg}</g>` +
+    `<g class="archmap-crossings">${crossingsSvg}</g>` +
     `<g class="archmap-nodes">${nodesSvg}</g>` +
     `</svg>`
   );

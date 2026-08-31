@@ -215,6 +215,32 @@ describe("render", () => {
     expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:rgba(255,244,232,0.3);--archmap-zone-label:#7a3f12"');
   });
 
+  it("renders selectable topology crossing markers from the final overview geometry", () => {
+    const m = parse(`graph LR
+  API[API] --> DB[DB]
+---
+nodes:
+  API: { zone: app, kind: service }
+  DB: { zone: data, kind: database }
+zones:
+  app: { label: App VPC, kind: network, contains: [API] }
+  data: { label: Data VPC, kind: network, contains: [DB] }
+`);
+    const svg = render(m, {
+      baseView: "overview",
+      overlays: ["zone"],
+      crossingFocus: { showLabels: true },
+    }).svg!;
+
+    expect(svg).toContain('class="archmap-crossings"');
+    expect(svg).toMatch(/class="archmap-crossing [^"]+" data-id="[^"]+" data-crossing-id="[^"]+"/);
+    expect(svg).toContain('data-boundary-id="app"');
+    expect(svg).toContain('data-boundary-id="data"');
+    expect(svg).toContain("App VPC EXIT");
+    expect(svg).toContain("Data VPC ENTER");
+    expect(svg).toContain("archmap-emphasis");
+  });
+
   it("fills database cylinder tops with the node fill color", () => {
     const m = parse(example);
     const { svg } = render(m, { view: "overview" });

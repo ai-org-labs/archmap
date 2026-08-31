@@ -40,6 +40,10 @@ import { projectAbstraction } from "./subgraph-abstraction.js";
 import type { AbstractionTarget } from "./subgraph-abstraction.js";
 import { createDiagramTags } from "./controls/diagram-tags.js";
 import type { DiagramTagsHandle } from "./controls/diagram-tags.js";
+import type { CrossingFocusOptions } from "./topology-crossing-view.js";
+import { normalizeTopology } from "./topology-normalize.js";
+import { analyzeTopology } from "./topology-analysis.js";
+import { projectTopology } from "./topology-projection.js";
 
 export interface ViewContext {
   model: ArchMapModel;
@@ -120,6 +124,8 @@ export interface RenderOptions {
   console?: boolean | ConsoleReportOptions;
   /** Enable SVG pan/zoom on the target for 2D views (default on with a DOM target). */
   interactive?: boolean;
+  /** Emphasize derived Container crossings on Overview/Topology. */
+  crossingFocus?: CrossingFocusOptions;
 }
 
 /** Phase timings (ms) for the most recent render pass. Additive diagnostic aid. */
@@ -333,6 +339,7 @@ function selectableKind(el: Element): InspectorSelection["type"] | undefined {
   if (el.classList.contains("archmap-zone")) return "zone";
   if (el.classList.contains("archmap-boundary")) return "boundary";
   if (el.classList.contains("archmap-permission-edge")) return "permission";
+  if (el.classList.contains("archmap-crossing")) return "edge";
   return undefined;
 }
 
@@ -402,7 +409,7 @@ function attachInspectorSelection(target: Element, model: ArchMapModel, inspecto
   };
   const handler = (event: Event) => {
     const source = event.target instanceof Element
-      ? event.target.closest(".archmap-node,.archmap-edge,.archmap-zone,.archmap-boundary,.archmap-permission-edge")
+      ? event.target.closest(".archmap-node,.archmap-edge,.archmap-zone,.archmap-boundary,.archmap-permission-edge,.archmap-crossing")
       : null;
     if (!source) return;
     const type = selectableKind(source);
@@ -604,10 +611,10 @@ function metadataOverlays(model: ArchMapModel): string[] {
   return typeof value === "object" ? value.overlays ?? [] : [];
 }
 
-function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[], presence?: PhasePresence): string | undefined {
+function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, view: string, overlays: string[], presence?: PhasePresence, crossingFocus?: CrossingFocusOptions): string | undefined {
   // An active timeline phase routes zero-overlay renders through this shared
   // path too, so time decoration lands in the same renderDiagram spec.
-  if ((overlays.length === 0 && !presence) || (view !== "overview" && view !== "topology" && view !== "zone" && view !== "layer")) return undefined;
+  if ((overlays.length === 0 && !presence && !crossingFocus) || (view !== "overview" && view !== "topology" && view !== "zone" && view !== "layer")) return undefined;
   const projection = buildOverlayProjection(model, layout, overlays, presence ? { phase: presence.phaseId, baseView: view, view } : { baseView: view, view });
   const timeDecoration = presence ? buildTimeDecoration(presence) : undefined;
   const collapsedZoneIds = new Set(model.nodes
@@ -631,8 +638,23 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
       if (a !== undefined && b !== undefined && a !== b) baseEdges.add(edge.id);
     }
   }
-  const emphasizeEdges = projection.emphasizeEdges || baseEdges.size
-    ? new Set([...(projection.emphasizeEdges ?? []), ...baseEdges])
+  const crossingProjection = crossingFocus ? (() => {
+    const normalized = normalizeTopology(model);
+    const analysis = analyzeTopology(normalized.topology, { legacyAssertions: normalized.legacyAssertions });
+    const projected = projectTopology(normalized.topology, analysis, {
+      edges: { include: crossingFocus.edgeIds, crossingRoles: crossingFocus.roles },
+      containers: crossingFocus.boundaryIds ? { include: crossingFocus.boundaryIds } : undefined,
+      crossings: { roles: crossingFocus.roles },
+    });
+    const boundaryIds = crossingFocus.boundaryIds ? new Set(crossingFocus.boundaryIds) : undefined;
+    const crossings = projected.analysis.crossings.filter((crossing) => (
+      crossing.traversal === "forward" && (!boundaryIds || boundaryIds.has(crossing.boundaryId))
+    ));
+    return { normalized, projected, crossings };
+  })() : undefined;
+  const crossingEdgeIds = crossingProjection?.crossings.map((crossing) => crossing.edgeId) ?? [];
+  const emphasizeEdges = projection.emphasizeEdges || baseEdges.size || crossingEdgeIds.length
+    ? new Set([...(projection.emphasizeEdges ?? []), ...baseEdges, ...crossingEdgeIds])
     : undefined;
   const baseBoxGroups = view === "layer"
     ? [{ boxes: layerBoxes({ model, layout, options: { baseView: view, overlays } }), boxClass: "archmap-layer" }]
@@ -666,6 +688,12 @@ function renderBaseViewWithOverlays(model: ArchMapModel, layout: LayoutResult, v
     edgeExtraClasses: timeDecoration?.edgeExtraClasses,
     boxExtraClasses: timeDecoration?.boxExtraClasses,
     ...(zoneStyles ?? {}),
+    crossingFocus: crossingProjection ? {
+      crossings: crossingProjection.crossings,
+      containers: crossingProjection.normalized.topology.containers,
+      visibleContainerIds: crossingProjection.projected.visibleContainerIds,
+      showLabels: crossingFocus?.showLabels,
+    } : undefined,
   });
 }
 
@@ -765,7 +793,7 @@ export function render(model: ArchMapModel, options: RenderOptions = {}, viewReg
     const presence = state.phase ? computePhasePresence(effectiveModel, state.phase) : undefined;
     const renderOptions = { ...options, baseView: state.requestedView, renderMode: state.renderMode, overlays: state.overlays, abstractionLevel: state.abstractionLevel, abstractionTarget: state.abstractionTarget, phase: state.phase };
     const diagnosticContext = { baseView: state.requestedView, view: state.view };
-    const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays, presence);
+    const overlaidSvg = state.view === "prototype" ? undefined : renderBaseViewWithOverlays(effectiveModel, layout, state.view, knownOverlays, presence, options.crossingFocus);
     const out = overlaidSvg ?? renderer({ model: effectiveModel, layout, options: renderOptions });
     const viewDone = nowMs();
     const finishTimings = (): void => {

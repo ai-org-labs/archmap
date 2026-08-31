@@ -2,15 +2,16 @@
   "task_id": "TASK-121",
   "title": "Crossing-focused topology visualization",
   "description": "Add purpose-specific crossing visualization to Overview/Topology using the proven analysis and existing component-safe layout/routing system.",
-  "status": "open",
+  "status": "done",
   "origin": "archmap-next-baseline",
   "created_at": "2026-08-31T12:00:00.000+09:00",
-  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-09-01T03:20:00+09:00",
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "completion_criteria": [
     "Visible-boundary markers align with real outline intersections.",
     "Hidden-boundary markers remain readable on the associated Edge.",
     "Focus mode emphasizes Edge, direction, role, and boundary without label or component collisions.",
     "Minimap, pan/zoom, export, and selection use the same projected geometry."
-  ]
+  ],
+  "triage_notes": "Added crossingFocus rendering over final routed edge geometry, exact visible-container outline intersections, stable hidden-container markers, blocker-aware labels, role/edge/boundary projection filters, selectable canonical Edge markers, SVG export-compatible metadata, focused tests, full 317-test verification, typecheck, and production build."
 }
