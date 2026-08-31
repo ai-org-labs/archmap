@@ -55,7 +55,8 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json && npm run build:lifecycle",
+    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json && npm run build:lifecycle && npm run build:site",
+    "build:site": "vite build -c vite.config.site.ts",
     "build:lifecycle": "npm run build --workspace @archmap/lifecycle",
     "bench:render": "node tools/bench-render.mjs",
     "bench:runtime": "node tools/bench-runtime.mjs",

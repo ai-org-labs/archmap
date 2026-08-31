@@ -1,0 +1,24 @@
+{
+  "task_id": "TASK-125",
+  "title": "Split the ArchMap sample site by user intent",
+  "description": "Separate the Next topology showcase, full DSL playground, example gallery, ScreenFlow prototype, and lifecycle preview while sharing one Core bundle and sample registry.",
+  "status": "completed",
+  "origin": "archmap-next-sample-site",
+  "created_at": "2026-09-01T13:00:00+09:00",
+  "updated_at": "2026-09-01T13:51:16+09:00",
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "completion_criteria": [
+    "The root page presents the ArchMap Next boundary-analysis experience.",
+    "Playground, gallery, prototype, and lifecycle experiences have stable dedicated URLs.",
+    "All pages reuse DEFAULT_ARCHMAP_SAMPLES and the same Core rendering APIs.",
+    "The GitHub Pages build publishes and verifies every route.",
+    "Focused browser and build checks pass without changing public Core behavior."
+  ],
+  "evidence": [
+    "Root, playground, examples, prototype, and lifecycle routes passed in-app browser smoke checks.",
+    "Dedicated pages open in Topology, Prototype, and Requirements views respectively.",
+    "npm run typecheck, npm test -- --run (327 tests), npm run build, and git diff --check passed.",
+    "The Pages assembly contains every route plus ScreenFlow image assets with relative build URLs."
+  ],
+  "notes": "The site shares DEFAULT_ARCHMAP_SAMPLES and Core APIs. Optional icons, lifecycle, and Three.js are loaded only on routes that need them. The existing dev server remains visible on port 5173."
+}

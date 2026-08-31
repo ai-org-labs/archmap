@@ -36,28 +36,23 @@ jobs:
       - name: Assemble Pages site
         run: |
           mkdir -p _site/packages/lifecycle
-          cp -R dist examples docs _site/
+          mkdir -p _site/examples/screens
+          cp -R site-dist/. _site/
+          cp examples/screens/* _site/examples/screens/
+          cp -R dist docs _site/
           cp -R packages/lifecycle/dist _site/packages/lifecycle/
           cp README.md SPEC.md LICENSE THIRD_PARTY_NOTICES.md _site/
-          cp examples/demo.html _site/index.html
-          node - <<'NODE'
-          const fs = require("node:fs");
-          const path = "_site/index.html";
-          const html = fs.readFileSync(path, "utf8")
-            .replaceAll("../dist/", "./dist/")
-            .replaceAll("../packages/lifecycle/dist/", "./packages/lifecycle/dist/");
-          fs.writeFileSync(path, html);
-          NODE
 
       - name: Verify standalone assets
         run: |
           test -f _site/dist/archmap.js
           test -f _site/dist/views3d/three-view.js
           test -f _site/packages/lifecycle/dist/index.js
-          grep -q '"@archmap/core": "./dist/archmap.js"' _site/index.html
-          grep -q '"@archmap/lifecycle": "./packages/lifecycle/dist/index.js"' _site/index.html
-          grep -q '"@archmap/core": "../dist/archmap.js"' _site/examples/demo.html
-          grep -q '"@archmap/lifecycle": "../packages/lifecycle/dist/index.js"' _site/examples/demo.html
+          test -f _site/index.html
+          test -f _site/playground/index.html
+          test -f _site/examples/index.html
+          test -f _site/prototype/index.html
+          test -f _site/lifecycle/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
