@@ -94,6 +94,14 @@ export type {
   ContainerLayoutFailure,
   ContainerLayoutFailureCode,
 } from "./topology-forest.js";
+export { analyzeTopology } from "./topology-analysis.js";
+export type {
+  DerivedTopologyAnalysis,
+  TopologyDerivationDiagnostic,
+  TopologyDerivationDiagnosticCode,
+  TopologyDerivationDiagnosticLevel,
+  TopologyDerivationOptions,
+} from "./topology-analysis.js";
 export { graphElements, query, trace } from "./query.js";
 export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {

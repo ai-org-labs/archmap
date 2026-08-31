@@ -2,10 +2,10 @@
   "task_id": "TASK-119",
   "title": "Derived crossing and overlay-transition analysis",
   "description": "Derive ordered enter/exit crossings and gained/lost/shared Overlay transitions for directed and bidirectional Resource communication.",
-  "status": "open",
+  "status": "done",
   "origin": "archmap-next-baseline",
   "created_at": "2026-08-31T12:00:00.000+09:00",
-  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-09-01T01:55:07+09:00",
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "completion_criteria": [
     "Crossing order follows source-inner exits then target-outer enters.",
@@ -13,5 +13,6 @@
     "Overlay transition sets are stable and explicit.",
     "Results do not change with layout geometry.",
     "Legacy assertions are diagnosed when they disagree with derived results."
-  ]
+  ],
+  "triage_notes": "Implemented analyzeTopology as a layout-independent public API. Verified ordered crossings, exact bidirectional inversion, stable explicit overlay transitions, legacy assertion diagnostics, endpoint/reference diagnostics, typecheck, focused tests (18 passing), production build, and AOF organization verification (46/46)."
 }
