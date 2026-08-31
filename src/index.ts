@@ -84,6 +84,16 @@ export type {
   TopologyNormalizationDiagnosticLevel,
   TopologyNormalizationResult,
 } from "./topology-normalize.js";
+export { analyzeContainerForest, validateContainerLayout } from "./topology-forest.js";
+export type {
+  ContainerForest,
+  ContainerForestDiagnostic,
+  ContainerForestDiagnosticCode,
+  ContainerForestDiagnosticLevel,
+  ContainerLayoutBox,
+  ContainerLayoutFailure,
+  ContainerLayoutFailureCode,
+} from "./topology-forest.js";
 export { graphElements, query, trace } from "./query.js";
 export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {
