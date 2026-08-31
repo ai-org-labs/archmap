@@ -532,6 +532,83 @@ view:
 `),
   },
   {
+    id: "next-boundary-crossings",
+    title: "ArchMap Next boundary crossings",
+    category: "Architecture / boundary analysis",
+    description: "Direct Resource communication across nested Containers and an overlapping PCI Overlay; crossings and transitions are derived, not authored.",
+    recommendation: {
+      baseView: "topology",
+      renderMode: "2d",
+      overlays: ["zone", "boundary"],
+    },
+    source: source(`
+graph LR
+  User[Shopper] -->|HTTPS| EdgeLB[Public Load Balancer]
+  EdgeLB -->|HTTPS| API[Orders API]
+  API -->|SQL/TLS| DB[(Orders DB)]
+  API -->|HTTPS| Partner[Payment Partner]
+---
+title: "ArchMap Next: boundary crossings"
+description: "Containers model actual placement; overlays model overlapping scopes. Crossing facts are derived from direct Resource communication."
+nodes:
+  User:
+    kind: user
+  EdgeLB:
+    zone: public_subnet
+    layer: edge
+    kind: load_balancer
+    provider: aws
+  API:
+    zone: app_subnet
+    layer: runtime
+    kind: runtime_service
+    provider: aws
+  DB:
+    zone: data_subnet
+    layer: data
+    kind: relational_database
+    provider: aws
+  Partner:
+    zone: partner_systems
+    layer: external
+    kind: external_partner
+zones:
+  production_cloud:
+    label: Production Cloud
+    kind: cloud
+    contains:
+      - zone: production_vpc
+  production_vpc:
+    label: Production VPC
+    kind: network
+    contains:
+      - zone: public_subnet
+      - zone: app_subnet
+      - zone: data_subnet
+  public_subnet: { label: Public Subnet, kind: subnet, contains: [EdgeLB] }
+  app_subnet: { label: Application Subnet, kind: subnet, contains: [API] }
+  data_subnet: { label: Data Subnet, kind: subnet, contains: [DB] }
+  partner_systems: { label: Partner Systems, kind: partner, contains: [Partner] }
+boundaries:
+  pci_scope:
+    label: PCI Scope
+    kind: trust_boundary
+    contains: [API, DB]
+edges:
+  User->EdgeLB: { flow: request, protocol: HTTPS, port: 443 }
+  EdgeLB->API: { flow: request, protocol: HTTPS, port: 443 }
+  API->DB: { flow: data_access, protocol: TLS, port: 5432 }
+  API->Partner: { flow: request_response, protocol: HTTPS, port: 443 }
+layout:
+  mode: auto
+  direction: LR
+view:
+  default:
+    base: topology
+    overlays: [zone, boundary]
+`),
+  },
+  {
     id: "saas-control-plane",
     title: "SaaS control plane",
     category: "SaaS architecture",

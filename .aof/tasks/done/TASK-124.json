@@ -1,0 +1,16 @@
+{
+  "task_id": "TASK-124",
+  "title": "Expose ArchMap Next boundary-analysis sample",
+  "description": "Add a concise demo DSL that exercises Resource communication, nested Container Boundaries, overlapping Overlay Boundaries, derived Crossings, and Overlay Transitions.",
+  "status": "done",
+  "origin": "archmap-next-baseline",
+  "created_at": "2026-09-01T12:00:00+09:00",
+  "updated_at": "2026-09-01T12:39:00+09:00",
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "completion_criteria": [
+    "The demo sample selector exposes an ArchMap Next boundary-analysis sample.",
+    "The sample uses released DSL terms and requires no authored Crossing records.",
+    "Automated tests prove Container Crossings and Overlay Transitions are derived from the sample."
+  ],
+  "triage_notes": "Added the ArchMap Next boundary-crossings sample to the demo selector. The released DSL maps nodes to Resources, nested zones to Container Boundaries, boundaries to Overlay Boundaries, and edges to direct communication. A focused contract proves public-subnet exit/app-subnet enter Crossings plus PCI gained/lost Overlay Transitions without authored Crossing records. Verified 327 tests, typecheck, production builds, and deterministic 120/1000-Resource topology benchmarks."
+}

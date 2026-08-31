@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_ARCHMAP_SAMPLE_ID, DEFAULT_ARCHMAP_SAMPLES } from "../src/samples.js";
 import { parse } from "../src/parser-entry.js";
 import { render } from "../src/render.js";
+import { analyzeTopology } from "../src/topology-analysis.js";
+import { normalizeTopology } from "../src/topology-normalize.js";
 
 describe("default samples", () => {
   it("exposes about ten curated samples with a stable default", () => {
@@ -37,5 +39,25 @@ describe("default samples", () => {
     expect(sample).toBeDefined();
     expect(parse(sample!.source).direction).toBe("LR");
     expect(sample!.recommendation.baseView).toBe("layer");
+  });
+
+  it("derives Container Crossings and PCI Overlay Transitions from the Next sample", () => {
+    const sample = DEFAULT_ARCHMAP_SAMPLES.find((entry) => entry.id === "next-boundary-crossings");
+    expect(sample).toBeDefined();
+
+    const normalized = normalizeTopology(parse(sample!.source));
+    const analysis = analyzeTopology(normalized.topology);
+    const edge = normalized.topology.edges.find((entry) => entry.from === "EdgeLB" && entry.to === "API");
+    const partnerEdge = normalized.topology.edges.find((entry) => entry.from === "API" && entry.to === "Partner");
+
+    expect(edge).toBeDefined();
+    expect(partnerEdge).toBeDefined();
+    expect(analysis.crossingsForEdge(edge!.id).map((crossing) => [crossing.boundaryId, crossing.direction]))
+      .toEqual([
+        ["public_subnet", "exit"],
+        ["app_subnet", "enter"],
+      ]);
+    expect(analysis.overlayTransitionForEdge(edge!.id)).toMatchObject({ gained: ["pci_scope"] });
+    expect(analysis.overlayTransitionForEdge(partnerEdge!.id)).toMatchObject({ lost: ["pci_scope"] });
   });
 });
