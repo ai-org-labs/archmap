@@ -2,14 +2,23 @@
   "task_id": "TASK-116",
   "title": "Canonical topology model and analysis API",
   "description": "Add plugin-neutral Resource, Container, Overlay, direct communication Edge, Crossing, OverlayTransition, and analysis result types without replacing the released ArchMapModel.",
-  "status": "open",
+  "status": "done",
   "origin": "archmap-next-baseline",
   "created_at": "2026-08-31T12:00:00.000+09:00",
-  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-09-01T01:18:35+09:00",
+  "completed_at": "2026-09-01T01:18:35+09:00",
   "operating_goal_ref": ".aof/goals/operating-goal.json",
   "completion_criteria": [
     "Canonical topology types are exported and contain no cloud-provider hierarchy rules.",
     "Derived analysis is separated from authored topology input.",
     "Existing public parse/render model remains source compatible."
+  ],
+  "evidence": [
+    "src/topology.ts",
+    "src/index.ts",
+    "test/topology-model.test.ts",
+    "npm run typecheck",
+    "npm test -- --run test/topology-model.test.ts test/topology.test.ts",
+    "npm run build"
   ]
 }

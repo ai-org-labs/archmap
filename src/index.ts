@@ -55,6 +55,24 @@ export type {
   PluginCleanup,
 } from "./plugin.js";
 export { toCanonicalModel } from "./canonical.js";
+export { createTopologyAnalysis } from "./topology.js";
+export type {
+  ContainerBoundary,
+  Crossing,
+  CrossingDirection,
+  OverlayBoundary,
+  OverlayMember,
+  OverlayRenderHint,
+  OverlayTransition,
+  Resource,
+  TopologyAnalysis,
+  TopologyAnalysisResult,
+  TopologyEdge,
+  TopologyEdgeDirection,
+  TopologyExtensions,
+  TopologyModel,
+  TopologyTraversal,
+} from "./topology.js";
 export { graphElements, query, trace } from "./query.js";
 export type { GraphElementKind, GraphElementRef, QueryOptions, TraceOptions, TracePath, TraceResult } from "./query.js";
 export {
