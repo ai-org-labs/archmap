@@ -1,0 +1,16 @@
+{
+  "task_id": "TASK-122",
+  "title": "Topology validator plugin surface",
+  "description": "Provide validator extension points for provider containment, network feasibility, security rules, enforcedBy consistency, and custom architecture policy.",
+  "status": "open",
+  "origin": "archmap-next-baseline",
+  "created_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "completion_criteria": [
+    "Core contains no provider-specific containment truth.",
+    "Validators receive canonical topology and derived analysis.",
+    "enforcedBy checks require explicit path context and never infer invisible hops.",
+    "A custom validator can emit object-addressable diagnostics."
+  ]
+}

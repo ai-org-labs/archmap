@@ -1,12 +1,13 @@
 {
   "orientation_type": "project-orientation",
   "project_type": "library",
-  "domain_summary": "ArchMap DSL and renderer: preserve the v0.3 architecture platform while additively extending it into a requirements and lifecycle semantic graph for v0.4 through alternating Claude/Codex development.",
+  "domain_summary": "ArchMap DSL and renderer evolving into ArchMap Next System Topology as Code: preserve released architecture/lifecycle/runtime surfaces while introducing a canonical topology model that derives boundary crossings and overlay transitions from real Resource-to-Resource communication.",
   "repo_boundaries": [
     "src/: parser, normalization, validation, render, layout, view implementations.",
     "test/: Vitest coverage for parser, render, layout, icons, views, 3D scene, canonical adapter.",
     "docs/specs/v0.1/: authoritative architecture foundation; read before changing existing semantics.",
     "docs/specs/v0.4/: authoritative lifecycle direction and MVP acceptance contract.",
+    "docs/specs/next/: authoritative ArchMap Next topology, boundary, analysis, projection, and migration contract.",
     "packages/lifecycle/: planned @archmap/lifecycle workspace; lifecycle vocabulary, validation, and views must remain outside Core.",
     "docs/aof/STATUS.md and .aof/: shared handoff/runtime state for Claude/Codex alternation.",
     "examples/: demo ArchMap source and browser examples."
@@ -16,6 +17,9 @@
     "Do not break existing parse()/render() array-model compatibility without an explicit migration decision.",
     "Do not replace existing architecture collections with the lifecycle model; v0.4 is additive.",
     "Do not add Requirement/Risk/Test/Evidence vocabulary directly to Core; install it through @archmap/lifecycle.",
+    "Do not make layout geometry authoritative for containment, crossing, or overlay-transition semantics.",
+    "Do not create canonical shortcut edges when a View hides or collapses Resources.",
+    "Do not accept Boundary endpoints as real communication endpoints in the Next canonical topology.",
     "Do not remove existing examples or public exports without tests and a handoff note.",
     "Do not run destructive git commands unless the human explicitly requests them."
   ],
@@ -32,7 +36,7 @@
     "Update .aof tasks/goals or docs/aof/STATUS.md with handoff state before ending an agent session."
   ],
   "release_constraints": [
-    "Keep incremental migration order: parse -> normalize -> diagnostics -> overview.",
+    "Keep Next migration order: canonical types -> compatibility normalize -> forest validation -> derived analysis -> projection -> rendering.",
     "Warnings must not block render; errors should be trustworthy and spec-grounded.",
     "Renderer legibility must remain protected: no edge over node and no shared endpoints regressions.",
     "Existing browser-only usage and optional 3D/icons should remain opt-in compatible."

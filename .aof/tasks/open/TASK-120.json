@@ -1,0 +1,16 @@
+{
+  "task_id": "TASK-120",
+  "title": "Topology projection invariants",
+  "description": "Introduce View projection over canonical topology and analysis while forbidding hidden-resource shortcut edges and keeping Boundary and Crossing visibility independent.",
+  "status": "open",
+  "origin": "archmap-next-baseline",
+  "created_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "completion_criteria": [
+    "Hidden Resources remove incident Edges.",
+    "Projection never adds canonical Edges.",
+    "Crossings can remain visible while Containers are hidden.",
+    "Role-filtered cross-network/security/administrative projections are deterministic."
+  ]
+}

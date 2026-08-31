@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-115",
+  "title": "ArchMap Next topology requirements baseline",
+  "description": "Formalize the approved System Topology and Boundary Visualization direction, reconcile it with released ArchMap semantics, and run an FQA ambiguity/loss check before implementation.",
+  "status": "done",
+  "origin": "human-archmap-next-fqa-baseline",
+  "created_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "completed_at": "2026-08-31T12:00:00.000+09:00",
+  "completion_criteria": [
+    "Resource, Container Boundary, Overlay Boundary, Edge, Crossing, Overlay Transition, and View responsibilities are normative.",
+    "Crossing and transition derivation is deterministic and independent from layout geometry.",
+    "Legacy node/zone/boundary/subgraph/layer/boundaryCrossing behavior has an explicit migration disposition.",
+    "FQA findings identify and resolve semantic ambiguity before implementation tasks begin."
+  ],
+  "success_criteria": [
+    "An implementer can build analysis fixtures without guessing boundary order or projection behavior.",
+    "Existing syntax is not removed in the first Next release.",
+    "UI work cannot precede the canonical analysis proof gate."
+  ],
+  "evidence": [
+    "docs/specs/next/12-system-topology-boundary-model.md",
+    "docs/specs/next/13-compatibility-and-migration.md",
+    "docs/aof/ARCHMAP-NEXT-BASELINE-FQA-CHECK-2026-08-31.md"
+  ]
+}

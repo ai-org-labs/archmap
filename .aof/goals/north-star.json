@@ -1,7 +1,7 @@
 {
   "goal_type": "north-star",
-  "content": "ArchMap v0.1 spec alignment: one canonical model powers base views and overlays with trustworthy diagnostics and readable rendering.",
-  "updated_at": "2026-06-28T01:51:30.665Z",
+  "content": "ArchMap Next is a System Topology as Code engine: authors define endpoint resources, real direct communication, structural containers, and semantic overlays; Core deterministically derives crossings and transitions, validators judge domain correctness, and purpose-specific views never invent topology.",
+  "updated_at": "2026-08-31T12:00:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,

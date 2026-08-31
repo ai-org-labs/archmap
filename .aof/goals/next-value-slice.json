@@ -1,9 +1,9 @@
 {
   "goal_type": "next-value-slice",
-  "content": "TASK-108 is complete: ArchMap now projects human/AI-authored runtime snapshots into an original Runtime workspace without OTel or vendor connectors. The next value slice should deepen DSL-authored operational comparison and lifecycle traceability while preserving provenance and partial rendering.",
-  "updated_at": "2026-07-15T01:25:00.000+09:00",
+  "content": "ArchMap Next baseline is approved. The next value slice is TASK-116 through TASK-119: add a plugin-neutral canonical topology model, normalize legacy nodes/zones/boundaries into it, prove container ancestry, then derive ordered crossings and overlay transitions without geometry or invented edges.",
+  "updated_at": "2026-08-31T12:00:00.000+09:00",
   "agreed_with_human": true,
   "source_session_id": null,
   "source_decision_record_id": null,
-  "declared_complete_at": "2026-07-15T01:25:00.000+09:00"
+  "declared_complete_at": null
 }

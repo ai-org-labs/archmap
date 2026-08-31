@@ -1,0 +1,16 @@
+{
+  "task_id": "TASK-117",
+  "title": "Legacy architecture compatibility normalization",
+  "description": "Normalize released nodes/zones/boundaries/edges into Resources, Containers, Overlays, and direct communication candidates with provenance and migration diagnostics.",
+  "status": "open",
+  "origin": "archmap-next-baseline",
+  "created_at": "2026-08-31T12:00:00.000+09:00",
+  "updated_at": "2026-08-31T12:00:00.000+09:00",
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "completion_criteria": [
+    "Zone membership becomes one direct Container parent per Resource.",
+    "Legacy boundaries become explicit Overlay membership.",
+    "Subgraph and layer do not affect containment.",
+    "Manual boundaryCrossing is retained only as a comparable compatibility assertion."
+  ]
+}
