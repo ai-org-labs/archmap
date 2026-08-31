@@ -8,7 +8,16 @@ import {
   render as renderCore,
 } from "./render.js";
 import { ARCHMAP_VERSION } from "./types.js";
+import { analyzeTopology } from "./topology-analysis.js";
+import { normalizeTopology } from "./topology-normalize.js";
+import {
+  runTopologyValidators,
+  type TopologyValidationOptions,
+  type TopologyValidationResult,
+  type TopologyValidatorDefinition,
+} from "./topology-validator.js";
 import type { RenderOptions, RenderResult, ViewRenderer } from "./render.js";
+import type { TopologyModel } from "./topology.js";
 import type { ArchMapModel, Diagnostic } from "./types.js";
 
 export interface ElementTypeDefinition {
@@ -56,6 +65,7 @@ export interface ArchMapPlugin {
   elementTypes?: ElementTypeDefinition[];
   relationTypes?: RelationTypeDefinition[];
   validators?: ValidatorDefinition[];
+  topologyValidators?: TopologyValidatorDefinition[];
   views?: ViewDefinition[];
   overlays?: NamedDefinition[];
   policies?: NamedDefinition[];
@@ -71,6 +81,7 @@ export interface PluginContext {
   registerElementType(definition: ElementTypeDefinition): void;
   registerRelationType(definition: RelationTypeDefinition): void;
   registerValidator(definition: ValidatorDefinition): void;
+  registerTopologyValidator(definition: TopologyValidatorDefinition): void;
   registerView(name: string, renderer: ViewRenderer): void;
   registerOverlay(definition: NamedDefinition): void;
   registerPolicy(definition: NamedDefinition): void;
@@ -90,6 +101,8 @@ export interface ArchMapInstance {
   registerElementType(definition: ElementTypeDefinition): void;
   registerRelationType(definition: RelationTypeDefinition): void;
   registerValidator(definition: ValidatorDefinition): void;
+  registerTopologyValidator(definition: TopologyValidatorDefinition): void;
+  validateTopology(topology: TopologyModel, options?: TopologyValidationOptions): TopologyValidationResult;
   registerView(name: string, renderer: ViewRenderer): void;
   registerOverlay(definition: NamedDefinition): void;
   registerPolicy(definition: NamedDefinition): void;
@@ -103,6 +116,7 @@ export interface ArchMapInstance {
   listElementTypes(): string[];
   listRelationTypes(): string[];
   listValidators(): string[];
+  listTopologyValidators(): string[];
   listViews(): string[];
 }
 
@@ -145,6 +159,7 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
   const elementTypes = new Map<string, ElementTypeDefinition>();
   const relationTypes = new Map<string, RelationTypeDefinition>();
   const validators = new Map<string, ValidatorDefinition>();
+  const topologyValidators = new Map<string, TopologyValidatorDefinition>();
   const overlays = new Map<string, NamedDefinition>();
   const policies = new Map<string, NamedDefinition>();
   const serializers = new Map<string, NamedDefinition>();
@@ -186,6 +201,7 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
         for (const definition of plugin.elementTypes ?? []) instance.registerElementType(definition);
         for (const definition of plugin.relationTypes ?? []) instance.registerRelationType(definition);
         for (const definition of plugin.validators ?? []) instance.registerValidator(definition);
+        for (const definition of plugin.topologyValidators ?? []) instance.registerTopologyValidator(definition);
         for (const definition of plugin.views ?? []) instance.registerView(definition.name, definition.renderer);
         for (const definition of plugin.overlays ?? []) instance.registerOverlay(definition);
         for (const definition of plugin.policies ?? []) instance.registerPolicy(definition);
@@ -227,6 +243,18 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
           else model.infos.push(item);
         }
       }
+      if (topologyValidators.size > 0) {
+        const normalized = normalizeTopology(model);
+        const analysis = analyzeTopology(normalized.topology, { legacyAssertions: normalized.legacyAssertions });
+        const result = runTopologyValidators(instance, topologyValidators.values(), normalized.topology, {}, analysis);
+        for (const item of result.diagnostics) {
+          const level = item.level ?? item.severity;
+          if (level === "error") model.errors.push(item);
+          else if (level === "warning") model.warnings.push(item);
+          else if (level === "suggestion") model.suggestions.push(item);
+          else model.infos.push(item);
+        }
+      }
       syncDiagnostics(model);
       return model;
     },
@@ -234,6 +262,10 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
     registerElementType(definition) { registerNamed(elementTypes, definition, "Element type"); },
     registerRelationType(definition) { registerNamed(relationTypes, definition, "Relation type"); },
     registerValidator(definition) { registerNamed(validators, definition, "Validator"); },
+    registerTopologyValidator(definition) { registerNamed(topologyValidators, definition, "Topology validator"); },
+    validateTopology(topology, options) {
+      return runTopologyValidators(instance, topologyValidators.values(), topology, options);
+    },
     registerView(name, renderer) {
       if (views.has(name)) throw new Error(`View "${name}" is already registered.`);
       views.set(name, renderer);
@@ -251,6 +283,7 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
     listElementTypes: () => [...elementTypes.keys()],
     listRelationTypes: () => [...relationTypes.keys()],
     listValidators: () => [...validators.keys()],
+    listTopologyValidators: () => [...topologyValidators.keys()],
     listViews: () => [...views.keys()],
   };
 
@@ -259,6 +292,7 @@ function createArchMapWithViews(views: Map<string, ViewRenderer>): ArchMapInstan
     registerElementType: (definition) => instance.registerElementType(definition),
     registerRelationType: (definition) => instance.registerRelationType(definition),
     registerValidator: (definition) => instance.registerValidator(definition),
+    registerTopologyValidator: (definition) => instance.registerTopologyValidator(definition),
     registerView: (name, renderer) => instance.registerView(name, renderer),
     registerOverlay: (definition) => instance.registerOverlay(definition),
     registerPolicy: (definition) => instance.registerPolicy(definition),
@@ -290,9 +324,17 @@ export function parse(source: string): ArchMapModel {
   return defaultArchMap.parse(source);
 }
 
+export function validateTopology(
+  topology: TopologyModel,
+  options?: TopologyValidationOptions,
+): TopologyValidationResult {
+  return defaultArchMap.validateTopology(topology, options);
+}
+
 export const registerElementType = defaultArchMap.registerElementType;
 export const registerRelationType = defaultArchMap.registerRelationType;
 export const registerValidator = defaultArchMap.registerValidator;
+export const registerTopologyValidator = defaultArchMap.registerTopologyValidator;
 export const registerPolicy = defaultArchMap.registerPolicy;
 export const registerSerializer = defaultArchMap.registerSerializer;
 export const registerImporter = defaultArchMap.registerImporter;

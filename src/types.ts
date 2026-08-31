@@ -13,7 +13,20 @@ export type NodeShape = "rectangle" | "database" | "circle" | "diamond";
 
 export type DiagnosticSeverity = "error" | "warning" | "info";
 export type DiagnosticLevel = "error" | "warning" | "suggestion" | "info";
-export type DiagnosticKind = "node" | "edge" | "zone" | "boundary" | "identity" | "permission" | "data" | "view" | "extension";
+export type DiagnosticKind =
+  | "node"
+  | "edge"
+  | "zone"
+  | "boundary"
+  | "identity"
+  | "permission"
+  | "data"
+  | "view"
+  | "extension"
+  | "resource"
+  | "container"
+  | "overlay"
+  | "crossing";
 
 export interface DiagnosticTarget {
   type: DiagnosticKind;
@@ -21,7 +34,7 @@ export interface DiagnosticTarget {
 }
 
 export interface LegacyDiagnosticRef {
-  kind: Exclude<DiagnosticKind, "view">;
+  kind: "node" | "edge" | "zone" | "boundary" | "identity" | "permission" | "data" | "extension";
   id: string;
 }
 

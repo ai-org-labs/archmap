@@ -248,6 +248,18 @@ Because Edges are direct hops, Core must not claim that an Edge traverses a
 Firewall that is not an endpoint. An enforcement validator needs an explicit
 path/scenario context or a declared adjacent enforcement Resource.
 
+Core exposes `registerTopologyValidator()` and the plugin field
+`topologyValidators`. A topology validator receives the canonical
+`TopologyModel`, its deterministic `DerivedTopologyAnalysis`, and the owning
+`ArchMapInstance`. `validateTopology(topology, { paths })` can additionally
+provide explicit ordered Resource paths. If `paths` is omitted, `pathContext`
+is absent: Core never infers an invisible Firewall, Gateway, or other hop.
+
+Topology diagnostics can address canonical objects directly with target types
+`resource`, `container`, `overlay`, `edge`, and `crossing`. Provider packages
+therefore own provider containment truth without teaching Core GCP, AWS,
+Azure, or organization-specific architecture policy.
+
 ## 7. View projection
 
 A View can filter Resources, Edges, Containers, Overlays, crossings, and

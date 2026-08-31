@@ -31,10 +31,12 @@ export {
   createArchMap,
   defaultArchMap,
   parse,
+  validateTopology,
   use,
   registerElementType,
   registerRelationType,
   registerValidator,
+  registerTopologyValidator,
   registerPolicy,
   registerSerializer,
   registerImporter,
@@ -54,6 +56,15 @@ export type {
   PluginContext,
   PluginCleanup,
 } from "./plugin.js";
+export { createTopologyPathContext, runTopologyValidators } from "./topology-validator.js";
+export type {
+  TopologyPath,
+  TopologyPathContext,
+  TopologyValidationOptions,
+  TopologyValidationResult,
+  TopologyValidatorContext,
+  TopologyValidatorDefinition,
+} from "./topology-validator.js";
 export { toCanonicalModel } from "./canonical.js";
 export { createTopologyAnalysis } from "./topology.js";
 export type {

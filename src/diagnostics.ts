@@ -100,7 +100,9 @@ export function diagnostic(
     severity: severityFor(resolvedLevel),
     code,
     message,
-    ref: target && target.type !== "view" ? { kind: target.type, id: target.id } : undefined,
+    ref: target && ["node", "edge", "zone", "boundary", "identity", "permission", "data", "extension"].includes(target.type)
+      ? { kind: target.type as "node" | "edge" | "zone" | "boundary" | "identity" | "permission" | "data" | "extension", id: target.id }
+      : undefined,
     target,
   };
 }
