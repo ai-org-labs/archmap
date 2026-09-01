@@ -5,8 +5,8 @@ import { lifecycleValidator } from "./validate.js";
 
 export const lifecyclePlugin: ArchMapPlugin = {
   name: "@archmap/lifecycle",
-  version: "0.4.0-dev.1",
-  requires: { "@archmap/core": "^0.3.0" },
+  version: "0.4.1",
+  requires: { "@archmap/core": "^0.4.1" },
   elementTypes: [...LIFECYCLE_ELEMENT_TYPES],
   relationTypes: [...LIFECYCLE_RELATION_TYPES],
   validators: [lifecycleValidator],

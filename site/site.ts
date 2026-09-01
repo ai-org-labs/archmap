@@ -44,7 +44,7 @@ const navItems = [
 ] as const;
 
 function nav(): string {
-  return `<header class="topbar"><a class="brand" href="${route()}">ArchMap <span>Next</span></a><nav class="nav" aria-label="Demo sections">${navItems.map(([id, href, label]) => `<a href="${route(href)}"${id === page ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav><span class="version">v0.4.0</span></header>`;
+  return `<header class="topbar"><a class="brand" href="${route()}">ArchMap <span>Next</span></a><nav class="nav" aria-label="Demo sections">${navItems.map(([id, href, label]) => `<a href="${route(href)}"${id === page ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav><span class="version">v0.4.1</span></header>`;
 }
 
 const sampleById = (id: string): ArchMapSample | undefined => DEFAULT_ARCHMAP_SAMPLES.find((sample) => sample.id === id);
