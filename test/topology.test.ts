@@ -121,6 +121,8 @@ describe("Topology view", () => {
     expect(grouped.svg).toContain(".archmap-subgraph-box { fill: none;");
     expect(grouped.svg).toContain("stroke-dasharray: 7 5");
     expect(grouped.svg).toMatch(/--archmap-zone-fill:rgba\(\d+,\d+,\d+,0\.3\)/);
+    expect(grouped.svg).toMatch(/--archmap-zone-stroke:rgba\(\d+,\d+,\d+,0\.55\)/);
+    expect(grouped.svg).toMatch(/<rect class="archmap-subgraph-box"[^>]*rx="0" ry="0"/);
     expect(grouped.layout.width).toBe(plain.layout.width);
     expect(grouped.layout.height).toBe(plain.layout.height);
     expect(grouped.layout.nodes.map(({ id, x, y }) => ({ id, x, y }))).toEqual(plain.layout.nodes.map(({ id, x, y }) => ({ id, x, y })));

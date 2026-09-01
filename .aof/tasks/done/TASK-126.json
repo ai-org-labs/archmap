@@ -1,0 +1,26 @@
+{
+  "task_id": "TASK-126",
+  "title": "Standardize zone and subgraph boundary styling",
+  "description": "Apply a subtle same-family outline to zone areas and render subgraph guides with square orthogonal corners across shared 2D views.",
+  "status": "completed",
+  "origin": "renderer-area-style-consistency",
+  "created_at": "2026-09-01T14:10:00+09:00",
+  "updated_at": "2026-09-01T14:30:00+09:00",
+  "operating_goal_ref": ".aof/goals/operating-goal.json",
+  "completion_criteria": [
+    "Zone areas retain their translucent fill and gain a thin outline from the same palette family.",
+    "Subgraph area guides use square right-angle corners in every shared 2D renderer.",
+    "Zone outlines remain solid and subgraph outlines remain dashed.",
+    "Focused render and topology tests plus typecheck and build pass.",
+    "The local demo visually confirms both styles while the development server remains available."
+  ],
+  "evidence": [
+    "Focused render and topology suite: 72 tests passed.",
+    "npm run typecheck passed.",
+    "npm run build passed; only the existing bundle-size warning remains.",
+    "git diff --check passed.",
+    "Local browser verification confirmed zone fill rgba(237,248,243,0.3), same-family solid 1px stroke rgba(59,148,111,0.55), and subgraph fill none with dashed stroke and rx/ry 0.",
+    "Development server remains available at http://127.0.0.1:5173/."
+  ],
+  "notes": "Implementation is scoped to shared SVG area rendering and palette variables; DSL semantics and layout geometry remain unchanged."
+}

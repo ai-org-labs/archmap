@@ -212,7 +212,7 @@ describe("render", () => {
     expect(svg).toContain('data-id="gcp_db" data-from="GCPApp" data-to="CloudSQL" style="--archmap-edge-stroke:#d17732;--archmap-edge-label:#7a3f12"');
 
     const overlaid = render(m, { baseView: "overview", overlays: ["zone"] }).svg!;
-    expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:rgba(255,244,232,0.3);--archmap-zone-label:#7a3f12"');
+    expect(overlaid).toContain('data-id="gcp" data-depth="0" style="--archmap-zone-fill:rgba(255,244,232,0.3);--archmap-zone-stroke:rgba(209,119,50,0.55);--archmap-zone-label:#7a3f12"');
   });
 
   it("renders selectable topology crossing markers from the final overview geometry", () => {
@@ -562,13 +562,14 @@ zones:
     }
   });
 
-  it("draws zone containers as borderless area panels and boundaries as outlined panels", () => {
+  it("draws zone containers with subtle solid outlines and boundaries as outlined panels", () => {
     const m = parse(example);
     const svg = render(m, { baseView: "overview", overlays: ["zone", "boundary"] }).svg!;
     const style = svg.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? "";
     expect(style).toContain(".archmap-zone-box { fill:");
-    expect(style.match(/\.archmap-zone-box \{[^}]*stroke: none/)).toBeTruthy();
-    expect(svg).not.toContain("--archmap-zone-stroke:");
+    expect(style.match(/\.archmap-zone-box \{[^}]*stroke: var\(--archmap-zone-stroke/)).toBeTruthy();
+    expect(style.match(/\.archmap-zone-box \{[^}]*stroke-width: 1/)).toBeTruthy();
+    expect(svg).toContain("--archmap-zone-stroke:rgba(");
     expect(style).toContain(".archmap-boundary-box { fill:");
     expect(style.match(/\.archmap-zone-box \{[^}]*stroke-dasharray/)).toBeNull();
     expect(style.match(/\.archmap-boundary-box \{[^}]*stroke-dasharray/)).toBeNull();
@@ -843,6 +844,8 @@ zones:
     expect(withSubgraph).toContain("archmap-overlay-subgraph");
     expect(withSubgraph).toContain('class="archmap-subgraph archmap-subgraph-depth-0" data-id="Runtime"');
     expect(withSubgraph).toContain('class="archmap-subgraph-box"');
+    expect(withSubgraph).toContain('class="archmap-subgraph-box" x=');
+    expect(withSubgraph.match(/<rect class="archmap-subgraph-box"[^>]*rx="0" ry="0"/)).toBeTruthy();
     expect(withSubgraph).toContain(".archmap-subgraph-box { fill: none;");
     expect(withSubgraph.match(/\.archmap-subgraph-box \{[^}]*stroke-dasharray: 7 5/)).toBeTruthy();
 

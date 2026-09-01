@@ -599,7 +599,7 @@ export function renderDiagram(spec: DiagramSpec): string {
           const style = boxStyles?.get(b.id);
           const styleAttr = style ? ` style="${escapeXml(style)}"` : "";
           const extraClass = boxExtraClasses?.get(b.id);
-          const radius = group.boxClass === "archmap-layer" ? 0 : 14;
+          const radius = group.boxClass === "archmap-layer" || group.boxClass === "archmap-subgraph" ? 0 : 14;
           return (
             `<g class="${group.boxClass} ${group.boxClass}-depth-${depth}${extraClass ? ` ${extraClass}` : ""}" data-id="${escapeXml(b.id)}" data-depth="${depth}"${styleAttr}>` +
             `<rect class="${boxBoxClass}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="${radius}" ry="${radius}" />` +

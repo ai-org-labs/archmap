@@ -540,10 +540,10 @@ export const MARKERS = ARROW_MARKER + ARROW_MARKER_EMPH;
 
 /** Default theme: CSS variables with sensible fallbacks so the SVG renders standalone. */
 export const DEFAULT_STYLE = `
-.archmap-zone-box { fill: var(--archmap-zone-fill, rgba(226,238,250,0.62)); stroke: none; stroke-width: 0; }
-.archmap-zone-depth-1 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-1, rgba(249,240,218,0.55)); }
-.archmap-zone-depth-2 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-2, rgba(235,229,248,0.5)); }
-.archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); }
+.archmap-zone-box { fill: var(--archmap-zone-fill, rgba(226,238,250,0.62)); stroke: var(--archmap-zone-stroke, rgba(93,132,174,0.46)); stroke-width: 1; }
+.archmap-zone-depth-1 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-1, rgba(249,240,218,0.55)); stroke: var(--archmap-zone-stroke-depth-1, rgba(181,145,74,0.45)); }
+.archmap-zone-depth-2 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-2, rgba(235,229,248,0.5)); stroke: var(--archmap-zone-stroke-depth-2, rgba(125,103,166,0.42)); }
+.archmap-zone-depth-3 .archmap-zone-box { fill: var(--archmap-zone-fill-depth-3, rgba(226,246,236,0.48)); stroke: var(--archmap-zone-stroke-depth-3, rgba(74,143,106,0.42)); }
 .archmap-zone-label { fill: var(--archmap-zone-label, #687486); font: 700 13px var(--archmap-font, system-ui, sans-serif); }
 .archmap-zone { cursor: pointer; }
 .archmap-subgraph-box { fill: none; stroke: var(--archmap-subgraph-stroke, #94a3b8); stroke-width: 1.2; stroke-dasharray: 7 5; }
