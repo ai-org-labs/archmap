@@ -543,62 +543,52 @@ view:
     },
     source: source(`
 graph LR
-  User[Shopper] -->|HTTPS| EdgeLB[Public Load Balancer]
-  EdgeLB -->|HTTPS| API[Orders API]
-  API -->|SQL/TLS| DB[(Orders DB)]
-  API -->|HTTPS| Partner[Payment Partner]
 ---
 title: "ArchMap Next: boundary crossings"
 description: "Containers model actual placement; overlays model overlapping scopes. Crossing facts are derived from direct Resource communication."
-nodes:
-  User:
-    kind: user
-  EdgeLB:
-    zone: public_subnet
-    layer: edge
-    kind: load_balancer
-    provider: aws
-  API:
-    zone: app_subnet
-    layer: runtime
-    kind: runtime_service
-    provider: aws
-  DB:
-    zone: data_subnet
-    layer: data
-    kind: relational_database
-    provider: aws
-  Partner:
-    zone: partner_systems
-    layer: external
-    kind: external_partner
-zones:
-  production_cloud:
-    label: Production Cloud
-    kind: cloud
-    contains:
-      - zone: production_vpc
-  production_vpc:
-    label: Production VPC
-    kind: network
-    contains:
-      - zone: public_subnet
-      - zone: app_subnet
-      - zone: data_subnet
-  public_subnet: { label: Public Subnet, kind: subnet, contains: [EdgeLB] }
-  app_subnet: { label: Application Subnet, kind: subnet, contains: [API] }
-  data_subnet: { label: Data Subnet, kind: subnet, contains: [DB] }
-  partner_systems: { label: Partner Systems, kind: partner, contains: [Partner] }
-boundaries:
-  pci_scope:
-    label: PCI Scope
-    kind: trust_boundary
-    contains: [API, DB]
-edges:
-  User->EdgeLB: { flow: request, protocol: HTTPS, port: 443 }
-  EdgeLB->API: { flow: request, protocol: HTTPS, port: 443 }
-  API->DB: { flow: data_access, protocol: TLS, port: 5432 }
-  API->Partner: { flow: request_response, protocol: HTTPS, port: 443 }
+topology:
+  resources:
+    User: { label: Shopper, kind: user, parent: null }
+    EdgeLB: { label: Public Load Balancer, kind: load_balancer, parent: public_subnet }
+    API: { label: Orders API, kind: runtime_service, parent: app_subnet }
+    DB: { label: Orders DB, kind: relational_database, parent: data_subnet }
+    Partner: { label: Payment Partner, kind: external_partner, parent: partner_systems }
+  containers:
+    production_cloud:
+      label: Production Cloud
+      kind: aws.account
+      roles: [administrative]
+      parent: null
+    production_vpc:
+      label: Production VPC
+      kind: aws.vpc
+      roles: [network, security]
+      parent: production_cloud
+      enforcedBy: [EdgeLB]
+    public_subnet: { label: Public Subnet, kind: aws.subnet, roles: [network], parent: production_vpc }
+    app_subnet: { label: Application Subnet, kind: aws.subnet, roles: [network], parent: production_vpc }
+    data_subnet: { label: Data Subnet, kind: aws.subnet, roles: [network], parent: production_vpc }
+    partner_systems: { label: Partner Systems, kind: partner, roles: [administrative], parent: null }
+  overlays:
+    pci_scope:
+      label: PCI Scope
+      kind: compliance
+      roles: [security, compliance]
+      render: outline
+      members:
+        - { resource: API }
+        - { resource: DB }
+  edges:
+    user_to_edge: { from: User, to: EdgeLB, protocol: HTTPS, port: 443 }
+    edge_to_api: { from: EdgeLB, to: API, protocol: HTTPS, port: 443 }
+    api_to_db: { from: API, to: DB, protocol: TLS, port: 5432 }
+    api_to_partner:
+      from: API
+      to: Partner
+      direction: bidirectional
+      protocol: HTTPS
+      port: 443
+      note: Direct payment request and response.
 layout:
   mode: auto
   direction: LR

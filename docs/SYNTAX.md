@@ -849,7 +849,55 @@ Service ids and dependency endpoints refer to architecture node ids. Runtime
 View can switch among Design, Runtime, and Diff, group large maps, inspect an
 immediate dependency neighborhood, and export JSON, CSV, SVG, or PNG.
 
-### 6.5 CDN / GitHub Pages viewer
+### 6.5 ArchMap Next native topology
+
+Use `topology:` when the source of truth is direct communication, structural
+containment, and boundary-change analysis. This is a first-class authored
+model, not shorthand for `nodes` / `zones` / `boundaries`.
+
+```yaml
+graph LR
+---
+topology:
+  resources:
+    client: { label: Client, kind: user, parent: null }
+    api: { label: Orders API, kind: runtime_service, parent: app_subnet }
+    db: { label: Orders DB, kind: relational_database, parent: data_subnet }
+  containers:
+    cloud: { label: Production Cloud, kind: aws.account, roles: [administrative], parent: null }
+    vpc: { label: Production VPC, kind: aws.vpc, roles: [network, security], parent: cloud, enforcedBy: [api] }
+    app_subnet: { label: App Subnet, kind: aws.subnet, roles: [network], parent: vpc }
+    data_subnet: { label: Data Subnet, kind: aws.subnet, roles: [network], parent: vpc }
+  overlays:
+    pci_scope:
+      roles: [security, compliance]
+      render: outline
+      members: [{ resource: api }, { resource: db }]
+  edges:
+    api_db: { from: api, to: db, protocol: TLS, port: 5432 }
+```
+
+Normative rules:
+
+- `resources` are the only legal Edge endpoints.
+- `containers` form a single-parent forest; multiple roots are valid.
+- `overlays` are explicit sets and may overlap freely. Container membership
+  does not implicitly add descendant Resources.
+- Every Edge is one real direct communication hop. Do not skip a load
+  balancer, gateway, proxy, queue, or other real intermediary.
+- `direction` is `directed` by default or `bidirectional`.
+- `crossings` and `overlayTransitions` are derived by ArchMap. Authoring them,
+  including under `topology.analysis`, is an error.
+- Provider-specific correctness belongs to topology validator plugins. Core
+  validates references, containment, endpoint types, and deterministic
+  analysis without pretending to be a cloud simulator.
+
+The parser retains this native model at `model.topology`. Existing Overview
+and Topology renderers receive a compatibility projection, while
+`analyzeTopology(model.topology)` returns structural Crossings and Overlay
+Transitions independently of layout geometry.
+
+### 6.6 CDN / GitHub Pages viewer
 
 For a static viewer page, use an import map. After npm publication, replace
 `0.2.1` with the published version you want to pin:

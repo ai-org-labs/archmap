@@ -23,6 +23,7 @@ import {
   presenceInterval,
   timelinePhaseIndex,
 } from "./time-projection.js";
+import { analyzeTopology } from "./topology-analysis.js";
 
 const TOKEN_REQUIRED_FLOWS = new Set(["token_issue", "token_validate"]);
 const TOKEN_VALIDATOR_REQUIRED_FLOWS = new Set(["request", "request_response", "token_validate"]);
@@ -168,6 +169,7 @@ export function validate(model: ArchMapModel): ArchMapModel {
   }
 
   const zoneOf = new Map(model.nodes.map((n) => [n.id, n.resolvedZone === "unknown" ? undefined : n.resolvedZone ?? n.zone]));
+  const nativeTopologyEdgeIds = new Set(model.topology?.edges.map((edge) => edge.id) ?? []);
 
   // §23.2 — edge-level warnings.
   for (const e of model.edges) {
@@ -206,7 +208,7 @@ export function validate(model: ArchMapModel): ArchMapModel {
     const fromZone = zoneOf.get(e.from);
     const toZone = zoneOf.get(e.to);
     const crossesZone = fromZone !== undefined && toZone !== undefined && fromZone !== toZone;
-    if (crossesZone && e.boundaryCrossing === undefined) {
+    if (crossesZone && e.boundaryCrossing === undefined && !nativeTopologyEdgeIds.has(e.id)) {
       warnings.push(diagnostic("zone_crossing_without_boundary", `Edge "${e.id}" crosses zones (${fromZone} -> ${toZone}) but boundaryCrossing is missing.`, { type: "edge", id: e.id }));
     }
     if (crossesZone && e.boundaryCrossing?.assertedFalse) {
@@ -505,6 +507,38 @@ export function validate(model: ArchMapModel): ArchMapModel {
     }
     for (const event of model.runtime.events) {
       if (event.target && !runtimeTargets.has(event.target)) warnings.push(diagnostic("runtime_unknown_event_target", `Runtime event "${event.id}" references unknown target "${event.target}".`, { type: "view", id: event.id }));
+    }
+  }
+
+  if (model.topology) {
+    const analysis = analyzeTopology(model.topology);
+    for (const item of analysis.diagnostics) {
+      const target = { type: item.target.type, id: item.target.id } as const;
+      errors.push(diagnostic(item.code, item.message, target, item.level));
+    }
+    const resourceIds = new Set(model.topology.resources.map((resource) => resource.id));
+    const allIds = new Map<string, string>();
+    for (const [type, entries] of [
+      ["resource", model.topology.resources],
+      ["container", model.topology.containers],
+      ["overlay", model.topology.overlays],
+      ["edge", model.topology.edges],
+    ] as const) {
+      for (const entry of entries) {
+        const existing = allIds.get(entry.id);
+        if (existing && existing !== type) {
+          errors.push(diagnostic("topology_id_kind_collision", `Topology id "${entry.id}" is used by both ${existing} and ${type}.`, { type, id: entry.id }, "error"));
+        } else {
+          allIds.set(entry.id, type);
+        }
+      }
+    }
+    for (const container of model.topology.containers) {
+      for (const enforcer of container.enforcedBy ?? []) {
+        if (!resourceIds.has(enforcer)) {
+          errors.push(diagnostic("topology_enforcer_unknown", `Container "${container.id}" is enforced by unknown Resource "${enforcer}".`, { type: "container", id: container.id }, "error"));
+        }
+      }
     }
   }
 

@@ -56,16 +56,43 @@ interface TopologyModel {
   containers: ContainerBoundary[];
   overlays: OverlayBoundary[];
   edges: TopologyEdge[];
-  views: TopologyView[];
-  analysis: {
-    crossings: Crossing[];
-    overlayTransitions: OverlayTransition[];
-  };
+}
+
+interface TopologyAnalysisResult {
+  crossings: Crossing[];
+  overlayTransitions: OverlayTransition[];
 }
 ```
 
-`analysis` is generated output. Parsed author input must not be trusted as
-canonical derived analysis.
+`TopologyModel` contains author-controlled facts only. Views remain in the
+owning ArchMap document, and `TopologyAnalysisResult` is generated output.
+Parsed author input must not be trusted as canonical derived analysis.
+
+### 3.0 Native DSL surface
+
+The normative authored surface is the top-level YAML `topology:` mapping:
+
+```yaml
+topology:
+  resources:
+    API: { label: Orders API, kind: runtime_service, parent: app_subnet }
+    DB: { label: Orders DB, kind: relational_database, parent: data_subnet }
+  containers:
+    vpc: { kind: aws.vpc, roles: [network, security], parent: null }
+    app_subnet: { kind: aws.subnet, roles: [network], parent: vpc }
+    data_subnet: { kind: aws.subnet, roles: [network], parent: vpc }
+  overlays:
+    pci:
+      roles: [security, compliance]
+      render: outline
+      members: [{ resource: API }, { resource: DB }]
+  edges:
+    api_db: { from: API, to: DB, protocol: TLS, port: 5432 }
+```
+
+The keys `analysis`, `crossings`, and `overlayTransitions` are forbidden as
+authored children of `topology`. Their presence is an error and their values
+are ignored.
 
 ### 3.1 Resource
 

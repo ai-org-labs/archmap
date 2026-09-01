@@ -286,6 +286,32 @@ Use Runtime View for health, traffic, latency, saturation, recent events, and
 Design/Runtime/Diff comparison. Use Overview or Topology for intended
 structure. The same DSL remains the source of truth for both.
 
+### ArchMap Next topology and boundary analysis
+
+When the request asks which real communications cross network, security,
+administrative, compliance, or ownership boundaries, prefer the native
+`topology:` section.
+
+- Write every endpoint-capable entity under `topology.resources`.
+- Give each Resource only its direct `parent` Container, or `null`.
+- Write structural ownership/placement under `topology.containers`; Containers
+  are a forest and sibling Containers do not semantically overlap.
+- Write overlapping concerns such as PCI, production, personal data, or team
+  ownership under `topology.overlays` with explicit members.
+- Write one `topology.edges` entry for every real direct communication hop.
+  `Client -> LB -> API` requires two Edges; never collapse it to
+  `Client -> API`.
+- Never write Crossings or Overlay Transitions. ArchMap derives them by
+  comparing endpoint membership. Layout and dragging do not change them.
+- `enforcedBy` associates a Container with enforcing Resources but does not
+  claim that traffic traverses an invisible hop. Leave route consistency to a
+  validator or explicit path context.
+- Do not use Container or Overlay IDs as Edge endpoints.
+
+Legacy `nodes` / `zones` / `boundaries` documents remain valid. Do not mix the
+two authoring models merely to duplicate facts; native topology is projected
+to legacy renderer collections automatically.
+
 ### Requirements and lifecycle traceability
 
 When the request includes requirements, acceptance, quality evidence, risk, or
@@ -328,6 +354,8 @@ location supplied by the user or tool output.
 - Unknown facts are marked as assumptions/TODOs, not silently invented.
 - Lifecycle IDs are stable, relation endpoints exist, and each claimed
   Requirement -> Acceptance Criterion -> Test -> Evidence chain is truthful.
+- Native topology Edges connect Resources only, represent direct hops, and do
+  not contain authored Crossing or Transition output.
 - If tooling is available, run the source through `parse(source)` or the
   playground and fix diagnostics.
 

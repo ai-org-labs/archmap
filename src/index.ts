@@ -67,6 +67,8 @@ export type {
 } from "./topology-validator.js";
 export { toCanonicalModel } from "./canonical.js";
 export { createTopologyAnalysis } from "./topology.js";
+export { parseTopologySection, projectTopologyCompatibility } from "./topology-parser.js";
+export type { ParsedTopologySection } from "./topology-parser.js";
 export type {
   ContainerBoundary,
   Crossing,

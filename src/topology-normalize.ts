@@ -24,6 +24,7 @@ export interface LegacyBoundaryCrossingAssertion {
 
 export type TopologyNormalizationDiagnosticLevel = "info" | "warning";
 export type TopologyNormalizationDiagnosticCode =
+  | "native_topology_preserved"
   | "legacy_topology_normalized"
   | "legacy_resource_parent_unknown"
   | "legacy_container_parent_unknown"
@@ -275,6 +276,17 @@ function normalizeEdges(
  * they never become derived Crossing records here.
  */
 export function normalizeTopology(model: ArchMapModel): TopologyNormalizationResult {
+  if (model.topology) {
+    return {
+      topology: model.topology,
+      legacyAssertions: [],
+      diagnostics: [{
+        level: "info",
+        code: "native_topology_preserved",
+        message: `Using native topology with ${model.topology.resources.length} Resources, ${model.topology.containers.length} Containers, ${model.topology.overlays.length} Overlays, and ${model.topology.edges.length} direct communication Edges.`,
+      }],
+    };
+  }
   const diagnostics: TopologyNormalizationDiagnostic[] = [];
   const assertions: LegacyBoundaryCrossingAssertion[] = [];
   const resourceIds = new Set(model.nodes.map((node) => node.id));

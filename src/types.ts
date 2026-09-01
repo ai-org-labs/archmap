@@ -428,6 +428,8 @@ export interface ArchMapModel {
   scenarios: Scenario[];
   timeline?: Timeline;
   runtime?: RuntimeModel;
+  /** ArchMap Next authored topology. Crossings and transitions are derived separately. */
+  topology?: import("./topology.js").TopologyModel;
   layout?: Layout;
   view?: ViewConfig;
   extensions?: ExtensionGraph;
@@ -463,6 +465,8 @@ export interface CanonicalArchMapModel {
   /** Ordered timeline; order is semantic, so phases stay an array here too. */
   timeline?: Timeline;
   runtime?: RuntimeModel;
+  /** ArchMap Next authored topology. Crossings and transitions are never serialized here. */
+  topology?: import("./topology.js").TopologyModel;
   layout?: Layout;
   view?: ViewConfig;
   extensions?: ExtensionGraph;

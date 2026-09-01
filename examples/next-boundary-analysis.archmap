@@ -1,0 +1,54 @@
+graph LR
+---
+title: "ArchMap Next boundary analysis"
+description: "Direct Resource communication across structural Containers and an overlapping PCI scope."
+topology:
+  resources:
+    User: { label: Shopper, kind: user, parent: null }
+    EdgeLB: { label: Public Load Balancer, kind: load_balancer, parent: public_subnet }
+    API: { label: Orders API, kind: runtime_service, parent: app_subnet }
+    DB: { label: Orders DB, kind: relational_database, parent: data_subnet }
+    Partner: { label: Payment Partner, kind: external_partner, parent: partner_systems }
+  containers:
+    production_cloud:
+      label: Production Cloud
+      kind: aws.account
+      roles: [administrative]
+      parent: null
+    production_vpc:
+      label: Production VPC
+      kind: aws.vpc
+      roles: [network, security]
+      parent: production_cloud
+      enforcedBy: [EdgeLB]
+    public_subnet: { label: Public Subnet, kind: aws.subnet, roles: [network], parent: production_vpc }
+    app_subnet: { label: Application Subnet, kind: aws.subnet, roles: [network], parent: production_vpc }
+    data_subnet: { label: Data Subnet, kind: aws.subnet, roles: [network], parent: production_vpc }
+    partner_systems: { label: Partner Systems, kind: partner, roles: [administrative], parent: null }
+  overlays:
+    pci_scope:
+      label: PCI Scope
+      kind: compliance
+      roles: [security, compliance]
+      render: outline
+      members:
+        - { resource: API }
+        - { resource: DB }
+  edges:
+    user_to_edge: { from: User, to: EdgeLB, protocol: HTTPS, port: 443 }
+    edge_to_api: { from: EdgeLB, to: API, protocol: HTTPS, port: 443 }
+    api_to_db: { from: API, to: DB, protocol: TLS, port: 5432 }
+    api_to_partner:
+      from: API
+      to: Partner
+      direction: bidirectional
+      protocol: HTTPS
+      port: 443
+      note: Direct payment request and response.
+layout:
+  mode: auto
+  direction: LR
+view:
+  default:
+    base: topology
+    overlays: [zone, boundary]

@@ -1,0 +1,23 @@
+{
+  "task_id": "TASK-127",
+  "title": "Expose the ArchMap Next topology model as first-class DSL",
+  "description": "Add a native topology YAML section for Resources, Container Boundaries, Overlay Boundaries, and direct communication Edges, then derive crossings and project the authored facts into existing renderers without breaking legacy documents.",
+  "status": "completed",
+  "origin": "archmap-next-dsl-gap",
+  "created_at": "2026-09-01T15:00:00+09:00",
+  "updated_at": "2026-09-01T15:30:00+09:00",
+  "completion_criteria": [
+    "parse() preserves a native topology section on ArchMapModel.",
+    "Resources and direct Resource-to-Resource Edges are usable by existing 2D renderers through a compatibility projection.",
+    "Container forest, endpoint, overlay membership, and derived crossing diagnostics run for native topology input.",
+    "Authored crossing or analysis output is rejected as derived-only data.",
+    "A native Next sample, syntax reference, AI authoring guidance, focused tests, QIF evidence, and browser verification are complete."
+  ],
+  "evidence": [
+    "Native topology parser, compatibility projection, canonical retention, analysis validation, sample, documentation, and focused tests are implemented.",
+    "Focused topology suite passed 34 tests; full regression passed 332 tests; typecheck and production build passed.",
+    "Browser smoke rendered 5 Resources, 6 Containers, 1 Overlay, and 4 Edges with zero errors and zero warnings.",
+    "QIF evidence: docs/aof/ARCHMAP-NEXT-NATIVE-TOPOLOGY-QIF-CHECK-2026-09-01.md"
+  ],
+  "notes": "The native topology is the semantic source of truth. Existing nodes/zones/boundaries/edges are populated only as a compatibility renderer bridge. Provider-specific rules remain validator extensions."
+}

@@ -35,6 +35,7 @@ import type {
   Zone,
 } from "../types.js";
 import { ARCHMAP_VERSION } from "../types.js";
+import { parseTopologySection, projectTopologyCompatibility } from "../topology-parser.js";
 import type { GraphParseResult } from "./graph.js";
 import { applyEdgeInference } from "./inference.js";
 
@@ -575,6 +576,17 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     }
   }
 
+  // --- ArchMap Next authored topology --------------------------------------
+  // This is the canonical authoring surface. Compatibility collections are a
+  // renderer bridge only; semantic analysis always reads `model.topology`.
+  const parsedTopology = parseTopologySection(meta.topology);
+  for (const item of parsedTopology.diagnostics) {
+    (item.level === "error" ? errors : warnings).push(item);
+  }
+  if (parsedTopology.topology) {
+    projectTopologyCompatibility(parsedTopology.topology, nodes, edges, zones, boundaries);
+  }
+
   normalizeStage2({ nodes, edges, zones, boundaries, data, warnings, errors });
 
   // --- Layout / View / Title ------------------------------------------------
@@ -606,6 +618,7 @@ export function buildModel(graph: GraphParseResult, metadataYaml: string): ArchM
     scenarios,
     timeline,
     runtime,
+    topology: parsedTopology.topology,
     layout,
     view,
     diagnostics: [],
