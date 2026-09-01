@@ -18,8 +18,8 @@ slice and focused sample pages publicly inspectable?
 | Next semantic integrity | Topology model, forest, crossing, transition, projection tests | Pass: `npm run verify:next` and deterministic benchmark |
 | Build integrity | Core, extras, lifecycle, site production builds | Pass: production build completed |
 | Package integrity | Core and lifecycle dry-run package manifests | Pass: Core 95 files; Lifecycle 17 files |
-| Pages integrity | Root and four focused routes with standalone assets | Local pass; public deployment verification pending |
-| Release traceability | Release notes, tag, GitHub Release, AOF handoff | Release notes and handoff present; tag/release pending this gate |
+| Pages integrity | Root and four focused routes with standalone assets | Pass: workflow `33489493413` and all five public routes |
+| Release traceability | Release notes, tag, GitHub Release, AOF handoff | Ready: notes and final handoff tracked; tag/release follow this gate commit |
 
 ## Known constraint
 
@@ -42,13 +42,21 @@ Overlay Transition results during migration.
 - In-app browser smoke passed for `/`, `/playground/`, `/examples/`,
   `/prototype/`, and `/lifecycle/`; every route exposed its intended page and
   the `v0.4.1` site badge.
+- GitHub Pages workflow
+  [`33489493413`](https://github.com/ai-org-labs/archmap/actions/runs/33489493413)
+  completed successfully, including standalone asset verification and deploy.
+- Public browser smoke passed for
+  [`/archmap/`](https://ai-org-labs.github.io/archmap/),
+  [`/playground/`](https://ai-org-labs.github.io/archmap/playground/),
+  [`/examples/`](https://ai-org-labs.github.io/archmap/examples/),
+  [`/prototype/`](https://ai-org-labs.github.io/archmap/prototype/), and
+  [`/lifecycle/`](https://ai-org-labs.github.io/archmap/lifecycle/).
 - Residual: the site build reports a large dynamic chunk (about 3.16 MB,
   923 KB gzip). It is a performance backlog item, not a functional release
   blocker.
 
 ## Decision
 
-Approved for v0.4.1 publication, conditional only on the GitHub Pages workflow
-and public route smoke check succeeding after the release commit is pushed.
-The FQA semantic-readiness constraint remains explicitly documented and does
-not regress released DSL parsing or rendering.
+Approved for v0.4.1 publication. The GitHub Pages workflow and public route
+smoke check succeeded. The FQA semantic-readiness constraint remains explicitly
+documented and does not regress released DSL parsing or rendering.
