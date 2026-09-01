@@ -1,0 +1,80 @@
+graph TD
+---
+title: "AWS multi-AZ web service"
+description: "A redundant AWS web tier modeled as non-overlapping Cloud, Region, VPC, Availability Zone, and Subnet Containers."
+topology:
+  resources:
+    User: { label: Internet User, kind: user, parent: null }
+    LoadBalancerA:
+      label: Load Balancer A
+      kind: load_balancer
+      parent: public_subnet_a
+      note: One node of the internet-facing Application Load Balancer.
+      extensions: { provider: aws, service: elastic-load-balancing }
+    LoadBalancerC:
+      label: Load Balancer C
+      kind: load_balancer
+      parent: public_subnet_c
+      note: One node of the internet-facing Application Load Balancer.
+      extensions: { provider: aws, service: elastic-load-balancing }
+    WebA: { label: EC2 Web Primary, kind: vm, parent: private_subnet_a, extensions: { provider: aws, service: ec2 } }
+    WebC: { label: EC2 Web Standby, kind: vm, parent: private_subnet_c, extensions: { provider: aws, service: ec2 } }
+    DatabaseA: { label: RDS Primary, kind: relational_database, parent: private_subnet_a, extensions: { provider: aws, service: rds } }
+    DatabaseC: { label: RDS Standby, kind: relational_database, parent: private_subnet_c, extensions: { provider: aws, service: rds } }
+  containers:
+    aws_cloud: { label: AWS Cloud, kind: aws.cloud, roles: [administrative], parent: null }
+    tokyo_region: { label: Asia Pacific (Tokyo), kind: aws.region, roles: [administrative, availability], parent: aws_cloud }
+    production_vpc:
+      label: Production VPC
+      kind: aws.vpc
+      roles: [network, security]
+      parent: tokyo_region
+      enforcedBy: [LoadBalancerA, LoadBalancerC]
+    availability_zone_a:
+      label: Availability Zone A
+      kind: aws.availability-zone
+      roles: [availability]
+      parent: production_vpc
+    availability_zone_c:
+      label: Availability Zone C
+      kind: aws.availability-zone
+      roles: [availability]
+      parent: production_vpc
+    public_subnet_a: { label: Public Subnet A, kind: aws.subnet, roles: [network], parent: availability_zone_a }
+    private_subnet_a: { label: Private Subnet A, kind: aws.subnet, roles: [network], parent: availability_zone_a }
+    public_subnet_c: { label: Public Subnet C, kind: aws.subnet, roles: [network], parent: availability_zone_c }
+    private_subnet_c: { label: Private Subnet C, kind: aws.subnet, roles: [network], parent: availability_zone_c }
+  edges:
+    user_to_alb_a: { from: User, to: LoadBalancerA, protocol: HTTPS, port: 443 }
+    user_to_alb_c: { from: User, to: LoadBalancerC, protocol: HTTPS, port: 443 }
+    alb_a_to_web_a: { from: LoadBalancerA, to: WebA, protocol: HTTP, port: 80 }
+    alb_c_to_web_c: { from: LoadBalancerC, to: WebC, protocol: HTTP, port: 80 }
+    web_a_to_database_a: { from: WebA, to: DatabaseA, protocol: TLS, port: 3306 }
+    web_c_to_database_c: { from: WebC, to: DatabaseC, protocol: TLS, port: 3306 }
+    database_replication:
+      from: DatabaseA
+      to: DatabaseC
+      direction: bidirectional
+      protocol: TLS
+      port: 3306
+      note: Multi-AZ synchronous replication.
+layout:
+  mode: auto
+  direction: TD
+  grid:
+    aspect: golden
+    size: auto
+    align: center
+    packing: balanced
+    placements:
+      - { target: { type: node, id: User }, row: 1, column: 4, columnSpan: 2 }
+      - { target: { type: node, id: LoadBalancerA }, row: 3, column: 2, columnSpan: 2 }
+      - { target: { type: node, id: WebA }, row: 5, column: 2, columnSpan: 2 }
+      - { target: { type: node, id: DatabaseA }, row: 7, column: 2, columnSpan: 2 }
+      - { target: { type: node, id: LoadBalancerC }, row: 3, column: 6, columnSpan: 2 }
+      - { target: { type: node, id: WebC }, row: 5, column: 6, columnSpan: 2 }
+      - { target: { type: node, id: DatabaseC }, row: 7, column: 6, columnSpan: 2 }
+view:
+  default:
+    base: topology
+    overlays: [zone]

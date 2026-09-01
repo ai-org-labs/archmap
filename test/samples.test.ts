@@ -60,4 +60,27 @@ describe("default samples", () => {
     expect(analysis.overlayTransitionForEdge(edge!.id)).toMatchObject({ gained: ["pci_scope"] });
     expect(analysis.overlayTransitionForEdge(partnerEdge!.id)).toMatchObject({ lost: ["pci_scope"] });
   });
+
+  it("models the AWS tutorial as direct multi-AZ communication without shortcut edges", () => {
+    const sample = DEFAULT_ARCHMAP_SAMPLES.find((entry) => entry.id === "aws-multi-az-web");
+    expect(sample).toBeDefined();
+
+    const normalized = normalizeTopology(parse(sample!.source));
+    const analysis = analyzeTopology(normalized.topology);
+    const edgePairs = normalized.topology.edges.map((edge) => `${edge.from}->${edge.to}`);
+
+    expect(normalized.topology.resources).toHaveLength(7);
+    expect(normalized.topology.containers).toHaveLength(9);
+    expect(normalized.topology.overlays).toHaveLength(0);
+    expect(normalized.topology.containers.find((container) => container.id === "availability_zone_a")?.parent)
+      .toBe("production_vpc");
+    expect(normalized.topology.containers.find((container) => container.id === "public_subnet_a")?.parent)
+      .toBe("availability_zone_a");
+    expect(edgePairs).not.toContain("User->WebA");
+    expect(edgePairs).not.toContain("User->DatabaseA");
+    expect(edgePairs).toContain("User->LoadBalancerA");
+    expect(edgePairs).toContain("LoadBalancerA->WebA");
+    expect(edgePairs).toContain("WebA->DatabaseA");
+    expect(analysis.valid).toBe(true);
+  });
 });
