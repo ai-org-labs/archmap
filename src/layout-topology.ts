@@ -20,6 +20,15 @@ const PAD_X = PAD_Y * GOLDEN_RATIO;
 const CELL_INSET_Y = 24;
 const CELL_INSET_X = CELL_INSET_Y * GOLDEN_RATIO;
 export const TOPOLOGY_ZONE_CLEARANCE = 24;
+/** Minimum side/bottom breathing room between a child Container and its parent. */
+export const TOPOLOGY_NESTED_ZONE_GAP = 20;
+/** Extra top room reserved for each parent Container label band. */
+export const TOPOLOGY_NESTED_ZONE_HEADER_GAP = 32;
+const TOPOLOGY_ZONE_BASE_INSET = Math.max(
+  0,
+  (Math.min(GAP_X, GAP_Y) - TOPOLOGY_ZONE_CLEARANCE) / 2,
+);
+const TOPOLOGY_CANVAS_MARGIN = 24;
 
 interface Span {
   row: number;
@@ -232,6 +241,20 @@ function spanBox(spans: Span[], inset = 8): { x: number; y: number; w: number; h
   return { x: rect.x - inset, y: rect.y - inset, w: rect.w + inset * 2, h: rect.h + inset * 2 };
 }
 
+function spanBoxWithInsets(
+  spans: Span[],
+  insets: { top: number; right: number; bottom: number; left: number },
+): { x: number; y: number; w: number; h: number } | undefined {
+  const box = spanBox(spans, 0);
+  if (!box) return undefined;
+  return {
+    x: box.x - insets.left,
+    y: box.y - insets.top,
+    w: box.w + insets.left + insets.right,
+    h: box.h + insets.top + insets.bottom,
+  };
+}
+
 function subgraphGeometry(model: ArchMapModel, placements: Map<string, Span>) {
   const subgraphs = Object.values(model.graph.subgraphs);
   const children = new Map<string | undefined, GraphSubgraph[]>();
@@ -257,19 +280,53 @@ function zoneGeometry(model: ArchMapModel, placements: Map<string, Span>): Layou
     seen.add(id);
     return depthOf(zone.parent, seen) + 1;
   };
-  const nodeIdsFor = (id: string): string[] => {
+  const childrenByZone = new Map<string, string[]>();
+  for (const zone of model.zones) {
+    if (!zone.parent || !zoneById.has(zone.parent)) continue;
+    childrenByZone.set(zone.parent, [...(childrenByZone.get(zone.parent) ?? []), zone.id]);
+  }
+  const descendantLevels = (id: string, seen = new Set<string>()): number => {
+    if (seen.has(id)) return 0;
+    seen.add(id);
+    const children = childrenByZone.get(id) ?? [];
+    const levels = children.length === 0
+      ? 0
+      : 1 + Math.max(...children.map((child) => descendantLevels(child, new Set(seen))));
+    return levels;
+  };
+  const nodeIdsFor = (id: string, seen = new Set<string>()): string[] => {
+    if (seen.has(id)) return [];
+    seen.add(id);
     const direct = model.nodes.filter((node) => (node.resolvedZone ?? node.zone) === id).map((node) => node.id);
     const explicit = (zoneById.get(id)?.resolvedContains ?? []).filter((entry) => entry.type === "node").map((entry) => entry.id);
-    const childNodes = model.zones.filter((zone) => zone.parent === id).flatMap((zone) => nodeIdsFor(zone.id));
+    const childNodes = (childrenByZone.get(id) ?? []).flatMap((child) => nodeIdsFor(child, new Set(seen)));
     return [...new Set([...direct, ...explicit, ...childNodes])];
   };
   return model.zones.flatMap((zone) => {
     const nodeIds = nodeIdsFor(zone.id).filter((id) => nodeById.has(id) && placements.has(id));
-    const zoneInset = Math.max(0, (Math.min(GAP_X, GAP_Y) - TOPOLOGY_ZONE_CLEARANCE) / 2);
-    const box = spanBox(nodeIds.map((id) => placements.get(id)!), zoneInset);
+    const levels = descendantLevels(zone.id);
+    const sideInset = TOPOLOGY_ZONE_BASE_INSET + levels * TOPOLOGY_NESTED_ZONE_GAP;
+    const topInset = TOPOLOGY_ZONE_BASE_INSET + levels * TOPOLOGY_NESTED_ZONE_HEADER_GAP;
+    const box = spanBoxWithInsets(nodeIds.map((id) => placements.get(id)!), {
+      top: topInset,
+      right: sideInset,
+      bottom: sideInset,
+      left: sideInset,
+    });
     if (!box) return [];
     return [{ id: zone.id, label: zone.label ?? zone.id, parent: zone.parent, kind: zone.kind, depth: depthOf(zone.id), z: 0, nodeIds, ...box }];
   });
+}
+
+function translateLayoutItems<T extends { x: number; y: number }>(items: T[], dx: number, dy: number): T[] {
+  return items.map((item) => ({ ...item, x: item.x + dx, y: item.y + dy }));
+}
+
+function goldenCanvas(requiredWidth: number, requiredHeight: number): { width: number; height: number } {
+  if (requiredWidth / requiredHeight < GOLDEN_RATIO) {
+    return { width: requiredHeight * GOLDEN_RATIO, height: requiredHeight };
+  }
+  return { width: requiredWidth, height: requiredWidth / GOLDEN_RATIO };
 }
 
 function boundaryGeometry(model: ArchMapModel, placements: Map<string, Span>): LayoutBoundary[] {
@@ -469,12 +526,24 @@ function routeTopologyEdges(model: ArchMapModel, nodes: LayoutNode[], width: num
 export function computeTopologyLayout(model: ArchMapModel): LayoutResult {
   const base = computeLayout(model, { direction: model.direction, laneGap: 96 });
   const { size, placements } = pack(model, base);
-  const nodes = placedNodes(base, placements);
-  const width = size * CELL_W + Math.max(0, size - 1) * GAP_X + PAD_X * 2;
-  const height = size * CELL_H + Math.max(0, size - 1) * GAP_Y + PAD_Y * 2;
-  const zones = zoneGeometry(model, placements);
-  const boundaries = boundaryGeometry(model, placements);
-  const subgraphs = subgraphGeometry(model, placements);
+  const baseWidth = size * CELL_W + Math.max(0, size - 1) * GAP_X + PAD_X * 2;
+  const baseHeight = size * CELL_H + Math.max(0, size - 1) * GAP_Y + PAD_Y * 2;
+  const rawNodes = placedNodes(base, placements);
+  const rawZones = zoneGeometry(model, placements);
+  const rawBoundaries = boundaryGeometry(model, placements);
+  const rawSubgraphs = subgraphGeometry(model, placements);
+  const areaBoxes = [...rawZones, ...rawBoundaries, ...rawSubgraphs];
+  const minX = Math.min(TOPOLOGY_CANVAS_MARGIN, ...areaBoxes.map((box) => box.x));
+  const minY = Math.min(TOPOLOGY_CANVAS_MARGIN, ...areaBoxes.map((box) => box.y));
+  const dx = Math.max(0, TOPOLOGY_CANVAS_MARGIN - minX);
+  const dy = Math.max(0, TOPOLOGY_CANVAS_MARGIN - minY);
+  const nodes = translateLayoutItems(rawNodes, dx, dy);
+  const zones = translateLayoutItems(rawZones, dx, dy);
+  const boundaries = translateLayoutItems(rawBoundaries, dx, dy);
+  const subgraphs = translateLayoutItems(rawSubgraphs, dx, dy);
+  const requiredWidth = Math.max(baseWidth + dx, ...areaBoxes.map((box) => box.x + dx + box.w + TOPOLOGY_CANVAS_MARGIN));
+  const requiredHeight = Math.max(baseHeight + dy, ...areaBoxes.map((box) => box.y + dy + box.h + TOPOLOGY_CANVAS_MARGIN));
+  const { width, height } = goldenCanvas(requiredWidth, requiredHeight);
   const edges = routeTopologyEdges(model, nodes, width, height);
   return {
     direction: model.direction,

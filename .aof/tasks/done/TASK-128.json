@@ -1,0 +1,22 @@
+{
+  "task_id": "TASK-128",
+  "title": "Add hierarchy-aware padding to nested Topology containers",
+  "description": "Keep nested Container Boundary labels and child regions visually separated in Topology view without sample-specific coordinates.",
+  "status": "completed",
+  "origin": "browser-feedback-production-vpc-padding",
+  "created_at": "2026-09-01T18:00:00+09:00",
+  "updated_at": "2026-09-01T18:30:00+09:00",
+  "completion_criteria": [
+    "Direct child Containers reserve a readable parent label band.",
+    "Parent-child side and bottom padding is deterministic and depth-aware.",
+    "Sibling Container non-overlap clearance is preserved.",
+    "Expanded Container geometry remains inside the golden-ratio canvas.",
+    "Focused tests, typecheck, build, QIF evidence, and browser verification pass."
+  ],
+  "evidence": [
+    "Focused topology regression passed 18 tests; typecheck and production build passed.",
+    "Browser smoke confirmed visible Production Cloud -> Production VPC -> Subnet hierarchy spacing.",
+    "QIF evidence: docs/aof/TOPOLOGY-NESTED-CONTAINER-PADDING-QIF-CHECK-2026-09-01.md"
+  ],
+  "notes": "The layout derives padding from Container nesting depth. Direct child spacing is 32 units at the top and 20 units on the remaining sides; sibling clearance remains 24 units."
+}

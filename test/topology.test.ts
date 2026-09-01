@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "../src/parser-entry.js";
-import { computeTopologyLayout, GOLDEN_RATIO, TOPOLOGY_ZONE_CLEARANCE } from "../src/layout-topology.js";
+import {
+  computeTopologyLayout,
+  GOLDEN_RATIO,
+  TOPOLOGY_NESTED_ZONE_GAP,
+  TOPOLOGY_NESTED_ZONE_HEADER_GAP,
+  TOPOLOGY_ZONE_CLEARANCE,
+} from "../src/layout-topology.js";
 import { listViews, render } from "../src/render.js";
 import { validateRenderedSvgPorts } from "../src/render-validation.js";
 
@@ -39,6 +45,28 @@ view:
   default:
     base: topology
     overlays: [subgraph, zone]
+`;
+
+const nestedTopologySource = `graph LR
+---
+topology:
+  resources:
+    edge: { label: Edge, parent: public_subnet }
+    api: { label: API, parent: app_subnet }
+    db: { label: DB, parent: data_subnet }
+  containers:
+    cloud: { label: Production Cloud, parent: null }
+    vpc: { label: Production VPC, parent: cloud }
+    public_subnet: { label: Public Subnet, parent: vpc }
+    app_subnet: { label: Application Subnet, parent: vpc }
+    data_subnet: { label: Data Subnet, parent: vpc }
+  edges:
+    edge_api: { from: edge, to: api }
+    api_db: { from: api, to: db }
+view:
+  default:
+    base: topology
+    overlays: [zone]
 `;
 
 function overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean {
@@ -111,6 +139,24 @@ describe("Topology view", () => {
         expect(clearance(layout.zones[i], layout.zones[j])).toBeGreaterThanOrEqual(TOPOLOGY_ZONE_CLEARANCE);
       }
     }
+  });
+
+  it("reserves readable label and side margins for nested Container zones", () => {
+    const layout = computeTopologyLayout(parse(nestedTopologySource));
+    const zones = new Map(layout.zones.map((zone) => [zone.id, zone]));
+    const assertNestedMargin = (parentId: string, childId: string) => {
+      const parent = zones.get(parentId)!;
+      const child = zones.get(childId)!;
+      expect(child.x - parent.x).toBeGreaterThanOrEqual(TOPOLOGY_NESTED_ZONE_GAP - 1e-6);
+      expect(parent.x + parent.w - (child.x + child.w)).toBeGreaterThanOrEqual(TOPOLOGY_NESTED_ZONE_GAP - 1e-6);
+      expect(child.y - parent.y).toBeGreaterThanOrEqual(TOPOLOGY_NESTED_ZONE_HEADER_GAP - 1e-6);
+      expect(parent.y + parent.h - (child.y + child.h)).toBeGreaterThanOrEqual(TOPOLOGY_NESTED_ZONE_GAP - 1e-6);
+    };
+
+    assertNestedMargin("cloud", "vpc");
+    assertNestedMargin("vpc", "public_subnet");
+    assertNestedMargin("vpc", "app_subnet");
+    assertNestedMargin("vpc", "data_subnet");
   });
 
   it("renders transparent dashed subgraphs and stable geometry across overlay toggles", () => {
