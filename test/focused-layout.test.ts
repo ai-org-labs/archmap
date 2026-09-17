@@ -295,3 +295,50 @@ decision -> done "はい"`));
   expect(result.layout.edges[0].labelBox).toBeUndefined();
   expect(result.layout.edges[1].labelBox).toBeDefined();
 });
+
+it('connects calls and responses to activation borders including nested self calls', () => {
+  const model = parseDiagram(`diagram sequence
+node client "Client"
+node api "API"
+client -> api "Request"
+activate api
+api -> api "Nested"
+activate api
+api -> api "Work"
+deactivate api
+api --> client "Response"
+deactivate api`);
+  expect(model.diagnostics).toEqual([]);
+  const result = renderDiagram(model), [outer, inner] = result.layout.activations!;
+  const [request, nested, work, response] = result.layout.edges;
+  expect(outer.y).toBe(request.points[1].y);
+  expect(request.points[1].x).toBe(outer.x);
+  expect(nested.points[0].x).toBe(outer.x + outer.width);
+  expect(nested.points[3].x).toBe(inner.x + inner.width);
+  expect(work.points[0].x).toBe(inner.x + inner.width);
+  expect(response.points[0].x).toBe(outer.x);
+  expect(outer.y + outer.height).toBeGreaterThan(response.points[0].y);
+  expect(inner.x).toBeGreaterThan(outer.x);
+  expect(inner.y + inner.height).toBeLessThan(outer.y + outer.height);
+  expect(result.svg.match(/class="archmap-activation"/g)).toHaveLength(2);
+  expect(result.svg.indexOf('class="archmap-activation"')).toBeLessThan(result.svg.indexOf('class="archmap-edge"'));
+  expect(result.svg).not.toContain('<g class="archmap-edge-label"><rect');
+  assertGeometry(result.layout, 'sequence');
+});
+
+it('keeps consecutive empty activation intervals separate and before following messages', () => {
+  const model = parseDiagram(`diagram sequence
+node a "A"
+node b "B"
+activate a
+deactivate a
+activate a
+deactivate a
+a -> b`);
+  const layout = computeDiagramLayout(model), [first, second] = layout.activations!;
+  expect(first.height).toBeGreaterThan(0);
+  expect(second.y).toBeGreaterThan(first.y + first.height);
+  expect(layout.edges[0].points[0].y).toBeGreaterThan(second.y + second.height);
+  expect(layout.edges[0].points[0].x).toBe(layout.nodes[0].x + layout.nodes[0].width / 2);
+  expect(computeDiagramLayout(parseDiagram('diagram sequence\nnode a "A"')).activations).toBeUndefined();
+});

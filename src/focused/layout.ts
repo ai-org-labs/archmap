@@ -208,17 +208,49 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
   const byId = new Map(nodes.map(n => [n.node.id, n]));
   let y = margin + titleSpace + nodeHeight + 56;
   const edges: DiagramLayoutEdge[] = [];
-  for (const edge of model.edges) {
+  const activations: NonNullable<DiagramLayout['activations']> = [];
+  const open = new Map<string, typeof activations>();
+  function applyActivations(afterEdge: number, at: number): number {
+    let cursor = at;
+    for (const event of model.activationEvents ?? []) {
+      if (event.afterEdge !== afterEdge) continue;
+      const node = byId.get(event.node); if (!node) continue;
+      const stack = open.get(event.node) ?? [];
+      if (event.action === 'activate') {
+        const bar = { node: event.node, depth: stack.length, line: event.line, x: node.x + node.width / 2 - 6 + stack.length * 8, y: cursor, width: 12, height: 16 };
+        activations.push(bar); stack.push(bar);
+      } else {
+        const bar = stack.pop();
+        if (bar) { bar.height = Math.max(16, cursor + 12 - bar.y); cursor = bar.y + bar.height + 8; }
+      }
+      open.set(event.node, stack);
+    }
+    return cursor;
+  }
+  y = Math.max(y, applyActivations(0, y - 24) + 24);
+  for (const [index, edge] of model.edges.entries()) {
     const a = byId.get(edge.from), b = byId.get(edge.to); if (!a || !b) continue;
     const size = edge.label ? labelSize(edge.label) : undefined;
     y += size ? Math.max(0, size.height - 26) : 0;
     const ax = a.x + a.width / 2, bx = b.x + b.width / 2;
     const points = a === b ? [{ x: ax, y }, { x: ax + Math.max(86, (size?.width ?? 0) + 24), y }, { x: ax + Math.max(86, (size?.width ?? 0) + 24), y: y + 32 }, { x: ax, y: y + 32 }] : [{ x: ax, y }, { x: bx, y }];
     edges.push({ edge, points, ...(size ? { labelBox: { x: bx >= ax ? ax + 12 : ax - 12 - size.width, y: y - size.height - 8, ...size } } : {}) });
-    y += a === b ? 110 : 78;
+    const cursor = applyActivations(index + 1, a === b ? y + 32 : y);
+    y = Math.max(y + (a === b ? 110 : 78), cursor + 56);
+  }
+  // Keep manually constructed models renderable; parsed sources require closed intervals.
+  for (const stack of open.values()) for (const bar of stack) bar.height = Math.max(16, y - 28 - bar.y);
+  const activeAt = (node: string, at: number) => activations.filter(bar => bar.node === node && at >= bar.y && at <= bar.y + bar.height).sort((a, b) => b.depth - a.depth)[0];
+  for (const item of edges) {
+    const first = item.points[0]!, last = item.points[item.points.length - 1]!;
+    const self = item.edge.from === item.edge.to, right = self || last.x >= first.x;
+    const source = activeAt(item.edge.from, first.y), target = activeAt(item.edge.to, last.y);
+    if (source) first.x = source.x + (right ? source.width : 0);
+    if (target) last.x = target.x + (self || !right ? target.width : 0);
+    if (item.labelBox) item.labelBox.x = right ? first.x + 12 : first.x - 12 - item.labelBox.width;
   }
   const rightmost = Math.max(margin + 200, ...nodes.map(n => n.x + n.width), ...edges.flatMap(e => e.points.map(p => p.x)), ...edges.map(e => e.labelBox ? e.labelBox.x + e.labelBox.width : 0));
-  return { width: Math.ceil(rightmost + margin), height: Math.ceil(Math.max(y + 28, margin + titleSpace + nodeHeight + 160)), nodes, groups: [], edges };
+  return { width: Math.ceil(rightmost + margin), height: Math.ceil(Math.max(y + 28, margin + titleSpace + nodeHeight + 160)), nodes, groups: [], edges, ...(activations.length ? { activations } : {}) };
 }
 
 export function computeDiagramLayout(model: DiagramModel): DiagramLayout {

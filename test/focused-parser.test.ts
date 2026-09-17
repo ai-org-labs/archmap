@@ -232,3 +232,35 @@ it('accepts icon style only for architecture diagrams and rejects ambiguous decl
   for (const declaration of ['style other', 'style "icons"', 'style icons extra', 'style cards\nstyle icons']) expect(errors(`diagram system\n${declaration}\nnode api "API"`).length).toBeGreaterThan(0);
   expect(errors('diagram system\nstyle icons\nnode style "Style"\nnode api "API"\nstyle -> api')).toEqual([]);
 });
+
+it('parses explicit nested activations and preserves their message positions', () => {
+  const model = parseDiagram(`diagram sequence
+node a "Client"
+node b "API"
+a -> b
+activate b
+b -> b
+activate b
+deactivate b
+b --> a
+deactivate b`);
+  expect(model.diagnostics).toEqual([]);
+  expect(model.activationEvents!.map(event => [event.action, event.node, event.afterEdge])).toEqual([
+    ['activate', 'b', 1], ['activate', 'b', 2], ['deactivate', 'b', 2], ['deactivate', 'b', 3],
+  ]);
+  expect(errors('diagram sequence\nactivate a\nnode a "A"\ndeactivate a')).toEqual([]);
+  expect(errors('diagram sequence\nnode activate "A"\nnode deactivate "B"\nactivate -> deactivate')).toEqual([]);
+});
+
+it.each([
+  'diagram system\nnode a "A"\nactivate a',
+  'diagram sequence\nnode a "A"\nactivate missing\ndeactivate missing',
+  'diagram sequence\nnode a "A"\nactivate a',
+  'diagram sequence\nnode a "A"\ndeactivate a',
+  'diagram sequence\nnode a "A"\nactivate "a"',
+  'diagram sequence\nnode a "A"\nactivate a extra',
+  `diagram sequence\nnode a "A"\n${'activate a\n'.repeat(9)}${'deactivate a\n'.repeat(9)}`,
+  `diagram sequence\nnode a "A"\n${'activate a\ndeactivate a\n'.repeat(101)}`,
+])('rejects invalid or excessive activation declarations: %s', source => {
+  expect(errors(source).some(d => d.severity === 'error' && d.line > 1)).toBe(true);
+});

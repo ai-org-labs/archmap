@@ -13,6 +13,8 @@ export const DIAGRAM_LIMITS = Object.freeze({
   labelLength: 120,
   descriptionLength: 240,
   diagnostics: 50,
+  activationEvents: 200,
+  activationDepth: 8,
 });
 
 type Token = { kind: "word" | "string" | "equals" | "arrow"; value: string };
@@ -160,6 +162,17 @@ export function parseDiagram(source: string): DiagramModel {
       continue;
     }
 
+    if ((command === "activate" || command === "deactivate") && tokens[1]?.kind !== "arrow") {
+      if (model.kind !== "sequence") { report(line, "activate / deactivate は sequence で使用できます。"); continue; }
+      if (tokens.length !== 2 || tokens[1].kind !== "word" || !ID.test(tokens[1].value)) {
+        report(line, `${command} ノードID の形式で指定してください。`); continue;
+      }
+      model.activationEvents ??= [];
+      if (model.activationEvents.length >= DIAGRAM_LIMITS.activationEvents) { report(line, `活性区間の開始・終了は合計 ${DIAGRAM_LIMITS.activationEvents} 文まで指定できます。`); continue; }
+      model.activationEvents.push({ action: command, node: tokens[1].value, afterEdge: model.edges.length, line });
+      continue;
+    }
+
     if (command === "title" && tokens[1]?.kind !== "arrow") {
       if (hasTitle) { report(line, "title は一度だけ指定できます。"); continue; }
       if (tokens.length !== 2) { report(line, 'title "図のタイトル" の形式で指定してください。'); continue; }
@@ -247,7 +260,7 @@ export function parseDiagram(source: string): DiagramModel {
       model.edges.push({ from: command, to: target.value, label: label?.value ?? "", style: tokens[1].value === "-->" ? "dashed" : "solid", bidirectional: tokens[1].value === "<->", line });
       continue;
     }
-    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続を使用してください。`);
+    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続、activate、deactivateを使用してください。`);
   }
   if (!hasHeader && firstStatement) report(1, "最初の文で diagram system|layers|sequence|screens|activity を宣言してください。");
   if (hasHeader && model.nodes.length === 0) report(1, "少なくとも 1 個の node を宣言してください。");
@@ -260,5 +273,17 @@ export function parseDiagram(source: string): DiagramModel {
     if (!nodeIds.has(edge.from)) report(edge.line, `接続元のノード「${edge.from}」が宣言されていません。`);
     if (!nodeIds.has(edge.to)) report(edge.line, `接続先のノード「${edge.to}」が宣言されていません。`);
   }
+  const activationStacks = new Map<string, number[]>();
+  for (const event of model.activationEvents ?? []) {
+    if (!nodeIds.has(event.node)) { report(event.line, `活性区間のノード「${event.node}」が宣言されていません。`); continue; }
+    const stack = activationStacks.get(event.node) ?? [];
+    if (event.action === "activate") {
+      stack.push(event.line);
+      if (stack.length > DIAGRAM_LIMITS.activationDepth) report(event.line, `活性区間の入れ子は ${DIAGRAM_LIMITS.activationDepth} 段までです。`);
+    } else if (!stack.length) report(event.line, `ノード「${event.node}」に対応する activate がありません。`);
+    else stack.pop();
+    activationStacks.set(event.node, stack);
+  }
+  for (const [node, stack] of activationStacks) for (const line of stack) report(line, `ノード「${node}」の活性区間を deactivate で閉じてください。`);
   return model;
 }

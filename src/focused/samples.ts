@@ -63,11 +63,17 @@ node api "Orders API" icon=server
 node database "Database" icon=database color=green
 
 customer -> web "注文を確定"
+activate web
 web -> api "POST /orders"
+activate api
 api -> database "注文を保存"
+activate database
 database --> api "注文 ID"
+deactivate database
 api --> web "201 Created"
-web --> customer "完了画面を表示"`,
+deactivate api
+web --> customer "完了画面を表示"
+deactivate web`,
   },
   {
     id: "screens",
