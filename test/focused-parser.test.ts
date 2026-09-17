@@ -264,3 +264,37 @@ it.each([
 ])('rejects invalid or excessive activation declarations: %s', source => {
   expect(errors(source).some(d => d.severity === 'error' && d.line > 1)).toBe(true);
 });
+
+it('supports nested sequence fragments, guarded else branches, and keyword node IDs', () => {
+  const model = parseDiagram(`diagram sequence
+node a "A"
+node end "B"
+loop "各注文"
+alt "在庫あり"
+a -> end
+opt "通知する"
+end --> a
+end
+else "在庫なし"
+end --> a
+else
+end
+end`);
+  expect(model.diagnostics).toEqual([]);
+  expect(model.fragmentEvents!.map(event => event.action)).toEqual(['loop','alt','opt','end','else','else','end','end']);
+  expect(model.fragmentEvents![5].label).toBe('その他');
+});
+
+it.each([
+  'alt "open"', 'else "orphan"', 'end', 'alt unquoted\nend', 'opt "x"\nelse\nend',
+  'loop "x"\nend "extra"', `${'opt "nested"\n'.repeat(5)}${'end\n'.repeat(5)}`,
+  `${'opt "x"\nend\n'.repeat(65)}`,
+  'alt "x"\nactivate a\nelse\ndeactivate a\nend',
+  'activate a\nopt "x"\ndeactivate a\nactivate a\nend\ndeactivate a',
+])('rejects malformed fragments and activations across branch boundaries: %s', fragment => {
+  expect(errors(`diagram sequence\nnode a "A"\n${fragment}`).some(d => d.severity === 'error')).toBe(true);
+});
+it('rejects fragments outside sequences and allows an activation enclosing a whole fragment', () => {
+  expect(errors('diagram system\nnode a "A"\nalt "x"\nend').length).toBeGreaterThan(0);
+  expect(errors('diagram sequence\nnode a "A"\nactivate a\nalt "x"\nelse\nend\ndeactivate a')).toEqual([]);
+});

@@ -66,13 +66,17 @@ customer -> web "注文を確定"
 activate web
 web -> api "POST /orders"
 activate api
+alt "在庫あり"
 api -> database "注文を保存"
 activate database
 database --> api "注文 ID"
 deactivate database
 api --> web "201 Created"
+else "在庫なし"
+api --> web "409 Conflict"
+end
 deactivate api
-web --> customer "完了画面を表示"
+web --> customer "結果画面を表示"
 deactivate web`,
   },
   {

@@ -17,6 +17,7 @@ export interface DiagramNode {
 }
 export interface DiagramGroup { id: string; label: string; color: DiagramColor; line: number }
 export interface DiagramEdge { from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
+export interface DiagramFragmentEvent { action: "alt" | "opt" | "loop" | "else" | "end"; label: string; afterEdge: number; line: number }
 export interface DiagramActivationEvent { action: "activate" | "deactivate"; node: string; afterEdge: number; line: number }
 export interface DiagramDiagnostic { line: number; severity: "error" | "warning"; message: string }
 export interface DiagramModel {
@@ -29,6 +30,7 @@ export interface DiagramModel {
   edges: DiagramEdge[];
   diagnostics: DiagramDiagnostic[];
   activationEvents?: DiagramActivationEvent[];
+  fragmentEvents?: DiagramFragmentEvent[];
 }
 export interface DiagramBox { x: number; y: number; width: number; height: number }
 export interface DiagramPoint { x: number; y: number }
@@ -47,6 +49,7 @@ export interface DiagramLayout {
   nodes: DiagramLayoutNode[];
   groups: Array<DiagramBox & { group: DiagramGroup }>;
   edges: DiagramLayoutEdge[];
+  fragments?: Array<DiagramBox & { kind: "alt" | "opt" | "loop"; label: string; line: number; depth: number; headerHeight: number; branches: Array<{ label: string; y: number; height: number }> }>;
   activations?: Array<DiagramBox & { node: string; depth: number; line: number }>;
 }
 export interface DiagramRenderResult { svg: string; model: DiagramModel; layout: DiagramLayout; durationMs: number }

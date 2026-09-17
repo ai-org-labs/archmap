@@ -210,10 +210,30 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
   const edges: DiagramLayoutEdge[] = [];
   const activations: NonNullable<DiagramLayout['activations']> = [];
   const open = new Map<string, typeof activations>();
+  const fragments: NonNullable<DiagramLayout['fragments']> = [];
+  const fragmentStack: typeof fragments = [];
+  const controls = [...model.activationEvents ?? [], ...model.fragmentEvents ?? []].sort((a, b) => a.line - b.line);
+  const frameRight = Math.max(margin + 200, ...nodes.map(n => n.x + n.width)) + 24;
   function applyActivations(afterEdge: number, at: number): number {
     let cursor = at;
-    for (const event of model.activationEvents ?? []) {
+    for (const event of controls) {
       if (event.afterEdge !== afterEdge) continue;
+      if (!('node' in event)) {
+        if (event.action === 'alt' || event.action === 'opt' || event.action === 'loop') {
+          const depth = fragmentStack.length, x = 24 + depth * 16, width = frameRight - depth * 16 - x;
+          const headerHeight = Math.max(34, wrapText(event.label, width - 84, 12).length * 17 + 16);
+          const frame = { kind: event.action, label: event.label, line: event.line, depth, x, y: cursor + 24, width, height: 0, headerHeight, branches: [] as Array<{ label: string; y: number; height: number }> };
+          fragments.push(frame); fragmentStack.push(frame); cursor = frame.y + headerHeight + 12;
+        } else {
+          const frame = fragmentStack[fragmentStack.length - 1];
+          if (frame && event.action === 'else') {
+            const height = Math.max(32, wrapText(event.label, frame.width - 32, 12).length * 17 + 16);
+            const branch = { label: event.label, y: cursor + 24, height };
+            frame.branches.push(branch); cursor = branch.y + height + 12;
+          } else if (frame) { frame.height = Math.max(frame.headerHeight + 48, cursor + 24 - frame.y); cursor = frame.y + frame.height + 12; fragmentStack.pop(); }
+        }
+        continue;
+      }
       const node = byId.get(event.node); if (!node) continue;
       const stack = open.get(event.node) ?? [];
       if (event.action === 'activate') {
@@ -250,7 +270,8 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
     if (item.labelBox) item.labelBox.x = right ? first.x + 12 : first.x - 12 - item.labelBox.width;
   }
   const rightmost = Math.max(margin + 200, ...nodes.map(n => n.x + n.width), ...edges.flatMap(e => e.points.map(p => p.x)), ...edges.map(e => e.labelBox ? e.labelBox.x + e.labelBox.width : 0));
-  return { width: Math.ceil(rightmost + margin), height: Math.ceil(Math.max(y + 28, margin + titleSpace + nodeHeight + 160)), nodes, groups: [], edges, ...(activations.length ? { activations } : {}) };
+  for (const frame of fragments) frame.width = Math.max(frame.width, rightmost + 24 - frame.depth * 16 - frame.x);
+  return { width: Math.ceil(Math.max(rightmost + margin, ...fragments.map(frame => frame.x + frame.width + 24))), height: Math.ceil(Math.max(y + 28, margin + titleSpace + nodeHeight + 160)), nodes, groups: [], edges, ...(activations.length ? { activations } : {}), ...(fragments.length ? { fragments } : {}) };
 }
 
 export function computeDiagramLayout(model: DiagramModel): DiagramLayout {

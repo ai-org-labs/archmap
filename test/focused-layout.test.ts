@@ -370,3 +370,56 @@ c -> b "Other arrival"`];
     }
   }
 });
+
+it('reserves fragment headings and separators around messages and nested frames', () => {
+  const model = parseDiagram(`diagram sequence
+node a "Client"
+node b "API"
+a -> b "Request"
+activate b
+loop "Each request"
+alt "Allowed"
+b -> b "Check"
+opt "Notify"
+b --> a "Notification"
+end
+else "Denied"
+b --> a "Error"
+end
+end
+deactivate b`);
+  expect(model.diagnostics).toEqual([]);
+  const result = renderDiagram(model), layout = result.layout;
+  const [loop, alt, opt] = layout.fragments!;
+  expect(alt.x).toBeGreaterThan(loop.x);
+  expect(alt.x + alt.width).toBeLessThan(loop.x + loop.width);
+  expect(alt.y).toBeGreaterThanOrEqual(loop.y + loop.headerHeight);
+  expect(alt.y + alt.height).toBeLessThan(loop.y + loop.height);
+  expect(opt.y + opt.height).toBeLessThan(alt.branches[0].y);
+  for (const frame of layout.fragments!) {
+    expect(frame.height).toBeGreaterThan(frame.headerHeight);
+    expect(frame.y + frame.height).toBeLessThan(layout.height);
+    const headers = [{ x:frame.x,y:frame.y,width:frame.width,height:frame.headerHeight }, ...frame.branches.map(branch=>({x:frame.x,y:branch.y,width:frame.width,height:branch.height}))];
+    for (const edge of layout.edges) for (const header of headers) {
+      if (edge.labelBox) expect(boxesOverlap(header, edge.labelBox)).toBe(false);
+      for (let i=1;i<edge.points.length;i++) expect(segmentIntersectsBox(edge.points[i-1],edge.points[i],header)).toBe(false);
+    }
+  }
+  expect(result.svg).toContain('data-kind="alt"');
+  expect(result.svg).toContain('archmap-fragment-separator');
+  expect(layout.activations![0].y).toBeLessThan(loop.y);
+  expect(layout.activations![0].y + layout.activations![0].height).toBeGreaterThan(loop.y + loop.height);
+  assertGeometry(layout,'sequence');
+});
+
+it('contains long conditions, empty branches, and self loops on the final participant', () => {
+  const model = parseDiagram(`diagram sequence\nnode a "A"\nalt "${'長い条件'.repeat(25)}"\nopt "Nested"\na -> a "Self call"\nend\nelse\nend`);
+  const layout = computeDiagramLayout(model);
+  expect(model.diagnostics).toEqual([]);
+  for (const frame of layout.fragments!) {
+    expect(frame.x + frame.width).toBeLessThan(layout.width);
+    expect(frame.height).toBeGreaterThan(frame.headerHeight);
+  }
+  const edge = layout.edges[0];
+  expect(Math.max(...edge.points.map(p=>p.x))).toBeLessThan(layout.fragments![1].x + layout.fragments![1].width);
+});

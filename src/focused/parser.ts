@@ -15,6 +15,8 @@ export const DIAGRAM_LIMITS = Object.freeze({
   diagnostics: 50,
   activationEvents: 200,
   activationDepth: 8,
+  fragmentEvents: 128,
+  fragmentDepth: 4,
 });
 
 type Token = { kind: "word" | "string" | "equals" | "arrow"; value: string };
@@ -115,6 +117,7 @@ export function parseDiagram(source: string): DiagramModel {
   let hasHeader = false;
   let hasTitle = false;
   let hasStyle = false;
+  const fragmentStack: Array<{ kind: string; line: number }> = [];
 
   const lines = source.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/);
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -159,6 +162,31 @@ export function parseDiagram(source: string): DiagramModel {
         report(line, "style icons は system と layers で使用できます。"); continue;
       }
       model.style = tokens[1].value as "cards" | "icons";
+      continue;
+    }
+
+    if (["alt", "opt", "loop", "else", "end"].includes(command) && tokens[1]?.kind !== "arrow") {
+      if (model.kind !== "sequence") { report(line, "alt / opt / loop / else / end は sequence で使用できます。"); continue; }
+      let label = "";
+      if (command === "end") {
+        if (tokens.length !== 1) { report(line, "end に引数は指定できません。"); continue; }
+      } else if (command === "else" && tokens.length === 1) label = "その他";
+      else {
+        if (tokens.length !== 2 || !validLabel(tokens[1], line, report)) { if (tokens.length !== 2) report(line, `${command} "条件" の形式で指定してください。`); continue; }
+        label = tokens[1].value;
+      }
+      model.fragmentEvents ??= [];
+      if (model.fragmentEvents.length >= DIAGRAM_LIMITS.fragmentEvents) { report(line, `フラグメントの文は ${DIAGRAM_LIMITS.fragmentEvents} 文までです。`); continue; }
+      if (command === "else") {
+        if (fragmentStack[fragmentStack.length - 1]?.kind !== "alt") { report(line, "else は現在開いている alt の中で使用してください。"); continue; }
+      } else if (command === "end") {
+        if (!fragmentStack.length) { report(line, "対応する alt / opt / loop がありません。"); continue; }
+        fragmentStack.pop();
+      } else {
+        fragmentStack.push({ kind: command, line });
+        if (fragmentStack.length > DIAGRAM_LIMITS.fragmentDepth) report(line, `フラグメントの入れ子は ${DIAGRAM_LIMITS.fragmentDepth} 段までです。`);
+      }
+      model.fragmentEvents.push({ action: command as "alt" | "opt" | "loop" | "else" | "end", label, afterEdge: model.edges.length, line });
       continue;
     }
 
@@ -260,7 +288,7 @@ export function parseDiagram(source: string): DiagramModel {
       model.edges.push({ from: command, to: target.value, label: label?.value ?? "", style: tokens[1].value === "-->" ? "dashed" : "solid", bidirectional: tokens[1].value === "<->", line });
       continue;
     }
-    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続、activate、deactivateを使用してください。`);
+    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続、activate、deactivate、alt、opt、loop、else、end を使用してください。`);
   }
   if (!hasHeader && firstStatement) report(1, "最初の文で diagram system|layers|sequence|screens|activity を宣言してください。");
   if (hasHeader && model.nodes.length === 0) report(1, "少なくとも 1 個の node を宣言してください。");
@@ -273,8 +301,20 @@ export function parseDiagram(source: string): DiagramModel {
     if (!nodeIds.has(edge.from)) report(edge.line, `接続元のノード「${edge.from}」が宣言されていません。`);
     if (!nodeIds.has(edge.to)) report(edge.line, `接続先のノード「${edge.to}」が宣言されていません。`);
   }
+  for (const fragment of fragmentStack) report(fragment.line, `${fragment.kind} を end で閉じてください。`);
   const activationStacks = new Map<string, number[]>();
-  for (const event of model.activationEvents ?? []) {
+  const scopes: Array<Map<string, number[]>> = [];
+  const orderedEvents = [...model.activationEvents ?? [], ...model.fragmentEvents ?? []].sort((a, b) => a.line - b.line);
+  for (const event of orderedEvents) {
+    if (!('node' in event)) {
+      if (event.action === 'alt' || event.action === 'opt' || event.action === 'loop') scopes.push(new Map([...activationStacks].map(([id, stack]) => [id, [...stack]])));
+      else {
+        const entry = scopes[scopes.length - 1];
+        if (entry && [...new Set([...entry.keys(), ...activationStacks.keys()])].some(id => (entry.get(id) ?? []).join(',') !== (activationStacks.get(id) ?? []).join(','))) report(event.line, "各分岐・フラグメント内の活性区間は、その区間内で開始・終了してください。外側の活性区間はそのまま維持してください。");
+        if (event.action === 'end') scopes.pop();
+      }
+      continue;
+    }
     if (!nodeIds.has(event.node)) { report(event.line, `活性区間のノード「${event.node}」が宣言されていません。`); continue; }
     const stack = activationStacks.get(event.node) ?? [];
     if (event.action === "activate") {
