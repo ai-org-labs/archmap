@@ -1971,3 +1971,30 @@ kbd {
     font-size:21px;
   }
 }
+
+.prompt-card {
+  padding:24px;
+  margin-bottom:40px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#f1f6f0;
+}
+.reference-article .prompt-card h2 { margin-top:12px; }
+.prompt-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+.prompt-status { font-size:13px; }
+.prompt-card summary { cursor:pointer; font-size:14px; }
+.prompt-label { display:block; margin:18px 0 8px; font-size:13px; }
+.prompt-source {
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  height:360px;
+  padding:16px;
+  resize:vertical;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#fff;
+  color:var(--ink);
+  font:12px/1.8 ui-monospace,monospace;
+}
+@media(max-width:600px) { .prompt-card { padding:18px; } }

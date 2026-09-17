@@ -5,6 +5,7 @@ import { installDiagramIcons, getDiagramIconCatalog } from "../src/focused/icons
 import { getIcon } from "../src/icons.js";
 import type { DiagramRenderResult, DiagramSample } from "../src/focused/types.js";
 import syntaxSource from "../docs/SYNTAX.md?raw";
+import promptInstructions from "../docs/AI_PROMPT_TEMPLATE.md?raw";
 import "./site.css";
 
 type PageKind = "home" | "playground" | "syntax" | "examples";
@@ -117,10 +118,32 @@ function mountCatalog(): void {
   $("icon-show-more").addEventListener("click", () => { limit += 60; filterIcons(); });
   filterIcons();
 }
+// Include the canonical reference so the copied prompt follows syntax updates.
+const authoringPrompt = `${promptInstructions.trim()}\n\n${syntaxSource.trim()}\n`;
+function promptMarkup(): string {
+  return `<section id="ai-prompt" class="prompt-card" aria-labelledby="prompt-heading"><p class="eyebrow">DESCRIBE IT. GENERATE IT.</p><h2 id="prompt-heading">AI 用プロンプトテンプレート</h2><p>テンプレートをコピーして、ChatGPT などの AI に貼り付けてください。「作成する図の要件」を書き換えると、ArchMap の構文に沿ったコードを依頼できます。5 種類の図のルールと、下記の構文リファレンス全文を含みます。</p><div class="prompt-actions"><button type="button" id="copy-prompt" class="button primary">プロンプトをコピー</button><button type="button" id="download-prompt" class="button small">${icon("download")} .txt を保存</button></div><p id="prompt-status" class="prompt-status" role="status" aria-live="polite"></p><details id="prompt-details"><summary>テンプレートの全文を見る</summary><label class="prompt-label" for="prompt-source">AI に渡すプロンプト（要件を書き換えて利用）</label><textarea id="prompt-source" class="prompt-source" readonly spellcheck="false">${escapeHtml(authoringPrompt)}</textarea></details></section>`;
+}
+function mountPrompt(): void {
+  $("copy-prompt").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(authoringPrompt);
+      $("prompt-status").textContent = "コピーしました。AI に貼り付けて、図の要件を書き換えてください。";
+    } catch {
+      $<HTMLDetailsElement>("prompt-details").open = true;
+      const source = $<HTMLTextAreaElement>("prompt-source"); source.focus(); source.select();
+      $("prompt-status").textContent = "自動コピーできませんでした。選択された全文を ⌘ / Ctrl + C でコピーするか、.txt を保存してください。";
+    }
+  });
+  $("download-prompt").addEventListener("click", () => {
+    download(new Blob([authoringPrompt], { type: "text/plain;charset=utf-8" }), "archmap-ai-prompt.txt");
+    $("prompt-status").textContent = "プロンプトを保存しました。";
+  });
+}
 function syntax(): void {
   const reference = markdown(syntaxSource);
-  document.body.innerHTML = `${nav()}<main id="main" class="wrap reference-main"><header class="page-heading"><p class="eyebrow">ONE SMALL LANGUAGE</p><h1>記述シンタックス<span class="heading-dot">.</span></h1><p>すべての図に、ひとつの共通構文。定義と実例を、ここに。</p></header><div class="reference-layout"><aside class="reference-nav"><p class="eyebrow">ON THIS PAGE</p><nav aria-label="シンタックスの目次">${reference.toc}<a href="#icon-catalog">利用できるアイコン</a></nav><a class="button small" href="${route("playground/")}">コードを試す ${icon("arrow")}</a></aside><article class="reference-article">${reference.body}<h2 id="icon-catalog">利用できるアイコン</h2><p><code>icon=キー</code> で指定します。以下はこの Playground に組み込まれたアイコンです。</p>${catalogMarkup}</article></div></main>${footer()}`;
+  document.body.innerHTML = `${nav()}<main id="main" class="wrap reference-main"><header class="page-heading"><p class="eyebrow">ONE SMALL LANGUAGE</p><h1>記述シンタックス<span class="heading-dot">.</span></h1><p>すべての図に、ひとつの共通構文。定義と実例を、ここに。</p></header><div class="reference-layout"><aside class="reference-nav"><p class="eyebrow">ON THIS PAGE</p><nav aria-label="シンタックスの目次"><a href="#ai-prompt">AI 用プロンプト</a>${reference.toc}<a href="#icon-catalog">利用できるアイコン</a></nav><a class="button small" href="${route("playground/")}">コードを試す ${icon("arrow")}</a></aside><article class="reference-article">${promptMarkup()}${reference.body}<h2 id="icon-catalog">利用できるアイコン</h2><p><code>icon=キー</code> で指定します。以下はこの Playground に組み込まれたアイコンです。</p>${catalogMarkup}</article></div></main>${footer()}`;
   mountCatalog();
+  mountPrompt();
 }
 
 function download(blob: Blob, filename: string): void {
@@ -206,8 +229,8 @@ function playground(): void {
     let dialog = document.getElementById("syntax-dialog") as HTMLDialogElement | null;
     if (!dialog) {
       dialog = document.createElement("dialog"); dialog.id = "syntax-dialog"; dialog.className = "syntax-dialog";
-      dialog.innerHTML = `<div class="dialog-heading"><span class="eyebrow">ARCHMAP SYNTAX</span><button class="button small" id="close-guide" type="button">閉じる <span aria-hidden="true">×</span></button></div><article class="reference-article">${markdown(syntaxSource).body}<h2>利用できるアイコン</h2><p><code>icon=キー</code> で指定します。</p>${catalogMarkup}</article>`;
-      document.body.append(dialog); $("close-guide").addEventListener("click", () => dialog!.close()); mountCatalog();
+      dialog.innerHTML = `<div class="dialog-heading"><span class="eyebrow">ARCHMAP SYNTAX</span><button class="button small" id="close-guide" type="button">閉じる <span aria-hidden="true">×</span></button></div><article class="reference-article">${promptMarkup()}${markdown(syntaxSource).body}<h2>利用できるアイコン</h2><p><code>icon=キー</code> で指定します。</p>${catalogMarkup}</article>`;
+      document.body.append(dialog); $("close-guide").addEventListener("click", () => dialog!.close()); mountCatalog(); mountPrompt();
     }
     dialog.showModal();
   });
