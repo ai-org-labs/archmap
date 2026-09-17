@@ -144,6 +144,14 @@ function port(node: DiagramLayoutNode, side: Side, offset: number): DiagramPoint
 function sidePair(a: DiagramLayoutNode, b: DiagramLayoutNode, direction: DiagramModel['direction']): [Side, Side] {
   if (a === b) return ['right', 'bottom'];
   const dx = b.x + b.width / 2 - a.x - a.width / 2, dy = b.y + b.height / 2 - a.y - a.height / 2;
+  if (a.node.shape === 'decision') {
+    if (direction === 'TD' && Math.abs(dx) > 1) return [dx < 0 ? 'left' : 'right', dy >= 0 ? 'top' : 'bottom'];
+    if (direction === 'LR' && Math.abs(dy) > 1) return [dy < 0 ? 'top' : 'bottom', dx >= 0 ? 'left' : 'right'];
+  }
+  if (b.node.shape === 'end') {
+    if (direction === 'TD' && Math.abs(dx) > 1) return [dy >= 0 ? 'bottom' : 'top', dx > 0 ? 'left' : 'right'];
+    if (direction === 'LR' && Math.abs(dy) > 1) return [dx >= 0 ? 'right' : 'left', dy > 0 ? 'top' : 'bottom'];
+  }
   if (direction === 'LR' && dx < -1) return Math.abs(dy) < 1 ? ['top', 'top'] : dy > 0 ? ['bottom', 'top'] : ['top', 'bottom'];
   if (direction === 'TD' && dy < -1) return Math.abs(dx) < 1 ? ['right', 'right'] : dx > 0 ? ['right', 'left'] : ['left', 'right'];
   if (direction === 'LR' && Math.abs(dx) > 1 || Math.abs(dy) < 1) return dx >= 0 ? ['right', 'left'] : ['left', 'right'];
@@ -215,31 +223,71 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     groups.push({ group, x, y, width, height });
     groupLabels.push({ x: x + 16, y: y + 9, width: Math.min(width - 32, textWidth(group.label, 12)), height: wrapText(group.label, width - 34, 12).length * 17 + 5 });
   }
-  // Every edge gets its own port slot. This separates branches before they enter a gutter.
-  const portCounts = new Map<string, number>(), portSeen = new Map<string, number>(), pairCounts = new Map<string, number>();
-  const specs = model.edges.flatMap(edge => {
+  // Assign ports from geometry, not edge declaration order. Aligned connections
+  // keep the center; branches occupy the side nearest their destination.
+  const pairCounts = new Map<string, number>();
+  const compareKey = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
+  const connectionKey = (edge: DiagramModel['edges'][number]) => `${edge.from}:${edge.to}:${edge.style === 'solid' ? 0 : 1}:${edge.label}`;
+  const specs = [...model.edges].sort((a, b) => compareKey(connectionKey(a), connectionKey(b))).flatMap(edge => {
     const a = nodeById.get(edge.from), b = nodeById.get(edge.to); if (!a || !b) return [];
     let [sa, sb] = sidePair(a, b, model.kind === 'layers' ? 'TD' : model.direction);
     const pair = `${edge.from}:${edge.to}`, repetition = pairCounts.get(pair) ?? 0; pairCounts.set(pair, repetition + 1);
     if (repetition && a !== b) { if (a.y === b.y) sa = sb = repetition % 2 ? 'bottom' : 'top'; else if (a.x === b.x) sa = sb = repetition % 2 ? 'right' : 'left'; }
-    for (const [node, side] of [[a, sa], [b, sb]] as const) { const key = `${node.node.id}:${side}`; portCounts.set(key, (portCounts.get(key) ?? 0) + 1); }
-    return [{ edge, a, b, sa, sb }];
+    return [{ edge, a, b, sa, sb, start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }];
   });
-  const nextPort = (node: DiagramLayoutNode, side: Side) => {
-    const key = `${node.node.id}:${side}`, count = portCounts.get(key)!, index = portSeen.get(key) ?? 0; portSeen.set(key, index + 1);
-    const span = Math.min((side === 'left' || side === 'right' ? node.height : node.width) - 38, (count - 1) * 16);
-    return port(node, side, count === 1 ? 0 : -span / 2 + span * index / (count - 1));
-  };
+  type PortRequest = { spec: typeof specs[number]; endpoint: 'start' | 'end'; node: DiagramLayoutNode; side: Side; delta: number };
+  const portGroups = new Map<string, PortRequest[]>();
+  const edgeKey = (spec: typeof specs[number]) => connectionKey(spec.edge);
+  for (const spec of specs) for (const endpoint of ['start', 'end'] as const) {
+    const node = endpoint === 'start' ? spec.a : spec.b, other = endpoint === 'start' ? spec.b : spec.a;
+    const side = endpoint === 'start' ? spec.sa : spec.sb, horizontal = side === 'top' || side === 'bottom';
+    const delta = horizontal ? other.x + other.width / 2 - node.x - node.width / 2 : other.y + other.height / 2 - node.y - node.height / 2;
+    const key = `${node.node.id}:${side}`;
+    const requests = portGroups.get(key) ?? [];
+    requests.push({ spec, endpoint, node, side, delta }); portGroups.set(key, requests);
+  }
+  for (const requests of portGroups.values()) {
+    requests.sort((a, b) => a.delta - b.delta || compareKey(edgeKey(a.spec), edgeKey(b.spec)));
+    const { node, side } = requests[0]!;
+    const limit = (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
+    const pivot = requests.reduce((best, item, i) => Math.abs(item.delta) < Math.abs(requests[best]!.delta) ? i : best, 0);
+    // Leave room for a neighboring straight edge's label as well as its stroke.
+    // A 16–24px fan can otherwise pass through a label centered on that edge.
+    const preferredSpacing = Math.max(24, ...requests.map(({ spec }) => {
+      if (!spec.edge.label) return 24;
+      const label = labelSize(spec.edge.label);
+      return Math.ceil(((side === 'left' || side === 'right' ? label.height : label.width) / 2 + 12) / 8) * 8;
+    }));
+    const spacing = Math.min(preferredSpacing, limit / Math.max(1, pivot, requests.length - pivot - 1));
+    // Anchor an aligned edge precisely. Otherwise distribute the fan symmetrically.
+    const anchor = Math.abs(requests[pivot]!.delta) < 1 ? pivot : (requests.length - 1) / 2;
+    requests.forEach((request, i) => { request.spec[request.endpoint] = port(node, side, (i - anchor) * spacing); });
+  }
+  const aligned = (spec: typeof specs[number]) => spec.start.x === spec.end.x && spec.sa !== spec.sb || spec.start.y === spec.end.y && spec.sa !== spec.sb;
+  const originalOrder = new Map(model.edges.map((edge, i) => [edge, i]));
+  // Establish simple aligned routes first, then route branches around them.
+  specs.sort((a, b) => Number(aligned(b)) - Number(aligned(a)) || length([a.start, a.end]) - length([b.start, b.end]) || compareKey(edgeKey(a), edgeKey(b)));
   const edges: DiagramLayoutEdge[] = [], usedLabels: DiagramBox[] = [];
   const extent = { width: marginX * 2 + columns * maxW + (columns - 1) * gapX, height: marginY + rows * maxH + (rows - 1) * gapY + 90 };
-  for (const [edgeIndex, { edge, a, b, sa, sb }] of specs.entries()) {
-    const start = nextPort(a, sa), end = nextPort(b, sb), ca = cells.get(a.node.id)!, cb = cells.get(b.node.id)!;
-    const lane = ((edgeIndex % 7) - 3) * 7;
+  for (const [edgeIndex, { edge, a, b, sa, sb, start, end }] of specs.entries()) {
+    const ca = cells.get(a.node.id)!, cb = cells.get(b.node.id)!;
+    const lane = edgeIndex === 0 ? 0 : (Math.ceil(edgeIndex / 2) % 4) * (edgeIndex % 2 ? 8 : -8);
     const escape = (point: DiagramPoint, side: Side, cell: Cell): DiagramPoint => side === 'left' || side === 'right'
       ? { x: xGutters[cell.col + (side === 'right' ? 1 : 0)]! + lane, y: point.y }
       : { x: point.x, y: yGutters[cell.row + (side === 'bottom' ? 1 : 0)]! + lane };
     const ea = escape(start, sa, ca), eb = escape(end, sb, cb), ah = sa === 'left' || sa === 'right', bh = sb === 'left' || sb === 'right';
-    const candidates: DiagramPoint[][] = [];
+    const candidates: DiagramPoint[][] = [
+      [start, { x: end.x, y: start.y }, end],
+      [start, { x: start.x, y: end.y }, end],
+    ];
+    // Two-bend paths can use the middle of the shared corridor directly;
+    // routing via two separate escape tracks creates unnecessary tiny doglegs.
+    if (ah && bh) {
+      for (const x of [(start.x + end.x) / 2, ea.x, eb.x]) candidates.push([start, { x, y: start.y }, { x, y: end.y }, end]);
+    } else if (!ah && !bh) {
+      for (const y of [(start.y + end.y) / 2, ea.y, eb.y]) candidates.push([start, { x: start.x, y }, { x: end.x, y }, end]);
+    }
+    const outward = (origin: DiagramPoint, next: DiagramPoint, side: Side) => side === 'left' ? next.y === origin.y && next.x < origin.x : side === 'right' ? next.y === origin.y && next.x > origin.x : side === 'top' ? next.x === origin.x && next.y < origin.y : next.x === origin.x && next.y > origin.y;
     if (a !== b && (start.x === end.x && (sa === 'bottom' && sb === 'top' || sa === 'top' && sb === 'bottom') || start.y === end.y && (sa === 'right' && sb === 'left' || sa === 'left' && sb === 'right'))) candidates.push([start, end]);
     if (ah && bh) for (const y of yGutters) candidates.push([start, ea, { x: ea.x, y: y + lane }, { x: eb.x, y: y + lane }, eb, end]);
     else if (!ah && !bh) for (const x of xGutters) candidates.push([start, ea, { x: x + lane, y: ea.y }, { x: x + lane, y: eb.y }, eb, end]);
@@ -253,14 +301,15 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     const size = edge.label ? labelSize(edge.label) : undefined;
     for (const raw of candidates) {
       const points = tidy(raw);
+      if (points.length < 2 || !outward(start, points[1]!, sa) || !outward(end, points[points.length - 2]!, sb)) continue;
       if (points.slice(1).some((p, i) => nodes.some(n => !(n === a && i === 0) && !(n === b && i === points.length - 2) && segmentIntersectsBox(points[i]!, p, n, -1)))) continue;
-      let score = length(points) + points.length * 18;
+      let score = length(points) + (points.length - 2) * 60;
       for (let i = 1; i < points.length; i++) {
         for (const box of [...usedLabels, ...groupLabels]) if (segmentIntersectsBox(points[i - 1]!, points[i]!, box, 9)) score += 3000;
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {
           const p = points[i - 1]!, q = points[i]!, r = previous.points[j - 1]!, s = previous.points[j]!;
           if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += 2200;
-          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += 40;
+          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += 240;
         }
       }
       let labelBox: DiagramBox | undefined;
@@ -291,5 +340,6 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   }
   const width = Math.ceil(Math.max(extent.width, ...edges.flatMap(e => e.points.map(p => p.x + 48)), ...usedLabels.map(b => b.x + b.width + 30)));
   const height = Math.ceil(Math.max(extent.height, ...edges.flatMap(e => e.points.map(p => p.y + 48)), ...usedLabels.map(b => b.y + b.height + 30)));
+  edges.sort((a, b) => originalOrder.get(a.edge)! - originalOrder.get(b.edge)!);
   return { width, height, nodes, groups, edges };
 }

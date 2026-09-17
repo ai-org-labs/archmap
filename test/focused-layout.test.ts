@@ -28,6 +28,48 @@ function assertGeometry(layout: DiagramLayout, kind = 'system') {
 }
 
 describe('focused grid layout', () => {
+  it('keeps the API to database route straight and places the left branch on its left', () => {
+    const model = parseDiagram(DIAGRAM_SAMPLES.find(s => s.id === 'system')!.source);
+    const layout = computeDiagramLayout(model);
+    const database = layout.edges.find(e => e.edge.to === 'database')!;
+    const queue = layout.edges.find(e => e.edge.to === 'queue')!;
+    expect(database.points).toHaveLength(2);
+    expect(database.points[0]!.x).toBe(database.points[1]!.x);
+    expect(queue.points).toHaveLength(4);
+    expect(queue.points[0]!.x).toBeLessThan(database.points[0]!.x);
+    expect(queue.points.every(p => p.x < database.points[0]!.x)).toBe(true);
+    expect(renderDiagram(model).model.diagnostics).toEqual([]);
+    assertGeometry(layout);
+  });
+  it('uses diamond side vertices and terminal side ports for symmetric activity branches', () => {
+    const model = parseDiagram(DIAGRAM_SAMPLES.find(s => s.id === 'activity')!.source);
+    const layout = computeDiagramLayout(model);
+    const decision = layout.nodes.find(n => n.node.id === 'available')!;
+    const finish = layout.nodes.find(n => n.node.id === 'finish')!;
+    const branches = layout.edges.filter(e => e.edge.from === 'available');
+    const merges = layout.edges.filter(e => e.edge.to === 'finish');
+    for (const edge of [...branches, ...merges]) expect(edge.points).toHaveLength(3);
+    expect(branches.map(e => e.points[0]!.x).sort((a,b) => a-b)).toEqual([decision.x, decision.x + decision.width]);
+    expect(branches.every(e => e.points[0]!.y === decision.y + decision.height / 2)).toBe(true);
+    expect(merges.map(e => e.points[e.points.length - 1]!.x).sort((a,b) => a-b)).toEqual([finish.x, finish.x + finish.width]);
+    expect(merges.every(e => e.points[e.points.length - 1]!.y === finish.y + finish.height / 2)).toBe(true);
+    assertGeometry(layout);
+  });
+  it('assigns graph ports and paths independently of edge declaration order', () => {
+    for (const kind of ['system', 'activity', 'layers', 'screens']) {
+      const model = parseDiagram(DIAGRAM_SAMPLES.find(s => s.id === kind)!.source);
+      const normal = computeDiagramLayout(model);
+      const reversed = computeDiagramLayout({ ...model, edges: [...model.edges].reverse() });
+      for (const edge of normal.edges) expect(reversed.edges.find(e => e.edge === edge.edge)).toEqual(edge);
+    }
+  });
+  it('keeps the same primary and outer routes when parallel declarations are reordered', () => {
+    const model = parseDiagram('diagram system\nnode a "A"\nnode b "B"\na -> b "request"\na --> b "event"\na -> b "second"');
+    const normal = computeDiagramLayout(model);
+    const reversed = computeDiagramLayout({ ...model, edges: [...model.edges].reverse() });
+    for (const edge of normal.edges) expect(reversed.edges.find(e => e.edge === edge.edge)).toEqual(edge);
+    assertGeometry(normal);
+  });
   for (const sample of DIAGRAM_SAMPLES) it(`keeps ${sample.id} sample cards and labels separate`, () => {
     const model = parseDiagram(sample.source), layout = computeDiagramLayout(model);
     assertGeometry(layout, model.kind);
