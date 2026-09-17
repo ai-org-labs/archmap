@@ -226,3 +226,28 @@ it('allocates room for long icon captions and keeps semantic shapes', () => {
   const layers = DIAGRAM_SAMPLES.find(s => s.id === 'layers')!.source.replace(/(diagram[^\n]*\n)/, '$1style icons\n');
   assertGeometry(renderDiagram(parseDiagram(layers)).layout, 'layers');
 });
+
+it('places borderless sequence labels at the sender and aligns multiline replies to the right', () => {
+  const result = renderDiagram(parseDiagram(`diagram sequence
+node a "Client"
+node b "API"
+a -> b "Request"
+b --> a "Response\\nDetails"
+b -> b "Retry"
+a -> b`));
+  const [request, reply, self, unlabeled] = result.layout.edges;
+  expect(request.labelBox!.x).toBe(request.points[0].x + 12);
+  expect(reply.labelBox!.x + reply.labelBox!.width).toBe(reply.points[0].x - 12);
+  expect(self.labelBox!.x).toBe(self.points[0].x + 12);
+  expect(unlabeled.labelBox).toBeUndefined();
+  const labels = [...result.svg.matchAll(/<g class="archmap-edge-label">(.*?)<\/g>/g)].map(match => match[1]);
+  expect(labels).toHaveLength(3);
+  expect(labels.every(label => !label.includes('<rect'))).toBe(true);
+  expect(labels[0]).toContain('text-anchor="start"');
+  expect(labels[1]).toContain('text-anchor="end"');
+  expect(labels[1].match(/<tspan/g)).toHaveLength(2);
+  expect(labels[2]).toContain('text-anchor="start"');
+  assertGeometry(result.layout, 'sequence');
+  const system = renderDiagram(parseDiagram('diagram system\nnode a "A"\nnode b "B"\na -> b "Request"'));
+  expect(system.svg).toContain('<g class="archmap-edge-label"><rect');
+});

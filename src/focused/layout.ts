@@ -199,7 +199,7 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
     y += size ? Math.max(0, size.height - 26) : 0;
     const ax = a.x + a.width / 2, bx = b.x + b.width / 2;
     const points = a === b ? [{ x: ax, y }, { x: ax + Math.max(86, (size?.width ?? 0) + 24), y }, { x: ax + Math.max(86, (size?.width ?? 0) + 24), y: y + 32 }, { x: ax, y: y + 32 }] : [{ x: ax, y }, { x: bx, y }];
-    edges.push({ edge, points, ...(size ? { labelBox: { x: a === b ? ax + 12 : (ax + bx - size.width) / 2, y: y - size.height - 8, ...size } } : {}) });
+    edges.push({ edge, points, ...(size ? { labelBox: { x: bx >= ax ? ax + 12 : ax - 12 - size.width, y: y - size.height - 8, ...size } } : {}) });
     y += a === b ? 110 : 78;
   }
   const rightmost = Math.max(margin + 200, ...nodes.map(n => n.x + n.width), ...edges.flatMap(e => e.points.map(p => p.x)), ...edges.map(e => e.labelBox ? e.labelBox.x + e.labelBox.width : 0));
