@@ -302,6 +302,10 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     // An action owns its source port. Incoming transitions attach to the screen header.
     if (a.screen) sa = b.x < a.x ? 'left' : 'right';
     if (b.screen) sb = a === b ? 'top' : edge.bidirectional ? a.x < b.x ? 'left' : 'right' : a.x === b.x ? 'top' : a.x < b.x ? 'left' : 'right';
+    // A return to the preceding screen goes around the row, away from forward arrivals.
+    if (a.screen && b.screen && a.y === b.y && b.x < a.x && !edge.bidirectional && model.edges.some(other => other.from === edge.to && other.to === edge.from)) {
+      sa = 'right'; sb = 'top';
+    }
     return [{ edge, a, b, sa, sb, start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }];
   });
   type PortRequest = { spec: typeof specs[number]; endpoint: 'start' | 'end'; node: DiagramLayoutNode; side: Side; delta: number };
@@ -320,6 +324,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     const requests = portGroups.get(key) ?? [];
     requests.push({ spec, endpoint, node, side, delta }); portGroups.set(key, requests);
   }
+  const screenArrivalTracks = new Map<string, number[]>();
   for (const requests of portGroups.values()) {
     requests.sort((a, b) => a.delta - b.delta || compareKey(edgeKey(a.spec), edgeKey(b.spec)));
     const { node, side } = requests[0]!;
@@ -335,7 +340,22 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     const spacing = Math.min(preferredSpacing, limit / Math.max(1, pivot, requests.length - pivot - 1));
     // Anchor an aligned edge precisely. Otherwise distribute the fan symmetrically.
     const anchor = Math.abs(requests[pivot]!.delta) < 1 ? pivot : (requests.length - 1) / 2;
-    requests.forEach((request, i) => { request.spec[request.endpoint] = port(node, side, (i - anchor) * spacing); });
+    requests.forEach((request, i) => {
+      const point = port(node, side, (i - anchor) * spacing);
+      if (node.screen && (side === 'left' || side === 'right')) {
+        // Opposite faces share a corridor: reserve arrival heights across both cards.
+        const cell = cells.get(node.node.id)!;
+        const key = `${cell.row}:${cell.col + (side === 'right' ? 1 : 0)}`;
+        const used = screenArrivalTracks.get(key) ?? [];
+        const low = node.y + 39, high = node.y + node.screen.headerHeight - 12;
+        const candidates = [point.y, ...Array.from({ length: Math.max(1, Math.floor(high - low) + 1) }, (_, j) => low + j)];
+        candidates.sort((a, b) => Math.abs(a - point.y) - Math.abs(b - point.y) || a - b);
+        const available = candidates.find(y => y >= low && y <= high && used.every(other => Math.abs(y - other) >= 14));
+        if (available !== undefined) point.y = available;
+        used.push(point.y); screenArrivalTracks.set(key, used);
+      }
+      request.spec[request.endpoint] = point;
+    });
   }
   const aligned = (spec: typeof specs[number]) => spec.start.x === spec.end.x && spec.sa !== spec.sb || spec.start.y === spec.end.y && spec.sa !== spec.sb;
   const originalOrder = new Map(model.edges.map((edge, i) => [edge, i]));
@@ -345,7 +365,8 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const extent = { width: marginX * 2 + columns * maxW + (columns - 1) * gapX, height: marginY + rows * maxH + (rows - 1) * gapY + 90 };
   for (const [edgeIndex, { edge, a, b, sa, sb, start, end }] of specs.entries()) {
     const ca = cells.get(a.node.id)!, cb = cells.get(b.node.id)!;
-    const lane = edgeIndex === 0 ? 0 : (Math.ceil(edgeIndex / 2) % 4) * (edgeIndex % 2 ? 8 : -8);
+    const laneSpacing = model.kind === 'screens' ? 16 : 8;
+    const lane = edgeIndex === 0 ? 0 : (Math.ceil(edgeIndex / 2) % 4) * (edgeIndex % 2 ? laneSpacing : -laneSpacing);
     const escape = (point: DiagramPoint, side: Side, cell: Cell): DiagramPoint => side === 'left' || side === 'right'
       ? { x: xGutters[cell.col + (side === 'right' ? 1 : 0)]! + lane, y: point.y }
       : { x: point.x, y: yGutters[cell.row + (side === 'bottom' ? 1 : 0)]! + lane };

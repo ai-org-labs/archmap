@@ -163,7 +163,7 @@ b -> a "戻る"`), layout = computeDiagramLayout(model);
     expect(reverse.points.length).toBeGreaterThan(2);
     expect(reverse.labelBox).toBeUndefined();
     const source = layout.nodes[1]!, action = source.screen!.actions[0]!;
-    expect(reverse.points[0]).toEqual({ x: source.x, y: source.y + action.top + action.height / 2 });
+    expect(reverse.points[0]).toEqual({ x: source.x + source.width, y: source.y + action.top + action.height / 2 });
   });
   it('routes a dense 100 edge graph without card or label overlap', () => {
  const nodes = Array.from({length:40},(_,i)=>({id:`n${i}`,label:`サービス${i}`,shape:'card' as const,color:'blue' as const,line:i+1,at:[i%8+1,Math.floor(i/8)+1] as [number,number]}));
@@ -341,4 +341,32 @@ a -> b`);
   expect(layout.edges[0].points[0].y).toBeGreaterThan(second.y + second.height);
   expect(layout.edges[0].points[0].x).toBe(layout.nodes[0].x + layout.nodes[0].width / 2);
   expect(computeDiagramLayout(parseDiagram('diagram sequence\nnode a "A"')).activations).toBeUndefined();
+});
+
+it('keeps forward and return screen transitions on separate tracks', () => {
+  const sources = [DIAGRAM_SAMPLES.find(sample => sample.id === 'screens')!.source, `diagram screens
+node a "A" at=1,1
+node b "B" at=2,1
+node c "C" at=3,1
+a -> c "Jump"
+b -> c "Forward"
+c -> b "Return"`, `diagram screens
+node a "A" at=1,1
+node b "B" at=2,1
+node c "C" at=3,1
+a -> c "Forward"
+c -> b "Other arrival"`];
+  for (const source of sources) {
+    const layout = computeDiagramLayout(parseDiagram(source));
+    assertGeometry(layout, 'screens');
+    for (const [index, edge] of layout.edges.entries()) for (const other of layout.edges.slice(index + 1)) {
+      for (let i = 1; i < edge.points.length; i++) for (let j = 1; j < other.points.length; j++) {
+        const a = edge.points[i - 1], b = edge.points[i], c = other.points[j - 1], d = other.points[j];
+        const horizontal = a.y === b.y && c.y === d.y && a.y === c.y;
+        const vertical = a.x === b.x && c.x === d.x && a.x === c.x;
+        const overlap = horizontal ? Math.min(Math.max(a.x,b.x),Math.max(c.x,d.x)) - Math.max(Math.min(a.x,b.x),Math.min(c.x,d.x)) : vertical ? Math.min(Math.max(a.y,b.y),Math.max(c.y,d.y)) - Math.max(Math.min(a.y,b.y),Math.min(c.y,d.y)) : 0;
+        expect(overlap, `${edge.edge.label} overlaps ${other.edge.label}`).toBeLessThanOrEqual(0);
+      }
+    }
+  }
 });
