@@ -1,3 +1,4 @@
+import { groupContains } from './groups.js';
 import { getIcon } from '../icons.js';
 import { BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, iconNodeText, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, textWidth, wrapText } from './layout.js';
 import type { DiagramColor, DiagramDiagnostic, DiagramLayout, DiagramLayoutNode, DiagramModel, DiagramRenderResult } from './types.js';
@@ -67,8 +68,8 @@ function geometryWarnings(layout: DiagramLayout, model: DiagramModel): DiagramDi
     if (!warnings.some(w => w.message === message && w.line === line)) warnings.push({ line, severity: 'warning', message });
   };
   for (const [index, group] of layout.groups.entries()) {
-    if (layout.nodes.some(n => n.node.group !== group.group.id && boxesOverlap(group, n))) report(group.group.line, `グループ「${group.group.label}」の領域に別のノードが重なっています。at の行を分けてください。`);
-    if (layout.groups.slice(index + 1).some(other => boxesOverlap(group, other))) report(group.group.line, `グループ「${group.group.label}」の領域が別のグループと重なっています。at の行を分けてください。`);
+    if (layout.nodes.some(n => !groupContains(model, group.group.id, n.node.group) && boxesOverlap(group, n))) report(group.group.line, `グループ「${group.group.label}」の領域に別のノードが重なっています。at の行を分けてください。`);
+    if (layout.groups.slice(index + 1).some(other => !groupContains(model, group.group.id, other.group.id) && !groupContains(model, other.group.id, group.group.id) && boxesOverlap(group, other))) report(group.group.line, `グループ「${group.group.label}」の領域が別のグループと重なっています。at の行を分けてください。`);
   }
   if (model.kind === 'sequence') return warnings;
   let connectorLabelCollision = false;
@@ -88,7 +89,7 @@ export function renderDiagram(model: DiagramModel): DiagramRenderResult {
   const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram' }[model.kind]);
   const groups = layout.groups.map(({ group, x, y, width, height }) => {
     const colors = palette[group.color] ?? palette.gray;
-    return `<g class="archmap-group"><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${colors.fill}" fill-opacity=".52" stroke="${colors.border}" stroke-dasharray="5 4"/>${textLines(wrapText(group.label, width - 34, 12), x + 16, y + 24, 12, 17, colors.ink, 600)}</g>`;
+    return `<g class="archmap-group" data-group="${escapeXml(group.id)}"><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${colors.fill}" fill-opacity=".52" stroke="${colors.border}" stroke-dasharray="5 4"/>${textLines(wrapText(group.label, width - 34, 12), x + 16, y + 24, 12, 17, colors.ink, 600)}</g>`;
   }).join('');
   const lifelines = model.kind === 'sequence' ? layout.nodes.map(n => `<path class="archmap-lifeline" d="M ${n.x + n.width / 2} ${n.y + n.height} V ${layout.height - 32}" fill="none" stroke="#cbd5e1" stroke-width="1.3" stroke-dasharray="5 6"/>`).join('') : '';
   const layerBands = model.kind === 'layers' && !layout.groups.length ? [...new Set(layout.nodes.map(n => n.y + n.height / 2))].map(center => { const members = layout.nodes.filter(n => n.y + n.height / 2 === center), height = Math.max(...members.map(n => n.height)); return `<rect x="24" y="${center - height / 2 - 18}" width="${layout.width - 48}" height="${height + 36}" rx="16" fill="#f6f8fc" stroke="#e5ebf3"/>`; }).join('') : '';

@@ -9,6 +9,7 @@ export const DIAGRAM_LIMITS = Object.freeze({
   nodes: 40,
   edges: 100,
   groups: 12,
+  groupDepth: 8,
   gridCoordinate: 12,
   labelLength: 120,
   descriptionLength: 240,
@@ -218,7 +219,7 @@ export function parseDiagram(source: string): DiagramModel {
       }
       if (ids.has(id.value)) { report(line, `ID「${id.value}」はすでに宣言されています。`); continue; }
       if (!validLabel(tokens[2], line, report)) continue;
-      const opts = options(tokens.slice(3), command === "group" ? ["color"] : ["description", "icon", "group", "at", "shape", "color"], line, report);
+      const opts = options(tokens.slice(3), command === "group" ? ["color", "parent"] : ["description", "icon", "group", "at", "shape", "color"], line, report);
       if (!opts) continue;
       let invalid = false;
       const reject = (message: string) => { invalid = true; report(line, message); };
@@ -231,11 +232,14 @@ export function parseDiagram(source: string): DiagramModel {
       const color = opts.get("color")?.value ?? "blue";
       if (!COLORS.has(color as DiagramColor)) reject("color は blue、green、orange、purple、gray から選んでください。");
       if (command === "group") {
+        const parent = opts.get("parent")?.value;
+        if (parent && !ID.test(parent)) reject("parent には有効なグループ ID を指定してください。");
+        if (parent === id.value) reject("グループ自身を parent に指定できません。");
         if (model.kind === "sequence") reject("sequence では group を使用できません。");
         if (model.groups.length >= DIAGRAM_LIMITS.groups) reject(`グループは ${DIAGRAM_LIMITS.groups} 個まで指定できます。`);
         if (!invalid) {
           ids.add(id.value);
-          model.groups.push({ id: id.value, label: tokens[2].value, color: color as DiagramColor, line });
+          model.groups.push({ id: id.value, label: tokens[2].value, color: color as DiagramColor, line, ...(parent ? { parent } : {}) });
         }
         continue;
       }
@@ -294,6 +298,16 @@ export function parseDiagram(source: string): DiagramModel {
   if (hasHeader && model.nodes.length === 0) report(1, "少なくとも 1 個の node を宣言してください。");
   const nodeIds = new Set(model.nodes.map((node) => node.id));
   const groupIds = new Set(model.groups.map((group) => group.id));
+  const groupsById = new Map(model.groups.map(group => [group.id, group]));
+  for (const group of model.groups) {
+    if (group.parent && !groupIds.has(group.parent)) report(group.line, `親グループ「${group.parent}」が宣言されていません。`);
+    const seen = new Set<string>([group.id]); let parent = group.parent;
+    while (parent && groupsById.has(parent)) {
+      if (seen.has(parent)) { report(group.line, "グループの親子関係が循環しています。"); break; }
+      seen.add(parent); parent = groupsById.get(parent)!.parent;
+    }
+    if (seen.size > DIAGRAM_LIMITS.groupDepth) report(group.line, `グループの入れ子は ${DIAGRAM_LIMITS.groupDepth} 段までです。`);
+  }
   for (const node of model.nodes) {
     if (node.group && !groupIds.has(node.group)) report(node.line, `グループ「${node.group}」が宣言されていません。`);
   }

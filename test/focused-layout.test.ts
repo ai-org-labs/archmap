@@ -423,3 +423,51 @@ it('contains long conditions, empty branches, and self loops on the final partic
   const edge = layout.edges[0];
   expect(Math.max(...edge.points.map(p=>p.x))).toBeLessThan(layout.fragments![1].x + layout.fragments![1].width);
 });
+
+it('contains nested group bounds and titles without treating ancestors as collisions', () => {
+  for (const kind of ['system','layers','screens','activity']) for (const style of kind==='system' || kind==='layers' ? ['cards','icons'] : ['cards']) {
+    const model = parseDiagram(`diagram ${kind}\nstyle ${style}
+group private "Private subnet" parent=vpc color=green
+group public "Public subnet" parent=vpc
+group vpc "Production VPC" parent=region
+group region "Tokyo Region" parent=cloud
+group cloud "AWS Cloud"
+group external "External"
+node api "API" group=public icon=server
+node db "Database" group=private icon=database
+node other "Other" group=external
+api -> db "SQL"`);
+    const result=renderDiagram(model),layout=result.layout;
+    expect(result.model.diagnostics).toEqual([]);
+    assertGeometry(layout,kind);
+    expect(layout.groups.map(g=>g.group.id)).toEqual(['cloud','region','vpc','private','public','external']);
+    for(const child of layout.groups) {
+      expect(child.x).toBeGreaterThanOrEqual(0);expect(child.y).toBeGreaterThanOrEqual(0);
+      expect(child.x+child.width).toBeLessThanOrEqual(layout.width);expect(child.y+child.height).toBeLessThanOrEqual(layout.height);
+      if(child.group.parent) {
+        const parent=layout.groups.find(g=>g.group.id===child.group.parent)!;
+        expect(child.x).toBeGreaterThan(parent.x);
+        expect(child.x+child.width).toBeLessThan(parent.x+parent.width);
+        expect(child.y).toBeGreaterThan(parent.y+24+wrapText(parent.group.label,parent.width-34,12).length*17);
+        expect(child.y+child.height).toBeLessThan(parent.y+parent.height);
+      }
+    }
+    expect(result.svg.indexOf('data-group="cloud"')).toBeLessThan(result.svg.indexOf('data-group="private"'));
+  }
+});
+
+it('retains overlap warnings for unrelated groups while containing eight levels and long labels', () => {
+  const deep = parseDiagram(`diagram system\nstyle icons\n${Array.from({length:8},(_,i)=>`group g${i} "${'長い境界名'.repeat(5)}"${i ? ` parent=g${i-1}` : ''}`).join('\n')}\nnode api "API" group=g7`);
+  const result=renderDiagram(deep);
+  expect(result.model.diagnostics).toEqual([]);
+  expect(result.layout.groups).toHaveLength(8);
+  expect(result.layout.groups.every(g=>g.y>=0 && g.x>=0 && g.y+g.height<=result.layout.height)).toBe(true);
+  const conflict=renderDiagram(parseDiagram(`diagram system
+group root "Root"
+group child "Child" parent=root
+group other "Other"
+node a "A" group=child at=1,1
+node b "B" group=child at=3,1
+node c "C" group=other at=2,1`));
+  expect(conflict.model.diagnostics.some(d=>d.severity==='warning' && d.message.includes('領域'))).toBe(true);
+});

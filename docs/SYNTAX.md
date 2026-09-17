@@ -28,7 +28,7 @@ api -> database "SQL"
 diagram system|layers|sequence|screens|activity [LR|TD]
 style cards|icons
 title "タイトル"
-group ID "ラベル" [color=COLOR]
+group ID "ラベル" [color=COLOR] [parent=ID]
 node ID "ラベル" [description="説明"] [icon=KEY] [group=ID] [at=列,行] [shape=SHAPE] [color=COLOR]
 ID -> ID ["ラベル"]
 ID --> ID ["ラベル"]
@@ -109,7 +109,7 @@ api -> db "SQL"
 
 `icons` は `system` と `layers` で利用できます。`card` と `database` の枠を省き、48 px のアイコンを表示します。アイコン未指定・未登録の場合は汎用のサーバー／データベースアイコンで表示します。`decision`、`start`、`end` は意味を表す図形を維持します。`sequence`、`screens`、`activity` では `cards` のみ使用できます。
 
-アイコンの左右と上側に接続し、下側では名前・説明の領域を避けて接続します。グループ、グリッド配置、接続ラベルは共通です。グループの入れ子はこのモードでも未対応です。
+アイコンの左右と上側に接続し、下側では名前・説明の領域を避けて接続します。グループ、グリッド配置、接続ラベルは共通です。`parent=ID` によるグループの入れ子も使用できます。
 
 Playground の「表示」から切り替えると、ソースの `style` 宣言も更新されます。保存・再読み込み・SVG／PNG 出力・オフライン版にも反映されます。
 
@@ -133,12 +133,34 @@ node api "API" group=platform
 | ID | はい | ノードの `group=ID` から参照する一意の ID |
 | ラベル | はい | ダブルクォートで囲む表示名。120 文字まで |
 | `color` | いいえ | `blue`、`green`、`orange`、`purple`、`gray`。既定は `blue` |
+| `parent` | いいえ | 親グループの ID。省略時はルート |
 
-`system`、`screens`、`activity` では、グループのメンバーを囲む領域として表示します。ノードが所属できるグループは 1 つです。グループの入れ子は使用できません。メンバーがいないグループは描画されません。手動配置では、別グループのノードを同じ領域に挟まないよう位置を指定してください。
+`system`、`screens`、`activity` では、グループのメンバーを囲む領域として表示します。ノードが直接所属できるグループは 1 つで、その祖先グループにも包含されます。親は子グループの見出しと余白を含めて囲みます。子孫にもノードがないグループは描画されません。手動配置では、兄弟や無関係なグループの領域を重ねないよう位置を指定してください。親子の包含は正常な表示として扱います。
 
-`layers` では、グループ宣言の順に上から下へレイヤーを配置し、各レイヤーのノードを宣言順に左から右へ並べます。グループに所属しないノードは、グループの後に接続関係から算出した深さ別に並びます。すべてのノードを明示的なグループへ割り当てると、レイヤー順を直接指定できます。
+`layers` では、親に直接所属するノード、子グループの順に上から下へ配置します。ルートと兄弟は宣言順、各レイヤーのノードは宣言順に左から右へ並びます。直接所属するノードがない親は行を消費しません。所属なしのノードは、グループの後に接続関係から算出した深さ別に並びます。
 
 `sequence` ではグループと `group=ID` を使用できません。
+
+### グループの入れ子
+
+グループに省略可能な `parent=ID` を指定すると、そのグループを親の内側に配置します。省略時はルートです。
+
+```archmap
+diagram system LR
+style icons
+group cloud "AWS Cloud" color=gray
+group region "Tokyo Region" parent=cloud color=blue
+group vpc "Production VPC" parent=region color=green
+group app_subnet "Application subnet" parent=vpc color=blue
+group data_subnet "Database subnet" parent=vpc color=green
+node app "Amazon EC2" icon=aws/ec2 group=app_subnet at=1,1
+node db "Amazon RDS" icon=aws/rds group=data_subnet at=2,1
+app -> db "SQL"
+```
+
+親は後から宣言することもできます。未定義の親、ノードを親にする指定、自分自身の指定、循環する親子関係はエラーです。入れ子はルートを 1 段として最大 8 段、グループ総数は 12 個です。色は継承せず、省略時は `blue` です。
+
+自動配置は同じ親の子孫をまとめます。`at` は親からの相対位置ではなく、図全体のグリッド位置です。接続先には引き続きノードを指定します。
 
 ## `node` — 要素と表示オプション
 
@@ -337,6 +359,7 @@ deactivate api
 | フラグメントの文 | 合計 128 文（シーケンス図のみ） |
 | フラグメントの入れ子 | 4 段 |
 | グループ | 12 個 |
+| グループの入れ子 | 8 段（ルートを含む） |
 | タイトル・各ラベル | 120 文字 |
 | 各説明 | 240 文字 |
 | アイコンキー | 80 文字 |

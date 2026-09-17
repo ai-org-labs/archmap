@@ -298,3 +298,21 @@ it('rejects fragments outside sequences and allows an activation enclosing a who
   expect(errors('diagram system\nnode a "A"\nalt "x"\nend').length).toBeGreaterThan(0);
   expect(errors('diagram sequence\nnode a "A"\nactivate a\nalt "x"\nelse\nend\ndeactivate a')).toEqual([]);
 });
+
+it('accepts parent groups declared later and nesting across non-sequence diagram kinds', () => {
+  for (const kind of ['system','layers','screens','activity']) {
+    const model = parseDiagram(`diagram ${kind}\ngroup subnet "Subnet" parent=vpc\ngroup vpc "VPC" parent=cloud\ngroup cloud "Cloud"\nnode api "API" group=subnet`);
+    expect(model.diagnostics).toEqual([]);
+    expect(model.groups[0].parent).toBe('vpc');
+  }
+});
+it.each([
+  'group a "A" parent=missing',
+  'group a "A" parent=a',
+  'group a "A" parent=b\ngroup b "B" parent=a',
+  'group a "A" parent=api',
+  'group a "A" parent="b"\ngroup b "B"',
+  Array.from({length:9},(_,i)=>`group g${i} "Group"${i ? ` parent=g${i-1}` : ''}`).join('\n'),
+])('rejects invalid group nesting: %s', groups => {
+  expect(errors(`diagram system\nnode api "API"\n${groups}`).some(d=>d.severity==='error')).toBe(true);
+});

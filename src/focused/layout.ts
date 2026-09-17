@@ -1,3 +1,4 @@
+import { groupAncestors, orderedGroups } from './groups.js';
 import type { DiagramBox, DiagramLayout, DiagramLayoutEdge, DiagramLayoutNode, DiagramModel, DiagramNode, DiagramPoint, DiagramScreenContent } from "./types.js";
 
 export const FONT = 'Inter, "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -123,7 +124,7 @@ function placeCells(model: DiagramModel): Map<string, Cell> {
   const depth = ranks(model);
   if (model.kind === 'layers') {
     const ungroupedRanks = [...new Set(model.nodes.filter(n => !n.group).map(n => depth.get(n.id) ?? 0))].sort((a, b) => a - b);
-    const layerKeys = [...model.groups.map(g => g.id), ...ungroupedRanks.map(rank => `rank:${rank}`)];
+    const layerKeys = [...orderedGroups(model).filter(g => model.nodes.some(n => n.group === g.id)).map(g => g.id), ...ungroupedRanks.map(rank => `rank:${rank}`)];
     for (const node of model.nodes) {
       const row = layerKeys.indexOf(node.group ?? `rank:${depth.get(node.id) ?? 0}`);
       let col = 0; while (occupied.has(`${col},${row}`)) col++;
@@ -134,7 +135,7 @@ function placeCells(model: DiagramModel): Map<string, Cell> {
   // Manual coordinates reserve their cells first. Automatic nodes never cover them.
   for (const node of model.nodes) if (node.at) reserve(node, node.at[0] - 1, node.at[1] - 1);
   let band = 0;
-  const buckets = [...model.groups.map(g => g.id), ''];
+  const buckets = [...orderedGroups(model).map(g => g.id), ''];
   for (const group of buckets) {
     const members = model.nodes.filter(n => (n.group ?? '') === group && !cells.has(n.id));
     if (!members.length) continue;
@@ -289,27 +290,36 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const maxLabel = Math.max(0, ...model.edges.map(e => e.label ? labelSize(e.label).width : 0));
   const degree = new Map<string, number>(); model.edges.forEach(e => { degree.set(e.from, (degree.get(e.from) ?? 0) + 1); degree.set(e.to, (degree.get(e.to) ?? 0) + 1); });
   const maxDegree = Math.max(0, ...degree.values());
-  const gapX = iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72);
-  const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, 250, 12).length * 17 + 24));
-  const gapY = iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68);
-  const marginX = Math.max(100, maxLabel / 2 + 36);
+  const nesting = Math.max(1, ...model.groups.map(group => groupAncestors(model, group.id).length));
+  const gapX = Math.max(nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
+  const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), 12).length * 17 + 24));
+  const gapY = Math.max(nesting > 1 ? nesting * (groupHeader + 22) + 40 : 0, iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
+  const marginX = Math.max(100, maxLabel / 2 + 36, nesting * 22 + 24);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX, pitchY = maxH + gapY;
   const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, 19).length * 26 + 22 : 0;
-  const marginY = titleHeight + groupHeader + 48;
+  const marginY = titleHeight + groupHeader * nesting + 48;
   const xGutters = Array.from({ length: columns + 1 }, (_, i) => marginX - gapX / 2 + i * pitchX);
   const yGutters = Array.from({ length: rows + 1 }, (_, i) => marginY - gapY / 2 + i * pitchY);
   const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) || model.kind === 'screens' && node.shape === 'card' ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
   const nodeById = new Map(nodes.map(n => [n.node.id, n]));
   const groups: DiagramLayout['groups'] = [];
   const groupLabels: DiagramBox[] = [];
-  for (const group of model.groups) {
-    const members = nodes.filter(n => n.node.group === group.id); if (!members.length) continue;
-    const x = Math.min(...members.map(n => n.x)) - 22, y = Math.min(...members.map(n => n.y)) - groupHeader;
-    const width = Math.max(...members.map(n => n.x + n.width)) - x + 22, height = Math.max(...members.map(n => n.y + n.height)) - y + 22;
-    groups.push({ group, x, y, width, height });
+  const groupOrder = orderedGroups(model);
+  const groupBoxes = new Map<string, DiagramLayout['groups'][number]>();
+  // Build from children upward, then paint parents before their children.
+  for (const group of [...groupOrder].reverse()) {
+    const members: DiagramBox[] = [...nodes.filter(n => n.node.group === group.id), ...groupOrder.filter(child => child.parent === group.id).flatMap(child => groupBoxes.has(child.id) ? [groupBoxes.get(child.id)!] : [])];
+    if (!members.length) continue;
+    const x = Math.min(...members.map(n => n.x)) - 22;
+    const width = Math.max(...members.map(n => n.x + n.width)) - x + 22;
+    const header = Math.max(46, wrapText(group.label, width - 34, 12).length * 17 + 24);
+    const y = Math.min(...members.map(n => n.y)) - header;
+    const height = Math.max(...members.map(n => n.y + n.height)) - y + 22;
+    groupBoxes.set(group.id, { group, x, y, width, height });
     groupLabels.push({ x: x + 16, y: y + 9, width: Math.min(width - 32, textWidth(group.label, 12)), height: wrapText(group.label, width - 34, 12).length * 17 + 5 });
   }
+  for (const group of groupOrder) if (groupBoxes.has(group.id)) groups.push(groupBoxes.get(group.id)!);
   // Assign ports from geometry, not edge declaration order. Aligned connections
   // keep the center; branches occupy the side nearest their destination.
   const pairCounts = new Map<string, number>();
@@ -454,8 +464,8 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     if (chosen.labelBox) usedLabels.push(chosen.labelBox);
     edges.push({ edge, points: chosen.points, ...(chosen.labelBox ? { labelBox: chosen.labelBox } : {}) });
   }
-  const width = Math.ceil(Math.max(extent.width, ...edges.flatMap(e => e.points.map(p => p.x + 48)), ...usedLabels.map(b => b.x + b.width + 30)));
-  const height = Math.ceil(Math.max(extent.height, ...edges.flatMap(e => e.points.map(p => p.y + 48)), ...usedLabels.map(b => b.y + b.height + 30)));
+  const width = Math.ceil(Math.max(extent.width, ...groups.map(group => group.x + group.width + 24), ...edges.flatMap(e => e.points.map(p => p.x + 48)), ...usedLabels.map(b => b.x + b.width + 30)));
+  const height = Math.ceil(Math.max(extent.height, ...groups.map(group => group.y + group.height + 24), ...edges.flatMap(e => e.points.map(p => p.y + 48)), ...usedLabels.map(b => b.y + b.height + 30)));
   edges.sort((a, b) => originalOrder.get(a.edge)! - originalOrder.get(b.edge)!);
   return { width, height, nodes, groups, edges };
 }

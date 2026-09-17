@@ -15,7 +15,7 @@ export interface DiagramNode {
   color: DiagramColor;
   line: number;
 }
-export interface DiagramGroup { id: string; label: string; color: DiagramColor; line: number }
+export interface DiagramGroup { id: string; label: string; color: DiagramColor; line: number; parent?: string }
 export interface DiagramEdge { from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
 export interface DiagramFragmentEvent { action: "alt" | "opt" | "loop" | "else" | "end"; label: string; afterEdge: number; line: number }
 export interface DiagramActivationEvent { action: "activate" | "deactivate"; node: string; afterEdge: number; line: number }

@@ -10,13 +10,14 @@ export const DIAGRAM_SAMPLES: DiagramSample[] = [
 title "注文サービスの構成"
 
 group platform "Google Cloud" color=blue
+group project "Production" parent=platform color=blue
 node client "Web アプリ" description="お客様のブラウザー" icon=browser at=1,1
-node gateway "API Gateway" description="認証とルーティング" icon=gcp/api_gateway group=platform at=2,1
-node api "Orders API" description="注文を受け付ける" icon=gcp/cloud_run group=platform at=3,1
-node database "Cloud SQL" description="注文データ" icon=gcp/cloud_sql shape=database color=green group=platform at=3,2
-node queue "Pub / Sub" description="注文イベント" icon=gcp/pub_sub color=orange group=platform at=2,2
-node worker "Worker" description="非同期処理" icon=gcp/cloud_run group=platform at=2,3
-node storage "Cloud Storage" description="領収書を保存" icon=gcp/cloud_storage color=purple group=platform at=3,3
+node gateway "API Gateway" description="認証とルーティング" icon=gcp/api_gateway group=project at=2,1
+node api "Orders API" description="注文を受け付ける" icon=gcp/cloud_run group=project at=3,1
+node database "Cloud SQL" description="注文データ" icon=gcp/cloud_sql shape=database color=green group=project at=3,2
+node queue "Pub / Sub" description="注文イベント" icon=gcp/pub_sub color=orange group=project at=2,2
+node worker "Worker" description="非同期処理" icon=gcp/cloud_run group=project at=2,3
+node storage "Cloud Storage" description="領収書を保存" icon=gcp/cloud_storage color=purple group=project at=3,3
 
 client -> gateway "HTTPS"
 gateway -> api "認証済み"
