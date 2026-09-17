@@ -32,6 +32,13 @@ export function nodeText(node: DiagramNode, kind: DiagramModel['kind'], width: n
   const content = width - inset * 2 - (!centered && node.icon ? kind === 'sequence' ? 28 : 44 : 0);
   return { title: wrapText(node.label, content), description: node.description ? wrapText(node.description, content, BODY_SIZE) : [], inset, centered, header: kind === 'screens' ? 27 : 0 };
 }
+export function iconNodeText(node: DiagramNode) {
+  return { title: wrapText(node.label, 140, TITLE_SIZE), description: node.description ? wrapText(node.description, 140, BODY_SIZE) : [] };
+}
+function iconNodeSize(node: DiagramNode) {
+  const text = iconNodeText(node);
+  return { width: 160, height: 62 + text.title.length * 21 + (text.description.length ? 6 + text.description.length * 17 : 0) + 6 };
+}
 function sizeNode(node: DiagramNode, kind: DiagramModel['kind']): { width: number; height: number } {
   const width = kind === 'sequence' ? 180 : node.shape === 'decision' ? 280 : 240;
   const text = nodeText(node, kind, width);
@@ -134,6 +141,10 @@ function placeCells(model: DiagramModel): Map<string, Cell> {
 }
 function port(node: DiagramLayoutNode, side: Side, offset: number): DiagramPoint {
   const x = node.x + node.width / 2, y = node.y + node.height / 2;
+  if (node.iconMode) {
+    if (side === 'left' || side === 'right') return { x: x + (side === 'left' ? -24 : 24), y: node.y + 24 + offset };
+    return { x: x + offset, y: side === 'top' ? node.y : node.y + node.height };
+  }
   if (side === 'left' || side === 'right') {
     const inset = node.node.shape === 'decision' ? Math.abs(offset) * node.width / node.height : 0;
     return { x: side === 'left' ? node.x + inset : node.x + node.width - inset, y: y + offset };
@@ -197,14 +208,16 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
 
 export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   if (model.kind === 'sequence') return sequenceLayout(model);
-  const cells = placeCells(model), sizes = model.nodes.map(node => sizeNode(node, model.kind));
-  const maxW = Math.max(240, ...sizes.map(s => s.width)), maxH = Math.max(88, ...sizes.map(s => s.height));
+  const iconStyle = model.style === 'icons' && (model.kind === 'system' || model.kind === 'layers');
+  const usesIcon = (node: DiagramNode) => iconStyle && (node.shape === 'card' || node.shape === 'database');
+  const cells = placeCells(model), sizes = model.nodes.map(node => usesIcon(node) ? iconNodeSize(node) : sizeNode(node, model.kind));
+  const maxW = Math.max(iconStyle ? 160 : 240, ...sizes.map(s => s.width)), maxH = Math.max(88, ...sizes.map(s => s.height));
   const maxLabel = Math.max(0, ...model.edges.map(e => e.label ? labelSize(e.label).width : 0));
   const degree = new Map<string, number>(); model.edges.forEach(e => { degree.set(e.from, (degree.get(e.from) ?? 0) + 1); degree.set(e.to, (degree.get(e.to) ?? 0) + 1); });
   const maxDegree = Math.max(0, ...degree.values());
-  const gapX = Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72);
+  const gapX = iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72);
   const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, 250, 12).length * 17 + 24));
-  const gapY = Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68);
+  const gapY = iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68);
   const marginX = Math.max(100, maxLabel / 2 + 36);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX, pitchY = maxH + gapY;
@@ -212,7 +225,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const marginY = titleHeight + groupHeader + 48;
   const xGutters = Array.from({ length: columns + 1 }, (_, i) => marginX - gapX / 2 + i * pitchX);
   const yGutters = Array.from({ length: rows + 1 }, (_, i) => marginY - gapY / 2 + i * pitchY);
-  const nodes = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (maxH - sizes[i]!.height) / 2, ...sizes[i]! }));
+  const nodes = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
   const nodeById = new Map(nodes.map(n => [n.node.id, n]));
   const groups: DiagramLayout['groups'] = [];
   const groupLabels: DiagramBox[] = [];
@@ -249,7 +262,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   for (const requests of portGroups.values()) {
     requests.sort((a, b) => a.delta - b.delta || compareKey(edgeKey(a.spec), edgeKey(b.spec)));
     const { node, side } = requests[0]!;
-    const limit = (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
+    const limit = node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
     const pivot = requests.reduce((best, item, i) => Math.abs(item.delta) < Math.abs(requests[best]!.delta) ? i : best, 0);
     // Leave room for a neighboring straight edge's label as well as its stroke.
     // A 16–24px fan can otherwise pass through a label centered on that edge.

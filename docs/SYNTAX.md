@@ -26,6 +26,7 @@ api -> database "SQL"
 
 ```text
 diagram system|layers|sequence|screens|activity [LR|TD]
+style cards|icons
 title "タイトル"
 group ID "ラベル" [color=COLOR]
 node ID "ラベル" [description="説明"] [icon=KEY] [group=ID] [at=列,行] [shape=SHAPE] [color=COLOR]
@@ -84,6 +85,26 @@ HTML と Markdown の装飾は解釈しません。表示文字列は SVG 用に
 `LR` は左から右、`TD` は上から下です。`diagram` は文書の最初に一度だけ指定します。異なる図の種類を 1 文書に混在させることはできません。
 
 システム構成図、画面遷移図、アクティビティ図では、接続関係と方向からグリッドへ自動配置します。手動位置の指定があるノードはその位置を優先します。循環する接続と自身への接続も記述できます。
+
+## `style` — カード表示とアイコン表示
+
+```archmap
+diagram system TD
+style icons
+title "アイコン中心の構成図"
+group cloud "Google Cloud" color=blue
+node api "Cloud Run" icon=gcp/cloud_run group=cloud at=1,1
+node db "Cloud SQL" icon=gcp/cloud_sql shape=database group=cloud at=1,2
+api -> db "SQL"
+```
+
+`style cards` は標準のカード表示、`style icons` は大きなアイコンの下に名前と説明を置く表示です。省略時は `cards` です。`diagram` 宣言の後に一度だけ指定できます。
+
+`icons` は `system` と `layers` で利用できます。`card` と `database` の枠を省き、48 px のアイコンを表示します。アイコン未指定・未登録の場合は汎用のサーバー／データベースアイコンで表示します。`decision`、`start`、`end` は意味を表す図形を維持します。`sequence`、`screens`、`activity` では `cards` のみ使用できます。
+
+アイコンの左右と上側に接続し、下側では名前・説明の領域を避けて接続します。グループ、グリッド配置、接続ラベルは共通です。グループの入れ子はこのモードでも未対応です。
+
+Playground の「表示」から切り替えると、ソースの `style` 宣言も更新されます。保存・再読み込み・SVG／PNG 出力・オフライン版にも反映されます。
 
 ## `title` — 図のタイトル
 

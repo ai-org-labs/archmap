@@ -193,3 +193,36 @@ b -> a "戻る"`), layout = computeDiagramLayout(model);
     assertGeometry(layout);
   });
 });
+
+it('routes icon nodes around labels, preserves groups, and falls back when icons are missing', () => {
+  const source = `diagram system LR
+style icons
+group cloud "Cloud"
+node api "API" icon=server group=cloud at=1,1
+node db "Primary Database" shape=database group=cloud at=2,1
+node worker "Worker" icon=missing/service group=cloud at=1,2
+api -> db "SQL"
+api -> worker "Jobs"
+worker -> worker "Retry"`;
+  const result = renderDiagram(parseDiagram(source));
+  expect(result.model.diagnostics).toEqual([]);
+  assertGeometry(result.layout);
+  expect(result.svg.match(/archmap-icon-node/g)).toHaveLength(3);
+  const [api, db] = result.layout.nodes;
+  const sql = result.layout.edges[0];
+  expect(sql.points[0]).toEqual({ x: api.x + api.width / 2 + 24, y: api.y + 24 });
+  expect(sql.points[sql.points.length - 1]).toEqual({ x: db.x + db.width / 2 - 24, y: db.y + 24 });
+  const cards = renderDiagram(parseDiagram(source.replace('style icons', 'style cards')));
+  expect(cards.svg).not.toContain('archmap-icon-node');
+  expect(api.width).toBeLessThan(cards.layout.nodes[0].width);
+});
+
+it('allocates room for long icon captions and keeps semantic shapes', () => {
+  const model = parseDiagram(`diagram system TD\nstyle icons\nnode a "非常に長い日本語のコンポーネント名を表示する" description="複数行になる長い説明文も余白を確保して表示する"\nnode b "判断" shape=decision\na -> b`);
+  const result = renderDiagram(model);
+  assertGeometry(result.layout);
+  expect(result.layout.nodes[0].height).toBeGreaterThan(130);
+  expect(result.layout.nodes[1].iconMode).toBeUndefined();
+  const layers = DIAGRAM_SAMPLES.find(s => s.id === 'layers')!.source.replace(/(diagram[^\n]*\n)/, '$1style icons\n');
+  assertGeometry(renderDiagram(parseDiagram(layers)).layout, 'layers');
+});

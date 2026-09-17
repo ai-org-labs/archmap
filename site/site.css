@@ -1998,3 +1998,11 @@ kbd {
   font:12px/1.8 ui-monospace,monospace;
 }
 @media(max-width:600px) { .prompt-card { padding:18px; } }
+
+.style-picker { display:flex; align-items:center; gap:6px; font-size:12px; white-space:nowrap; }
+.style-picker select { padding:6px; border:1px solid var(--line); border-radius:5px; background:white; color:inherit; font:inherit; }
+.style-picker select:disabled { opacity:.5; }
+@media(max-width:600px) {
+  .preview-toolbar { flex-wrap:wrap; gap:10px; }
+  .preview-toolbar .export-actions { flex-wrap:wrap; }
+}

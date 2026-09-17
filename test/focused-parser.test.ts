@@ -222,3 +222,13 @@ node a "<script>alert('x')</script>" description="<img src=x onerror=alert(1)>"`
     }
   });
 });
+
+it('accepts icon style only for architecture diagrams and rejects ambiguous declarations', () => {
+  for (const kind of ['system', 'layers']) {
+    const model = parseDiagram(`diagram ${kind}\nstyle icons\nnode api "API"`);
+    expect(model.style).toBe('icons'); expect(model.diagnostics).toEqual([]);
+  }
+  for (const kind of ['sequence', 'screens', 'activity']) expect(errors(`diagram ${kind}\nstyle icons\nnode api "API"`).length).toBeGreaterThan(0);
+  for (const declaration of ['style other', 'style "icons"', 'style icons extra', 'style cards\nstyle icons']) expect(errors(`diagram system\n${declaration}\nnode api "API"`).length).toBeGreaterThan(0);
+  expect(errors('diagram system\nstyle icons\nnode style "Style"\nnode api "API"\nstyle -> api')).toEqual([]);
+});

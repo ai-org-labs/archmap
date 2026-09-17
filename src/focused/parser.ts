@@ -112,6 +112,7 @@ export function parseDiagram(source: string): DiagramModel {
   let firstStatement = true;
   let hasHeader = false;
   let hasTitle = false;
+  let hasStyle = false;
 
   const lines = source.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/);
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -143,6 +144,19 @@ export function parseDiagram(source: string): DiagramModel {
         else if (model.kind === "layers" && direction.value !== "TD") report(line, "layers は上から下（TD）にレイヤーを配置します。LR は使用できません。");
         else model.direction = direction.value as DiagramDirection;
       }
+      continue;
+    }
+
+    if (command === "style" && tokens[1]?.kind !== "arrow") {
+      if (hasStyle) { report(line, "style は一度だけ指定できます。"); continue; }
+      hasStyle = true;
+      if (tokens.length !== 2 || tokens[1].kind !== "word" || !["cards", "icons"].includes(tokens[1].value)) {
+        report(line, "style cards または style icons の形式で指定してください。"); continue;
+      }
+      if (tokens[1].value === "icons" && !["system", "layers"].includes(model.kind)) {
+        report(line, "style icons は system と layers で使用できます。"); continue;
+      }
+      model.style = tokens[1].value as "cards" | "icons";
       continue;
     }
 
@@ -233,7 +247,7 @@ export function parseDiagram(source: string): DiagramModel {
       model.edges.push({ from: command, to: target.value, label: label?.value ?? "", style: tokens[1].value === "-->" ? "dashed" : "solid", bidirectional: tokens[1].value === "<->", line });
       continue;
     }
-    report(line, `未対応の文「${command}」です。diagram、title、group、node、接続を使用してください。`);
+    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続を使用してください。`);
   }
   if (!hasHeader && firstStatement) report(1, "最初の文で diagram system|layers|sequence|screens|activity を宣言してください。");
   if (hasHeader && model.nodes.length === 0) report(1, "少なくとも 1 個の node を宣言してください。");

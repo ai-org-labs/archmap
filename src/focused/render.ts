@@ -1,5 +1,5 @@
 import { getIcon } from '../icons.js';
-import { BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, wrapText } from './layout.js';
+import { BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, iconNodeText, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, wrapText } from './layout.js';
 import type { DiagramColor, DiagramDiagnostic, DiagramLayout, DiagramLayoutNode, DiagramModel, DiagramRenderResult } from './types.js';
 
 const palette: Record<DiagramColor, { ink: string; fill: string; border: string }> = {
@@ -14,6 +14,12 @@ function textLines(lines: string[], x: number, y: number, size: number, lineHeig
 function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind']): string {
   const { node, x, y, width: w, height: h } = box, colors = palette[node.color] ?? palette.blue;
   const text = nodeText(node, kind, w), icon = node.icon ? getIcon(node.icon) : undefined;
+  if (box.iconMode) {
+    const copy = iconNodeText(node), cx = x + w / 2;
+    const artwork = (node.icon ? getIcon(node.icon) : undefined) ?? getIcon(node.shape === 'database' ? 'database' : 'server');
+    const graphic = artwork ? `<svg x="${cx - 24}" y="${y}" width="48" height="48" viewBox="${escapeXml(artwork.viewBox)}" color="${colors.ink}" aria-hidden="true">${artwork.body}</svg>` : `<rect x="${cx - 22}" y="${y + 2}" width="44" height="44" rx="6" fill="${colors.fill}" stroke="${colors.ink}"/>`;
+    return `<g class="archmap-node archmap-icon-node" data-node="${escapeXml(node.id)}"><title>${escapeXml(node.label + (node.description ? ': ' + node.description : ''))}</title>${graphic}${textLines(copy.title, cx, y + 77, TITLE_SIZE, 21, '#25364b', 500, 'middle')}${copy.description.length ? textLines(copy.description, cx, y + 77 + copy.title.length * 21 + 2, BODY_SIZE, 17, '#65768a', 400, 'middle') : ''}</g>`;
+  }
   if (kind === 'sequence') {
     const contentHeight = text.title.length * 21 + (text.description.length ? 9 + text.description.length * 17 : 0);
     const ty = y + (h - contentHeight) / 2 + 15;

@@ -21,6 +21,7 @@ export interface DiagramDiagnostic { line: number; severity: "error" | "warning"
 export interface DiagramModel {
   kind: DiagramKind;
   direction: DiagramDirection;
+  style?: "cards" | "icons";
   title: string;
   nodes: DiagramNode[];
   groups: DiagramGroup[];
@@ -29,7 +30,7 @@ export interface DiagramModel {
 }
 export interface DiagramBox { x: number; y: number; width: number; height: number }
 export interface DiagramPoint { x: number; y: number }
-export interface DiagramLayoutNode extends DiagramBox { node: DiagramNode }
+export interface DiagramLayoutNode extends DiagramBox { node: DiagramNode; iconMode?: boolean }
 export interface DiagramLayoutEdge { edge: DiagramEdge; points: DiagramPoint[]; labelBox?: DiagramBox }
 export interface DiagramLayout {
   width: number;
