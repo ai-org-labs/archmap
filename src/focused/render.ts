@@ -14,6 +14,15 @@ function textLines(lines: string[], x: number, y: number, size: number, lineHeig
 function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind']): string {
   const { node, x, y, width: w, height: h } = box, colors = palette[node.color] ?? palette.blue;
   const text = nodeText(node, kind, w), icon = node.icon ? getIcon(node.icon) : undefined;
+  if (kind === 'sequence') {
+    const contentHeight = text.title.length * 21 + (text.description.length ? 9 + text.description.length * 17 : 0);
+    const ty = y + (h - contentHeight) / 2 + 15;
+    const tx = x + 12 + (node.icon ? 28 : 0);
+    const artwork = node.icon ? icon
+      ? `<svg x="${x + 12}" y="${ty - 14}" width="18" height="18" viewBox="${escapeXml(icon.viewBox)}" color="${colors.ink}" aria-hidden="true">${icon.body}</svg>`
+      : `<rect x="${x + 13}" y="${ty - 12}" width="15" height="14" rx="3" fill="none" stroke="${colors.ink}"/>` : '';
+    return `<g class="archmap-node" data-node="${escapeXml(node.id)}"><title>${escapeXml(node.label + (node.description ? ': ' + node.description : ''))}</title><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#fff" stroke="${colors.border}" stroke-width="1"/>${artwork}${textLines(text.title, tx, ty, TITLE_SIZE, 21, '#25364b', 500)}${text.description.length ? textLines(text.description, tx, ty + text.title.length * 21 + 5, BODY_SIZE, 17, '#65768a') : ''}</g>`;
+  }
   const base = `fill="#fff" stroke="${colors.border}" stroke-width="1.4"`;
   let shape = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" ${base}/><rect x="${x}" y="${y + 15}" width="3" height="${h - 30}" rx="1.5" fill="${colors.ink}"/>`;
   if (node.shape === 'decision') shape = `<path d="M ${x + w / 2} ${y} L ${x + w} ${y + h / 2} L ${x + w / 2} ${y + h} L ${x} ${y + h / 2} Z" fill="${colors.fill}" stroke="${colors.border}" stroke-width="1.4"/>`;

@@ -28,15 +28,15 @@ export function wrapText(text: string, width: number, size = TITLE_SIZE): string
 }
 export function nodeText(node: DiagramNode, kind: DiagramModel['kind'], width: number) {
   const centered = node.shape === 'decision' || node.shape === 'start' || node.shape === 'end';
-  const inset = node.shape === 'decision' ? width * .30 : 22;
-  const content = width - inset * 2 - (!centered && node.icon ? 44 : 0);
+  const inset = node.shape === 'decision' ? width * .30 : kind === 'sequence' ? 12 : 22;
+  const content = width - inset * 2 - (!centered && node.icon ? kind === 'sequence' ? 28 : 44 : 0);
   return { title: wrapText(node.label, content), description: node.description ? wrapText(node.description, content, BODY_SIZE) : [], inset, centered, header: kind === 'screens' ? 27 : 0 };
 }
 function sizeNode(node: DiagramNode, kind: DiagramModel['kind']): { width: number; height: number } {
-  const width = node.shape === 'decision' ? 280 : 240;
+  const width = kind === 'sequence' ? 180 : node.shape === 'decision' ? 280 : 240;
   const text = nodeText(node, kind, width);
   const contentHeight = text.title.length * 21 + (text.description.length ? 9 + text.description.length * 17 : 0);
-  const height = Math.max(kind === 'screens' ? 114 : 88, contentHeight + 36 + text.header);
+  const height = Math.max(kind === 'sequence' ? 44 : kind === 'screens' ? 114 : 88, contentHeight + (kind === 'sequence' ? 20 : 36) + text.header);
   return { width, height: node.shape === 'decision' ? Math.max(140, height * 1.55) : height };
 }
 export function boxesOverlap(a: DiagramBox, b: DiagramBox, padding = 0): boolean {
@@ -174,7 +174,7 @@ function labelPositions(points: DiagramPoint[], size: { width: number; height: n
 function sequenceLayout(model: DiagramModel): DiagramLayout {
   const margin = 56;
   const sizes = model.nodes.map(node => sizeNode(node, 'sequence'));
-  const nodeHeight = Math.max(88, ...sizes.map(s => s.height));
+  const nodeHeight = Math.max(44, ...sizes.map(s => s.height));
   const messageWidth = Math.max(170, ...model.edges.map(e => e.label ? labelSize(e.label).width : 0));
   const pitch = Math.max(328, messageWidth + 110);
   const titleSpace = model.title ? wrapText(model.title, Math.max(280, model.nodes.length * pitch - 72), 19).length * 26 + 28 : 16;
