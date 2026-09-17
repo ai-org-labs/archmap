@@ -30,7 +30,14 @@ export interface DiagramModel {
 }
 export interface DiagramBox { x: number; y: number; width: number; height: number }
 export interface DiagramPoint { x: number; y: number }
-export interface DiagramLayoutNode extends DiagramBox { node: DiagramNode; iconMode?: boolean }
+export interface DiagramScreenContent {
+  title: string[];
+  description: string[];
+  headerHeight: number;
+  height: number;
+  actions: Array<{ edge: DiagramEdge; label: string; lines: string[]; top: number; height: number }>;
+}
+export interface DiagramLayoutNode extends DiagramBox { node: DiagramNode; iconMode?: boolean; screen?: DiagramScreenContent }
 export interface DiagramLayoutEdge { edge: DiagramEdge; points: DiagramPoint[]; labelBox?: DiagramBox }
 export interface DiagramLayout {
   width: number;

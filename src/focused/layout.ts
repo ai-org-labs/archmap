@@ -1,4 +1,4 @@
-import type { DiagramBox, DiagramLayout, DiagramLayoutEdge, DiagramLayoutNode, DiagramModel, DiagramNode, DiagramPoint } from "./types.js";
+import type { DiagramBox, DiagramLayout, DiagramLayoutEdge, DiagramLayoutNode, DiagramModel, DiagramNode, DiagramPoint, DiagramScreenContent } from "./types.js";
 
 export const FONT = 'Inter, "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 export const TITLE_SIZE = 15;
@@ -38,6 +38,20 @@ export function iconNodeText(node: DiagramNode) {
 function iconNodeSize(node: DiagramNode) {
   const text = iconNodeText(node);
   return { width: 160, height: 62 + text.title.length * 21 + (text.description.length ? 6 + text.description.length * 17 : 0) + 6 };
+}
+function screenContent(node: DiagramNode, model: DiagramModel): DiagramScreenContent {
+  const title = wrapText(node.label, node.icon ? 204 : 240);
+  const description = node.description ? wrapText(node.description, 240, BODY_SIZE) : [];
+  const headerHeight = 27 + 18 + Math.max(24, title.length * 21) + (description.length ? 8 + description.length * 17 : 0) + 16;
+  let top = headerHeight + 26;
+  const actions = model.edges.filter(edge => edge.from === node.id || edge.bidirectional && edge.to === node.id).map(edge => {
+    const destination = model.nodes.find(n => n.id === (edge.from === node.id ? edge.to : edge.from));
+    const label = edge.label || (destination ? `${destination.label}へ` : '画面へ移動');
+    const lines = wrapText(label, 232, 13), height = Math.max(42, lines.length * 18 + 20);
+    const action = { edge, label, lines, top, height }; top += height;
+    return action;
+  });
+  return { title, description, headerHeight, actions, height: actions.length ? top + 10 : headerHeight + 46 };
 }
 function sizeNode(node: DiagramNode, kind: DiagramModel['kind']): { width: number; height: number } {
   const width = kind === 'sequence' ? 180 : node.shape === 'decision' ? 280 : 240;
@@ -145,6 +159,7 @@ function port(node: DiagramLayoutNode, side: Side, offset: number): DiagramPoint
     if (side === 'left' || side === 'right') return { x: x + (side === 'left' ? -24 : 24), y: node.y + 24 + offset };
     return { x: x + offset, y: side === 'top' ? node.y : node.y + node.height };
   }
+  if (node.screen && (side === 'left' || side === 'right')) return { x: side === 'left' ? node.x : node.x + node.width, y: node.y + 27 + (node.screen.headerHeight - 27) / 2 + offset };
   if (side === 'left' || side === 'right') {
     const inset = node.node.shape === 'decision' ? Math.abs(offset) * node.width / node.height : 0;
     return { x: side === 'left' ? node.x + inset : node.x + node.width - inset, y: y + offset };
@@ -210,7 +225,13 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   if (model.kind === 'sequence') return sequenceLayout(model);
   const iconStyle = model.style === 'icons' && (model.kind === 'system' || model.kind === 'layers');
   const usesIcon = (node: DiagramNode) => iconStyle && (node.shape === 'card' || node.shape === 'database');
-  const cells = placeCells(model), sizes = model.nodes.map(node => usesIcon(node) ? iconNodeSize(node) : sizeNode(node, model.kind));
+  const cells = placeCells(model), sizes = model.nodes.map(node => {
+    if (model.kind === 'screens' && node.shape === 'card') {
+      const screen = screenContent(node, model);
+      return { width: 280, height: screen.height, screen };
+    }
+    return usesIcon(node) ? iconNodeSize(node) : sizeNode(node, model.kind);
+  });
   const maxW = Math.max(iconStyle ? 160 : 240, ...sizes.map(s => s.width)), maxH = Math.max(88, ...sizes.map(s => s.height));
   const maxLabel = Math.max(0, ...model.edges.map(e => e.label ? labelSize(e.label).width : 0));
   const degree = new Map<string, number>(); model.edges.forEach(e => { degree.set(e.from, (degree.get(e.from) ?? 0) + 1); degree.set(e.to, (degree.get(e.to) ?? 0) + 1); });
@@ -225,7 +246,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const marginY = titleHeight + groupHeader + 48;
   const xGutters = Array.from({ length: columns + 1 }, (_, i) => marginX - gapX / 2 + i * pitchX);
   const yGutters = Array.from({ length: rows + 1 }, (_, i) => marginY - gapY / 2 + i * pitchY);
-  const nodes = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
+  const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) || model.kind === 'screens' && node.shape === 'card' ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
   const nodeById = new Map(nodes.map(n => [n.node.id, n]));
   const groups: DiagramLayout['groups'] = [];
   const groupLabels: DiagramBox[] = [];
@@ -246,6 +267,9 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     let [sa, sb] = sidePair(a, b, model.kind === 'layers' ? 'TD' : model.direction);
     const pair = `${edge.from}:${edge.to}`, repetition = pairCounts.get(pair) ?? 0; pairCounts.set(pair, repetition + 1);
     if (repetition && a !== b) { if (a.y === b.y) sa = sb = repetition % 2 ? 'bottom' : 'top'; else if (a.x === b.x) sa = sb = repetition % 2 ? 'right' : 'left'; }
+    // An action owns its source port. Incoming transitions attach to the screen header.
+    if (a.screen) sa = b.x < a.x ? 'left' : 'right';
+    if (b.screen) sb = a === b ? 'top' : edge.bidirectional ? a.x < b.x ? 'left' : 'right' : a.x === b.x ? 'top' : a.x < b.x ? 'left' : 'right';
     return [{ edge, a, b, sa, sb, start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }];
   });
   type PortRequest = { spec: typeof specs[number]; endpoint: 'start' | 'end'; node: DiagramLayoutNode; side: Side; delta: number };
@@ -254,6 +278,11 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   for (const spec of specs) for (const endpoint of ['start', 'end'] as const) {
     const node = endpoint === 'start' ? spec.a : spec.b, other = endpoint === 'start' ? spec.b : spec.a;
     const side = endpoint === 'start' ? spec.sa : spec.sb, horizontal = side === 'top' || side === 'bottom';
+    const action = endpoint === 'start' || spec.edge.bidirectional && spec.a !== spec.b ? node.screen?.actions.find(item => item.edge === spec.edge) : undefined;
+    if (action) {
+      spec[endpoint] = { x: side === 'left' ? node.x : node.x + node.width, y: node.y + action.top + action.height / 2 };
+      continue;
+    }
     const delta = horizontal ? other.x + other.width / 2 - node.x - node.width / 2 : other.y + other.height / 2 - node.y - node.height / 2;
     const key = `${node.node.id}:${side}`;
     const requests = portGroups.get(key) ?? [];
@@ -262,7 +291,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   for (const requests of portGroups.values()) {
     requests.sort((a, b) => a.delta - b.delta || compareKey(edgeKey(a.spec), edgeKey(b.spec)));
     const { node, side } = requests[0]!;
-    const limit = node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
+    const limit = node.screen && (side === 'left' || side === 'right') ? Math.max(0, (node.screen.headerHeight - 27) / 2 - 12) : node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
     const pivot = requests.reduce((best, item, i) => Math.abs(item.delta) < Math.abs(requests[best]!.delta) ? i : best, 0);
     // Leave room for a neighboring straight edge's label as well as its stroke.
     // A 16–24px fan can otherwise pass through a label centered on that edge.
@@ -311,7 +340,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         : [start, ea, { x: x + lane, y: ea.y }, { x: x + lane, y: y + lane }, { x: eb.x, y: y + lane }, eb, end]);
     }
     let best: { points: DiagramPoint[]; labelBox?: DiagramBox; score: number } | undefined;
-    const size = edge.label ? labelSize(edge.label) : undefined;
+    const size = edge.label && !a.screen && !(edge.bidirectional && b.screen) ? labelSize(edge.label) : undefined;
     for (const raw of candidates) {
       const points = tidy(raw);
       if (points.length < 2 || !outward(start, points[1]!, sa) || !outward(end, points[points.length - 2]!, sb)) continue;

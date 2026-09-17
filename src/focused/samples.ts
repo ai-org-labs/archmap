@@ -79,14 +79,16 @@ title "ショッピングの画面遷移"
 node home "ホーム" description="おすすめと新着" icon=browser at=1,1
 node detail "商品詳細" description="サイズ・カラーを選択" icon=browser at=2,1
 node cart "カート" description="注文内容を確認" icon=browser at=3,1
-node checkout "お支払い" description="配送先と決済" icon=shield color=purple at=4,1
-node complete "注文完了" description="注文番号を表示" icon=browser color=green at=4,2
+node checkout "お支払い" description="配送先と決済" icon=shield color=purple at=3,2
+node complete "注文完了" description="注文番号を表示" icon=browser color=green at=2,2
 
 home -> detail "商品を選ぶ"
+home -> cart "カートを見る"
 detail -> cart "カートに追加"
 cart -> checkout "購入に進む"
-checkout -> complete "確定"
-cart --> detail "買い物を続ける"`,
+cart --> detail "買い物を続ける"
+checkout -> complete "注文を確定"
+checkout --> cart "内容を修正する"`,
   },
   {
     id: "activity",

@@ -56,7 +56,7 @@ describe('focused grid layout', () => {
     assertGeometry(layout);
   });
   it('assigns graph ports and paths independently of edge declaration order', () => {
-    for (const kind of ['system', 'activity', 'layers', 'screens']) {
+    for (const kind of ['system', 'activity', 'layers']) {
       const model = parseDiagram(DIAGRAM_SAMPLES.find(s => s.id === kind)!.source);
       const normal = computeDiagramLayout(model);
       const reversed = computeDiagramLayout({ ...model, edges: [...model.edges].reverse() });
@@ -152,7 +152,7 @@ node three "Three" group=b at=2,1`);
     expect(result.model.diagnostics.some(d => d.severity === 'warning' && d.message.includes('領域'))).toBe(true);
     expect(model.diagnostics).toEqual(before);
   });
-  it('keeps a reverse screen transition visibly associated with its label', () => {
+  it('connects a reverse screen transition to its action row', () => {
     const model = parseDiagram(`diagram screens
 node a "A" at=1,1
 node b "B" at=2,1
@@ -161,8 +161,9 @@ b -> a "戻る"`), layout = computeDiagramLayout(model);
     assertGeometry(layout, 'screens');
     const reverse = layout.edges[1]!;
     expect(reverse.points.length).toBeGreaterThan(2);
-    expect(reverse.labelBox!.y).toBeLessThan(layout.nodes[0]!.y);
-    expect(reverse.points.slice(1).some((b, i) => segmentIntersectsBox(reverse.points[i]!, b, reverse.labelBox!))).toBe(true);
+    expect(reverse.labelBox).toBeUndefined();
+    const source = layout.nodes[1]!, action = source.screen!.actions[0]!;
+    expect(reverse.points[0]).toEqual({ x: source.x, y: source.y + action.top + action.height / 2 });
   });
   it('routes a dense 100 edge graph without card or label overlap', () => {
  const nodes = Array.from({length:40},(_,i)=>({id:`n${i}`,label:`サービス${i}`,shape:'card' as const,color:'blue' as const,line:i+1,at:[i%8+1,Math.floor(i/8)+1] as [number,number]}));
@@ -250,4 +251,47 @@ a -> b`));
   assertGeometry(result.layout, 'sequence');
   const system = renderDiagram(parseDiagram('diagram system\nnode a "A"\nnode b "B"\na -> b "Request"'));
   expect(system.svg).toContain('<g class="archmap-edge-label"><rect');
+});
+
+it('builds ordered screen actions with row ports, wrapping, self transitions and bidirectional transitions', () => {
+  const model = parseDiagram(`diagram screens LR
+node a "ホーム" icon=browser at=1,1
+node b "商品詳細" at=2,1
+node c "完了" at=2,2
+a -> b "商品を選ぶ"
+a -> b "別の条件で選ぶ"
+a -> a "絞り込む"
+b <-> a "切り替え"
+b -> c
+b -> c "非常に長い日本語のアクション名を複数行に折り返して表示する"`);
+  const result = renderDiagram(model), layout = result.layout;
+  assertGeometry(layout, 'screens');
+  expect(result.model.diagnostics).toEqual([]);
+  expect(layout.nodes[0].screen!.actions.map(a => a.label)).toEqual(['商品を選ぶ', '別の条件で選ぶ', '絞り込む', '切り替え']);
+  expect(layout.nodes[1].screen!.actions.map(a => a.label)).toEqual(['切り替え', '完了へ', '非常に長い日本語のアクション名を複数行に折り返して表示する']);
+  const long = layout.nodes[1].screen!.actions[2];
+  expect(long.lines.length).toBeGreaterThan(1);
+  expect(layout.nodes[2].screen!.actions).toEqual([]);
+  expect(result.svg).toContain('遷移の定義なし');
+  expect(result.svg).not.toContain('class="archmap-edge-label"');
+  for (const node of layout.nodes) for (const action of node.screen!.actions) {
+    const edge = layout.edges.find(e => e.edge === action.edge)!;
+    const point = action.edge.from === node.node.id ? edge.points[0] : edge.points[edge.points.length - 1];
+    expect(point.y).toBe(node.y + action.top + action.height / 2);
+    expect(action.top + action.height).toBeLessThan(node.height);
+  }
+  const reversed = computeDiagramLayout({ ...model, edges: [...model.edges].reverse() });
+  expect(reversed.nodes[0].screen!.actions.map(a => a.label)).toEqual([...layout.nodes[0].screen!.actions].reverse().map(a => a.label));
+});
+
+it('retains labeled decisions alongside screen action lists', () => {
+  const result = renderDiagram(parseDiagram(`diagram screens TD
+node form "入力画面" at=1,1
+node decision "有効？" shape=decision at=1,2
+node done "完了画面" at=1,3
+form -> decision "送信"
+decision -> done "はい"`));
+  assertGeometry(result.layout, 'screens');
+  expect(result.layout.edges[0].labelBox).toBeUndefined();
+  expect(result.layout.edges[1].labelBox).toBeDefined();
 });

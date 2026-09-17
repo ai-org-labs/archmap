@@ -11,9 +11,22 @@ export function escapeXml(value: string): string { return value.replace(/[&<>"']
 function textLines(lines: string[], x: number, y: number, size: number, lineHeight: number, fill: string, weight = 400, anchor = 'start'): string {
   return `<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${lines.map((line, i) => `<tspan x="${x}" dy="${i ? lineHeight : 0}">${escapeXml(line)}</tspan>`).join('')}</text>`;
 }
-function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind']): string {
+function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind'], edges: DiagramLayout['edges']): string {
   const { node, x, y, width: w, height: h } = box, colors = palette[node.color] ?? palette.blue;
   const text = nodeText(node, kind, w), icon = node.icon ? getIcon(node.icon) : undefined;
+  if (box.screen) {
+    const screen = box.screen;
+    const artwork = node.icon ? icon ?? getIcon('browser') : undefined;
+    const headingIcon = artwork ? `<svg x="${x + 20}" y="${y + 45}" width="24" height="24" viewBox="${escapeXml(artwork.viewBox)}" color="${colors.ink}" aria-hidden="true">${artwork.body}</svg>` : '';
+    const chrome = `<path d="M ${x + 10} ${y} H ${x + w - 10} Q ${x + w} ${y} ${x + w} ${y + 10} V ${y + 27} H ${x} V ${y + 10} Q ${x} ${y} ${x + 10} ${y}" fill="${colors.fill}"/><path d="M ${x} ${y + 27} H ${x + w}" stroke="${colors.border}"/>${[0, 1, 2].map(i => `<circle cx="${x + 17 + i * 9}" cy="${y + 14}" r="2" fill="${colors.ink}" opacity=".5"/>`).join('')}`;
+    const rows = screen.actions.map(action => {
+      const connection = edges.find(item => item.edge === action.edge);
+      const point = connection ? action.edge.from === node.id ? connection.points[0] : connection.points[connection.points.length - 1] : undefined;
+      const rowY = y + action.top, cy = rowY + action.height / 2;
+      return `<g class="archmap-screen-action" data-edge-line="${action.edge.line}"><path d="M ${x + 16} ${rowY} H ${x + w - 16}" stroke="#edf1f6"/>${textLines(action.lines, x + 24, cy - action.lines.length * 9 + 13, 13, 18, '#33465c', 500)}${point ? `<circle cx="${point.x}" cy="${point.y}" r="3" fill="#fff" stroke="${colors.ink}" stroke-width="1.4"/>` : ''}</g>`;
+    }).join('');
+    return `<g class="archmap-node archmap-screen" data-node="${escapeXml(node.id)}"><title>${escapeXml(node.label + (node.description ? ': ' + node.description : ''))}</title><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#fff" stroke="${colors.border}" stroke-width="1.4"/>${chrome}${headingIcon}${textLines(screen.title, x + (node.icon ? 56 : 20), y + 61, TITLE_SIZE, 21, '#25364b', 600)}${screen.description.length ? textLines(screen.description, x + 20, y + 45 + Math.max(24, screen.title.length * 21) + 8 + 12, BODY_SIZE, 17, '#65768a') : ''}<path d="M ${x} ${y + screen.headerHeight} H ${x + w}" stroke="${colors.border}"/>${textLines([screen.actions.length ? 'アクション' : '遷移の定義なし'], x + 20, y + screen.headerHeight + (screen.actions.length ? 18 : 28), 10, 14, '#7b8ba0', 500)}${rows}</g>`;
+  }
   if (box.iconMode) {
     const copy = iconNodeText(node), cx = x + w / 2;
     const artwork = (node.icon ? getIcon(node.icon) : undefined) ?? getIcon(node.shape === 'database' ? 'database' : 'server');
@@ -88,7 +101,7 @@ export function renderDiagram(model: DiagramModel): DiagramRenderResult {
     }
     return `<g class="archmap-edge-label"><rect x="${labelBox.x}" y="${labelBox.y}" width="${labelBox.width}" height="${labelBox.height}" rx="5" fill="#fff" stroke="#e8edf4" stroke-width=".8"/>${textLines(wrapText(edge.label, 166, LABEL_SIZE), labelBox.x + labelBox.width / 2, labelBox.y + 17, LABEL_SIZE, 16, '#53647a', 500, 'middle')}</g>`;
   }).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${escapeXml(title)}" style="font-family:${escapeXml(FONT)};background:#fff"><title>${escapeXml(title)}</title><desc>${escapeXml(`${model.nodes.length} nodes and ${model.edges.length} connections. ${model.nodes.map(n => n.label).join(', ')}.`)}</desc><defs><marker id="archmap-arrow" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#7b8ba0" stroke-width="1.7" stroke-linejoin="round"/></marker><marker id="archmap-arrow-start" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#7b8ba0" stroke-width="1.7" stroke-linejoin="round"/></marker></defs><rect width="100%" height="100%" fill="#fff"/>${model.title ? textLines(wrapText(model.title, layout.width - 72, 19), 36, 42, 19, 26, '#26364b', 650) : ''}${layerBands}${groups}${lifelines}${connections}${layout.nodes.map(node => renderNode(node, model.kind)).join('')}${labels}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${escapeXml(title)}" style="font-family:${escapeXml(FONT)};background:#fff"><title>${escapeXml(title)}</title><desc>${escapeXml(`${model.nodes.length} nodes and ${model.edges.length} connections. ${model.nodes.map(n => n.label).join(', ')}.`)}</desc><defs><marker id="archmap-arrow" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#7b8ba0" stroke-width="1.7" stroke-linejoin="round"/></marker><marker id="archmap-arrow-start" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#7b8ba0" stroke-width="1.7" stroke-linejoin="round"/></marker></defs><rect width="100%" height="100%" fill="#fff"/>${model.title ? textLines(wrapText(model.title, layout.width - 72, 19), 36, 42, 19, 26, '#26364b', 650) : ''}${layerBands}${groups}${lifelines}${connections}${layout.nodes.map(node => renderNode(node, model.kind, layout.edges)).join('')}${labels}</svg>`;
   const warnings = geometryWarnings(layout, model);
   const resultModel = warnings.length ? { ...model, diagnostics: [...model.diagnostics, ...warnings] } : model;
   return { svg, model: resultModel, layout, durationMs: Math.round((performance.now() - start) * 100) / 100 };
