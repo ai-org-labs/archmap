@@ -1,277 +1,54 @@
-# ArchMap Delivery and Security Notes
+# ArchMap の配布
 
-This document records the current v0.1 delivery posture for `TASK-010`.
-It complements the implemented syntax reference in [SYNTAX.md](./SYNTAX.md)
-and the authoritative engine spec in [specs/v0.1/04-engine-api.md](./specs/v0.1/04-engine-api.md).
+## 静的サイト
 
-## Delivery Modes
-
-### npm
-
-Install the package and import the core API:
-
-```bash
-npm install @archmap/core
-```
-
-```ts
-import { initialize, parse, render } from "@archmap/core";
-
-initialize();
-const model = parse(source);
-const result = render(model, {
-  baseView: "overview",
-  overlays: ["zone", "auth", "validation"],
-  target: document.querySelector("#diagram"),
-});
-```
-
-The package exports:
-
-- `@archmap/core` core parser/model/SVG renderer/custom element API.
-- `@archmap/core/views3d/three-view` optional 3D installer; requires the `three` peer dependency.
-- `@archmap/core/packs/cloud-icons` small bundled sample icon pack.
-
-The npm package includes `dist`, `docs`, `examples`, `README.md`, and `SPEC.md`
-so consumers can inspect examples and the implemented feature surface without
-checking out the source repository.
-
-The package is licensed under Apache-2.0 and includes `LICENSE` plus
-`THIRD_PARTY_NOTICES.md`.
-
-### Local Development
-
-Use the root playground during development:
-
-```bash
-npm install
-npm run dev
-```
-
-Open `http://127.0.0.1:4174/`. The playground uses source modules directly
-through Vite and shows the same editor ergonomics as the static demo: line
-numbers, a draggable editor width, and a top Render action.
-
-### Static Demo
-
-Build once, then open the static demo through the dev server or from disk:
-
-```bash
-npm run build
-```
-
-```text
-examples/demo.html
-```
-
-The static demo imports the built local ArchMap bundle and uses jsDelivr for
-`three` and `@archmap/icons`.
-
-### Lifecycle Plugin
-
-Install the optional workspace/package beside Core, then register it before
-parsing lifecycle sections:
-
-```ts
-import { DEFAULT_DIAGRAM_TAG_VIEWS, createArchMap, createDiagramTags } from "@archmap/core";
-import lifecycle, { LIFECYCLE_DIAGRAM_TAG_VIEWS } from "@archmap/lifecycle";
-
-const archmap = createArchMap().use(lifecycle);
-const model = archmap.parse(source);
-archmap.render(model, { baseView: "requirements", target: diagram });
-
-createDiagramTags({
-  target: toolbar,
-  views: [...DEFAULT_DIAGRAM_TAG_VIEWS, ...LIFECYCLE_DIAGRAM_TAG_VIEWS],
-  onChange: ({ baseView }) => archmap.render(model, { baseView, target: diagram }),
-});
-```
-
-For a static local build, `npm run build` produces both `dist/` and
-`packages/lifecycle/dist/`; `examples/demo.html` maps `@archmap/lifecycle` to
-that local output. A CDN page can map the same specifier to the published
-`@archmap/lifecycle` ESM entry once that package is released. Plugin-provided
-views remain optional and do not increase the Core runtime unless installed.
-
-### Prototype View / ScreenFlow
-
-Prototype View is part of `@archmap/core` and uses the existing
-`<archmap-viewer>` element:
-
-```html
-<archmap-viewer
-  src="./examples/screenflow.archmap"
-  base-view="prototype"
-  overlays="dataflow,boundary,validation"
-  scenario="happy_path"
-  show-hotspots="true"
-  controls
-  diagnostics
-  style="display:block;min-height:720px"
-></archmap-viewer>
-```
-
-The same view is available through JavaScript:
-
-```ts
-const result = render(model, {
-  baseView: "prototype",
-  scenario: "happy_path",
-  showHotspots: true,
-  target: document.querySelector("#diagram"),
-});
-
-result.next?.();
-result.back?.();
-```
-
-The repository includes a ready-to-open transition-map sample:
-
-```text
-examples/screenflow-map.html
-```
-
-It loads `examples/screenflow.archmap`, starts in the `prototype` Map view, and
-shows screen capture SVGs connected by transition arrows. The same HTML can be
-made CDN-only by changing its import map to
-`https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/archmap.js`.
-
-### CDN Pattern
-
-For browser-only pages, use an import map. During local verification,
-`examples/demo.html` maps `@archmap/core` to `../dist/archmap.js`; a published package
-can use an npm CDN URL instead.
-
-```html
-<script type="importmap">
-{
-  "imports": {
-    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/archmap.js",
-    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/controls/diagram-tags.js",
-    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/views3d/three-view.js",
-    "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
-    "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
-    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
-  }
-}
-</script>
-<script type="module">
-  import { initialize, registerIcon } from "@archmap/core";
-  import { createDiagramTags } from "@archmap/core/controls/diagram-tags";
-  import { installThreeView } from "@archmap/core/views3d/three-view";
-  import { installCloudProviderIcons } from "@archmap/icons";
-
-  installCloudProviderIcons(registerIcon);
-  installThreeView();
-  initialize();
-
-  // Optional: build the same tag controls used by the playground/viewer.
-  createDiagramTags({
-    target: document.querySelector("#diagram-tags"),
-    state: { baseView: "overview", renderMode: "2d", overlays: [] },
-    onChange: (state) => console.log(state)
-  });
-</script>
-```
-
-### GitHub Pages viewer
-
-This repository includes a GitHub Actions workflow at
-`.github/workflows/pages.yml`. On pushes to `main` or manual
-`workflow_dispatch`, it:
-
-1. installs dependencies with `npm ci`,
-2. runs `npm run build`,
-3. assembles `_site` with `dist`, `examples`, `docs`, and public notices,
-4. publishes `_site` through GitHub Pages.
-
-The Pages root is a copy of `examples/demo.html` rewritten to load `./dist/*`.
-The original demo remains available at `/examples/demo.html`.
-
-Repository setup:
-
-- The `main` branch must be pushed to the GitHub repository.
-- The workflow enables GitHub Pages for GitHub Actions deployments on first
-  run. If organization policy blocks automatic enablement, set
-  Settings → Pages → Source to **GitHub Actions** manually.
-- Optional: add a release tag after npm publish so the Pages version and npm
-  package version can be traced together.
-
-### npm publish checklist
-
-Before publishing:
-
-```bash
+```sh
+npm ci --ignore-scripts
 npm run typecheck
 npm test
 npm run build
-npm pack --dry-run
-npm whoami
-npm publish --access public
+npm run verify:site
+npm run bench:diagrams
+npm run preview:site
 ```
 
-After publishing, verify the package and CDN paths:
+`site-dist/` に次の成果物を生成します。
 
-```bash
-npm view @archmap/core@0.2.1 version license files
-```
+| パス | 内容 |
+|---|---|
+| `index.html` | 製品ページ |
+| `playground/index.html` | 5種類の図のエディター |
+| `examples/index.html` | サンプル集 |
+| `syntax/index.html` | 全構文とアイコン検索 |
+| `standalone.html` | オフラインで動く単一HTML |
+| `assets/` | 同一サイトから読み込むJSとCSS |
 
-Then open:
+相対パスを使うため、独自ドメインのルートでもGitHub Pagesのリポジトリ配下でも動きます。通常のマルチページ版はHTTP配信で使い、ファイルから直接開く場合は `standalone.html` を使います。外部フォント、CDN、分析サービス、レンダリングサーバーへのアクセスは不要です。
 
-```text
-https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/archmap.js
-https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/controls/diagram-tags.js
-https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/views3d/three-view.js
-```
+プレイグラウンドの下書きはブラウザーの `localStorage` に保存します。ブラウザーの設定で保存が無効になっている場合や `file://` の実装によって、保存が利用できないことがあります。ソースを `.archmap` ファイルとして保存できます。
 
-## Security Posture
+## GitHub Pages
 
-ArchMap source must be treated as untrusted text.
+公開先: <https://ai-org-labs.github.io/archmap/>
 
-Implemented safeguards:
+`.github/workflows/pages.yml` は `main` へのpush、または手動の `workflow_dispatch` で起動します。
 
-- The DSL is parsed as graph/YAML data; it does not execute scripts.
-- SVG labels, descriptions, diagnostic text, titles, inspector fields, ids, and
-  style attributes are escaped before being interpolated into generated markup.
-- Runtime UI controls are created with DOM APIs or fixed internal SVG snippets,
-  not user-supplied HTML.
-- `render(model, { target })` replaces the target contents with generated
-  ArchMap output; callers should pass a dedicated container, not a document body
-  that contains unrelated app state.
-- External `src` loading uses browser `fetch` and emits `src_fetch_failed` on
-  failure. It does not bypass browser CORS or filesystem restrictions.
-- Prototype View image URLs are assigned through DOM attributes and are not
-  interpolated as HTML. Unsafe protocols such as `javascript:` and `data:` are
-  rejected with `image_url_disallowed`; relative, `http:`, `https:`, and `blob:`
-  URLs are allowed.
-- Optional icon packs are explicit opt-ins through `registerIcon`; the core
-  bundle ships no vendor icon assets.
-- Third-party logos, product names, and service marks remain the property of
-  their respective owners. Enabling external icon packs is an explicit consumer
-  choice; see `THIRD_PARTY_NOTICES.md`.
+1. Node.js 22 と `npm ci --ignore-scripts` で依存関係を準備します。
+2. 型検査、全テスト、ライブラリーと静的サイトのビルドを行います。
+3. サイト、配布用ライブラリー、ドキュメント、ライセンスを `_site` にまとめます。
+4. 相対アセット・全ページ・単一HTMLを検査し、描画ベンチマークを実行します。
+5. GitHub Actions の公式 Pages artifact / deploy アクションで公開します。
 
-Current constraints and follow-up items:
+リポジトリの Settings → Pages → Source は **GitHub Actions** を指定します。ワークフローには `contents: read`、`pages: write`、`id-token: write` を付与します。
 
-- User-authored Markdown or HTML labels are not supported. If added later, they
-  must go through a documented sanitizer allowlist before rendering.
-- URL-like fields are not rendered as clickable links today. If link rendering is
-  added, it must enforce protocol allowlists.
-- Registered custom icons are trusted extension data. Do not register icon SVG
-  bodies from untrusted user input without sanitizing them first.
+## ライブラリー
 
-## Verification Commands
+新エンジンは `dist/diagrams.js` と `dist/diagrams.umd.cjs` に出力します。ESMは `parseDiagram`、`computeDiagramLayout`、`renderDiagram` と型定義、サンプル、アイコン登録APIを公開します。UMDはグローバル `ArchMapDiagrams` を公開します。
 
-For routine delivery/security edits:
+互換性のため旧エンジンの `dist/archmap.js`、拡張エントリー、`@archmap/lifecycle` はビルドを継続します。新しいサイトのUI・エンジンからそれらを読み込むことはありません。npm公開はGitHub Pagesデプロイとは別の手順です。
 
-```bash
-npm run build
-npm pack --dry-run
-```
+## 入力とSVG
 
-For renderer, routing, overlay, or verifier changes, also run the relevant
-targeted tests and, at stage boundaries, the heavier pattern sample verifier:
+DSLはデータとして解析し、JavaScriptやHTMLを実行しません。図の文字列はSVGへ出力するときにエスケープします。アイコンキーから任意のURLを取得しません。`registerIcon()` のSVG本文は信頼するアプリケーションが提供する拡張データとして扱い、未検証の外部SVGを渡さないでください。
 
-```bash
-npm test -- --run test/render.test.ts test/scene3d.test.ts
-npm run verify:pattern-samples
-```
+パーサーの入力サイズ・要素数・座標などの上限、および図ごとの制約は [構文リファレンス](SYNTAX.md) に定義しています。

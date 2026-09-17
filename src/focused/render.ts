@@ -1,0 +1,73 @@
+import { getIcon } from '../icons.js';
+import { BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, wrapText } from './layout.js';
+import type { DiagramColor, DiagramDiagnostic, DiagramLayout, DiagramLayoutNode, DiagramModel, DiagramRenderResult } from './types.js';
+
+const palette: Record<DiagramColor, { ink: string; fill: string; border: string }> = {
+  blue: { ink: '#2873dc', fill: '#edf4ff', border: '#b9d2f5' }, green: { ink: '#19845e', fill: '#ecf8f0', border: '#b7dfc7' },
+  orange: { ink: '#c87917', fill: '#fff6e8', border: '#f2d3a4' }, purple: { ink: '#8253ca', fill: '#f5efff', border: '#d9c5f2' },
+  gray: { ink: '#67788a', fill: '#f1f5f8', border: '#cdd7e1' },
+};
+export function escapeXml(value: string): string { return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[char]!)); }
+function textLines(lines: string[], x: number, y: number, size: number, lineHeight: number, fill: string, weight = 400, anchor = 'start'): string {
+  return `<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${lines.map((line, i) => `<tspan x="${x}" dy="${i ? lineHeight : 0}">${escapeXml(line)}</tspan>`).join('')}</text>`;
+}
+function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind']): string {
+  const { node, x, y, width: w, height: h } = box, colors = palette[node.color] ?? palette.blue;
+  const text = nodeText(node, kind, w), icon = node.icon ? getIcon(node.icon) : undefined;
+  const base = `fill="#fff" stroke="${colors.border}" stroke-width="1.4"`;
+  let shape = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" ${base}/><rect x="${x}" y="${y + 15}" width="3" height="${h - 30}" rx="1.5" fill="${colors.ink}"/>`;
+  if (node.shape === 'decision') shape = `<path d="M ${x + w / 2} ${y} L ${x + w} ${y + h / 2} L ${x + w / 2} ${y + h} L ${x} ${y + h / 2} Z" fill="${colors.fill}" stroke="${colors.border}" stroke-width="1.4"/>`;
+  if (node.shape === 'start' || node.shape === 'end') shape = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.min(h / 2, 44)}" fill="${colors.fill}" stroke="${colors.ink}" stroke-width="${node.shape === 'end' ? 2.8 : 1.4}"/>`;
+  if (node.shape === 'database') shape = `<path d="M ${x} ${y + 15} C ${x} ${y - 4} ${x + w} ${y - 4} ${x + w} ${y + 15} L ${x + w} ${y + h - 15} C ${x + w} ${y + h + 5} ${x} ${y + h + 5} ${x} ${y + h - 15} Z" ${base}/><path d="M ${x} ${y + 15} C ${x} ${y + 35} ${x + w} ${y + 35} ${x + w} ${y + 15}" fill="none" stroke="${colors.border}" stroke-width="1.4"/>`;
+  let header = '';
+  if (kind === 'screens' && node.shape === 'card') header = `<path d="M ${x + 12} ${y} H ${x + w - 12} Q ${x + w} ${y} ${x + w} ${y + 12} V ${y + 27} H ${x} V ${y + 12} Q ${x} ${y} ${x + 12} ${y}" fill="${colors.fill}"/><path d="M ${x} ${y + 27} H ${x + w}" stroke="${colors.border}"/>${[0, 1, 2].map(i => `<circle cx="${x + 17 + i * 9}" cy="${y + 14}" r="2" fill="${colors.ink}" opacity=".5"/>`).join('')}`;
+  const totalText = text.title.length * 21 + (text.description.length ? 9 + text.description.length * 17 : 0);
+  const ty = y + text.header + (h - text.header - totalText) / 2 + 15 + (node.shape === 'database' ? 9 : 0);
+  const tx = text.centered ? x + w / 2 : x + text.inset + (node.icon ? 44 : 0), anchor = text.centered ? 'middle' : 'start';
+  let iconSvg = '';
+  if (node.icon && !text.centered) {
+    const ix = x + 20, iy = ty - 17;
+    iconSvg = `<rect x="${ix - 4}" y="${iy - 4}" width="36" height="36" rx="9" fill="${colors.fill}"/>`;
+    iconSvg += icon ? `<svg x="${ix}" y="${iy}" width="28" height="28" viewBox="${escapeXml(icon.viewBox)}" color="${colors.ink}" aria-hidden="true">${icon.body}</svg>` : `<path d="M ${ix + 5} ${iy + 7} H ${ix + 23} V ${iy + 21} H ${ix + 5} Z M ${ix + 10} ${iy + 3} V ${iy + 7} M ${ix + 18} ${iy + 3} V ${iy + 7} M ${ix + 10} ${iy + 21} V ${iy + 25} M ${ix + 18} ${iy + 21} V ${iy + 25}" fill="none" stroke="${colors.ink}" stroke-width="1.7"/>`;
+  }
+  return `<g class="archmap-node" data-node="${escapeXml(node.id)}"><title>${escapeXml(node.label + (node.description ? ': ' + node.description : ''))}</title>${shape}${header}${iconSvg}${textLines(text.title, tx, ty, TITLE_SIZE, 21, '#25364b', 600, anchor)}${text.description.length ? textLines(text.description, tx, ty + text.title.length * 21 + 5, BODY_SIZE, 17, '#65768a', 400, anchor) : ''}</g>`;
+}
+
+function geometryWarnings(layout: DiagramLayout, model: DiagramModel): DiagramDiagnostic[] {
+  const warnings: DiagramDiagnostic[] = [];
+  const report = (line: number, message: string) => {
+    if (!warnings.some(w => w.message === message && w.line === line)) warnings.push({ line, severity: 'warning', message });
+  };
+  for (const [index, group] of layout.groups.entries()) {
+    if (layout.nodes.some(n => n.node.group !== group.group.id && boxesOverlap(group, n))) report(group.group.line, `グループ「${group.group.label}」の領域に別のノードが重なっています。at の行を分けてください。`);
+    if (layout.groups.slice(index + 1).some(other => boxesOverlap(group, other))) report(group.group.line, `グループ「${group.group.label}」の領域が別のグループと重なっています。at の行を分けてください。`);
+  }
+  if (model.kind === 'sequence') return warnings;
+  let connectorLabelCollision = false;
+  for (const [index, edge] of layout.edges.entries()) {
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!;
+      if (layout.nodes.some(n => !(n.node.id === edge.edge.from && i === 1) && !(n.node.id === edge.edge.to && i === edge.points.length - 1) && segmentIntersectsBox(a, b, n, -1))) report(edge.edge.line, '接続経路がノードに重なっています。ノードの at を調整してください。');
+      if (layout.edges.some((other, j) => j !== index && other.labelBox && segmentIntersectsBox(a, b, other.labelBox, 2))) connectorLabelCollision = true;
+    }
+  }
+  if (connectorLabelCollision) report(1, '接続が密なため、一部のラベルと別の接続線が交差しています。at で行や列を分けると改善します。');
+  return warnings;
+}
+
+export function renderDiagram(model: DiagramModel): DiagramRenderResult {
+  const start = performance.now(), layout = computeDiagramLayout(model);
+  const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram' }[model.kind]);
+  const groups = layout.groups.map(({ group, x, y, width, height }) => {
+    const colors = palette[group.color] ?? palette.gray;
+    return `<g class="archmap-group"><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${colors.fill}" fill-opacity=".52" stroke="${colors.border}" stroke-dasharray="5 4"/>${textLines(wrapText(group.label, width - 34, 12), x + 16, y + 24, 12, 17, colors.ink, 600)}</g>`;
+  }).join('');
+  const lifelines = model.kind === 'sequence' ? layout.nodes.map(n => `<path class="archmap-lifeline" d="M ${n.x + n.width / 2} ${n.y + n.height} V ${layout.height - 32}" fill="none" stroke="#cbd5e1" stroke-width="1.3" stroke-dasharray="5 6"/>`).join('') : '';
+  const layerBands = model.kind === 'layers' && !layout.groups.length ? [...new Set(layout.nodes.map(n => n.y + n.height / 2))].map(center => { const members = layout.nodes.filter(n => n.y + n.height / 2 === center), height = Math.max(...members.map(n => n.height)); return `<rect x="24" y="${center - height / 2 - 18}" width="${layout.width - 48}" height="${height + 36}" rx="16" fill="#f6f8fc" stroke="#e5ebf3"/>`; }).join('') : '';
+  const connections = layout.edges.map(({ edge, points }) => `<path class="archmap-edge" d="${points.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ')}" fill="none" stroke="#7b8ba0" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"${edge.style === 'dashed' ? ' stroke-dasharray="6 5"' : ''} marker-end="url(#archmap-arrow)"${edge.bidirectional ? ' marker-start="url(#archmap-arrow-start)"' : ''}/>`).join('');
+  const labels = layout.edges.map(({ edge, labelBox }) => labelBox ? `<g class="archmap-edge-label"><rect x="${labelBox.x}" y="${labelBox.y}" width="${labelBox.width}" height="${labelBox.height}" rx="5" fill="#fff" stroke="#e8edf4" stroke-width=".8"/>${textLines(wrapText(edge.label, 166, LABEL_SIZE), labelBox.x + labelBox.width / 2, labelBox.y + 17, LABEL_SIZE, 16, '#53647a', 500, 'middle')}</g>` : '').join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${escapeXml(title)}" style="font-family:${escapeXml(FONT)};background:#fff"><title>${escapeXml(title)}</title><desc>${escapeXml(`${model.nodes.length} nodes and ${model.edges.length} connections. ${model.nodes.map(n => n.label).join(', ')}.`)}</desc><defs><marker id="archmap-arrow" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#7b8ba0" stroke-width="1.7" stroke-linejoin="round"/></marker><marker id="archmap-arrow-start" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#7b8ba0" stroke-width="1.7" stroke-linejoin="round"/></marker></defs><rect width="100%" height="100%" fill="#fff"/>${model.title ? textLines(wrapText(model.title, layout.width - 72, 19), 36, 42, 19, 26, '#26364b', 650) : ''}${layerBands}${groups}${lifelines}${connections}${layout.nodes.map(node => renderNode(node, model.kind)).join('')}${labels}</svg>`;
+  const warnings = geometryWarnings(layout, model);
+  const resultModel = warnings.length ? { ...model, diagnostics: [...model.diagnostics, ...warnings] } : model;
+  return { svg, model: resultModel, layout, durationMs: Math.round((performance.now() - start) * 100) / 100 };
+}

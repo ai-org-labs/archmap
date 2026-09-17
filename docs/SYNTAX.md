@@ -1,938 +1,274 @@
-# ArchMap Syntax Reference (implemented)
+# ArchMap Syntax Reference
 
-This documents **what the current implementation actually parses, models, and
-renders** — not the full v0.1 aspiration. For the language design see
-[SPEC.md](../SPEC.md); for project status see [README.md](../README.md). If
-you are prompting an AI agent to author a diagram, start with
-[AI_AUTHORING_GUIDE.md](./AI_AUTHORING_GUIDE.md).
+このリファレンスは、新しいプレイグラウンドと `@archmap/core/diagrams` が実装する構文をすべて定義します。対応する図は、システム構成図、レイヤースタック図、シーケンス図、画面遷移図、アクティビティ図の 5 種類です。
 
-A document is a **graph section** followed by an optional **YAML metadata
-section**, separated by a line containing only `---`:
+旧 `graph` + YAML 構文は [LEGACY_SYNTAX.md](./LEGACY_SYNTAX.md) に保存しています。旧 API と新しい構文は別のパーサーを使用します。
 
-````markdown
-```archmap
-graph LR
-  Web[Web App] -->|HTTPS + JWT| API[API Gateway]
-  API --> DB[(Cloud SQL)]
----
-nodes:
-  Web: { zone: client, layer: client, kind: web_app }
-  API: { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
-  DB:  { zone: gcp, layer: data, kind: relational_database, provider: gcp }
-```
-````
-
----
-
-## Quick start
-
-Use the graph section for the visible topology, then add YAML only when you
-need semantic views, overlays, validation, routing metadata, or icon matching.
+## 最小の図
 
 ```archmap
-graph LR
-  User[User] -->|HTTPS + JWT| API[API Gateway]
-  API -->|SQL| DB[(Cloud SQL)]
----
-nodes:
-  User: { zone: client, kind: user }
-  API:  { zone: gcp, layer: edge, kind: api_gateway, provider: gcp }
-  DB:   { zone: gcp, layer: data, kind: relational_database, provider: gcp }
-edges:
-  User->API:
-    flow: request
-    auth: { token: JWT, issuer: FirebaseAuth, validatedBy: API }
-  API->DB:
-    flow: data_access
-    protocol: SQL
-zones:
-  client: { label: Client, kind: org_boundary, contains: [User] }
-  gcp: { label: GCP, kind: cloud, provider: gcp, contains: [API, DB] }
+diagram system LR
+title "小さな注文サービス"
+
+node browser "Web アプリ" icon=browser
+node api "Orders API" description="注文を受け付ける" icon=server
+node database "Database" icon=database shape=database color=green
+
+browser -> api "HTTPS"
+api -> database "SQL"
 ```
 
-Authoring rule of thumb:
+1 行に 1 文を記述します。空行とコメントを除く最初の文は `diagram` 宣言です。ノードは少なくとも 1 個必要です。文末のセミコロン、波括弧によるブロック、YAML セクションは使用しません。コードフェンスは Markdown 上での表示用です。プレイグラウンドやパーサーへはフェンスの内側だけを渡します。
 
-- Start with `overview` and no Add info overlays; it should be a plain
-  component diagram.
-- Add `zone`, `boundary`, `auth`, `dataflow`, `permission`, and `validation`
-  overlays only when you want those extra facts visible.
-- Use `layer` only for Layer view. It is a stack partition, not a zone.
-- Use `subgraph` for authoring hierarchy and abstraction. It does not imply a
-  physical or logical area unless you also define a zone or boundary.
-- Prefer explicit edge ids when multiple edges connect the same pair.
+## 構文一覧
 
----
+角括弧 `[...]` はこの表での省略可能な要素を示します。ソースに角括弧を入力する必要はありません。
 
-## Concepts
+```text
+diagram system|layers|sequence|screens|activity [LR|TD]
+title "タイトル"
+group ID "ラベル" [color=COLOR]
+node ID "ラベル" [description="説明"] [icon=KEY] [group=ID] [at=列,行] [shape=SHAPE] [color=COLOR]
+ID -> ID ["ラベル"]
+ID --> ID ["ラベル"]
+ID <-> ID ["ラベル"]
+```
 
-| Concept | Defined by | Purpose | Render behavior |
+コマンド、種類、方向、オプション名、列挙値は大文字・小文字を区別します。複数のノードオプションは任意の順序で指定できます。同じオプションを繰り返すとエラーです。`=` と矢印の前後には任意に空白を入れられます。
+
+### ID
+
+ノードとグループの ID は、英字または `_` で始まり、その後に英数字、`_`、`-` を使用できます。正規表現は `[A-Za-z_][A-Za-z0-9_-]*` です。
+
+```text
+api
+Orders_API
+orders-v2
+_internal
+```
+
+`9api`、`注文`、`api.v2` は ID にできません。表示する日本語はラベルに記述します。ノードとグループは同じ ID 空間を共有し、重複を許可しません。`title` などのコマンド名も ID として使用できます。接続と `group=ID` は宣言より前に記述できますが、文書内に対応する宣言が必要です。接続先にはグループではなくノードを指定します。
+
+### 文字列とコメント
+
+ラベル、タイトル、説明はダブルクォートで囲みます。シングルクォートは文字列の区切りになりません。次の 3 種類のエスケープだけを使用できます。
+
+| ソース | 表示される文字 |
+| --- | --- |
+| `\n` | 改行 |
+| `\"` | ダブルクォート |
+| `\\` | バックスラッシュ |
+
+```archmap
+diagram system
+# 行全体のコメント
+node api "Orders\nAPI" description="\"確定\" を処理" // 行末のコメント
+node browser "Browser" description="https://example.test/#orders"
+browser -> api "POST /orders"
+```
+
+`#` または `//` から行末まではコメントです。ただし、ダブルクォートの内側では通常の文字として扱います。文字列そのものをソース上で複数行に分割する代わりに `\n` を使用します。空、または空白だけのラベルとタイトルはエラーです。空の説明 `description=""` は使用できます。接続ラベルは省略可能です。
+
+HTML と Markdown の装飾は解釈しません。表示文字列は SVG 用にエスケープされます。XML 1.0 で禁止された制御文字、U+FFFE、U+FFFF、不正なサロゲートは入力エラーになります。通常の日本語、絵文字、タブは使用できます。
+
+## `diagram` — 図の種類と方向
+
+| 種類 | 用途 | 既定方向 | 指定できる方向 |
 | --- | --- | --- | --- |
-| Component / node | Graph node plus `nodes.*` metadata | A thing in the architecture | Always rendered unless collapsed into an abstraction component |
-| Connector / edge | Graph arrow plus `edges.*` metadata | A relationship or flow between components | Rendered as component-safe orthogonal routes |
-| Subgraph | `subgraph ... end` in graph section | Authoring hierarchy and optional abstraction | Add info `subgraph` shows an unfilled dashed guide; collapsed subgraphs become one component |
-| Zone | `zones.*` metadata | Physical or ownership area, such as client, GCP, AWS, on-prem | Add info `zone` shows borderless translucent areas; collapsed zones become one component |
-| Boundary | `boundaries.*` metadata | Logical/trust/policy boundary | Add info `boundary` shows nested boundary areas and crossing context |
-| Layer | `nodes.*.layer` | Layer view partition, such as application/framework/kernel | Used only by Layer view; it does not affect zone or boundary meaning |
-| Add info overlay | `render(..., { overlays })` or viewer checkboxes | Adds semantic information to the base diagram | Additive; it should not replace the base component diagram |
+| `system` | サービス、データ、インフラの構成 | `LR` | `LR`、`TD` |
+| `layers` | レイヤーと責務の依存関係 | `TD` | `TD` |
+| `sequence` | 参加者間の時系列メッセージ | `LR` | `LR` |
+| `screens` | 画面と操作による遷移 | `LR` | `LR`、`TD` |
+| `activity` | 処理、判断、分岐 | `TD` | `LR`、`TD` |
 
-`subgraph`, `zone`, and `boundary` are all user-authored. Overlay names,
-render modes, diagnostic levels, and the standard validation vocabularies are
-fixed by ArchMap, while `label`, `description`, `tags`, ids, zones,
-boundaries, permissions, identities, data objects, and custom icon registrations
-are user-controlled.
+`LR` は左から右、`TD` は上から下です。`diagram` は文書の最初に一度だけ指定します。異なる図の種類を 1 文書に混在させることはできません。
 
----
+システム構成図、画面遷移図、アクティビティ図では、接続関係と方向からグリッドへ自動配置します。手動位置の指定があるノードはその位置を優先します。循環する接続と自身への接続も記述できます。
 
-## 1. Graph section
+## `title` — 図のタイトル
 
-| Feature | Syntax | Notes |
+```archmap
+title "注文サービスの構成"
+```
+
+省略すると図のタイトルは表示されません。1 文書に一度だけ、120 文字まで指定できます。
+
+## `group` — 境界とレイヤー
+
+```archmap
+group platform "Google Cloud" color=blue
+node api "API" group=platform
+```
+
+| 要素 | 必須 | 説明 |
 | --- | --- | --- |
-| Direction | `graph LR` / `graph TD` | `flowchart` and `TB` (→TD) also accepted. Missing → defaults to `LR` (warning). |
-| Rectangle node | `A[Label]` | |
-| Database node | `A[(Label)]` | cylinder |
-| Circle node | `A((Label))` | ellipse |
-| Diamond node | `A{Label}` | |
-| Bare reference | `A` | reuses a node defined elsewhere |
-| Plain edge | `A --> B` | |
-| Labeled edge | `A -->\|Label\| B` | |
-| Subgraph | `subgraph Name … end` | authoring hierarchy; can be shown by the `subgraph` overlay or collapsed as an abstraction |
-| Comment | `%% …` | stripped |
+| ID | はい | ノードの `group=ID` から参照する一意の ID |
+| ラベル | はい | ダブルクォートで囲む表示名。120 文字まで |
+| `color` | いいえ | `blue`、`green`、`orange`、`purple`、`gray`。既定は `blue` |
 
-### Multi-line component labels
+`system`、`screens`、`activity` では、グループのメンバーを囲む領域として表示します。ノードが所属できるグループは 1 つです。グループの入れ子は使用できません。メンバーがいないグループは描画されません。手動配置では、別グループのノードを同じ領域に挟まないよう位置を指定してください。
 
-Use `\n` inside a graph label when a component name reads better on multiple
-lines. Node width follows the longest line and node height follows the number
-of lines.
+`layers` では、グループ宣言の順に上から下へレイヤーを配置し、各レイヤーのノードを宣言順に左から右へ並べます。グループに所属しないノードは、グループの後に接続関係から算出した深さ別に並びます。すべてのノードを明示的なグループへ割り当てると、レイヤー順を直接指定できます。
+
+`sequence` ではグループと `group=ID` を使用できません。
+
+## `node` — 要素と表示オプション
 
 ```archmap
-graph LR
-  API[Checkout API\n(public)]
-  DB[(Orders\nDatabase)]
-  API --> DB
+node orders "Orders API" description="注文を受け付ける" icon=aws/lambda group=backend at=2,1 shape=card color=blue
 ```
 
-Metadata labels may contain real newlines, including YAML block scalars:
+| 要素・オプション | 必須 | 値 | 既定 |
+| --- | --- | --- | --- |
+| ID | はい | 一意のノード ID | — |
+| ラベル | はい | ダブルクォートで囲む表示名。120 文字まで | — |
+| `description` | いいえ | ダブルクォートで囲む説明。240 文字まで | 説明なし |
+| `icon` | いいえ | 登録済みアイコンのキー | アイコンなし |
+| `group` | いいえ | 宣言済みグループの ID | 所属なし |
+| `at` | いいえ | `列,行`。1 から始まる整数 | 自動配置 |
+| `shape` | いいえ | `card`、`database`、`decision`、`start`、`end` | `card` |
+| `color` | いいえ | `blue`、`green`、`orange`、`purple`、`gray` | `blue` |
 
-```yaml
-nodes:
-  API:
-    label: |-
-      Checkout API
-      (public)
-```
+ラベルと説明以外の値はダブルクォートで囲みません。`description="..."` を除き `key=value` で記述します。
 
-Keep the node ID (`API`) stable and use line breaks only in its display label.
+### 図形
 
-Connector labels use the same explicit line-break syntax:
-
-```archmap
-Client -->|request\nvalidated| API
-```
-
-Metadata edge labels may use a YAML block scalar:
-
-```yaml
-edges:
-  client_api:
-    from: Client
-    to: API
-    label: |-
-      request
-      validated
-```
-
-The renderer sizes the connector-label background from the longest line and
-reserves the complete multi-line area during collision avoidance.
-
-**Node IDs**: start with an ASCII letter; then letters, digits, `_`, `-`.
-A node is *defined* by a token carrying a shape (`A[…]`); repeating a definition
-is a `duplicate_node` error. One arrow per line.
-
-Edges in the graph are reconciled with metadata edges by their `(from, to)`
-pair: a matching metadata edge adopts the graph label and its explicit id;
-unmatched graph edges get a generated id `from_to`.
-
----
-
-## 2. Metadata section (YAML)
-
-Top-level keys parsed today: `title`, `description`, `nodes`, `edges`, `zones`,
-`boundaries`, `identities`, `permissions`, `data`, `scenarios`, `timeline`,
-`layout`, `view`.
-
-### 2.1 `nodes`
-```yaml
-nodes:
-  App:
-    label: Cloud Run      # overrides graph label
-    zone: gcp
-    layer: runtime
-    kind: serverless_service
-    provider: gcp
-    principal: app-sa
-    contains: [Child1]    # parsed/modelled; prefer zones/subgraphs for visual grouping
-    tags: [public, prod]
-    description: "…"
-```
-
-### 2.2 `edges`
-Two forms (spec 01 §7 / 02 §6):
-
-- **Pair-key** `Source->Target:` — selects the matching graph edge and enriches
-  it (keeps a generated id `from__to__index`; not a stable id). Ambiguous if it
-  matches multiple graph edges (`edge_pair_ambiguous`).
-- **Explicit-id** — the key is a stable id; `from`/`to` required. Use for
-  multiple edges between the same pair or stable `data.flows` references.
-
-```yaml
-edges:
-  Web->API: { flow: request, protocol: HTTPS }   # pair-key form
-  web_api_admin: { from: Web, to: API, flow: admin_operation }   # explicit-id
-```
-```yaml
-edges:
-  web_api:
-    from: Web
-    to: API
-    label: HTTPS + JWT
-    flow: request
-    protocol: HTTPS
-    auth: { method: bearer, token: JWT, issuer: FirebaseAuth, audience: api,
-            validatedBy: API, scopes: [read], claims: {…} }
-    principal: app-sa
-    data: …               # free-form, stored as-is
-    networkPath: [VPN, Firewall]
-    boundaryCrossing: true # boolean or list
-    direction: request_response
-    tags: […]
-    description: "…"
-```
-
-### 2.3 `zones`
-```yaml
-zones:
-  gcp:
-    label: GCP
-    kind: cloud
-    provider: gcp
-    contains: [API, App, DB]   # node ids or child zone ids
-    parent: cloud              # optional alternative/companion to parent contains
-    trustLevel: private
-    description: "…"
-```
-
-### 2.4 `boundaries`
-```yaml
-boundaries:
-  gcp_private:
-    label: GCP Private
-    kind: network_boundary
-    contains: [App, DB]        # node ids, zone ids, or child boundary ids
-    zone: gcp
-    description: "…"
-```
-
-### 2.5 `identities`
-```yaml
-identities:
-  app-sa: { kind: service_account, provider: gcp, attachedTo: App }
-```
-`attachedTo` may be a string or list.
-
-### 2.6 `permissions`
-```yaml
-permissions:
-  cloudsql:
-    principal: app-sa   # required
-    action: connect     # required
-    resource: DB        # required
-    effect: allow
-    role: roles/cloudsql.client
-    condition: …
-    description: "…"
-```
-
-### 2.7 `data`
-```yaml
-data:
-  customer_profile:
-    label: Customer Profile
-    classification: personal   # shown as a node badge in the Data Flow view
-    storedIn: [DB, RDS]
-    processedBy: [App]
-    flows: [web_api, app_db]
-    retention: 30d
-    description: "…"
-```
-
-### 2.8 `layout` and `view`
-```yaml
-layout:
-  mode: auto
-  direction: LR       # LR or TD; manual node positions are parsed but ignored
-  grid:               # optional Topology View hints
-    aspect: golden
-    size: auto
-    align: center
-    packing: balanced
-    placements:       # optional; rows/columns are 1-based integer cells
-      - target: { type: node, id: Users }
-        row: 1
-        column: 3
-        rowSpan: 1
-        columnSpan: 2
-view:
-  default:
-    base: overview    # overview, topology, layer, or prototype
-    overlays: [zone]  # additive information layers
-  layer:
-    background:
-      mode: alternate # default, solid, alternate, or none
-      colors: ["#eef6ff", transparent] # even/odd Layer lanes
-  enabled: [...]      # parsed, not applied yet
-  filters: { zones: [...], layers: [...] }  # parsed, not applied yet
-```
-
-Layer lane backgrounds are presentation settings and do not change layer
-semantics or layout. Use `mode: solid` with `color`, `mode: alternate` with two
-`colors`, `mode: none` for unfilled lanes, or omit the setting (`default`) to
-retain the built-in palette. `transparent` can be used as either alternating
-color to produce color/no-color rows or columns. Layer orientation still
-follows `graph LR` (horizontal lanes) or `graph TD`/`TB` (vertical lanes).
-
-### 2.9 `timeline` and element `lifecycle` (4D, v0.2)
-
-One document can describe how the architecture evolves across named phases
-(migrations, DR, blue-green). Full semantics: `docs/specs/v0.2/06-timeline-4d.md`.
-
-```yaml
-timeline:
-  label: Cloud migration
-  phases:                       # id -> definition; order is the time axis
-    now:      { label: "Today" }
-    parallel: { label: "Parallel run", at: "2026-Q3" }  # `at` is display-only
-    done:     { label: "Cloud only" }
-  order: [now, parallel, done]  # optional; recommended for numeric-like ids
-  default: now                  # optional initial phase
-```
-
-`nodes.*`, `edges.*`, and `zones.*` accept `lifecycle:`:
-
-```yaml
-nodes:
-  AppNew:
-    lifecycle:
-      added: parallel                  # present from `parallel` (inclusive)
-      states: { parallel: planned }    # sticky until overridden; states:
-                                       # planned | active | deprecated | removing
-  AppOld:
-    lifecycle: { removed: done }       # absent from `done` (inclusive)
-edges:
-  DbOld->DbNew:
-    lifecycle: { added: parallel, removed: done }  # clamped to its endpoints
-```
-
-- Presence is the half-open interval `[added, removed)`. Elements without a
-  `lifecycle` exist in every phase; documents without `timeline:` behave
-  exactly as before.
-- Rendering: layout is stable across phases; absent elements are strongly
-  ghosted (not hidden); the `timeline` overlay adds a "what changes at this
-  phase" lens with badges. `render(model, { phase })`,
-  `result.setPhase/getPhase/listPhases`, `<archmap-viewer phase="...">`, and
-  the controls-toolbar phase slider switch phases without re-layout.
-- `variants:` (top level) and `lifecycle.variants` are reserved for the future
-  5D variant dimension and are ignored by the v0.2 parser.
-
----
-
-## 3. Label inference
-
-Filled only when the field isn't set explicitly; each inferred field is listed
-in the edge's `inferred[]` so it's visible.
-
-| Label matches | Inferred |
+| `shape` | 表示・用途 |
 | --- | --- |
-| `https` | `protocol: HTTPS` |
-| `http` (word) | `protocol: HTTP` |
-| `sql` (word) | `protocol: SQL` |
-| `jwt` | `auth.token: JWT` |
-| `oauth` | `auth.method: oauth` |
-| `pub/sub` | `flow: event_publish` |
-| `sqs` (word) | `flow: message_send` |
-| `replication` | `flow: replication` |
-| `sync` (word) | `flow: sync` |
+| `card` | 標準の角丸カード。画面遷移図では画面を示すヘッダー付き |
+| `database` | データベースを示す円筒 |
+| `decision` | 判断・分岐を示す菱形 |
+| `start` | 開始を示す終端ノード |
+| `end` | 終了を示す終端ノード |
 
-Protocol precedence: HTTPS before HTTP.
+`sequence` の参加者は `card` のみ使用できます。明示的な `shape=card` は有効です。`icon` を使用できる図形は `card` と `database` です。`decision`、`start`、`end` に `icon` を指定するとエラーになります。開始、終了、判断を意味するノードでも、業務ルールの自動検証は行いません。分岐の意味は接続ラベルに記述します。
 
----
+### グリッド位置
 
-## 4. Validation
+```archmap
+diagram activity TD
+node choose "承認する？" shape=decision at=2,1
+node approve "承認" at=1,2 color=green
+node reject "差し戻し" at=3,2 color=orange
+choose -> approve "はい"
+choose -> reject "いいえ"
+```
 
-Attached to the model as `diagnostics`, with derived `errors`, `warnings`,
-`suggestions`, and `infos` arrays. Each diagnostic has a `level`, `code`,
-`message`, optional legacy `ref`, and spec-shaped `target`.
+`at=列,行` はピクセル値ではなく、左から右・上から下に増えるグリッドの位置です。各値は 1〜12。同じ位置に 2 個のノードを置くことはできません。この制約はグループをまたいでも共通です。
 
-**Errors:** `invalid_node_id`, `duplicate_node`, `invalid_yaml`,
-`metadata_not_object`, `edge_missing_endpoint`, `edge_unknown_source`,
-`edge_unknown_target`, `zone_parent_conflict`, `zone_cycle`,
-`boundary_cycle`, `scenario_unknown_start`, `scenario_unknown_step`,
-`image_url_disallowed`.
+手動位置と自動配置を混在できます。自動配置は予約済みのセルを避けます。使用されていない列と行は詰めて表示するため、例えば列 1 と列 12 の間に 10 列分の空白が必ず確保されるわけではありません。相対的な列と行の順序を指定する機能です。
 
-**Warnings:** `unparsed_line`, `metadata_node_not_in_graph`,
-`unknown_node_kind`, `unknown_layer`, `unknown_flow`,
-`unknown_zone_kind`, `unknown_boundary_kind`, `unknown_identity_kind`,
-`unknown_classification`, `edge_pair_ambiguous`, `edge_unknown_data`,
-`data_flow_mismatch`, `data_flow_ambiguous`, `auth_flow_without_token`,
-`auth_token_without_issuer`,
-`auth_token_without_validator`, `auth_unknown_issuer`,
-`auth_unknown_validator`, `auth_unknown_recipient`,
-`zone_crossing_without_boundary`,
-`zone_crossing_marked_false`, `data_access_without_principal`,
-`permission_incomplete`, `permission_unknown_principal`,
-`permission_unknown_resource`, `data_unknown_flow`, `data_unknown_node`,
-`zone_unknown_node`, `zone_unknown_child_zone`, `zone_parent_unknown`,
-`boundary_unknown_node`, `boundary_unknown_zone`,
-`boundary_unknown_boundary`, `boundary_unknown_related_zone`,
-`unknown_base_view`, `unknown_overlay`, `view_3d_unavailable`,
-`hotspot_out_of_bounds`, `external_transition_without_boundary`.
+`layers` と `sequence` では `at` を使用できません。
 
-**Suggestions:** `node_without_metadata`, `node_zone_unknown`,
-`data_without_classification`, `dataflow_missing_storage`,
-`telemetry_without_data_classification`, `placement_ref_unknown`,
-`auth_token_without_recipient`, `scenario_incomplete`,
-`screen_node_without_image`, `transition_without_trigger`,
-`unreachable_screen`, `ambiguous_transition`.
+### アイコン
 
-**Infos:** `missing_direction`, `inferred_protocol`, `inferred_auth_token`,
-`inferred_flow`, `inferred_zone`.
+`icon=KEY` はローカルの SVG レジストリーから選択します。アイコンキーは英字から始まり、英数字、`_`、`-`、`.`、`:`、`/` を使用できます。80 文字までです。キーは大文字・小文字を区別します。
 
-`kind` / `layer` / `flow` are validated against the standard vocabularies in
-`src/types.ts` (`STANDARD_KINDS`, `STANDARD_LAYERS`, `STANDARD_FLOWS`); unknown
-values are allowed but warned.
-
----
-
-## 5. Views
-
-Set with `render(model, { view })` or the `view.default` key. All are SVG except
-`3d`.
-
-Stage 4 also accepts `render(model, { baseView, overlays })`. `baseView`
-selects the base renderer while `overlays` applies semantic projections from
-the same parsed model without reparsing. Known overlays are recorded on the SVG
-root (`data-overlays`, `archmap-overlay-*`) and can emphasize relevant
-nodes/edges, synthesize permission overlay edges, add compact badges, or draw
-zone/boundary boxes. Unknown overlays emit `unknown_overlay` warnings and do not
-block rendering.
-
-`subgraph` and `zone` can both act as optional abstraction hierarchies. When
-`render(model, { abstractionLevel, abstractionTarget })` or the viewer
-Abstraction slider is set above `0`, groups at the selected depth become
-abstraction components: contained nodes are hidden, external edges are rewired
-from the group component, duplicate external edges collapse to one edge, and Add
-info overlays use the same projected model. Level `1` collapses top-level
-subgraphs/zones; level `2` collapses their child groups, and so on. The default
-target is `subgraph`; use `abstractionTarget: "zone"` to collapse zones.
-Collapsed abstraction components render with a heavier outline, and in an
-interactive target they can be clicked to expand just that component/zone while
-leaving sibling abstractions collapsed.
-
-In the interactive viewer, zone and subgraph abstraction can also be managed by
-clicking visible areas/components. The abstraction lock control disables those
-open/close clicks when a read-only view is desired.
-
-| View | Shows |
+| 種類 | キーの例 |
 | --- | --- |
-| `overview` | structural nodes/edges only until Add info overlays are enabled |
-| `topology` / UI `Topology` | containment-first golden-ratio grid; components occupy or span integer cells and remain centered with stable overlay-independent geometry |
-| `layer` / UI `Layer` | contiguous swimlane bands from `nodes.*.layer`; zone and boundary do not change the lane partition |
+| 汎用 | `user`、`browser`、`server`、`database`、`cloud`、`queue`、`storage`、`code`、`shield`、`phone`、`globe`、`layers` |
+| AWS | `aws/lambda`、`aws/rds` |
+| Google Cloud | `gcp/cloud_run`、`gcp/cloud_sql`、`gcp/pub_sub`、`gcp/cloud_storage` |
+| Azure | `azure/app_services` |
+| 開発ツール・サービス | `github`、`docker`、`postgresql` |
 
-Layer lanes share their borders without gutters. `graph LR` produces horizontal
-lanes with left-to-right flow; `graph TD`/`graph TB` produces vertical lanes
-with top-to-bottom flow. Nodes remain centered inside their lane and connectors
-cross lane borders orthogonally.
-| `zone` overlay | physical component areas from explicit `zones` metadata |
-| `boundary` overlay | logical component areas from explicit `boundaries` metadata, plus boundary/zone-crossing edges; rest faded |
-| `auth` | auth-related components/connectors and token/auth labels |
-| `dataflow` | data-related components/connectors and data/classification labels |
-| `permission` | permission-related components/connectors and role/action labels or summaries |
-| `validation` | components/connectors referenced by diagnostics, with error/warning labels |
-| `timeline` overlay | elements whose presence/state changes at the active phase, with lifecycle badges (`+ phase`, `- phase`, state names); ghost/state styling applies whenever a phase is active, overlay or not |
-| `prototype` | ScreenFlow current screen, transitions, hotspots, scenario playback, and overlay summaries |
-| `3d` | opt-in three.js view (layer → height, zone volumes, gizmo) |
+プレイグラウンドのアイコン一覧は、インストール済みレジストリーから取得したキーの完全な一覧です。パーサーはキーの形式を検証します。形式が正しくても未登録のキーは、レンダラーの汎用フォールバックアイコンで表示します。外部 URL からの読み込みや、DSL による生の SVG の埋め込みは行いません。
 
-**Layout behavior:** overview, topology, and layer views use automatic placement plus
-component-safe orthogonal routing. Endpoints are distributed across component
-sides, parallel lanes are offset, component intersections are repaired when
-possible, and rendered SVG validation checks endpoint overlap, port spacing,
-long segment overlap, component intersections, and perpendicular incidence.
+スタンドアローン API は `registerIcon(key, { viewBox, body })` でアプリ側からアイコンを登録できます。`body` にはアプリが管理する信頼できる SVG の中身を渡します。
 
-**2D rendering order:** when multiple area overlays are enabled, areas are
-drawn from back to front as zone → boundary → subgraph so more specific
-grouping remains visible. Nested zones/boundaries are allowed.
-Subgraphs are structural guides: they have no fill and use a dashed outline.
-Zones retain a low-opacity semantic fill without a normal outline; use
-`boundary` when the outline itself carries trust, policy, or crossing meaning.
-
-### 5.1 Lifecycle plugin views
-
-The optional `@archmap/lifecycle` plugin adds lifecycle YAML sections without
-changing the architecture graph or the v0.3 core grammar:
+## 接続 — 3 種類の矢印
 
 ```archmap
-graph LR
-  User[User] --> Login[Login Screen]
-  Login --> API[Auth API]
----
-requirements:
-  REQ-LOGIN:
-    title: User can sign in
-    type: functional
-    status: approved
-    priority: must
-acceptanceCriteria:
-  AC-LOGIN:
-    requirement: REQ-LOGIN
-    statement: Successful sign-in displays Home
-tests:
-  TEST-LOGIN:
-    title: Login end-to-end test
-    type: end_to_end
-    framework: Playwright
-    required: true
-evidence:
-  EVD-LOGIN:
-    type: test_result
-    status: passed
-    producedBy: TEST-LOGIN
-    source: artifacts/login-report.json
-relations:
-  - { from: REQ-LOGIN, to: Login, type: realized_by }
-  - { from: REQ-LOGIN, to: API, type: implemented_by }
-  - { from: AC-LOGIN, to: TEST-LOGIN, type: verified_by }
-  - { from: TEST-LOGIN, to: EVD-LOGIN, type: evidenced_by }
+client -> api "request"
+api --> client "response"
+api <-> database "sync"
 ```
 
-Implemented lifecycle sections are `requirements`, `acceptanceCriteria`,
-`decisions`, `risks`, `tests`, `evidence`, and `relations`. IDs are preserved
-verbatim. Relation endpoints may reference either lifecycle IDs or existing
-architecture node IDs. Install the plugin before parsing so these sections are
-normalized and validated:
+| 構文 | 線 | 矢印 |
+| --- | --- | --- |
+| `A -> B` | 実線 | A から B |
+| `A --> B` | 破線 | A から B |
+| `A <-> B` | 実線 | 両端 |
 
-```js
-import { createArchMap } from "@archmap/core";
-import lifecycle from "@archmap/lifecycle";
+ラベルは省略可能で、指定する場合は 120 文字まで。ノードとの接続、ラベル用の余白、直交経路はレンダラーが決定します。同じノード間に複数の接続を記述できます。自分自身への接続も有効です。双方向の破線、矢印のない線、接続 ID、接続用の追加オプション、手動の経由点は対応していません。
 
-const archmap = createArchMap().use(lifecycle);
-const model = archmap.parse(source);
-const requirements = archmap.render(model, { baseView: "requirements" });
-const trace = archmap.render(model, {
-  baseView: "traceability",
-  viewOptions: { lifecycle: { start: "REQ-LOGIN", maxDepth: 4 } },
-});
-const quality = archmap.render(model, { baseView: "quality" });
-```
-
-The three views are projections of the same canonical model:
-
-- `requirements`: requirement hierarchy, acceptance, metadata, and allocated architecture.
-- `traceability`: bounded typed-relation traversal from an optional start ID.
-- `quality`: requirements, acceptance criteria, tests, evidence, status, and freshness.
-
-### 5.2 Topology golden grid
-
-Topology uses a square `N x N` logical lattice whose cells are horizontal
-golden rectangles. Horizontal gap and padding dimensions are the golden-ratio
-counterparts of their vertical dimensions, so the complete SVG canvas also
-keeps the golden ratio. `rowSpan` and `columnSpan` merge adjacent cells into a
-rectangular placement. Omit placements for deterministic automatic packing.
-Overlay changes do not recompute this grid.
-
----
-
-## 6. JavaScript API
-
-```js
-import {
-  parse, render, computeLayout,
-  registerView, getView, listViews, initialize, defineArchMapViewerElement,
-  createArchMapStream,
-  registerIcon, getIcon, listIcons, clearIcons, resolveIcon, resolveNodeIcons,
-  extractArchMapBlocks, version,
-} from "@archmap/core";
-
-const model = parse(source);                 // Text -> Model (+ errors/warnings)
-const { svg } = render(model, { view: "overview", target: el });
-const overlaid = render(model, { baseView: "overview", overlays: ["auth", "dataflow"] });
-const abstracted = render(model, { baseView: "overview", abstractionLevel: 1 });
-const zoneAbstracted = render(model, { baseView: "overview", abstractionTarget: "zone", abstractionLevel: 1 });
-const partlyExpanded = render(model, { baseView: "overview", abstractionLevel: 1, expandedAbstractions: ["subgraph:Runtime"] });
-overlaid.setOverlays(["permission", "validation"]);
-overlaid.toggleOverlay("boundary");
-abstracted.setAbstractionLevel(0);
-await overlaid.downloadPng("archmap.png");
-await overlaid.downloadSvg("archmap.svg");
-
-const live = createArchMapStream({ target: el, renderOptions: { baseView: "overview" } });
-live.write("graph LR\n");
-live.write("  Web[Web App] --> API[API Gateway]\n");
-await live.close();
-```
-
-- **Views** are pluggable: `registerView(name, ctx => svgString | { mount(el) })`.
-- **Buffered streaming input** is available through
-  `createArchMapStream({ target, renderOptions, debounceMs })`. It accepts
-  `write(chunk)`, `pipe(readableStream)`, `flush()`, `close()`, and `abort()`.
-  This is a buffered source interface, not an incremental parser: each flush
-  reparses the complete accumulated source and supersedes the previous render.
-- **Render results** can update base view/overlays/abstraction without reparsing:
-  `setBaseView(view)`, `setOverlays(list)`, `toggleOverlay(name)`,
-  `setAbstractionLevel(level)`, `setAbstractionTarget("subgraph" | "zone")`,
-  `exportPng({ scale, background })`, `downloadPng(filename)`,
-  `exportSvg()`, `downloadSvg(filename)`, `destroy()`.
-- **Custom element (inline source):** `initialize()` defines
-  `<archmap-viewer>` by default when `customElements` is available; call
-  `defineArchMapViewerElement()` directly if you do not use `initialize()`.
-  Supported first-pass attributes: `base-view`, `overlays`,
-  `abstraction-level`, `abstraction-target`, `width`, `height`, `src`,
-  `fallback-to-inline`, `diagnostics`, `diagnostics-target`, `console`,
-  `controls`, `scenario`, `show-hotspots`, and `phase` (timeline phase;
-  removing the attribute restores the timeline default).
-- **Controls + SVG interaction** (spec 03 §7 / TASK-006): `controls` shows
-  tag-style controls (View radio buttons, Render mode radio buttons, Add info
-  checkboxes, fit/reset, PNG export, full screen, abstraction lock, diagnostics
-  indicator).
-  The same tag UI is also available as a reusable browser control:
-  `createDiagramTags({ target, state, onChange, onAction })` from
-  `@archmap/core` or the CDN-friendly subpath
-  `@archmap/core/controls/diagram-tags`.
-  2D views support ordinary wheel/scroll for vertical camera movement,
-  trackpad/browser pinch (`ctrl`-wheel) for zoom, and drag pan;
-  `render(model,{target})` attaches this automatically
-  (`interactive: false` to disable), and
-  `RenderResult.fit()/reset()` control the view.
-  External `src` takes priority; failed loads emit `src_fetch_failed` and show
-  diagnostics. Inline fallback is used only when `fallback-to-inline` is present.
-- **Console diagnostics** (spec 02 §23): the viewer logs warnings+errors to the
-  console by default (`console="false"` to silence). The programmatic
-  `render(model, { console })` is opt-in; `reportDiagnosticsToConsole(model,
-  opts)` exposes it directly (configurable `levels` and `logger`).
-- **Icons** are opt-in (core ships none). `registerIcon("aws", { viewBox, body })`;
-  resolved per node by `provider/kind` → `provider` → `kind`. Recommended source:
-  [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons) — a verified
-  drop-in (`installAwsIcons(registerIcon)`, etc.; AWS/GCP/Azure `provider/kind`
-  icons + famous services). The bundled `@archmap/core/packs/cloud-icons` is a tiny sample.
-- **3D / icon packs** live outside the core bundle:
-  `import { installThreeView } from "@archmap/core/views3d/three-view"` (needs `three`),
-  `import { installCloudIcons } from "@archmap/core/packs/cloud-icons"`.
-- **Diagram tags** are exported for external playgrounds/viewers:
-  `import { createDiagramTags } from "@archmap/core/controls/diagram-tags"`.
-- **`initialize({ selector })`** scans the page and renders matching elements in
-  place (also reads ```archmap``` fences via `extractArchMapBlocks`).
-
-### 6.1 Browser viewer
-
-`<archmap-viewer>` is the easiest browser embedding surface:
-
-```html
-<archmap-viewer
-  base-view="overview"
-  render-mode="2d"
-  overlays="zone,auth,validation"
-  controls
-  diagnostics
-  style="display:block;min-height:640px"
->
-graph LR
-  Web[Web App] -->|HTTPS + JWT| API[API Gateway]
----
-nodes:
-  Web: { zone: client, kind: web_app }
-  API: { zone: gcp, kind: api_gateway, provider: gcp }
-</archmap-viewer>
-<script type="module">
-  import { initialize } from "@archmap/core";
-  initialize();
-</script>
-```
-
-For external source files, use `src="diagram.archmap"`. Inline text is used as
-fallback only when `fallback-to-inline` is present.
-
-### 6.2 PNG export
-
-All render results expose PNG export:
-
-```ts
-const result = render(model, { baseView: "overview", target: el });
-const png = await result.exportPng({ scale: 2, background: "#ffffff" });
-await result.downloadPng("architecture.png");
-```
-
-2D export converts the rendered SVG into a PNG canvas. 3D export captures the
-current WebGL canvas view, including the current camera angle.
-
-### 6.3 SVG export
-
-SVG export is available for SVG-backed 2D views such as `overview` and `layer`.
-Mounted views such as `prototype` and the optional `3d` view are not SVG-backed
-and throw if `exportSvg()` is called.
-
-```ts
-const result = render(model, { baseView: "overview", target: el });
-const svg = result.exportSvg();
-await result.downloadSvg("architecture.svg");
-```
-
-### 6.4 Buffered streaming input
-
-`createArchMapStream()` is the low-level interface for LLM/token-stream or live
-source updates. It intentionally buffers text and reparses the full source at
-flush boundaries, so callers get a stable API without requiring the parser to
-be incremental.
-
-```ts
-const session = createArchMapStream({
-  target: document.querySelector("#diagram"),
-  renderOptions: { baseView: "overview", overlays: ["zone"] },
-  debounceMs: 120,
-  onResult: (result) => console.log(result.view),
-});
-
-session.write("graph LR\n");
-session.write("  Web[Web App] --> API[API Gateway]\n");
-session.flush();
-await session.close();
-```
-
-`pipe(readableStream)` accepts `ReadableStream<string | Uint8Array>`. Use
-`abort()` to cancel pending debounce work and destroy the current render.
-
-### 6.5 Prototype View / ScreenFlow
-
-ScreenFlow is enabled with top-level `mode: screenflow` or
-`profile: screenflow` metadata. It reuses the normal graph: screen-like nodes
-are screens, and edges are transitions.
+## シーケンス図の意味
 
 ```archmap
-graph LR
-  Home[Home] --> Product[Product Detail]
-  Product --> Cart[Cart]
----
-mode: screenflow
-nodes:
-  Home:
-    kind: screen
-    image: ./screens/home.svg
-    frame: { device: mobile, width: 390, height: 844 }
-  Product:
-    kind: screen
-    image: ./screens/product-detail.svg
-    frame: { device: mobile, width: 390, height: 844 }
-  Cart:
-    kind: screen
-edges:
-  Home->Product:
-    flow: navigate
-    trigger: tap
-    hotspot: { x: 36, y: 190, width: 318, height: 190 }
-    transition: { type: fade, duration: 180 }
-  Product->Cart:
-    flow: submit
-    trigger: tap
-scenarios:
-  happy_path:
-    label: Purchase happy path
-    start: Home
-    steps: [Home->Product, Product->Cart]
-view:
-  default:
-    base: prototype
-    overlays: [dataflow, boundary, validation]
+diagram sequence
+title "データを読み込む"
+node browser "Browser" icon=browser
+node api "API" icon=server
+node database "Database" icon=database
+
+browser -> api "GET /orders"
+api -> database "SELECT"
+database --> api "rows"
+api --> browser "200 OK"
 ```
 
-ScreenFlow node fields:
+参加者は `node` 宣言の順に左から右へ配置し、ライフラインを描画します。メッセージは接続を記述した順に上から下へ配置します。`-->` は応答などの破線に使用できます。開始・終了時刻や同期・非同期の実行モデルを推論する機能はありません。
 
-- `image`: screen capture, wireframe, or mock image URL.
-- `frame.device`: optional device label.
-- `frame.width` / `frame.height`: image-space size used for hotspot scaling
-  and bounds validation.
+`group`、`group=...`、`at=...`、`TD`、`card` 以外の図形を指定するとエラーです。ループ・条件分岐のフラグメント、アクティベーション、注釈文、参加者の自動生成は未対応です。自身へのメッセージと `<->` は使用できます。
 
-ScreenFlow edge fields:
+## 入力エラーと上限
 
-- `trigger`: `tap`, `click`, `submit`, `auto`, `redirect`, `back`, etc.
-- `hotspot`: image-space rectangle `{ x, y, width, height }` on the source
-  screen.
-- `transition.type` / `transition.duration`: transition metadata retained in
-  the model.
+不明なコマンド、余分なトークン、不明・重複オプション、無効な値、重複 ID、重複位置、未宣言のノードやグループは、行番号付きのエラーになります。未対応の指定を黙って読み飛ばすことはありません。
 
-Scenarios define paper-prototype playback:
+| 項目 | 上限 |
+| --- | --- |
+| ソース全体 | 50,000 文字 |
+| ノード | 40 個 |
+| 接続 | 100 本 |
+| グループ | 12 個 |
+| タイトル・各ラベル | 120 文字 |
+| 各説明 | 240 文字 |
+| アイコンキー | 80 文字 |
+| 手動位置の列・行 | それぞれ 1〜12 |
+| 1 回のパースで返す診断 | 50 件 |
 
-- `start`: starting screen node id.
-- `steps`: edge explicit ids or pair keys such as `Home->Product`. Ambiguous
-  pair keys emit `edge_pair_ambiguous`; use explicit edge ids when a pair has
-  multiple transitions.
+文字数は JavaScript の文字列長（UTF-16 コード単位）で数えます。巨大な入力はブラウザーの応答性を保つために拒否します。図が複雑になったら、責務やユースケースごとに複数の図へ分けてください。
 
-Prototype View has two modes:
+## スタンドアローン API
 
-- `Map`: the default view. Screen nodes are shown as image/fallback cards and
-  transitions are drawn as arrowed lines from screen to screen.
-- `Play`: paper-prototype playback. The current screen is shown large with
-  hotspot navigation, outgoing transition buttons, and scenario controls.
-
-Additional standard node kinds: `screen`, `page`, `tab`, `modal`, `dialog`,
-`drawer`, `form`, `webview`, `external_page`, `auth_guard`, `error_screen`,
-`completion_screen`, `activity`, `decision`, `start`, `end`.
-
-Additional standard flows: `navigate`, `submit`, `back`, `redirect`,
-`deep_link`, `open_modal`, `close_modal`, `switch_tab`, `auth_check`,
-`api_call`, `success`, `error`, `auto`.
+`@archmap/core/diagrams` は DOM やサーバーを必要とせず、ソースから SVG 文字列を生成します。この新しいエントリーポイントはリポジトリーのビルド成果物で利用できます。既存の npm 公開版に含まれていることを意味するものではありません。
 
 ```ts
-const result = render(model, {
-  baseView: "prototype",
-  overlays: ["dataflow", "boundary", "validation"],
-  scenario: "happy_path",
-  showHotspots: true,
-  target: el,
+import { parseDiagram, renderDiagram, registerIcon } from "@archmap/core/diagrams";
+
+registerIcon("custom", {
+  viewBox: "0 0 24 24",
+  body: '<circle cx="12" cy="12" r="8" fill="currentColor"/>',
 });
 
-result.next?.();
-result.back?.();
-result.goToScreen?.("Cart");
-```
+const model = parseDiagram(`diagram system
+node api "API" icon=custom`);
 
-### 6.4 Runtime snapshots
-
-`runtime:` adds an authored operational snapshot to the same architecture
-model. It does not connect to a telemetry backend. Values are written by a
-person or AI and must declare whether they are measured, estimated, or simply
-declared.
-
-```yaml
-runtime:
-  capturedAt: 2026-07-15T10:00:00Z
-  window: { from: 2026-07-15T09:55:00Z, to: 2026-07-15T10:00:00Z }
-  services:
-    API:
-      health: warning
-      source: measured
-      environment: production
-      team: checkout
-      region: asia-northeast1
-      metrics:
-        requests: { value: 820, unit: rpm, source: measured }
-        errorRate: { value: 2.4, unit: percent, source: measured }
-        latencyP95: { value: 310, unit: ms, source: measured }
-  dependencies:
-    api_database:
-      from: API
-      to: Database
-      health: normal
-      source: declared
-      protocol: SQL
-  events:
-    deploy_42:
-      target: API
-      at: 2026-07-15T09:57:00Z
-      type: deployment
-      severity: info
-      label: release 42
-view:
-  default:
-    base: runtime
-```
-
-Runtime health values are `normal`, `warning`, `critical`, `no-data`, and
-`unknown`. Runtime source values are `measured`, `estimated`, and `declared`.
-Service ids and dependency endpoints refer to architecture node ids. Runtime
-View can switch among Design, Runtime, and Diff, group large maps, inspect an
-immediate dependency neighborhood, and export JSON, CSV, SVG, or PNG.
-
-### 6.5 ArchMap Next native topology
-
-Use `topology:` when the source of truth is direct communication, structural
-containment, and boundary-change analysis. This is a first-class authored
-model, not shorthand for `nodes` / `zones` / `boundaries`.
-
-```yaml
-graph LR
----
-topology:
-  resources:
-    client: { label: Client, kind: user, parent: null }
-    api: { label: Orders API, kind: runtime_service, parent: app_subnet }
-    db: { label: Orders DB, kind: relational_database, parent: data_subnet }
-  containers:
-    cloud: { label: Production Cloud, kind: aws.account, roles: [administrative], parent: null }
-    vpc: { label: Production VPC, kind: aws.vpc, roles: [network, security], parent: cloud, enforcedBy: [api] }
-    app_subnet: { label: App Subnet, kind: aws.subnet, roles: [network], parent: vpc }
-    data_subnet: { label: Data Subnet, kind: aws.subnet, roles: [network], parent: vpc }
-  overlays:
-    pci_scope:
-      roles: [security, compliance]
-      render: outline
-      members: [{ resource: api }, { resource: db }]
-  edges:
-    api_db: { from: api, to: db, protocol: TLS, port: 5432 }
-```
-
-Normative rules:
-
-- `resources` are the only legal Edge endpoints.
-- `containers` form a single-parent forest; multiple roots are valid.
-- `overlays` are explicit sets and may overlap freely. Container membership
-  does not implicitly add descendant Resources.
-- Every Edge is one real direct communication hop. Do not skip a load
-  balancer, gateway, proxy, queue, or other real intermediary.
-- `direction` is `directed` by default or `bidirectional`.
-- `crossings` and `overlayTransitions` are derived by ArchMap. Authoring them,
-  including under `topology.analysis`, is an error.
-- Provider-specific correctness belongs to topology validator plugins. Core
-  validates references, containment, endpoint types, and deterministic
-  analysis without pretending to be a cloud simulator.
-
-The parser retains this native model at `model.topology`. Existing Overview
-and Topology renderers receive a compatibility projection, while
-`analyzeTopology(model.topology)` returns structural Crossings and Overlay
-Transitions independently of layout geometry.
-
-### 6.6 CDN / GitHub Pages viewer
-
-For a static viewer page, use an import map. After npm publication, replace
-`0.2.1` with the published version you want to pin:
-
-```html
-<script type="importmap">
-{
-  "imports": {
-    "@archmap/core": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/archmap.js",
-    "@archmap/core/controls/diagram-tags": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/controls/diagram-tags.js",
-    "@archmap/core/views3d/three-view": "https://cdn.jsdelivr.net/npm/@archmap/core@0.2.1/dist/views3d/three-view.js",
-    "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
-    "three/": "https://cdn.jsdelivr.net/npm/three@0.185.0/",
-    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
-  }
+if (model.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+  console.error(model.diagnostics);
+} else {
+  const result = renderDiagram(model);
+  console.warn(result.model.diagnostics.filter((diagnostic) => diagnostic.severity === "warning"));
+  console.log(result.svg);
 }
-</script>
-<script type="module">
-  import { initialize, registerIcon } from "@archmap/core";
-  import { installCloudProviderIcons } from "@archmap/icons";
-  import { installThreeView } from "@archmap/core/views3d/three-view";
-
-  installCloudProviderIcons(registerIcon);
-  installThreeView();
-  initialize();
-</script>
 ```
 
----
+`parseDiagram(source)` は `kind`、`direction`、`title`、`nodes`、`groups`、`edges`、`diagnostics` を持つ `DiagramModel` を返します。入力の構文エラーでは例外を投げません。診断には 1 から始まる `line`、`severity`、`message` が含まれます。エラーがある場合も解析できた要素を返すため、描画前に診断を確認してください。
 
-## 7. Not yet supported / intentionally constrained
+`renderDiagram(model)` は `svg`、`model`、`layout`、`durationMs` を返します。複雑な図で領域の重なりや接続とラベルの交差を検出すると、入力モデルを変更せずに `result.model.diagnostics` へ `warning` を追加します。警告は描画後の戻り値で確認してください。任意の密なグラフで交差が一切なくなることを保証するものではありません。
 
-Parsed/modeled but **not rendered**: node `contains` nesting, manual `layout`
-positions, `view.enabled` / `view.filters`.
+`computeDiagramLayout(model)` では SVG を生成せずに配置と経路を取得できます。`DIAGRAM_SAMPLES` は 5 種類の動作例です。クラウド・サービスアイコンの一括インストールは静的サイト側で行い、軽量のスタンドアローン API にはアイコンアセットを自動で含めません。
 
-Security constraints: user-authored Markdown/HTML labels are not supported; URL
-fields are not rendered as clickable links. If either is added later, it needs a
-documented sanitizer/protocol allowlist first.
+## 旧構文から移行する
+
+| 旧構文・機能 | 新しい書き方 |
+| --- | --- |
+| `graph LR` | `diagram system LR` |
+| `Web[Web App]` | `node Web "Web App"` |
+| `DB[(Database)]` | `node DB "Database" shape=database` |
+| `A -->\|HTTPS\| B` | `A -> B "HTTPS"`。新構文の `-->` は破線 |
+| YAML の `provider` と `kind` | `icon=provider/service` |
+| 境界、ゾーン、レイヤー | `group` と `group=...` |
+| 3D、オーバーレイ、抽象化、複数ビュー | 新しいプレイグラウンドの対象外 |
+
+旧ソースを新しいプレイグラウンドで読み込んだ場合、自動変換せず構文エラーとして通知します。既存の統合向け旧 API は `@archmap/core` に保持しています。

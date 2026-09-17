@@ -1,11 +1,19 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2021",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "paths": { "@archmap/core": ["./src/index.ts"] },
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@archmap/core": [
+        "./src/index.ts"
+      ]
+    },
+    "lib": [
+      "ES2021",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "declaration": true,
     "declarationDir": "dist",
     "emitDeclarationOnly": false,
@@ -19,5 +27,13 @@
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "test", "vite.config.ts", "vite.config.extras.ts"]
+  "include": [
+    "src",
+    "test",
+    "vite.config.ts",
+    "vite.config.extras.ts",
+    "site",
+    "vite.config.site.ts",
+    "vite.config.focused.ts"
+  ]
 }

@@ -1,4 +1,4 @@
-name: Deploy viewer to GitHub Pages
+name: Deploy ArchMap to GitHub Pages
 
 on:
   push:
@@ -28,31 +28,23 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Check types and tests
+        run: npm run typecheck && npm test
 
       - name: Build
         run: npm run build
 
       - name: Assemble Pages site
         run: |
-          mkdir -p _site/packages/lifecycle
-          mkdir -p _site/examples/screens
+          mkdir -p _site
           cp -R site-dist/. _site/
-          cp examples/screens/* _site/examples/screens/
           cp -R dist docs _site/
-          cp -R packages/lifecycle/dist _site/packages/lifecycle/
           cp README.md SPEC.md LICENSE THIRD_PARTY_NOTICES.md _site/
 
       - name: Verify standalone assets
-        run: |
-          test -f _site/dist/archmap.js
-          test -f _site/dist/views3d/three-view.js
-          test -f _site/packages/lifecycle/dist/index.js
-          test -f _site/index.html
-          test -f _site/playground/index.html
-          test -f _site/examples/index.html
-          test -f _site/prototype/index.html
-          test -f _site/lifecycle/index.html
+        run: npm run verify:site && npm run bench:diagrams
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

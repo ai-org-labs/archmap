@@ -1,4 +1,8 @@
-# AI Authoring Guide for ArchMap
+# Legacy AI Authoring Guide for ArchMap
+
+For the current five-diagram playground, use the `diagram ...` grammar in
+[SYNTAX.md](./SYNTAX.md). This guide is retained for the legacy `graph` / YAML
+engine and does not describe the new playground.
 
 Use this guide when an AI agent is asked to write a system architecture diagram
 in the ArchMap format for `@archmap/core` v0.1.x, for example:
@@ -7,7 +11,7 @@ in the ArchMap format for `@archmap/core` v0.1.x, for example:
 > https://github.com/ai-org-labs/archmap/tree/v0.1.0
 
 This guide is optimized for fast authoring and information gathering. The
-definitive parser/render reference remains [SYNTAX.md](./SYNTAX.md).
+definitive legacy parser/render reference is [LEGACY_SYNTAX.md](./LEGACY_SYNTAX.md).
 
 ## What To Produce
 

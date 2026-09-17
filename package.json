@@ -1,7 +1,7 @@
 {
   "name": "@archmap/core",
   "version": "0.4.1",
-  "description": "Browser-only semantic architecture diagram rendering framework (ArchMap DSL)",
+  "description": "Readable architecture diagrams: system, layers, sequence, screens, and activity. Browser-only SVG rendering.",
   "license": "Apache-2.0",
   "homepage": "https://ai-org-labs.github.io/archmap/",
   "repository": {
@@ -35,6 +35,11 @@
     "./controls/diagram-tags": {
       "types": "./dist/controls/diagram-tags.d.ts",
       "import": "./dist/controls/diagram-tags.js"
+    },
+    "./diagrams": {
+      "types": "./dist/focused/index.d.ts",
+      "import": "./dist/diagrams.js",
+      "require": "./dist/diagrams.umd.cjs"
     }
   },
   "files": [
@@ -51,12 +56,13 @@
     "README.md",
     "SPEC.md",
     "LICENSE",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "docs/LEGACY_SYNTAX.md"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && tsc -p tsconfig.build.json && npm run build:lifecycle && npm run build:site",
-    "build:site": "vite build -c vite.config.site.ts",
+    "build": "tsc --noEmit && vite build && vite build -c vite.config.extras.ts && vite build -c vite.config.focused.ts && tsc -p tsconfig.build.json && npm run build:lifecycle && npm run build:site",
+    "build:site": "vite build -c vite.config.site.ts && node tools/build-standalone.mjs",
     "build:lifecycle": "npm run build --workspace @archmap/lifecycle",
     "bench:render": "node tools/bench-render.mjs",
     "bench:runtime": "node tools/bench-runtime.mjs",
@@ -67,7 +73,11 @@
     "verify:pattern-samples:full": "node tools/verify-pattern-samples.mjs --exhaustive",
     "verify:next": "npm run typecheck && npm test && npm run build && npm run bench:topology",
     "test:watch": "vitest",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "preview:site": "vite preview -c vite.config.site.ts --host 127.0.0.1",
+    "bench:diagrams": "node tools/bench-diagrams.mjs",
+    "verify:site": "node tools/verify-site.mjs",
+    "verify:diagrams": "npm run typecheck && npm test && npm run build && npm run verify:site && npm run bench:diagrams"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"

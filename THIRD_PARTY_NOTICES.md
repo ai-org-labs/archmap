@@ -20,6 +20,17 @@ when publishing or redistributing ArchMap packages.
 | `@archmap/icons` | MIT | Optional icon pack used by examples and consumers that opt in to third-party icons. |
 | `simple-icons` | CC0-1.0 | Used by the bundled sample `archmap/packs/cloud-icons` source for CC0 icon paths and by `@archmap/icons`. |
 
+## Focused Playground Icons
+
+The new static site and downloadable standalone playground bundle
+`@archmap/icons` (MIT): AWS, Google Cloud, Azure, and common service assets.
+The icons are local inline SVGs and require no runtime network access.
+Vendor assets retain their original trademark and usage terms; the package's
+software license does not grant trademark rights. Generic line icons in
+`src/focused/icons.ts` are authored as part of ArchMap (Apache-2.0).
+The lightweight `@archmap/core/diagrams` engine includes no vendor icons;
+applications can explicitly register an icon pack.
+
 ## Bundled Sample Icons
 
 The core `archmap` entry point ships no vendor icon assets.

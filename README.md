@@ -1,233 +1,85 @@
 # ArchMap
 
-Browser-only semantic architecture diagram rendering framework — a Mermaid-like
-DSL that compiles to a rich semantic model and multiple architecture views.
+テキストから、読みやすい設計図へ。ブラウザーだけで動く、5種類の図に絞ったダイアグラムツールです。
 
-- [docs/SYNTAX.md](./docs/SYNTAX.md) — reference for every **currently
-  implemented** syntax/feature (start here to author diagrams)
-- [docs/AI_AUTHORING_GUIDE.md](./docs/AI_AUTHORING_GUIDE.md) — concise
-  information-gathering checklist and prompt template for AI agents writing
-  ArchMap DSL
-- [docs/DELIVERY.md](./docs/DELIVERY.md) — npm/local/CDN delivery and security notes
-- [docs/specs/v0.4/](./docs/specs/v0.4/) — plugin-first Requirements and
-  Lifecycle Graph contract plus the implemented MVP vertical slice
-- [docs/V0_1_ACCEPTANCE_MATRIX.md](./docs/V0_1_ACCEPTANCE_MATRIX.md) —
-  v0.1 acceptance status and remaining release decisions
-- [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) — third-party dependency,
-  icon, and trademark notes
-- [SPEC.md](./SPEC.md) — the v0.1 language design
+[Playground](https://ai-org-labs.github.io/archmap/playground/) · [構文リファレンス](https://ai-org-labs.github.io/archmap/syntax/) · [サンプル](https://ai-org-labs.github.io/archmap/examples/)
 
-> **Status:** v0.2 developer preview. The current product surface is
-> overview/topology/layer/prototype renderers with additive semantic overlays, optional
-> abstraction collapse/expand, an opt-in vendor-icon registry, and an opt-in
-> three.js 3D view. The core bundle ships none of the optional assets (no vendor
-> icons, no three.js). Edges use orthogonal component-safe routing with
-> distributed ports and rendered SVG validation for endpoint/overlap risks.
-> **New in v0.2: the 4D timeline** — a `timeline:` section plus per-element
-> `lifecycle:` declarations model how an architecture evolves (migrations, DR,
-> blue-green); a toolbar phase slider scrubs snapshots with stable layout and
-> ghosted absent elements. See
-> [docs/specs/v0.2/06-timeline-4d.md](./docs/specs/v0.2/06-timeline-4d.md).
->
-> **In development for v0.4:** Core plugin registries and the optional
-> `@archmap/lifecycle` workspace now provide Requirement, Acceptance Criterion,
-> Decision, Risk, Test, Evidence, typed relations, lifecycle diagnostics, and
-> Requirements/Traceability/Quality projections. See
-> [the plugin architecture](./docs/specs/v0.4/10-plugin-architecture.md).
+## 描くもの
 
-The **Runtime View** remains DSL-first: authored operational snapshots are
-projected from the same canonical model in Design, Runtime, or Diff mode. It
-supports provenance-aware metrics (`measured`, `estimated`, or `declared`),
-event timelines, deterministic grouping, inspection, and JSON/CSV/SVG/PNG
-export without requiring or implying a live telemetry or vendor connector.
+| 種類 | 宣言 | 用途 |
+|---|---|---|
+| システム構成図 | `diagram system LR` | サービス、クラウド、データの接続 |
+| レイヤースタック図 | `diagram layers` | 責務と依存関係の積層 |
+| シーケンス図 | `diagram sequence` | 参加者とメッセージの時系列 |
+| 画面遷移図 | `diagram screens LR` | 画面とユーザーの移動 |
+| アクティビティ図 | `diagram activity` | 開始、分岐、処理、終了 |
 
-## Install / dev
+共通の小さな構文、グリッド配置、直交コネクター、複数行ラベル、グループ、アイコンを使います。UIは図の作成に集中し、3D・オーバーレイ・運用分析・ライフサイクル管理は扱いません。
 
-```bash
-npm install @archmap/core
+```archmap
+diagram system LR
+title "小さな Web システム"
+node web "Web アプリ" icon=browser
+node api "API" icon=server
+node db "データベース" icon=database shape=database
+web -> api "HTTPS"
+api -> db "SQL"
 ```
 
-Development:
+[完全な構文定義](docs/SYNTAX.md)には、全キーワード、オプション、制約、診断、各図の意味を記載しています。構成が密な場合は `at=列,行` で配置を調整できます。任意のグラフで交差がゼロになることを保証するものではありません。
 
-```bash
-npm install
-npm test          # vitest
-npm run typecheck # tsc --noEmit
-npm run build     # ESM + UMD bundle into dist/
+## ローカルで使う
+
+```sh
+npm ci --ignore-scripts
+npm run dev
 ```
 
-## Usage
+Viteが表示するURLを開きます。プレイグラウンドは入力を自動描画し、ブラウザー内に下書きを保存します。`.archmap` 読み込み、ソース・SVG・PNGの保存に対応しています。
 
-```ts
-import { parse, render, computeLayout, registerView } from "@archmap/core";
-
-const model = parse(source);            // ArchMapModel (spec §28)
-const { svg } = render(model, { view: "overview" });
-// computeLayout(model) -> pure geometry (x, y, z) for any renderer
-// registerView("my3d", ctx => ...)     // ctx.layout has z for three.js
+```sh
+npm run build:site
+npm run preview:site
 ```
 
-Containment-first cloud and deployment diagrams can use the golden-grid
-Topology view. It keeps an exact golden-ratio canvas, places components on
-integer cells, and supports automatic rectangular cell spans for larger nodes:
+`site-dist/` が静的サイトです。`site-dist/standalone.html` は JavaScript・CSS・アイコン・構文リファレンスを内包した単一ファイルで、ダブルクリックで起動できます。サーバー、CDN、アカウントは不要です。ファイルから開く場合の下書き保存可否はブラウザーに依存します。
 
-```ts
-const { svg } = render(model, {
-  baseView: "topology",
-  overlays: ["subgraph", "zone", "boundary"],
-});
-```
+## ライブラリーとして使う
 
-Curated starter diagrams are exported for playgrounds and AI-assisted authoring:
+リポジトリをビルドすると、軽量エンジンを `dist/diagrams.js`（ESM）と `dist/diagrams.umd.cjs`（UMD）に出力します。次の公開バージョンからは `@archmap/core/diagrams` を利用できます。
 
-```ts
-import { DEFAULT_ARCHMAP_SAMPLES } from "@archmap/core";
-const source = DEFAULT_ARCHMAP_SAMPLES[0].source;
-```
+```js
+import { parseDiagram, renderDiagram } from './dist/diagrams.js';
 
-The bundled dev playground and `examples/demo.html` expose these samples in the
-selector next to **Render**, including recommended view/render-mode/overlay
-settings for each sample.
-
-Browser playground: `npm run dev` then open the dev server root (live source,
-no build). Or `npm run build` and open `examples/demo.html` directly from disk
-(no server — uses the built ESM bundle plus CDN-hosted optional dependencies).
-For ScreenFlow, open `examples/screenflow-map.html` to see screen images linked
-as a transition map with Map/Play switching.
-
-Published viewer page: `https://ai-org-labs.github.io/archmap/` after the
-GitHub Pages workflow has run on `main`.
-
-### Vendor icons (opt-in)
-
-The core ships **no icon assets** — only the registry mechanism — so it stays
-dependency-free and clear of vendor-logo licensing. Icons are resolved per node
-by `provider`/`kind` (most specific first: `provider/kind` → `provider` →
-`kind`).
-
-**Recommended icon source: [`@archmap/icons`](https://github.com/ai-org-labs/archmap-icons).**
-It registers AWS/GCP/Azure service-kind icons (keyed `provider/kind`) plus a
-famous-services pack through ArchMap's `registerIcon` — a verified drop-in (same
-`RegisterIcon`/`RenderableIcon` types; `@archmap/icons` v0.1.2 ships 1,271
-cloud icon entries plus 32 famous-service entries):
-
-```ts
-import { registerIcon } from "@archmap/core";
-import { installAwsIcons, installFamousServiceIcons } from "@archmap/icons";
-installAwsIcons(registerIcon);
-installFamousServiceIcons(registerIcon);
-```
-
-Or register your own / use the bundled minimal sample:
-
-```ts
-import { installCloudIcons } from "@archmap/core/packs/cloud-icons"; // tiny sample
-installCloudIcons();
-registerIcon("aws", { viewBox: "0 0 24 24", body: '<path .../>' });
-```
-
-For a browser-only sample, `examples/demo.html` imports the published icon pack
-through jsDelivr:
-
-```html
-<script type="importmap">
-{
-  "imports": {
-    "@archmap/icons": "https://cdn.jsdelivr.net/npm/@archmap/icons@0.1.2/+esm"
-  }
+const model = parseDiagram(source);
+if (!model.diagnostics.some(item => item.severity === 'error')) {
+  const result = renderDiagram(model);
+  document.querySelector('#diagram').innerHTML = result.svg;
 }
-</script>
 ```
 
-The bundled `@archmap/core/packs/cloud-icons` sample remains intentionally tiny; use
-`@archmap/icons` when you want broad provider/service icon coverage.
-Third-party logos, product names, and service marks remain the property of
-their respective owners; enabling external icon packs is an explicit opt-in.
+`computeDiagramLayout(model)` で配置座標を取得できます。`registerIcon(key, {viewBox, body})` で信頼できるSVGアイコンを登録できます。コアエンジンにはベンダーアイコンを含めず、プレイグラウンドにはAWS・Google Cloud・Azure・主要サービス・汎用アイコンを同梱します。構文ページで利用可能なキーを検索できます。ロゴの権利は各所有者に帰属します。
 
-### 3D view (opt-in)
+## GitHub Pages
 
-The three.js view is opt-in too — `three` is a peer dependency, not in the
-core bundle. It reuses the same `LayoutResult`: the semantic layer depth `z`
-becomes height, zones render as translucent labeled volumes enclosing their
-members, and a lower-right labeled ViewCube shows orientation and snaps to
-front/top/right on click.
+`.github/workflows/pages.yml` が `main` へのpush時に型検査・テスト・ビルド・静的資産検査・描画ベンチマークを実行し、GitHub Pagesに公開します。プロジェクト配下でも動く相対パスで出力します。詳細は [配布手順](docs/DELIVERY.md) を参照してください。
 
-```ts
-import { installThreeView } from "@archmap/core/views3d/three-view"; // needs `three`
-installThreeView();
-const { handle } = render(model, { view: "3d", target: el });
-// handle.dispose() tears down the canvas + animation loop
+## 検証
+
+```sh
+npm run verify:diagrams
 ```
 
-A view may now return either an SVG string (2D) or a `MountableView` (3D);
-`render()` handles both and returns `svg` or `handle` accordingly.
+5種類のサンプルと40ノード構成の計測は `npm run bench:diagrams` で実行します。結果は実行端末依存の `parse + layout + SVG` 時間であり、ブラウザーの描画時間は含みません。
 
-In the browser via the UMD bundle, the global is `ArchMap`:
+## 旧構文からの移行
 
-```html
-<script src="dist/archmap.umd.cjs"></script>
-<script>
-  const model = ArchMap.parse(source);
-  const blocks = ArchMap.extractArchMapBlocks(markdown); // ```archmap fences
-</script>
-```
+新しいプレイグラウンドは `diagram ...` 構文専用です。従来の `graph LR` とYAMLによる構文は、自動変換せず診断を表示します。既存の `@archmap/core` APIと拡張パッケージは互換性維持のため残しています。従来の仕様は [旧構文リファレンス](docs/LEGACY_SYNTAX.md) を参照してください。
 
-## Layout
+- `graph LR` → `diagram system LR`
+- `Web[Web App]` → `node Web "Web App"`
+- `Web -->|HTTPS| API` → `Web -> API "HTTPS"`
+- YAMLの `provider` / `kind` → `icon=aws/lambda` など
+- YAMLのゾーン → `group` 宣言とノードの `group=...`
 
-```
-src/
-  types.ts            internal model + standard vocabulary (§9, §10, §13, §28)
-  index.ts            public API surface
-  parser-entry.ts     parse(): Text -> Model
-  validate.ts         model validation (§23)
-  layout.ts           layout engine: Model -> geometry {x, y, z, w, h};
-                      zone swimlanes; orthogonal routing w/ ports + channels
-  render.ts           view registry + render() + initialize() + custom element (§27)
-  parser/
-    sections.ts       split graph/metadata, extract markdown blocks (§4, §5)
-    graph.ts          graph-section parser: nodes, edges, subgraphs (§6, §26)
-    inference.ts      label inference (§22)
-    metadata.ts       YAML parse + merge into model (§7–§21)
-  views/
-    svg.ts            SVG shape/edge helpers, default theme, crossing-jump gaps
-    base.ts           shared diagram assembler (boxes, emphasis, badges)
-    overview.ts       Overview view (§24.1)
-    zone.ts           Legacy zone view compatibility; current UI exposes zone
-                      as an additive overlay
-    auth.ts           Auth view — token paths (§24.3)
-    dataflow.ts       Data Flow view — data movement (§24.5)
-    boundary.ts       Boundary view — trust/network crossings (§24.6)
-    validation.ts     Validation view — flags diagnostic refs (§31.10)
-  views3d/            opt-in 3D (not in core bundle; needs `three`)
-    scene.ts          pure LayoutResult -> 3D world coords (testable)
-    three-view.ts     WebGL view: boxes by layer-height, edges, translucent
-                      zone volumes + labels, corner orientation gizmo
-  packs/
-    cloud-icons.ts    opt-in sample icon pack (not in core bundle)
-  icons.ts            icon registry mechanism (core; ships no assets)
-test/                 parser, model, validation, layout, render, icons,
-                      interaction, scene3d, and pattern fixture tests
-examples/             sample .archmap + demo.html (static, UMD)
-index.html            dev playground (Vite, live source)
-```
-
-## Pipeline status (spec §31 acceptance)
-
-| # | Criterion | Stage |
-|---|-----------|-------|
-| 1–4 | Parse archmap, extract nodes/edges, merge YAML, full internal model | ✅ done |
-| 5 | Overview View renders a basic diagram | ✅ done |
-| 6 | Zone information groups nodes by zone | ✅ via Add info overlay; legacy view compatible |
-| 7 | Auth View highlights JWT/token paths | ✅ done |
-| 8 | Data Flow View highlights declared data movement | ✅ done |
-| 9 | Boundary View highlights zone/trust crossings | ✅ done |
-| 10 | Validation warnings available + Validation View | ✅ done |
-| 11–12 | Runs without a server / from static files | ✅ (UMD bundle) |
-| — | 3D / Layer view (three.js, reuses `z`) | ✅ opt-in preview |
-```
-
-## License
-
-ArchMap is licensed under the Apache License, Version 2.0. See
-[LICENSE](./LICENSE). Third-party dependency, icon, and trademark notes are in
-[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+Apache-2.0 · [LICENSE](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)

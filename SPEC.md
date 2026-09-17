@@ -1,4 +1,8 @@
-# ArchMap DSL v0.1 Specification
+# Legacy ArchMap DSL v0.1 Specification
+
+This historical specification describes the compatibility engine. The current
+five-diagram product and complete `diagram ...` grammar are defined in
+[docs/SYNTAX.md](docs/SYNTAX.md); see [README.md](README.md) for the current scope.
 
 Status: Draft
 Version: 0.1.0
