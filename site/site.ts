@@ -153,7 +153,7 @@ function playground(): void {
   document.body.classList.add("playground-page");
   let active = DIAGRAM_SAMPLES.find(sample => sample.id === new URLSearchParams(location.search).get("sample")) || DIAGRAM_SAMPLES[0];
   let result: DiagramRenderResult | null = null; let timer = 0; let zoom = 1; let fitMode = true; let currentValid = false;
-  document.body.innerHTML = `${nav()}<main id="main" class="playground"><div class="workbench-heading"><div><span class="eyebrow">YOUR DIAGRAM WORKSPACE</span><h1>Playground<span class="heading-dot">.</span></h1></div><div class="workbench-actions"><span class="privacy-note"><span class="status-dot"></span> ブラウザ内で処理</span>${standalone ? '<span class="offline-badge">オフライン版</span>' : `<button type="button" id="offline-export" class="button small">${icon("download")} オフライン版</button>`}</div></div><div class="workbench"><section class="editor-panel" aria-label="ソースエディタ"><div class="editor-controls"><label for="sample-select">図の種類</label><select id="sample-select">${DIAGRAM_SAMPLES.map(sample => `<option value="${sample.id}">${escapeHtml(sample.title)}</option>`).join("")}</select><button class="icon-button" id="reset-source" title="サンプルに戻す" aria-label="現在の図をサンプルに戻す">${icon("reset")}</button></div><div class="editor-file"><span>${icon("code")} <span id="source-filename">${active.id}.archmap</span></span><span class="editor-language">ARCHMAP</span></div><div class="source-wrap"><pre id="line-numbers" class="line-numbers" aria-hidden="true"></pre><textarea id="source" aria-label="ArchMap ソースコード" aria-describedby="editor-hint" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div><div class="editor-bottom"><span id="draft-status" role="status"></span><span id="line-count"></span></div><div class="editor-hint" id="editor-hint"><span>入力すると自動でプレビュー</span><kbd>⌘ / Ctrl ↵</kbd></div><div class="diagnostics" id="diagnostics" role="status" aria-live="polite"></div><div class="editor-actions"><button class="button small" id="import-source">${icon("upload")} 読み込み</button><button class="button small" id="download-source">${icon("download")} ソース</button><input type="file" id="source-file" accept=".archmap,.txt,text/plain" hidden>${standalone ? '<button type="button" id="offline-guide" class="syntax-shortcut">構文ガイド ↗</button>' : `<a href="${route("syntax/")}" class="syntax-shortcut" target="_blank" rel="noopener">構文ガイド ↗</a>`}</div></section><section class="preview-panel" aria-label="図のプレビュー"><div class="preview-toolbar"><div class="preview-label"><span class="status-dot"></span> PREVIEW <span id="render-time"></span></div><div class="export-actions"><label class="style-picker" for="diagram-style">表示 <select id="diagram-style"><option value="cards">カード</option><option value="icons">アイコン</option></select></label><button class="button small" id="download-svg">${icon("download")} SVG</button><button class="button small" id="download-png">${icon("download")} PNG</button></div></div><div class="preview-canvas dot-grid" id="preview-canvas" tabindex="0" aria-label="プレビューキャンバス。ズーム後はスクロールできます。"><div id="diagram-frame"><div id="diagram"></div></div><div id="preview-empty" class="preview-empty" hidden>有効なコードを入力すると、ここに図が表示されます。</div></div><div class="preview-bottom"><span id="diagram-summary"></span><div class="zoom-controls"><button id="zoom-out" aria-label="縮小" title="縮小">−</button><button id="zoom-value" aria-label="100% で表示">100%</button><button id="zoom-in" aria-label="拡大" title="拡大">＋</button><span class="control-divider"></span><button id="fit-diagram" aria-label="図全体を表示" title="図全体を表示">${icon("fit")} <span>Fit</span></button></div></div></section></div><div class="workspace-caption"><span>Text in. Clarity out.</span><span id="action-status" role="status" aria-live="polite">ソースはサーバーに送信されません。</span></div></main>`;
+  document.body.innerHTML = `${nav()}<main id="main" class="playground"><div class="workbench-heading"><div><span class="eyebrow">YOUR DIAGRAM WORKSPACE</span><h1>Playground<span class="heading-dot">.</span></h1></div><div class="workbench-actions"><span class="privacy-note"><span class="status-dot"></span> ブラウザ内で処理</span>${standalone ? '<span class="offline-badge">オフライン版</span>' : `<button type="button" id="offline-export" class="button small">${icon("download")} オフライン版</button>`}</div></div><div class="workbench"><section id="editor-panel" class="editor-panel" aria-label="ソースエディタ"><div class="editor-controls"><label for="sample-select">図の種類</label><select id="sample-select">${DIAGRAM_SAMPLES.map(sample => `<option value="${sample.id}">${escapeHtml(sample.title)}</option>`).join("")}</select><button class="icon-button" id="reset-source" title="サンプルに戻す" aria-label="現在の図をサンプルに戻す">${icon("reset")}</button></div><div class="editor-file"><span>${icon("code")} <span id="source-filename">${active.id}.archmap</span></span><span class="editor-language">ARCHMAP</span></div><div class="source-wrap"><pre id="line-numbers" class="line-numbers" aria-hidden="true"></pre><textarea id="source" aria-label="ArchMap ソースコード" aria-describedby="editor-hint" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div><div class="editor-bottom"><span id="draft-status" role="status"></span><span id="line-count"></span></div><div class="editor-hint" id="editor-hint"><span>入力すると自動でプレビュー</span><kbd>⌘ / Ctrl ↵</kbd></div><div class="diagnostics" id="diagnostics" role="status" aria-live="polite"></div><div class="editor-actions"><button class="button small" id="import-source">${icon("upload")} 読み込み</button><button class="button small" id="download-source">${icon("download")} ソース</button><input type="file" id="source-file" accept=".archmap,.txt,text/plain" hidden>${standalone ? '<button type="button" id="offline-guide" class="syntax-shortcut">構文ガイド ↗</button>' : `<a href="${route("syntax/")}" class="syntax-shortcut" target="_blank" rel="noopener">構文ガイド ↗</a>`}</div></section><section class="preview-panel" aria-label="図のプレビュー"><div class="preview-toolbar"><div class="preview-label"><span class="status-dot"></span> PREVIEW <span id="render-time"></span></div><div class="export-actions"><button type="button" id="toggle-editor" class="button small" aria-controls="editor-panel" aria-expanded="true">エディタを隠す</button><label class="style-picker" for="diagram-style">表示 <select id="diagram-style"><option value="cards">カード</option><option value="icons">アイコン</option></select></label><button class="button small" id="download-svg">${icon("download")} SVG</button><button class="button small" id="download-png">${icon("download")} PNG</button></div></div><div class="preview-canvas dot-grid" id="preview-canvas" tabindex="0" aria-label="プレビューキャンバス。ドラッグで移動、ホイールでズーム。矢印キーで移動、プラス・マイナスキーでズーム。"><div id="diagram-frame"><div id="diagram"></div></div><div id="preview-empty" class="preview-empty" hidden>有効なコードを入力すると、ここに図が表示されます。</div></div><div class="preview-bottom"><span id="diagram-summary"></span><div class="zoom-controls"><button id="zoom-out" aria-label="縮小" title="縮小">−</button><button id="zoom-value" aria-label="100% で表示">100%</button><button id="zoom-in" aria-label="拡大" title="拡大">＋</button><span class="control-divider"></span><button id="fit-diagram" aria-label="図全体を表示" title="図全体を表示">${icon("fit")} <span>Fit</span></button></div></div></section></div><div class="workspace-caption"><span>Text in. Clarity out.</span><span id="action-status" role="status" aria-live="polite">ソースはサーバーに送信されません。</span></div></main>`;
   const source = $<HTMLTextAreaElement>("source"); const select = $<HTMLSelectElement>("sample-select"); const canvas = $("preview-canvas");
   const storageKey = () => `archmap:focused:${active.id}`;
   const announce = (message: string) => { $("action-status").textContent = message; };
@@ -163,6 +163,58 @@ function playground(): void {
   }
   function saveDraft(): void { try { localStorage.setItem(storageKey(), source.value); $("draft-status").textContent = "この端末に保存済み"; } catch { $("draft-status").textContent = "自動保存できません · ソースを書き出せます"; } }
   function updateLines(): void { const count = source.value.split("\n").length; $("line-numbers").textContent = Array.from({ length: count }, (_, i) => i + 1).join("\n"); $("line-count").textContent = `${count} lines`; $("line-numbers").scrollTop = source.scrollTop; }
+  let panX = 0, panY = 0;
+  const applyPan = () => { $("diagram-frame").style.transform = `translate(${panX}px, ${panY}px)`; };
+  function zoomAt(value: number, clientX?: number, clientY?: number): void {
+    if (!result) return;
+    const area = canvas.getBoundingClientRect(), before = $("diagram").getBoundingClientRect();
+    const x = clientX ?? area.left + area.width / 2, y = clientY ?? area.top + area.height / 2;
+    const localX = (x - before.left) / zoom, localY = (y - before.top) / zoom;
+    fitMode = false; setZoom(value);
+    const after = $("diagram").getBoundingClientRect();
+    panX += x - after.left - localX * zoom; panY += y - after.top - localY * zoom; applyPan();
+  }
+  const toggleEditor = $<HTMLButtonElement>("toggle-editor");
+  toggleEditor.addEventListener("click", () => {
+    const collapsed = toggleEditor.getAttribute("aria-expanded") === "true";
+    $("editor-panel").hidden = collapsed;
+    document.querySelector(".workbench")!.classList.toggle("editor-collapsed", collapsed);
+    toggleEditor.setAttribute("aria-expanded", String(!collapsed));
+    toggleEditor.textContent = collapsed ? "エディタを表示" : "エディタを隠す";
+    if (fitMode) fit();
+  });
+  let drag: { id: number; x: number; y: number; panX: number; panY: number } | undefined;
+  canvas.addEventListener("pointerdown", event => {
+    if (!result || drag || !event.isPrimary || (event.button !== 0 && event.button !== 1)) return;
+    event.preventDefault(); canvas.focus({preventScroll:true}); fitMode = false;
+    drag = {id:event.pointerId,x:event.clientX,y:event.clientY,panX,panY};
+    canvas.setPointerCapture(event.pointerId); canvas.classList.add("is-panning");
+  });
+  canvas.addEventListener("pointermove", event => {
+    if (!drag || drag.id !== event.pointerId) return;
+    panX = drag.panX + event.clientX - drag.x; panY = drag.panY + event.clientY - drag.y; applyPan();
+  });
+  const stopPan = () => { drag = undefined; canvas.classList.remove("is-panning"); };
+  canvas.addEventListener("pointerup", event => { if (drag?.id !== event.pointerId) return; if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId); stopPan(); });
+  canvas.addEventListener("pointercancel", stopPan); canvas.addEventListener("lostpointercapture", stopPan);
+  window.addEventListener("blur", stopPan);
+  canvas.addEventListener("wheel", event => {
+    if (!result || drag) return;
+    event.preventDefault();
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1);
+    zoomAt(zoom * Math.exp(-Math.max(-300, Math.min(300, delta)) * .002), event.clientX, event.clientY);
+  }, {passive:false});
+  canvas.addEventListener("keydown", event => {
+    if (event.target !== canvas) return;
+    if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomAt(zoom * 1.2); }
+    else if (event.key === '-') { event.preventDefault(); zoomAt(zoom / 1.2); }
+    else if (event.key === '0') { event.preventDefault(); fit(); }
+    else if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) {
+      event.preventDefault(); fitMode = false;
+      panX += event.key === 'ArrowLeft' ? 40 : event.key === 'ArrowRight' ? -40 : 0;
+      panY += event.key === 'ArrowUp' ? 40 : event.key === 'ArrowDown' ? -40 : 0; applyPan();
+    }
+  });
   function setZoom(value: number): void {
     zoom = Math.max(.12, Math.min(3, value)); if (!result) return;
     const diagram = $("diagram"); const width = result.layout.width * zoom; const height = result.layout.height * zoom;
@@ -170,7 +222,7 @@ function playground(): void {
     $("diagram-frame").style.width = `${width}px`; $("diagram-frame").style.height = `${height}px`;
     $("zoom-value").textContent = `${Math.round(zoom * 100)}%`;
   }
-  function fit(): void { fitMode = true; if (!result) return; setZoom(Math.min((canvas.clientWidth - 64) / result.layout.width, (canvas.clientHeight - 64) / result.layout.height, 1.3)); }
+  function fit(): void { panX = panY = 0; applyPan(); canvas.scrollLeft = canvas.scrollTop = 0; fitMode = true; if (!result) return; setZoom(Math.min((canvas.clientWidth - 64) / result.layout.width, (canvas.clientHeight - 64) / result.layout.height, 1.3)); }
   function exportState(valid: boolean): void { currentValid = valid; $<HTMLButtonElement>("download-svg").disabled = !valid; $<HTMLButtonElement>("download-png").disabled = !valid; }
   function draw(): void {
     window.clearTimeout(timer);
@@ -217,9 +269,9 @@ function playground(): void {
   $("reset-source").addEventListener("click", () => { source.value = active.source; saveDraft(); updateLines(); fitMode = true; draw(); announce("現在の図をサンプルに戻しました。"); });
   $("diagnostics").addEventListener("click", event => { const line = Number((event.target as HTMLElement).closest<HTMLElement>("[data-line]")?.dataset.line); if (!line) return; const offset = source.value.split("\n").slice(0, line - 1).reduce((n, s) => n + s.length + 1, 0); source.focus(); source.setSelectionRange(offset, source.value.indexOf("\n", offset) === -1 ? source.value.length : source.value.indexOf("\n", offset)); source.scrollTop = Math.max(0, (line - 4) * 23); });
   $("fit-diagram").addEventListener("click", fit);
-  $("zoom-in").addEventListener("click", () => { fitMode = false; setZoom(zoom * 1.2); });
-  $("zoom-out").addEventListener("click", () => { fitMode = false; setZoom(zoom / 1.2); });
-  $("zoom-value").addEventListener("click", () => { fitMode = false; setZoom(1); });
+  $("zoom-in").addEventListener("click", () => { zoomAt(zoom * 1.2); });
+  $("zoom-out").addEventListener("click", () => { zoomAt(zoom / 1.2); });
+  $("zoom-value").addEventListener("click", () => { zoomAt(1); });
   new ResizeObserver(() => { if (fitMode) fit(); }).observe(canvas);
   $("download-source").addEventListener("click", () => { download(new Blob([source.value], { type: "text/plain;charset=utf-8" }), `${active.id}.archmap`); announce("ソースを書き出しました。"); });
   $("download-svg").addEventListener("click", () => { draw(); if (!currentValid || !result) return; download(new Blob([result.svg], { type: "image/svg+xml;charset=utf-8" }), `${active.id}.svg`); announce("SVG を書き出しました。"); });

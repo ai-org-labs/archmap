@@ -624,3 +624,22 @@ action modal "Done" to=home`));
   }
   assertGeometry(result.layout,'screens');
 });
+
+it('separates repeated opposing screen actions including modal and state rows', () => {
+  for(const count of [2,4,8,16]) for(const modal of [false,true]) for(const mirrored of [false,true]) {
+    const result=renderDiagram(parseDiagram(`diagram screens
+node a "A" at=${mirrored?2:1},1
+node b "B"${modal?' shape=modal':''} at=${mirrored?1:2},1
+action a "Edit" state="Editing"
+action b "Copy" effect="Clipboard"
+${Array.from({length:count},(_,i)=>`action a "Forward ${i}" to=b\naction b "Return ${i}" to=a`).join('\n')}`));
+    expect(result.model.diagnostics).toEqual([]);assertGeometry(result.layout,'screens');
+    for(const [index,edge] of result.layout.edges.entries()) for(const other of result.layout.edges.slice(index+1)) {
+      for(let i=1;i<edge.points.length;i++) for(let j=1;j<other.points.length;j++) {
+        const a=edge.points[i-1],b=edge.points[i],c=other.points[j-1],d=other.points[j];
+        const overlap=a.x===b.x&&c.x===d.x&&Math.abs(a.x-c.x)<.01 ? Math.min(Math.max(a.y,b.y),Math.max(c.y,d.y))-Math.max(Math.min(a.y,b.y),Math.min(c.y,d.y)) : a.y===b.y&&c.y===d.y&&Math.abs(a.y-c.y)<.01 ? Math.min(Math.max(a.x,b.x),Math.max(c.x,d.x))-Math.max(Math.min(a.x,b.x),Math.min(c.x,d.x)) : 0;
+        expect(overlap,`${count} actions: ${edge.edge.label} / ${other.edge.label}`).toBeLessThanOrEqual(0);
+      }
+    }
+  }
+});

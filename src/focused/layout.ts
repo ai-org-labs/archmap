@@ -49,7 +49,8 @@ function screenContent(node: DiagramNode, model: DiagramModel): DiagramScreenCon
   const width = node.shape === 'modal' ? 240 : 280;
   const title = wrapText(node.label, width - (node.icon ? 76 : 40));
   const description = node.description ? wrapText(node.description, width - 40, BODY_SIZE) : [];
-  const headerHeight = 27 + 18 + Math.max(24, title.length * 21) + (description.length ? 8 + description.length * 17 : 0) + 16;
+  const incoming = model.edges.filter(edge => edge.to === node.id && !edge.bidirectional).length;
+  const headerHeight = Math.max(27 + 18 + Math.max(24, title.length * 21) + (description.length ? 8 + description.length * 17 : 0) + 16, 51 + Math.max(0, incoming - 1) * 14);
   let top = headerHeight + 26;
   const items: Array<{ edge?: DiagramModel['edges'][number]; label: string; line: number; kind?: string; detail?: string }> = model.edges.filter(edge => !edge.actionLine && (edge.from === node.id || edge.bidirectional && edge.to === node.id)).map(edge => {
     const destination = model.nodes.find(n => n.id === (edge.from === node.id ? edge.to : edge.from));
@@ -316,14 +317,15 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const degree = new Map<string, number>(); model.edges.forEach(e => { degree.set(e.from, (degree.get(e.from) ?? 0) + 1); degree.set(e.to, (degree.get(e.to) ?? 0) + 1); });
   const maxDegree = Math.max(0, ...degree.values());
   const nesting = Math.max(1, ...model.groups.map(group => groupAncestors(model, group.id).length));
-  const gapX = Math.max(nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
+  const screenGap = model.kind === 'screens' ? maxDegree * 16 + 64 : 0;
+  const gapX = Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
   const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), 12).length * 17 + 24));
-  const gapY = Math.max(nesting > 1 ? nesting * (groupHeader + 22) + 40 : 0, iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
-  const marginX = Math.max(100, maxLabel / 2 + 36, nesting * 22 + 24);
+  const gapY = Math.max(screenGap, nesting > 1 ? nesting * (groupHeader + 22) + 40 : 0, iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
+  const marginX = Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX, pitchY = maxH + gapY;
   const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, 19).length * 26 + 22 : 0;
-  const marginY = titleHeight + groupHeader * nesting + 48;
+  const marginY = titleHeight + Math.max(groupHeader * nesting + 48, screenGap ? gapY / 2 + 32 : 0);
   const xGutters = Array.from({ length: columns + 1 }, (_, i) => marginX - gapX / 2 + i * pitchX);
   const yGutters = Array.from({ length: rows + 1 }, (_, i) => marginY - gapY / 2 + i * pitchY);
   const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) || model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal') ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
@@ -458,6 +460,24 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         ? [start, ea, { x: ea.x, y: y + lane }, { x: x + lane, y: y + lane }, { x: x + lane, y: eb.y }, eb, end]
         : [start, ea, { x: x + lane, y: ea.y }, { x: x + lane, y: y + lane }, { x: eb.x, y: y + lane }, eb, end]);
     }
+    if (a.screen && b.screen) {
+      // Offer every available track in the gutters instead of cycling four lanes.
+      const reach = Math.floor((Math.min(gapX, gapY) / 2 - 16) / 16);
+      for (let track = -reach; track <= reach; track++) {
+        const offset = track * 16;
+        const exit = (point: DiagramPoint, side: Side, cell: Cell): DiagramPoint => side === 'left' || side === 'right'
+          ? { x: Math.max(16, xGutters[cell.col + (side === 'right' ? 1 : 0)]! + offset), y: point.y }
+          : { x: point.x, y: Math.max(titleHeight + 16, yGutters[cell.row + (side === 'bottom' ? 1 : 0)]! + offset) };
+        const first = exit(start, sa, ca), last = exit(end, sb, cb);
+        if (ah && bh) {
+          for (const x of [first.x, last.x]) candidates.push([start, {x,y:start.y}, {x,y:end.y}, end]);
+          for (const y of yGutters) {
+            const trackY = Math.max(titleHeight + 16, y + offset);
+            candidates.push([start, first, {x:first.x,y:trackY}, {x:last.x,y:trackY}, last, end]);
+          }
+        } else candidates.push([start, first, ah ? {x:first.x,y:last.y} : {x:last.x,y:first.y}, last, end]);
+      }
+    }
     let best: { points: DiagramPoint[]; labelBox?: DiagramBox; score: number } | undefined;
     const size = edge.label && !a.screen && !(edge.bidirectional && b.screen) ? labelSize(edge.label) : undefined;
     for (const raw of candidates) {
@@ -470,7 +490,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         for (const box of [...usedLabels, ...groupLabels]) if (segmentIntersectsBox(points[i - 1]!, points[i]!, box, 9)) score += 3000;
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {
           const p = points[i - 1]!, q = points[i]!, r = previous.points[j - 1]!, s = previous.points[j]!;
-          if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += 2200;
+          if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += a.screen && b.screen ? 1e7 : 2200;
           if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += 240;
         }
       }
