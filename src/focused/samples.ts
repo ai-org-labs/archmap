@@ -68,10 +68,14 @@ activate web
 web -> api "POST /orders"
 activate api
 alt "在庫あり"
+par "注文の保存"
 api -> database "注文を保存"
 activate database
 database --> api "注文 ID"
 deactivate database
+and "アクセス記録"
+api -> api "監査ログを記録"
+end
 api --> web "201 Created"
 else "在庫なし"
 api --> web "409 Conflict"
@@ -109,14 +113,21 @@ checkout --> cart "内容を修正する"`,
 title "注文の承認フロー"
 
 node start "注文受付" shape=start color=gray at=2,1
-node verify "在庫を確認" icon=storage at=2,2
-node available "在庫あり？" shape=decision color=orange at=2,3
-node reserve "在庫を確保" icon=database color=green at=1,4
-node notify "入荷を案内" icon=phone color=purple at=3,4
-node finish "処理完了" shape=end color=gray at=2,5
+node parallel "並列確認" shape=fork color=gray at=2,2
+node verify "在庫を確認" icon=storage at=1,3
+node payment "支払方法を確認" icon=shield at=3,3
+node checked "両方の確認完了" shape=join color=gray at=2,4
+node available "在庫あり？" shape=decision color=orange at=2,5
+node reserve "在庫を確保" icon=database color=green at=1,6
+node notify "入荷を案内" icon=phone color=purple at=3,6
+node finish "処理完了" shape=end color=gray at=2,7
 
-start -> verify
-verify -> available
+start -> parallel
+parallel -> verify
+parallel -> payment
+verify -> checked
+payment -> checked
+checked -> available
 available -> reserve "はい"
 available -> notify "いいえ"
 reserve -> finish

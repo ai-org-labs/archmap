@@ -1,6 +1,6 @@
 import { groupContains } from './groups.js';
 import { getIcon } from '../icons.js';
-import { BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, iconNodeText, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, textWidth, wrapText } from './layout.js';
+import { BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, iconNodeText, junctionText, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, textWidth, wrapText } from './layout.js';
 import type { DiagramColor, DiagramDiagnostic, DiagramLayout, DiagramLayoutNode, DiagramModel, DiagramRenderResult } from './types.js';
 
 const palette: Record<DiagramColor, { ink: string; fill: string; border: string }> = {
@@ -15,6 +15,10 @@ function textLines(lines: string[], x: number, y: number, size: number, lineHeig
 function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind'], edges: DiagramLayout['edges']): string {
   const { node, x, y, width: w, height: h } = box, colors = palette[node.color] ?? palette.blue;
   const text = nodeText(node, kind, w), icon = node.icon ? getIcon(node.icon) : undefined;
+  if (box.junction && box.junctionLabel) {
+    const bar = box.junction, label = box.junctionLabel, copy = junctionText(node);
+    return `<g class="archmap-node archmap-junction" data-node="${escapeXml(node.id)}" data-kind="${node.shape}"><title>${escapeXml(node.label)}</title><rect x="${bar.x}" y="${bar.y}" width="${bar.width}" height="${bar.height}" rx="2" fill="${colors.ink}"/>${textLines(copy.title, label.x, label.y + 12, 12, 17, '#334155', 600)}${copy.description.length ? textLines(copy.description, label.x, label.y + copy.title.length * 17 + 17, 11, 16, '#65768a') : ''}</g>`;
+  }
   if (box.screen) {
     const screen = box.screen;
     const artwork = node.icon ? icon ?? getIcon('browser') : undefined;

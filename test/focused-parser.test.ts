@@ -316,3 +316,63 @@ it.each([
 ])('rejects invalid group nesting: %s', groups => {
   expect(errors(`diagram system\nnode api "API"\n${groups}`).some(d=>d.severity==='error')).toBe(true);
 });
+
+it('parses parallel sequence branches nested with loops and balanced activations', () => {
+  const model = parseDiagram(`diagram sequence
+node par "Client"
+node and "Worker"
+activate par
+par "Save"
+par -> and
+activate and
+loop "Retry"
+and -> and
+end
+deactivate and
+and "Audit"
+par -> par
+and
+par --> and
+end
+deactivate par`);
+  expect(model.diagnostics).toEqual([]);
+  expect(model.fragmentEvents!.map(e => e.action)).toEqual(['par','loop','end','and','and','end']);
+  expect(model.fragmentEvents![4].label).toBe('並列処理');
+});
+it.each([
+  'and', 'par unquoted\nend', 'par "x"', 'par "x"\nelse\nend',
+  'alt "x"\nand\nend', 'par "x"\nloop "y"\nand\nend\nend',
+  'par "x"\nactivate a\nand\ndeactivate a\nend',
+  `${'par "x"\n'.repeat(5)}${'end\n'.repeat(5)}`,
+])('rejects malformed parallel frames: %s', source => {
+  expect(errors(`diagram sequence\nnode a "A"\n${source}`).length).toBeGreaterThan(0);
+});
+it('rejects parallel sequence frames in other diagram kinds', () => {
+  for (const kind of ['system','layers','screens','activity']) expect(errors(`diagram ${kind}\nnode a "A"\npar "x"\nand\nend`).length).toBeGreaterThan(0);
+});
+const parallelActivity = `diagram activity TD
+node begin "Start" shape=start
+node split "Parallel" shape=fork
+node a "A"
+node b "B"
+node sync "Wait for both" shape=join
+node finish "Done" shape=end
+begin -> split
+split -> a
+split -> b
+a -> sync
+b -> sync
+sync -> finish`;
+it('accepts parallel activity bars and validates directed distinct branch counts', () => {
+  expect(errors(parallelActivity)).toEqual([]);
+  for (const source of [
+    parallelActivity.replace('split -> b','split -> a'),
+    parallelActivity.replace('b -> sync','a -> sync'),
+    parallelActivity.replace('split -> a','split <-> a'),
+    parallelActivity.replace('split -> a','split -> split'),
+    parallelActivity.replace('begin -> split',''),
+    parallelActivity.replace('sync -> finish',''),
+    parallelActivity.replace('shape=fork','shape=fork icon=server'),
+    ...['system','screens','layers','sequence'].map(kind=>parallelActivity.replace('activity TD',kind)),
+  ]) expect(errors(source).length).toBeGreaterThan(0);
+});

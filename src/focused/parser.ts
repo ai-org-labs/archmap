@@ -28,7 +28,7 @@ const ICON = /^[A-Za-z][A-Za-z0-9_./:-]{0,79}$/;
 // isolated surrogate halves without rejecting emoji or other supplementary text.
 const INVALID_XML_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ud800-\udfff\ufffe\uffff]/u;
 const COLORS = new Set<DiagramColor>(["blue", "green", "orange", "purple", "gray"]);
-const SHAPES = new Set<DiagramShape>(["card", "database", "decision", "start", "end"]);
+const SHAPES = new Set<DiagramShape>(["card", "database", "decision", "start", "end", "fork", "join"]);
 
 function arrowAt(source: string, index: number): string | undefined {
   for (const arrow of ["<->", "-->", "->"]) {
@@ -166,12 +166,13 @@ export function parseDiagram(source: string): DiagramModel {
       continue;
     }
 
-    if (["alt", "opt", "loop", "else", "end"].includes(command) && tokens[1]?.kind !== "arrow") {
-      if (model.kind !== "sequence") { report(line, "alt / opt / loop / else / end は sequence で使用できます。"); continue; }
+    if (["alt", "opt", "loop", "par", "else", "and", "end"].includes(command) && tokens[1]?.kind !== "arrow") {
+      if (model.kind !== "sequence") { report(line, "alt / opt / loop / par / else / and / end は sequence で使用できます。"); continue; }
       let label = "";
       if (command === "end") {
         if (tokens.length !== 1) { report(line, "end に引数は指定できません。"); continue; }
       } else if (command === "else" && tokens.length === 1) label = "その他";
+      else if (command === "and" && tokens.length === 1) label = "並列処理";
       else {
         if (tokens.length !== 2 || !validLabel(tokens[1], line, report)) { if (tokens.length !== 2) report(line, `${command} "条件" の形式で指定してください。`); continue; }
         label = tokens[1].value;
@@ -180,14 +181,16 @@ export function parseDiagram(source: string): DiagramModel {
       if (model.fragmentEvents.length >= DIAGRAM_LIMITS.fragmentEvents) { report(line, `フラグメントの文は ${DIAGRAM_LIMITS.fragmentEvents} 文までです。`); continue; }
       if (command === "else") {
         if (fragmentStack[fragmentStack.length - 1]?.kind !== "alt") { report(line, "else は現在開いている alt の中で使用してください。"); continue; }
+      } else if (command === "and") {
+        if (fragmentStack[fragmentStack.length - 1]?.kind !== "par") { report(line, "and は現在開いている par の中で使用してください。"); continue; }
       } else if (command === "end") {
-        if (!fragmentStack.length) { report(line, "対応する alt / opt / loop がありません。"); continue; }
+        if (!fragmentStack.length) { report(line, "対応する alt / opt / loop / par がありません。"); continue; }
         fragmentStack.pop();
       } else {
         fragmentStack.push({ kind: command, line });
         if (fragmentStack.length > DIAGRAM_LIMITS.fragmentDepth) report(line, `フラグメントの入れ子は ${DIAGRAM_LIMITS.fragmentDepth} 段までです。`);
       }
-      model.fragmentEvents.push({ action: command as "alt" | "opt" | "loop" | "else" | "end", label, afterEdge: model.edges.length, line });
+      model.fragmentEvents.push({ action: command as "alt" | "opt" | "loop" | "par" | "else" | "and" | "end", label, afterEdge: model.edges.length, line });
       continue;
     }
 
@@ -245,12 +248,13 @@ export function parseDiagram(source: string): DiagramModel {
       }
       if (model.nodes.length >= DIAGRAM_LIMITS.nodes) reject(`ノードは ${DIAGRAM_LIMITS.nodes} 個まで指定できます。`);
       const shape = opts.get("shape")?.value ?? "card";
-      if (!SHAPES.has(shape as DiagramShape)) reject("shape は card、database、decision、start、end から選んでください。");
+      if ((shape === 'fork' || shape === 'join') && model.kind !== 'activity') reject("shape=fork / join は activity で使用できます。");
+      if (!SHAPES.has(shape as DiagramShape)) reject("shape は card、database、decision、start、end、fork、join から選んでください。");
       const group = opts.get("group")?.value;
       if (group && !ID.test(group)) reject("group には有効なグループ ID を指定してください。");
       const icon = opts.get("icon")?.value;
       if (icon && !ICON.test(icon)) reject("icon には英字で始まる 80 文字以内のアイコンキーを指定してください。英数字、_、-、.、:、/ が使えます。");
-      if (icon && ["decision", "start", "end"].includes(shape)) reject("icon を使用できる shape は card と database です。decision、start、end では icon を省略してください。");
+      if (icon && ["decision", "start", "end", "fork", "join"].includes(shape)) reject("icon を使用できる shape は card と database です。それ以外の図形では icon を省略してください。");
       let at: [number, number] | undefined;
       const position = opts.get("at")?.value;
       if (position !== undefined) {
@@ -292,11 +296,19 @@ export function parseDiagram(source: string): DiagramModel {
       model.edges.push({ from: command, to: target.value, label: label?.value ?? "", style: tokens[1].value === "-->" ? "dashed" : "solid", bidirectional: tokens[1].value === "<->", line });
       continue;
     }
-    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続、activate、deactivate、alt、opt、loop、else、end を使用してください。`);
+    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続、activate、deactivate、alt、opt、loop、par、else、and、end を使用してください。`);
   }
   if (!hasHeader && firstStatement) report(1, "最初の文で diagram system|layers|sequence|screens|activity を宣言してください。");
   if (hasHeader && model.nodes.length === 0) report(1, "少なくとも 1 個の node を宣言してください。");
   const nodeIds = new Set(model.nodes.map((node) => node.id));
+  for (const node of model.nodes.filter(node => node.shape === 'fork' || node.shape === 'join')) {
+    const incoming = model.edges.filter(edge => edge.to === node.id);
+    const outgoing = model.edges.filter(edge => edge.from === node.id);
+    if ([...incoming, ...outgoing].some(edge => edge.bidirectional || edge.from === edge.to)) report(node.line, "fork / join には一方向の接続を使用し、自己接続は指定しないでください。");
+    const inputs = new Set(incoming.map(edge => edge.from)).size, outputs = new Set(outgoing.map(edge => edge.to)).size;
+    if (node.shape === 'fork' && (inputs !== 1 || outputs < 2)) report(node.line, "fork には 1 つの入力元と 2 つ以上の出力先が必要です。");
+    if (node.shape === 'join' && (inputs < 2 || outputs !== 1)) report(node.line, "join には 2 つ以上の入力元と 1 つの出力先が必要です。");
+  }
   const groupIds = new Set(model.groups.map((group) => group.id));
   const groupsById = new Map(model.groups.map(group => [group.id, group]));
   for (const group of model.groups) {
@@ -321,7 +333,7 @@ export function parseDiagram(source: string): DiagramModel {
   const orderedEvents = [...model.activationEvents ?? [], ...model.fragmentEvents ?? []].sort((a, b) => a.line - b.line);
   for (const event of orderedEvents) {
     if (!('node' in event)) {
-      if (event.action === 'alt' || event.action === 'opt' || event.action === 'loop') scopes.push(new Map([...activationStacks].map(([id, stack]) => [id, [...stack]])));
+      if (event.action === 'alt' || event.action === 'opt' || event.action === 'loop' || event.action === 'par') scopes.push(new Map([...activationStacks].map(([id, stack]) => [id, [...stack]])));
       else {
         const entry = scopes[scopes.length - 1];
         if (entry && [...new Set([...entry.keys(), ...activationStacks.keys()])].some(id => (entry.get(id) ?? []).join(',') !== (activationStacks.get(id) ?? []).join(','))) report(event.line, "各分岐・フラグメント内の活性区間は、その区間内で開始・終了してください。外側の活性区間はそのまま維持してください。");

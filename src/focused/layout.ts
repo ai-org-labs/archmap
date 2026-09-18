@@ -36,6 +36,11 @@ export function nodeText(node: DiagramNode, kind: DiagramModel['kind'], width: n
 export function iconNodeText(node: DiagramNode) {
   return { title: wrapText(node.label, 140, TITLE_SIZE), description: node.description ? wrapText(node.description, 140, BODY_SIZE) : [] };
 }
+export function junctionText(node: DiagramNode) {
+  const title = wrapText(node.label, 120, 12);
+  const description = node.description ? wrapText(node.description, 120, 11) : [];
+  return { title, description, width: Math.max(...title.map(line => textWidth(line, 12)), ...description.map(line => textWidth(line, 11))), height: title.length * 17 + (description.length ? 6 + description.length * 16 : 0) };
+}
 function iconNodeSize(node: DiagramNode) {
   const text = iconNodeText(node);
   return { width: 160, height: 62 + text.title.length * 21 + (text.description.length ? 6 + text.description.length * 17 : 0) + 6 };
@@ -155,6 +160,12 @@ function placeCells(model: DiagramModel): Map<string, Cell> {
   return cells;
 }
 function port(node: DiagramLayoutNode, side: Side, offset: number): DiagramPoint {
+  if (node.junction) {
+    const bar = node.junction;
+    return side === 'top' || side === 'bottom'
+      ? { x: bar.x + bar.width / 2 + offset, y: bar.y + (side === 'bottom' ? bar.height : 0) }
+      : { x: bar.x + (side === 'right' ? bar.width : 0), y: bar.y + bar.height / 2 + offset };
+  }
   const x = node.x + node.width / 2, y = node.y + node.height / 2;
   if (node.iconMode) {
     if (side === 'left' || side === 'right') return { x: x + (side === 'left' ? -24 : 24), y: node.y + 24 + offset };
@@ -220,14 +231,14 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
     for (const event of controls) {
       if (event.afterEdge !== afterEdge) continue;
       if (!('node' in event)) {
-        if (event.action === 'alt' || event.action === 'opt' || event.action === 'loop') {
+        if (event.action === 'alt' || event.action === 'opt' || event.action === 'loop' || event.action === 'par') {
           const depth = fragmentStack.length, x = 24 + depth * 16, width = frameRight - depth * 16 - x;
           const headerHeight = Math.max(34, wrapText(event.label, width - 84, 12).length * 17 + 16);
           const frame = { kind: event.action, label: event.label, line: event.line, depth, x, y: cursor + 24, width, height: 0, headerHeight, branches: [] as Array<{ label: string; y: number; height: number }> };
           fragments.push(frame); fragmentStack.push(frame); cursor = frame.y + headerHeight + 12;
         } else {
           const frame = fragmentStack[fragmentStack.length - 1];
-          if (frame && event.action === 'else') {
+          if (frame && (event.action === 'else' || event.action === 'and')) {
             const height = Math.max(32, wrapText(event.label, frame.width - 32, 12).length * 17 + 16);
             const branch = { label: event.label, y: cursor + 24, height };
             frame.branches.push(branch); cursor = branch.y + height + 12;
@@ -280,6 +291,10 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const iconStyle = model.style === 'icons' && (model.kind === 'system' || model.kind === 'layers');
   const usesIcon = (node: DiagramNode) => iconStyle && (node.shape === 'card' || node.shape === 'database');
   const cells = placeCells(model), sizes = model.nodes.map(node => {
+    if (node.shape === 'fork' || node.shape === 'join') {
+      const text = junctionText(node);
+      return model.direction === 'TD' ? { width: Math.max(240, 120 + 2 * (24 + text.width)), height: Math.max(12, text.height) } : { width: 240, height: 120 + 2 * (24 + text.height) };
+    }
     if (model.kind === 'screens' && node.shape === 'card') {
       const screen = screenContent(node, model);
       return { width: 280, height: screen.height, screen };
@@ -303,6 +318,12 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const yGutters = Array.from({ length: rows + 1 }, (_, i) => marginY - gapY / 2 + i * pitchY);
   const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) || model.kind === 'screens' && node.shape === 'card' ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
   const nodeById = new Map(nodes.map(n => [n.node.id, n]));
+  for (const node of nodes) if (node.node.shape === 'fork' || node.node.shape === 'join') {
+    const cx = node.x + node.width / 2, cy = node.y + node.height / 2, text = junctionText(node.node);
+    node.junction = model.direction === 'TD' ? { x: cx - 60, y: cy - 5, width: 120, height: 10 } : { x: cx - 5, y: cy - 60, width: 10, height: 120 };
+    node.junctionLabel = model.direction === 'TD' ? { x: cx + 84, y: cy - text.height / 2, width: text.width, height: text.height } : { x: cx - text.width / 2, y: cy + 84, width: text.width, height: text.height };
+  }
+  const junctionLabels = nodes.flatMap(node => node.junctionLabel ? [node.junctionLabel] : []);
   const groups: DiagramLayout['groups'] = [];
   const groupLabels: DiagramBox[] = [];
   const groupOrder = orderedGroups(model);
@@ -330,6 +351,9 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     let [sa, sb] = sidePair(a, b, model.kind === 'layers' ? 'TD' : model.direction);
     const pair = `${edge.from}:${edge.to}`, repetition = pairCounts.get(pair) ?? 0; pairCounts.set(pair, repetition + 1);
     if (repetition && a !== b) { if (a.y === b.y) sa = sb = repetition % 2 ? 'bottom' : 'top'; else if (a.x === b.x) sa = sb = repetition % 2 ? 'right' : 'left'; }
+    // Synchronization bars connect through their broad faces, leaving their captions clear.
+    if (a.junction) sa = model.direction === 'TD' ? (b.y >= a.y ? 'bottom' : 'top') : (b.x >= a.x ? 'right' : 'left');
+    if (b.junction) sb = model.direction === 'TD' ? (a.y <= b.y ? 'top' : 'bottom') : (a.x <= b.x ? 'left' : 'right');
     // An action owns its source port. Incoming transitions attach to the screen header.
     if (a.screen) sa = b.x < a.x ? 'left' : 'right';
     if (b.screen) sb = a === b ? 'top' : edge.bidirectional ? a.x < b.x ? 'left' : 'right' : a.x === b.x ? 'top' : a.x < b.x ? 'left' : 'right';
@@ -359,7 +383,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   for (const requests of portGroups.values()) {
     requests.sort((a, b) => a.delta - b.delta || compareKey(edgeKey(a.spec), edgeKey(b.spec)));
     const { node, side } = requests[0]!;
-    const limit = node.screen && (side === 'left' || side === 'right') ? Math.max(0, (node.screen.headerHeight - 27) / 2 - 12) : node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
+    const limit = node.junction ? Math.max(0, (side === 'left' || side === 'right' ? node.junction.height : node.junction.width) / 2 - 8) : node.screen && (side === 'left' || side === 'right') ? Math.max(0, (node.screen.headerHeight - 27) / 2 - 12) : node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
     const pivot = requests.reduce((best, item, i) => Math.abs(item.delta) < Math.abs(requests[best]!.delta) ? i : best, 0);
     // Leave room for a neighboring straight edge's label as well as its stroke.
     // A 16–24px fan can otherwise pass through a label centered on that edge.
@@ -368,9 +392,9 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
       const label = labelSize(spec.edge.label);
       return Math.ceil(((side === 'left' || side === 'right' ? label.height : label.width) / 2 + 12) / 8) * 8;
     }));
-    const spacing = Math.min(preferredSpacing, limit / Math.max(1, pivot, requests.length - pivot - 1));
+    const spacing = node.junction ? 2 * limit / Math.max(1, requests.length - 1) : Math.min(preferredSpacing, limit / Math.max(1, pivot, requests.length - pivot - 1));
     // Anchor an aligned edge precisely. Otherwise distribute the fan symmetrically.
-    const anchor = Math.abs(requests[pivot]!.delta) < 1 ? pivot : (requests.length - 1) / 2;
+    const anchor = !node.junction && Math.abs(requests[pivot]!.delta) < 1 ? pivot : (requests.length - 1) / 2;
     requests.forEach((request, i) => {
       const point = port(node, side, (i - anchor) * spacing);
       if (node.screen && (side === 'left' || side === 'right')) {
@@ -428,6 +452,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     for (const raw of candidates) {
       const points = tidy(raw);
       if (points.length < 2 || !outward(start, points[1]!, sa) || !outward(end, points[points.length - 2]!, sb)) continue;
+      if (points.slice(1).some((p, i) => junctionLabels.some(box => segmentIntersectsBox(points[i]!, p, box, 8)))) continue;
       if (points.slice(1).some((p, i) => nodes.some(n => !(n === a && i === 0) && !(n === b && i === points.length - 2) && segmentIntersectsBox(points[i]!, p, n, -1)))) continue;
       let score = length(points) + (points.length - 2) * 60;
       for (let i = 1; i < points.length; i++) {

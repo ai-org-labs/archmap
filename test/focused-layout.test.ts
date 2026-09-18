@@ -471,3 +471,104 @@ node b "B" group=child at=3,1
 node c "C" group=other at=2,1`));
   expect(conflict.model.diagnostics.some(d=>d.severity==='warning' && d.message.includes('領域'))).toBe(true);
 });
+
+it('lays out parallel sequence operands with nested frames and clear activation boundaries', () => {
+  const source=`diagram sequence
+node a "Client"
+node b "Worker"
+activate a
+par "${'Parallel operation '.repeat(6)}"
+a -> b "Start"
+activate b
+loop "Retry"
+b -> b "Try"
+end
+b --> a "Done"
+deactivate b
+and "${'Another operation '.repeat(6)}"
+par "Nested"
+a -> a "Self"
+and
+end
+end
+deactivate a
+a -> b "Continue after both"`;
+  const result=renderDiagram(parseDiagram(source)), {layout}=result;
+  expect(result.model.diagnostics).toEqual([]);
+  const [outer, loop, inner]=layout.fragments!;
+  expect(outer.kind).toBe('par');expect(inner.kind).toBe('par');
+  expect(loop.y+loop.height).toBeLessThan(outer.branches[0].y);
+  expect(inner.y).toBeGreaterThan(outer.branches[0].y+outer.branches[0].height);
+  expect(inner.y+inner.height).toBeLessThan(outer.y+outer.height);
+  expect(layout.edges[layout.edges.length - 1]!.points[0].y).toBeGreaterThan(outer.y+outer.height);
+  for(const frame of layout.fragments!) for(const edge of layout.edges) {
+    const headers=[{x:frame.x,y:frame.y,width:frame.width,height:frame.headerHeight},...frame.branches.map(b=>({x:frame.x,width:frame.width,y:b.y,height:b.height}))];
+    for(const header of headers) {
+      if(edge.labelBox) expect(boxesOverlap(header,edge.labelBox)).toBe(false);
+      for(let i=1;i<edge.points.length;i++) expect(segmentIntersectsBox(edge.points[i-1],edge.points[i],header)).toBe(false);
+    }
+  }
+  expect(result.svg).toContain('data-kind="par"');assertGeometry(layout,'sequence');
+});
+
+it('routes activity forks and joins through broad bar faces away from captions in both directions', () => {
+  for(const direction of ['TD','LR']) for(const manual of [true,false]) {
+    const pos=(col:number,row:number)=>manual ? ` at=${direction==='TD' ? `${col},${row}` : `${row},${col}`}` : '';
+    const result=renderDiagram(parseDiagram(`diagram activity ${direction}
+node begin "Start" shape=start${pos(2,1)}
+node split "Parallel tasks" shape=fork${pos(2,2)}
+node a "A"${pos(1,3)}
+node b "B"${pos(3,3)}
+node sync "Wait for both" description="All branches must complete" shape=join${pos(2,4)}
+node finish "Done" shape=end${pos(2,5)}
+begin -> split
+split -> a
+split -> b
+a -> sync
+b -> sync
+sync -> finish`));
+    expect(result.model.diagnostics).toEqual([]);assertGeometry(result.layout,'activity');
+    for(const node of result.layout.nodes.filter(n=>n.junction)) {
+      const bar=node.junction!,label=node.junctionLabel!;
+      expect(boxesOverlap(bar,label)).toBe(false);
+      for(const edge of result.layout.edges) {
+        const p=edge.edge.from===node.node.id ? edge.points[0] : edge.edge.to===node.node.id ? edge.points[edge.points.length - 1] : undefined;
+        if(p) {
+          if(direction==='TD') { expect(p.x).toBeGreaterThan(bar.x);expect(p.x).toBeLessThan(bar.x+bar.width);expect([bar.y,bar.y+bar.height]).toContain(p.y); }
+          else {expect(p.y).toBeGreaterThan(bar.y);expect(p.y).toBeLessThan(bar.y+bar.height);expect([bar.x,bar.x+bar.width]).toContain(p.x);}
+        }
+        for(let i=1;i<edge.points.length;i++) expect(segmentIntersectsBox(edge.points[i-1],edge.points[i],label,4)).toBe(false);
+      }
+    }
+    expect(result.svg).toContain('data-kind="fork"');expect(result.svg).toContain('data-kind="join"');
+  }
+});
+
+it('contains nested parallel activity branches inside nested groups with long captions', () => {
+  const model=parseDiagram(`diagram activity TD
+group outer "Workflow"
+group inner "Parallel section" parent=outer
+node start "Start" group=outer at=2,1
+node f1 "${'Parallel '.repeat(12)}" shape=fork group=inner at=2,2
+node f2 "Nested" shape=fork group=inner at=1,3
+node a "A" group=inner at=1,4
+node b "B" group=inner at=2,4
+node c "C" group=inner at=3,4
+node j2 "Nested complete" shape=join group=inner at=1,5
+node j1 "All complete" shape=join group=inner at=2,6
+node done "Done" group=outer at=2,7
+start -> f1
+f1 -> f2
+f1 -> c
+f2 -> a
+f2 -> b
+a -> j2
+b -> j2
+j2 -> j1
+c -> j1
+j1 -> done`);
+  const result=renderDiagram(model);
+  expect(result.model.diagnostics).toEqual([]);
+  assertGeometry(result.layout,'activity');
+  for(const node of result.layout.nodes.filter(n=>n.junctionLabel)) for(const edge of result.layout.edges) for(let i=1;i<edge.points.length;i++) expect(segmentIntersectsBox(edge.points[i-1],edge.points[i],node.junctionLabel!,4)).toBe(false);
+});
