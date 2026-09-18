@@ -111,7 +111,7 @@ node a "bad\t"`, 2],
     ['diagram system\nnode a "A" shape=circle', 2],
     ['diagram system\nnode a "A" at=0,1', 2],
     ['diagram system\nnode a "A" at=1.5,1', 2],
-    ['diagram system\nnode a "A" at=1,13', 2],
+    [ `diagram system\nnode a "A" at=1,${DIAGRAM_LIMITS.gridCoordinate + 1}`, 2],
     ['diagram system\nnode a "A" at=1, 2', 2],
     ['diagram system\nnode a "A" at=1,1\nnode b "B" at=1,1', 3],
     ['diagram system\nnode a "A"\nnode a "Again"', 3],
@@ -260,7 +260,7 @@ it.each([
   'diagram sequence\nnode a "A"\nactivate "a"',
   'diagram sequence\nnode a "A"\nactivate a extra',
   `diagram sequence\nnode a "A"\n${'activate a\n'.repeat(9)}${'deactivate a\n'.repeat(9)}`,
-  `diagram sequence\nnode a "A"\n${'activate a\ndeactivate a\n'.repeat(101)}`,
+  `diagram sequence\nnode a "A"\n${'activate a\ndeactivate a\n'.repeat(DIAGRAM_LIMITS.screenActions + 1)}`,
 ])('rejects invalid or excessive activation declarations: %s', source => {
   expect(errors(source).some(d => d.severity === 'error' && d.line > 1)).toBe(true);
 });
@@ -402,8 +402,8 @@ it.each([
   'action dialog "Close" close="true"', 'action home "Go" to=dialog state="editing"',
   'action home "Go" to=dialog effect="save"', 'action home "Go" unknown=true',
   'action home "Copy" effect="x" effect="y"',
-  `${'action home "Copy"\n'.repeat(101)}`,
-  `${'home -> dialog\n'.repeat(100)}action home "Go" to=dialog`,
+  `${'action home "Copy"\n'.repeat(DIAGRAM_LIMITS.screenActions + 1)}`,
+  `${'home -> dialog\n'.repeat(DIAGRAM_LIMITS.edges)}action home "Go" to=dialog`,
 ])('rejects malformed screen actions: %s', source => {
   expect(errors(`diagram screens\nnode home "Home"\nnode dialog "Dialog" shape=modal\n${source}`).length).toBeGreaterThan(0);
 });
@@ -415,4 +415,14 @@ it('restricts modal and screen actions to screens and compatible owners and targ
   expect(errors('diagram screens\nnode a "A" shape=decision\naction a "Copy"').length).toBeGreaterThan(0);
   expect(errors('diagram screens\nnode a "A" shape=decision\nnode b "B"\naction b "Go" to=a').length).toBeGreaterThan(0);
   expect(errors('diagram screens\nnode action "A"\nnode b "B"\naction -> b')).toEqual([]);
+});
+
+it('accepts the expanded grid and 1000 navigation actions without truncation', () => {
+  const source = ['diagram screens', 'node a "A" at=400,400', 'node b "B" at=399,400',
+    ...Array.from({length:DIAGRAM_LIMITS.screenActions}, (_,i) => `action a "Go ${i}" to=b`),
+  ].join('\n');
+  const model = parseDiagram(source);
+  expect(model.diagnostics).toEqual([]);
+  expect(model.screenActions).toHaveLength(DIAGRAM_LIMITS.screenActions);
+  expect(model.edges).toHaveLength(DIAGRAM_LIMITS.edges);
 });

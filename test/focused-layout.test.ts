@@ -643,3 +643,25 @@ ${Array.from({length:count},(_,i)=>`action a "Forward ${i}" to=b\naction b "Retu
     }
   }
 });
+
+it('renders 400 nodes in 200 groups without clipping or crossing cards', () => {
+  const source = ['diagram system LR',
+    ...Array.from({length:200}, (_,i) => `group g${i} "Group ${i}"`),
+    ...Array.from({length:400}, (_,i) => `node n${i} "Service ${i}" group=g${Math.floor(i/2)} at=${i%2+1},${Math.floor(i/2)+1}`),
+    ...Array.from({length:200}, (_,i) => `n${i*2} -> n${i*2+1} "request"`),
+  ].join('\n');
+  const model = parseDiagram(source);
+  expect(model.diagnostics).toEqual([]);
+  const layout = computeDiagramLayout(model);
+  expect(layout.nodes).toHaveLength(400);
+  expect(layout.groups).toHaveLength(200);
+  expect(layout.edges).toHaveLength(200);
+  assertGeometry(layout);
+  for (const group of layout.groups) {
+    expect(group.x).toBeGreaterThanOrEqual(0);
+    expect(group.y).toBeGreaterThanOrEqual(0);
+    expect(group.x + group.width).toBeLessThanOrEqual(layout.width);
+    expect(group.y + group.height).toBeLessThanOrEqual(layout.height);
+  }
+  expect(renderDiagram(model).svg).not.toMatch(/NaN|Infinity/);
+});

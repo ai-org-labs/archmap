@@ -482,10 +482,13 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     const size = edge.label && !a.screen && !(edge.bidirectional && b.screen) ? labelSize(edge.label) : undefined;
     for (const raw of candidates) {
       const points = tidy(raw);
+      // Collision and label penalties are nonnegative. A candidate whose base
+      // cost already loses cannot improve the result; skip its expensive scans.
+      let score = length(points) + (points.length - 2) * 60;
+      if (best && score >= best.score) continue;
       if (points.length < 2 || !outward(start, points[1]!, sa) || !outward(end, points[points.length - 2]!, sb)) continue;
       if (points.slice(1).some((p, i) => junctionLabels.some(box => segmentIntersectsBox(points[i]!, p, box, 8)))) continue;
       if (points.slice(1).some((p, i) => nodes.some(n => !(n === a && i === 0) && !(n === b && i === points.length - 2) && segmentIntersectsBox(points[i]!, p, n, -1)))) continue;
-      let score = length(points) + (points.length - 2) * 60;
       for (let i = 1; i < points.length; i++) {
         for (const box of [...usedLabels, ...groupLabels]) if (segmentIntersectsBox(points[i - 1]!, points[i]!, box, 9)) score += 3000;
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {

@@ -3,7 +3,16 @@ import assert from "node:assert/strict";
 import { parseDiagram, renderDiagram, DIAGRAM_SAMPLES } from "../dist/diagrams.js";
 
 const stress = `diagram system LR\ntitle "40-node grid"\n${Array.from({length:40},(_,i)=>`node n${i} "Service ${i + 1}" at=${i%8+1},${Math.floor(i/8)+1}`).join("\n")}\n${Array.from({length:35},(_,i)=>`n${i+Math.floor(i/7)} -> n${i+Math.floor(i/7)+1} "request"`).join("\n")}`;
-const cases = [...DIAGRAM_SAMPLES, {id:"40-node grid",source:stress}];
+const grouped = ['diagram system LR',
+  ...Array.from({length:200}, (_,i) => `group g${i} "Group ${i}"`),
+  ...Array.from({length:400}, (_,i) => `node n${i} "Service ${i}" group=g${Math.floor(i/2)} at=${i%2+1},${Math.floor(i/2)+1}`),
+  ...Array.from({length:200}, (_,i) => `n${i*2} -> n${i*2+1} "request"`),
+].join('\n');
+const dense = ['diagram system LR',
+  ...Array.from({length:400}, (_,i) => `node n${i} "Service ${i}" at=${i%20+1},${Math.floor(i/20)+1}`),
+  ...Array.from({length:1000}, (_,i) => { const from = i % 380 + Math.floor((i % 380)/19); return `n${from} -> n${from+1}`; }),
+].join('\n');
+const cases = [...DIAGRAM_SAMPLES, {id:"40-node grid",source:stress}, {id:"400 nodes / 200 groups", source:grouped}, {id:"400 nodes / 1000 edges", source:dense}];
 for (const item of cases) {
   const times = [];
   let svg = "";

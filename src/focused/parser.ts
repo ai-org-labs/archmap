@@ -5,18 +5,18 @@ import type {
 
 /** Keep malformed or generated documents cheap enough to edit in the browser. */
 export const DIAGRAM_LIMITS = Object.freeze({
-  sourceLength: 50_000,
-  nodes: 40,
-  edges: 100,
-  groups: 12,
+  sourceLength: 500_000,
+  nodes: 400,
+  edges: 1000,
+  groups: 200,
   groupDepth: 8,
-  gridCoordinate: 12,
+  gridCoordinate: 400,
   labelLength: 120,
   descriptionLength: 240,
   diagnostics: 50,
   activationEvents: 200,
   activationDepth: 8,
-  screenActions: 100,
+  screenActions: 1000,
   fragmentEvents: 128,
   fragmentDepth: 4,
 });
@@ -228,8 +228,8 @@ export function parseDiagram(source: string): DiagramModel {
         }
       }
       if (['to','state','effect','close'].filter(key => opts.has(key)).length > 1) { report(line, 'to / state / effect / close はいずれか 1 つだけ指定してください。'); invalid = true; }
-      if ((model.screenActions?.length ?? 0) >= DIAGRAM_LIMITS.screenActions) { report(line, 'action は 100 文までです。'); invalid = true; }
-      if (opts.has('to') && model.edges.length >= DIAGRAM_LIMITS.edges) { report(line, '接続は 100 本までです。'); invalid = true; }
+      if ((model.screenActions?.length ?? 0) >= DIAGRAM_LIMITS.screenActions) { report(line, `action は ${DIAGRAM_LIMITS.screenActions} 文までです。`); invalid = true; }
+      if (opts.has('to') && model.edges.length >= DIAGRAM_LIMITS.edges) { report(line, `接続は ${DIAGRAM_LIMITS.edges} 本までです。`); invalid = true; }
       if (invalid) continue;
       const action: DiagramScreenAction = { node: tokens[1].value, label: tokens[2].value, line };
       for (const key of ['to','state','effect','when'] as const) if (opts.has(key)) action[key] = opts.get(key)!.value;

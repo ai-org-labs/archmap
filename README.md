@@ -72,7 +72,7 @@ if (!model.diagnostics.some(item => item.severity === 'error')) {
 npm run verify:diagrams
 ```
 
-5種類のサンプルと40ノード構成の計測は `npm run bench:diagrams` で実行します。結果は実行端末依存の `parse + layout + SVG` 時間であり、ブラウザーの描画時間は含みません。
+5種類のサンプルと40ノード構成、400ノード・200グループ構成、400ノード・1,000接続構成の計測は `npm run bench:diagrams` で実行します。結果は実行端末依存の `parse + layout + SVG` 時間であり、ブラウザーの描画時間は含みません。
 
 ## 旧構文からの移行
 
