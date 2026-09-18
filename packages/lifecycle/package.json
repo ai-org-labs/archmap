@@ -1,6 +1,6 @@
 {
   "name": "@archmap/lifecycle",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Requirements and lifecycle semantic graph plugin for ArchMap",
   "license": "Apache-2.0",
   "type": "module",
@@ -23,7 +23,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@archmap/core": "^0.5.1"
+    "@archmap/core": "^0.5.2"
   },
   "devDependencies": {
     "@archmap/core": "file:../..",
