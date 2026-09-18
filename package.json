@@ -1,6 +1,6 @@
 {
   "name": "@archmap/core",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Readable architecture diagrams: system, layers, sequence, screens, and activity. Browser-only SVG rendering.",
   "license": "Apache-2.0",
   "homepage": "https://ai-org-labs.github.io/archmap/",
