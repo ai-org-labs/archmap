@@ -100,7 +100,7 @@ function markdown(text: string): { body: string; toc: string } {
   }
   return { body: html.join(""), toc: toc.join("") };
 }
-const catalogMarkup = `<div class="catalog-tools"><label for="icon-filter">アイコンを検索</label><input type="search" id="icon-filter" placeholder="例: aws, database, github" autocomplete="off"><span id="icon-count"></span></div><div id="icon-catalog-list" class="icon-catalog"></div><button type="button" id="icon-show-more" class="button small catalog-more">さらに表示</button>`;
+const catalogMarkup = `<div class="catalog-tools"><label for="icon-filter">アイコンを検索</label><input type="search" id="icon-filter" placeholder="例: aws, database, github" autocomplete="off"><span id="icon-count"></span><button type="button" id="download-icon-list" class="button small" title="検索条件に関係なく全アイコンと別名を保存">${icon("download")} 一覧を保存 (.txt)</button></div><div id="icon-catalog-list" class="icon-catalog"></div><button type="button" id="icon-show-more" class="button small catalog-more">さらに表示</button>`;
 function mountCatalog(): void {
   const catalog = getDiagramIconCatalog(); let limit = 60;
   function filterIcons(): void {
@@ -116,6 +116,11 @@ function mountCatalog(): void {
   }
   $("icon-filter").addEventListener("input", () => { limit = 60; filterIcons(); });
   $("icon-show-more").addEventListener("click", () => { limit += 60; filterIcons(); });
+  $("download-icon-list").addEventListener("click", () => {
+    const rows = catalog.map(item => `${item.key}\t${item.label.replace(/[\t\r\n]+/g, ' ')}`);
+    const text = ['ArchMap Icon List', `全 ${catalog.length} キー（別名を含む）`, '使い方: node ID "名前" icon=KEY', '', 'KEY\t名称', ...rows, ''].join('\n');
+    download(new Blob([text], {type:"text/plain;charset=utf-8"}), "archmap-icons.txt");
+  });
   filterIcons();
 }
 // Include the canonical reference so the copied prompt follows syntax updates.
