@@ -376,3 +376,43 @@ it('accepts parallel activity bars and validates directed distinct branch counts
     ...['system','screens','layers','sequence'].map(kind=>parallelActivity.replace('activity TD',kind)),
   ]) expect(errors(source).length).toBeGreaterThan(0);
 });
+
+it('parses independent screen actions with forward references and typed outcomes', () => {
+  const model=parseDiagram(`diagram screens
+action home "Open" to=dialog
+action home "Edit" state="editing" when="viewing"
+action home "Copy" effect="clipboard"
+action home "Download"
+action dialog "Close" close=true
+node home "Home"
+node dialog "Confirm" shape=modal`);
+  expect(model.diagnostics).toEqual([]);
+  expect(model.screenActions).toHaveLength(5);
+  expect(model.edges).toHaveLength(1);
+  expect(model.edges[0]).toMatchObject({from:'home',to:'dialog',actionLine:2});
+  expect(model.screenActions![1]).toMatchObject({state:'editing',when:'viewing'});
+});
+it.each([
+  'action missing "Copy"', 'action home', 'action "home" "Copy"',
+  'action home "Go" to=missing', 'action home "Go" to=home',
+  'action home "Go" to="dialog"', 'action home "Edit" state=editing',
+  'action home "Edit" state=""', 'action home "Copy" effect=clipboard',
+  'action home "Copy" when=viewing', 'action home "Copy" when=""',
+  'action home "Close" close=true', 'action dialog "Close" close=false',
+  'action dialog "Close" close="true"', 'action home "Go" to=dialog state="editing"',
+  'action home "Go" to=dialog effect="save"', 'action home "Go" unknown=true',
+  'action home "Copy" effect="x" effect="y"',
+  `${'action home "Copy"\n'.repeat(101)}`,
+  `${'home -> dialog\n'.repeat(100)}action home "Go" to=dialog`,
+])('rejects malformed screen actions: %s', source => {
+  expect(errors(`diagram screens\nnode home "Home"\nnode dialog "Dialog" shape=modal\n${source}`).length).toBeGreaterThan(0);
+});
+it('restricts modal and screen actions to screens and compatible owners and targets', () => {
+  for(const kind of ['system','layers','activity','sequence']) {
+    expect(errors(`diagram ${kind}\nnode a "A" shape=modal`).length).toBeGreaterThan(0);
+    expect(errors(`diagram ${kind}\nnode a "A"\naction a "Copy"`).length).toBeGreaterThan(0);
+  }
+  expect(errors('diagram screens\nnode a "A" shape=decision\naction a "Copy"').length).toBeGreaterThan(0);
+  expect(errors('diagram screens\nnode a "A" shape=decision\nnode b "B"\naction b "Go" to=a').length).toBeGreaterThan(0);
+  expect(errors('diagram screens\nnode action "A"\nnode b "B"\naction -> b')).toEqual([]);
+});

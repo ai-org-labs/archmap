@@ -1,6 +1,6 @@
 import { DIAGRAM_KINDS } from "./types.js";
 import type {
-  DiagramColor, DiagramDirection, DiagramKind, DiagramModel, DiagramNode, DiagramShape,
+  DiagramScreenAction, DiagramColor, DiagramDirection, DiagramKind, DiagramModel, DiagramNode, DiagramShape,
 } from "./types.js";
 
 /** Keep malformed or generated documents cheap enough to edit in the browser. */
@@ -16,6 +16,7 @@ export const DIAGRAM_LIMITS = Object.freeze({
   diagnostics: 50,
   activationEvents: 200,
   activationDepth: 8,
+  screenActions: 100,
   fragmentEvents: 128,
   fragmentDepth: 4,
 });
@@ -28,7 +29,7 @@ const ICON = /^[A-Za-z0-9][A-Za-z0-9_./:-]{0,79}$/;
 // isolated surrogate halves without rejecting emoji or other supplementary text.
 const INVALID_XML_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ud800-\udfff\ufffe\uffff]/u;
 const COLORS = new Set<DiagramColor>(["blue", "green", "orange", "purple", "gray"]);
-const SHAPES = new Set<DiagramShape>(["card", "database", "decision", "start", "end", "fork", "join"]);
+const SHAPES = new Set<DiagramShape>(["card", "database", "decision", "start", "end", "fork", "join", "modal"]);
 
 function arrowAt(source: string, index: number): string | undefined {
   for (const arrow of ["<->", "-->", "->"]) {
@@ -214,6 +215,30 @@ export function parseDiagram(source: string): DiagramModel {
       continue;
     }
 
+    if (command === "action" && tokens[1]?.kind !== "arrow") {
+      if (model.kind !== 'screens') { report(line, 'action は screens で使用できます。'); continue; }
+      if (tokens[1]?.kind !== 'word' || !ID.test(tokens[1].value)) { report(line, 'action 画面ID "操作名" の形式で指定してください。'); continue; }
+      if (!validLabel(tokens[2], line, report)) continue;
+      const opts = options(tokens.slice(3), ['to', 'state', 'effect', 'when', 'close'], line, report);
+      if (!opts) continue;
+      let invalid = false;
+      for (const [key, token] of opts) {
+        if (['state','effect','when'].includes(key) ? !validLabel(token, line, report) : token.kind !== 'word' || (key === 'to' ? !ID.test(token.value) : token.value !== 'true')) {
+          report(line, `${key} の値が無効です。to は ID、close は true、state / effect / when は引用符付きの文字列です。`); invalid = true;
+        }
+      }
+      if (['to','state','effect','close'].filter(key => opts.has(key)).length > 1) { report(line, 'to / state / effect / close はいずれか 1 つだけ指定してください。'); invalid = true; }
+      if ((model.screenActions?.length ?? 0) >= DIAGRAM_LIMITS.screenActions) { report(line, 'action は 100 文までです。'); invalid = true; }
+      if (opts.has('to') && model.edges.length >= DIAGRAM_LIMITS.edges) { report(line, '接続は 100 本までです。'); invalid = true; }
+      if (invalid) continue;
+      const action: DiagramScreenAction = { node: tokens[1].value, label: tokens[2].value, line };
+      for (const key of ['to','state','effect','when'] as const) if (opts.has(key)) action[key] = opts.get(key)!.value;
+      if (opts.has('close')) action.close = true;
+      (model.screenActions ??= []).push(action);
+      if (action.to) model.edges.push({from: action.node, to: action.to, label: action.label, style: 'solid', bidirectional: false, line, actionLine: line});
+      continue;
+    }
+
     if ((command === "node" || command === "group") && tokens[1]?.kind !== "arrow") {
       const id = tokens[1];
       if (!id || id.kind !== "word" || !ID.test(id.value)) {
@@ -248,13 +273,14 @@ export function parseDiagram(source: string): DiagramModel {
       }
       if (model.nodes.length >= DIAGRAM_LIMITS.nodes) reject(`ノードは ${DIAGRAM_LIMITS.nodes} 個まで指定できます。`);
       const shape = opts.get("shape")?.value ?? "card";
+      if (shape === 'modal' && model.kind !== 'screens') reject("shape=modal は screens で使用できます。");
       if ((shape === 'fork' || shape === 'join') && model.kind !== 'activity') reject("shape=fork / join は activity で使用できます。");
-      if (!SHAPES.has(shape as DiagramShape)) reject("shape は card、database、decision、start、end、fork、join から選んでください。");
+      if (!SHAPES.has(shape as DiagramShape)) reject("shape は card、database、decision、start、end、fork、join、modal から選んでください。");
       const group = opts.get("group")?.value;
       if (group && !ID.test(group)) reject("group には有効なグループ ID を指定してください。");
       const icon = opts.get("icon")?.value;
       if (icon && !ICON.test(icon)) reject("icon には英数字で始まる 80 文字以内のアイコンキーを指定してください。英数字、_、-、.、:、/ が使えます。");
-      if (icon && ["decision", "start", "end", "fork", "join"].includes(shape)) reject("icon を使用できる shape は card と database です。それ以外の図形では icon を省略してください。");
+      if (icon && ["decision", "start", "end", "fork", "join"].includes(shape)) reject("icon を使用できる shape は card、database、modal です。それ以外の図形では icon を省略してください。");
       let at: [number, number] | undefined;
       const position = opts.get("at")?.value;
       if (position !== undefined) {
@@ -296,11 +322,21 @@ export function parseDiagram(source: string): DiagramModel {
       model.edges.push({ from: command, to: target.value, label: label?.value ?? "", style: tokens[1].value === "-->" ? "dashed" : "solid", bidirectional: tokens[1].value === "<->", line });
       continue;
     }
-    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、接続、activate、deactivate、alt、opt、loop、par、else、and、end を使用してください。`);
+    report(line, `未対応の文「${command}」です。diagram、style、title、group、node、action、接続、activate、deactivate、alt、opt、loop、par、else、and、end を使用してください。`);
   }
   if (!hasHeader && firstStatement) report(1, "最初の文で diagram system|layers|sequence|screens|activity を宣言してください。");
   if (hasHeader && model.nodes.length === 0) report(1, "少なくとも 1 個の node を宣言してください。");
   const nodeIds = new Set(model.nodes.map((node) => node.id));
+  for (const action of model.screenActions ?? []) {
+    const owner = model.nodes.find(node => node.id === action.node);
+    if (!owner || !['card','modal'].includes(owner.shape)) report(action.line, 'action の所属先には宣言済みの画面またはモーダルを指定してください。');
+    if (action.close && owner?.shape !== 'modal') report(action.line, 'close=true はモーダルのアクション専用です。');
+    if (action.to) {
+      const target = model.nodes.find(node => node.id === action.to);
+      if (!target || !['card','modal'].includes(target.shape)) report(action.line, 'to には宣言済みの画面またはモーダルを指定してください。');
+      if (action.to === action.node) report(action.line, '同じ画面内の操作には to ではなく state / effect を使用してください。');
+    }
+  }
   for (const node of model.nodes.filter(node => node.shape === 'fork' || node.shape === 'join')) {
     const incoming = model.edges.filter(edge => edge.to === node.id);
     const outgoing = model.edges.filter(edge => edge.from === node.id);

@@ -272,11 +272,11 @@ b -> c "非常に長い日本語のアクション名を複数行に折り返し
   const long = layout.nodes[1].screen!.actions[2];
   expect(long.lines.length).toBeGreaterThan(1);
   expect(layout.nodes[2].screen!.actions).toEqual([]);
-  expect(result.svg).toContain('遷移の定義なし');
+  expect(result.svg).toContain('アクションの定義なし');
   expect(result.svg).not.toContain('class="archmap-edge-label"');
   for (const node of layout.nodes) for (const action of node.screen!.actions) {
     const edge = layout.edges.find(e => e.edge === action.edge)!;
-    const point = action.edge.from === node.node.id ? edge.points[0] : edge.points[edge.points.length - 1];
+    const point = action.edge!.from === node.node.id ? edge.points[0] : edge.points[edge.points.length - 1];
     expect(point.y).toBe(node.y + action.top + action.height / 2);
     expect(action.top + action.height).toBeLessThan(node.height);
   }
@@ -571,4 +571,56 @@ j1 -> done`);
   expect(result.model.diagnostics).toEqual([]);
   assertGeometry(result.layout,'activity');
   for(const node of result.layout.nodes.filter(n=>n.junctionLabel)) for(const edge of result.layout.edges) for(let i=1;i<edge.points.length;i++) expect(segmentIntersectsBox(edge.points[i-1],edge.points[i],node.junctionLabel!,4)).toBe(false);
+});
+
+it('renders modal, local and state actions without inventing navigation edges', () => {
+  const source=`diagram screens LR
+group area "Account"
+node home "Profile" icon=user group=area at=1,1
+node modal "Delete confirmation" shape=modal icon=shield at=2,2
+node next "Details" at=2,1
+action home "Edit" state="Editing" when="Viewing"
+home -> next "Read more"
+action home "Copy" effect="${'Clipboard '.repeat(10)}"
+action home "Delete" to=modal
+action home "Download"
+action home "Save" state="Viewing" when="Editing"
+action modal "Cancel" close=true
+action modal "Confirm" to=next`;
+  const result=renderDiagram(parseDiagram(source));
+  expect(result.model.diagnostics).toEqual([]);
+  expect(result.layout.edges).toHaveLength(3);
+  const home=result.layout.nodes.find(n=>n.node.id==='home')!,modal=result.layout.nodes.find(n=>n.node.id==='modal')!;
+  expect(modal.width).toBeLessThan(home.width);
+  expect(home.screen!.actions.map(a=>a.label)).toEqual(['Edit','Read more','Copy','Delete','Download','Save']);
+  expect(home.screen!.actions.filter(a=>a.edge)).toHaveLength(2);
+  for(const node of result.layout.nodes) for(const action of node.screen?.actions ?? []) {
+    expect(action.top+action.height).toBeLessThan(node.height);
+    if(action.edge) {
+      const edge=result.layout.edges.find(e=>e.edge===action.edge)!;
+      expect(edge.points[0].y).toBe(node.y+action.top+action.height/2);
+      expect(edge.labelBox).toBeUndefined();
+    }
+  }
+  expect(result.svg).toContain('data-screen-kind="modal"');
+  for(const kind of ['state','local','modal','close','navigate']) expect(result.svg).toContain(`data-action-kind="${kind}"`);
+  expect(result.svg).toContain('MODAL');assertGeometry(result.layout,'screens');
+});
+
+it('uses centered screen columns when a modal is narrower than its destination', () => {
+  const result=renderDiagram(parseDiagram(`diagram screens
+node home "Home" at=1,1
+node modal "Dialog" shape=modal at=1,2
+action home "Open" to=modal
+action modal "Done" to=home`));
+  expect(result.model.diagnostics).toEqual([]);
+  const [home,modal]=result.layout.nodes;
+  expect(home.x+home.width/2).toBe(modal.x+modal.width/2);
+  for(const edge of result.layout.edges) {
+    const source=result.layout.nodes.find(n=>n.node.id===edge.edge.from)!;
+    const target=result.layout.nodes.find(n=>n.node.id===edge.edge.to)!;
+    expect(edge.points[0].x).toBe(source.x+source.width);
+    expect(edge.points[edge.points.length-1].y).toBe(target.y);
+  }
+  assertGeometry(result.layout,'screens');
 });

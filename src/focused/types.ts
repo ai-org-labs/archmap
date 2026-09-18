@@ -3,7 +3,7 @@ export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activi
 export type DiagramKind = typeof DIAGRAM_KINDS[number];
 export type DiagramDirection = "LR" | "TD";
 export type DiagramColor = "blue" | "green" | "orange" | "purple" | "gray";
-export type DiagramShape = "card" | "database" | "decision" | "start" | "end" | "fork" | "join";
+export type DiagramShape = "card" | "database" | "decision" | "start" | "end" | "fork" | "join" | "modal";
 export interface DiagramNode {
   id: string;
   label: string;
@@ -16,7 +16,8 @@ export interface DiagramNode {
   line: number;
 }
 export interface DiagramGroup { id: string; label: string; color: DiagramColor; line: number; parent?: string }
-export interface DiagramEdge { from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
+export interface DiagramScreenAction { node: string; label: string; to?: string; state?: string; effect?: string; when?: string; close?: boolean; line: number }
+export interface DiagramEdge { actionLine?: number; from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
 export interface DiagramFragmentEvent { action: "alt" | "opt" | "loop" | "par" | "else" | "and" | "end"; label: string; afterEdge: number; line: number }
 export interface DiagramActivationEvent { action: "activate" | "deactivate"; node: string; afterEdge: number; line: number }
 export interface DiagramDiagnostic { line: number; severity: "error" | "warning"; message: string }
@@ -29,6 +30,7 @@ export interface DiagramModel {
   groups: DiagramGroup[];
   edges: DiagramEdge[];
   diagnostics: DiagramDiagnostic[];
+  screenActions?: DiagramScreenAction[];
   activationEvents?: DiagramActivationEvent[];
   fragmentEvents?: DiagramFragmentEvent[];
 }
@@ -39,7 +41,7 @@ export interface DiagramScreenContent {
   description: string[];
   headerHeight: number;
   height: number;
-  actions: Array<{ edge: DiagramEdge; label: string; lines: string[]; top: number; height: number }>;
+  actions: Array<{ edge?: DiagramEdge; line: number; kind?: string; detail?: string[]; label: string; lines: string[]; top: number; height: number }>;
 }
 export interface DiagramLayoutNode extends DiagramBox { node: DiagramNode; iconMode?: boolean; junction?: DiagramBox; junctionLabel?: DiagramBox; screen?: DiagramScreenContent }
 export interface DiagramLayoutEdge { edge: DiagramEdge; points: DiagramPoint[]; labelBox?: DiagramBox }

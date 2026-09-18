@@ -46,15 +46,25 @@ function iconNodeSize(node: DiagramNode) {
   return { width: 160, height: 62 + text.title.length * 21 + (text.description.length ? 6 + text.description.length * 17 : 0) + 6 };
 }
 function screenContent(node: DiagramNode, model: DiagramModel): DiagramScreenContent {
-  const title = wrapText(node.label, node.icon ? 204 : 240);
-  const description = node.description ? wrapText(node.description, 240, BODY_SIZE) : [];
+  const width = node.shape === 'modal' ? 240 : 280;
+  const title = wrapText(node.label, width - (node.icon ? 76 : 40));
+  const description = node.description ? wrapText(node.description, width - 40, BODY_SIZE) : [];
   const headerHeight = 27 + 18 + Math.max(24, title.length * 21) + (description.length ? 8 + description.length * 17 : 0) + 16;
   let top = headerHeight + 26;
-  const actions = model.edges.filter(edge => edge.from === node.id || edge.bidirectional && edge.to === node.id).map(edge => {
+  const items: Array<{ edge?: DiagramModel['edges'][number]; label: string; line: number; kind?: string; detail?: string }> = model.edges.filter(edge => !edge.actionLine && (edge.from === node.id || edge.bidirectional && edge.to === node.id)).map(edge => {
     const destination = model.nodes.find(n => n.id === (edge.from === node.id ? edge.to : edge.from));
-    const label = edge.label || (destination ? `${destination.label}へ` : '画面へ移動');
-    const lines = wrapText(label, 232, 13), height = Math.max(42, lines.length * 18 + 20);
-    const action = { edge, label, lines, top, height }; top += height;
+    return { edge, label: edge.label || (destination ? `${destination.label}へ` : '画面へ移動'), line: edge.line, ...(destination?.shape === 'modal' ? { kind: 'modal', detail: 'モーダルを開く' } : {}) };
+  });
+  for (const action of model.screenActions ?? []) if (action.node === node.id) {
+    const target = model.nodes.find(n => n.id === action.to);
+    const kind = action.to ? target?.shape === 'modal' ? 'modal' : 'navigate' : action.state ? 'state' : action.close ? 'close' : 'local';
+    const detail = action.state ? `状態 → ${action.state}` : action.close ? 'モーダルを閉じる' : action.to ? kind === 'modal' ? 'モーダルを開く' : '画面へ移動' : `画面内操作${action.effect ? ` · ${action.effect}` : ''}`;
+    items.push({ edge: model.edges.find(edge => edge.actionLine === action.line), label: action.label, line: action.line, kind, detail: `${action.when ? `${action.when}のとき · ` : ''}${detail}` });
+  }
+  const actions = (model.screenActions?.length ? items.sort((a,b)=>a.line-b.line) : items).map(item => {
+    const lines = wrapText(item.label, width - 48, 13), detail = item.detail ? wrapText(item.detail, width - 48, 10) : undefined;
+    const height = Math.max(42, lines.length * 18 + (detail ? 6 + detail.length * 14 : 0) + 20);
+    const action = { ...item, detail, lines, top, height }; top += height;
     return action;
   });
   return { title, description, headerHeight, actions, height: actions.length ? top + 10 : headerHeight + 46 };
@@ -295,9 +305,9 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
       const text = junctionText(node);
       return model.direction === 'TD' ? { width: Math.max(240, 120 + 2 * (24 + text.width)), height: Math.max(12, text.height) } : { width: 240, height: 120 + 2 * (24 + text.height) };
     }
-    if (model.kind === 'screens' && node.shape === 'card') {
+    if (model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal')) {
       const screen = screenContent(node, model);
-      return { width: 280, height: screen.height, screen };
+      return { width: node.shape === 'modal' ? 240 : 280, height: screen.height, screen };
     }
     return usesIcon(node) ? iconNodeSize(node) : sizeNode(node, model.kind);
   });
@@ -316,7 +326,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const marginY = titleHeight + groupHeader * nesting + 48;
   const xGutters = Array.from({ length: columns + 1 }, (_, i) => marginX - gapX / 2 + i * pitchX);
   const yGutters = Array.from({ length: rows + 1 }, (_, i) => marginY - gapY / 2 + i * pitchY);
-  const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) || model.kind === 'screens' && node.shape === 'card' ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
+  const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) || model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal') ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
   const nodeById = new Map(nodes.map(n => [n.node.id, n]));
   for (const node of nodes) if (node.node.shape === 'fork' || node.node.shape === 'join') {
     const cx = node.x + node.width / 2, cy = node.y + node.height / 2, text = junctionText(node.node);
@@ -355,8 +365,9 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     if (a.junction) sa = model.direction === 'TD' ? (b.y >= a.y ? 'bottom' : 'top') : (b.x >= a.x ? 'right' : 'left');
     if (b.junction) sb = model.direction === 'TD' ? (a.y <= b.y ? 'top' : 'bottom') : (a.x <= b.x ? 'left' : 'right');
     // An action owns its source port. Incoming transitions attach to the screen header.
-    if (a.screen) sa = b.x < a.x ? 'left' : 'right';
-    if (b.screen) sb = a === b ? 'top' : edge.bidirectional ? a.x < b.x ? 'left' : 'right' : a.x === b.x ? 'top' : a.x < b.x ? 'left' : 'right';
+    const screenDeltaX = b.x + b.width / 2 - a.x - a.width / 2;
+    if (a.screen) sa = screenDeltaX < -1 ? 'left' : 'right';
+    if (b.screen) sb = a === b ? 'top' : edge.bidirectional ? screenDeltaX > 1 ? 'left' : 'right' : Math.abs(screenDeltaX) < 1 ? 'top' : screenDeltaX > 0 ? 'left' : 'right';
     // A return to the preceding screen goes around the row, away from forward arrivals.
     if (a.screen && b.screen && a.y === b.y && b.x < a.x && !edge.bidirectional && model.edges.some(other => other.from === edge.to && other.to === edge.from)) {
       sa = 'right'; sb = 'top';

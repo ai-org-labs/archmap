@@ -96,10 +96,16 @@ node detail "商品詳細" description="サイズ・カラーを選択" icon=bro
 node cart "カート" description="注文内容を確認" icon=browser at=3,1
 node checkout "お支払い" description="配送先と決済" icon=shield color=purple at=3,2
 node complete "注文完了" description="注文番号を表示" icon=browser color=green at=2,2
+node settings "表示設定" shape=modal color=purple at=1,2
 
 home -> detail "商品を選ぶ"
 home -> cart "カートを見る"
+action home "表示設定を開く" to=settings
+action settings "閉じる" close=true
+action detail "URL をコピー" effect="クリップボードに保存"
 detail -> cart "カートに追加"
+action cart "数量を編集" state="編集モード" when="閲覧モード"
+action cart "変更を保存" state="閲覧モード" when="編集モード"
 cart -> checkout "購入に進む"
 cart --> detail "買い物を続ける"
 checkout -> complete "注文を確定"
