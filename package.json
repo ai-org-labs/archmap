@@ -91,7 +91,7 @@
     }
   },
   "devDependencies": {
-    "@archmap/icons": "^0.1.2",
+    "@archmap/icons": "file:vendor/archmap-icons-0.1.3.tgz",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.0.1",
     "@types/three": "^0.184.1",

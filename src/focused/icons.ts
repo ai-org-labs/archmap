@@ -1,4 +1,5 @@
 import { cloudIconEntries, famousServiceIconEntries, installCloudProviderIcons, installFamousServiceIcons } from "@archmap/icons";
+import type { ServiceIconEntry } from "@archmap/icons";
 import { getIcon, listIcons, registerIcon } from "../icons.js";
 
 const generic: Record<string, [string, string]> = {
@@ -29,7 +30,7 @@ export function getDiagramIconCatalog(): Array<{ key: string; label: string }> {
   const names = new Map<string, string>([
     ...Object.entries(generic).map(([key, [label]]) => [key, label] as [string, string]),
     ...cloudIconEntries.flatMap((entry) => [entry.key, ...(entry.aliases ?? [])].map((key) => [`${entry.provider}/${key}`, entry.title] as [string, string])),
-    ...famousServiceIconEntries.map((entry) => [entry.key, entry.title] as [string, string]),
+    ...(famousServiceIconEntries as readonly ServiceIconEntry[]).flatMap((entry) => [entry.key, ...(entry.aliases ?? [])].map((key) => [key, entry.title] as [string, string])),
   ]);
   return listIcons().filter((key) => !!getIcon(key)).sort().map((key) => ({ key, label: names.get(key) ?? key }));
 }

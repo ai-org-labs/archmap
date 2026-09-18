@@ -17,13 +17,14 @@ when publishing or redistributing ArchMap packages.
 | Package | License | Notes |
 |---|---|---|
 | `three` | MIT | Optional peer dependency used only when consumers import and install `archmap/views3d/three-view`. |
-| `@archmap/icons` | MIT | Optional icon pack used by examples and consumers that opt in to third-party icons. |
+| `@archmap/icons` | Apache-2.0 | Optional icon pack; the site bundles the pinned 0.1.3 snapshot in `vendor/`. |
 | `simple-icons` | CC0-1.0 | Used by the bundled sample `archmap/packs/cloud-icons` source for CC0 icon paths and by `@archmap/icons`. |
 
 ## Focused Playground Icons
 
 The new static site and downloadable standalone playground bundle
-`@archmap/icons` (MIT): AWS, Google Cloud, Azure, and common service assets.
+`@archmap/icons` 0.1.3 (Apache-2.0): AWS, Google Cloud, Azure, and common service assets.
+The packaged `LICENSE` and `NOTICE` are included in `vendor/archmap-icons-0.1.3.tgz`.
 The icons are local inline SVGs and require no runtime network access.
 Vendor assets retain their original trademark and usage terms; the package's
 software license does not grant trademark rights. Generic line icons in

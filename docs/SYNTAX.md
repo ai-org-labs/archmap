@@ -238,7 +238,7 @@ choose -> reject "いいえ"
 
 ### アイコン
 
-`icon=KEY` はローカルの SVG レジストリーから選択します。アイコンキーは英字から始まり、英数字、`_`、`-`、`.`、`:`、`/` を使用できます。80 文字までです。キーは大文字・小文字を区別します。
+`icon=KEY` はローカルの SVG レジストリーから選択します。アイコンキーは英数字から始まり、英数字、`_`、`-`、`.`、`:`、`/` を使用できます。80 文字までです。キーは大文字・小文字を区別します。ノードの ID は引き続き英字または `_` から始めます。
 
 | 種類 | キーの例 |
 | --- | --- |
@@ -246,7 +246,10 @@ choose -> reject "いいえ"
 | AWS | `aws/lambda`、`aws/rds` |
 | Google Cloud | `gcp/cloud_run`、`gcp/cloud_sql`、`gcp/pub_sub`、`gcp/cloud_storage` |
 | Azure | `azure/app_services` |
-| 開発ツール・サービス | `github`、`docker`、`postgresql` |
+| 開発ツール・サービス | `github`、`gitlab`、`argocd`、`docker`、`postgresql` |
+| AI・外部サービス | `openai`、`anthropic`、`stripe`、`1password` |
+
+オンライン版とオフライン版には `@archmap/icons` 0.1.3 の全アイコンを同梱しています。AWS 305、Google Cloud 261、Azure 705、共通サービス 98 種に対応し、パッケージの別名もそのまま `icon=KEY` に使用できます。例えば `icon=onepassword` と `icon=1password` は同じアイコンです。パッケージが文字バッジで提供するサービスは、同じ文字バッジを表示します。
 
 プレイグラウンドのアイコン一覧は、インストール済みレジストリーから取得したキーの完全な一覧です。パーサーはキーの形式を検証します。形式が正しくても未登録のキーは、レンダラーの汎用フォールバックアイコンで表示します。外部 URL からの読み込みや、DSL による生の SVG の埋め込みは行いません。
 

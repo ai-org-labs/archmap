@@ -23,7 +23,7 @@ export const DIAGRAM_LIMITS = Object.freeze({
 type Token = { kind: "word" | "string" | "equals" | "arrow"; value: string };
 type Report = (line: number, message: string) => void;
 const ID = /^[A-Za-z_][A-Za-z0-9_-]*$/;
-const ICON = /^[A-Za-z][A-Za-z0-9_./:-]{0,79}$/;
+const ICON = /^[A-Za-z0-9][A-Za-z0-9_./:-]{0,79}$/;
 // Unicode mode treats valid surrogate pairs as one code point, so this also catches
 // isolated surrogate halves without rejecting emoji or other supplementary text.
 const INVALID_XML_TEXT = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ud800-\udfff\ufffe\uffff]/u;
@@ -253,7 +253,7 @@ export function parseDiagram(source: string): DiagramModel {
       const group = opts.get("group")?.value;
       if (group && !ID.test(group)) reject("group には有効なグループ ID を指定してください。");
       const icon = opts.get("icon")?.value;
-      if (icon && !ICON.test(icon)) reject("icon には英字で始まる 80 文字以内のアイコンキーを指定してください。英数字、_、-、.、:、/ が使えます。");
+      if (icon && !ICON.test(icon)) reject("icon には英数字で始まる 80 文字以内のアイコンキーを指定してください。英数字、_、-、.、:、/ が使えます。");
       if (icon && ["decision", "start", "end", "fork", "join"].includes(shape)) reject("icon を使用できる shape は card と database です。それ以外の図形では icon を省略してください。");
       let at: [number, number] | undefined;
       const position = opts.get("at")?.value;
